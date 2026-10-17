@@ -17,7 +17,7 @@ public sealed class FeatureStoryTests
         var documented = Documented.With();
         documented.Files.Draft(Repository, "docs/features/refund-webhooks/v1-proposed.md", "# Refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
         documented.Files.Draft(Repository, "docs/features/refund-webhooks/v2-deviation.md", "# Refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n  ContainerDb(keys, \"Idempotency\", \"Redis\")\n```\n");
-        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
+        var entry = documented.Entry();
 
         var story = Outcomes.Present(await entry.StoryAsync(Repository, Refunds, Documented.Cancellation));
 
@@ -35,7 +35,7 @@ public sealed class FeatureStoryTests
         documented.Files.Draft(Documented.FakeJobs.Worktree(documented.LastWriter), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
         await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
         documented.Files.Draft(Documented.Repository, "docs/features/payouts/README.md", "# Payout scheduler\n");
-        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
+        var entry = documented.Entry();
 
         var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
 
@@ -48,7 +48,7 @@ public sealed class FeatureStoryTests
     public async Task AFeatureWithoutVersionsHasNoStoryAsync()
     {
         var documented = Documented.With();
-        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
+        var entry = documented.Entry();
 
         Assert.True((await entry.StoryAsync(Repository, Refunds, Documented.Cancellation)).IsNone);
     }

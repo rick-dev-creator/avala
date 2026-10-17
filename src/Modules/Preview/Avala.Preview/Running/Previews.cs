@@ -22,6 +22,11 @@ internal sealed class Previews(PreviewBook book, RunBook runs, PreviewRunner run
             running => Task.FromResult(Result<PreviewRun, PreviewError>.Success(new PreviewRun(job, running.Name))),
             () => runner.RunAsync(job, cancellationToken).AsTask());
 
+    public async ValueTask<Result<PreviewRun, PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken) =>
+        await runs.Of(job).Match(
+            running => Task.FromResult(Result<PreviewRun, PreviewError>.Success(new PreviewRun(job, running.Name))),
+            () => runner.RunSiteAsync(job, config, cancellationToken).AsTask());
+
     public async ValueTask<Result<PreviewRun, PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken) =>
         await runs.Of(job).Match<Task<Result<PreviewRun, PreviewError>>>(
             async running =>

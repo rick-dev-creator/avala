@@ -70,6 +70,23 @@ internal sealed class Documented
 
     public JobId LastWriter => Jobs.Submitted[^1].Job;
 
+    public Installed Docfx { get; } = new();
+
+    public DocumentationEntry Entry()
+    {
+        var reads = new DocumentationReads(Rules, new FeatureCatalog(Files, Files), Files, new JobPlaces(Jobs, Jobs));
+
+        return new DocumentationEntry(Rules, Book, reads, new SiteDesk(reads, Files, new Docfx(Docfx), new SiteFiller(Jobs, new FixedRoles())));
+    }
+
+    internal sealed class Installed : Sdk.Processes.IProcessRunner
+    {
+        public bool IsInstalled { get; set; } = true;
+
+        public ValueTask<Result<Sdk.Processes.ProcessOutcome, Sdk.Processes.ProcessError>> RunAsync(Sdk.Processes.ProcessRequest request, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<Sdk.Processes.ProcessOutcome, Sdk.Processes.ProcessError>.Success(new Sdk.Processes.ProcessOutcome(IsInstalled ? 0 : 127, "2.78.3", string.Empty)));
+    }
+
     public IReadOnlyList<T> Published<T>() => [.. Bus.Published.OfType<T>()];
 
     internal sealed class FakeJobs : IJobs, IJobCatalog, IWorkspaces

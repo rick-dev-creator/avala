@@ -6,7 +6,7 @@ using Avala.Sdk;
 
 namespace Avala.Documentation.Writing;
 
-internal sealed class DocumentationEntry(IDocsRules rules, DocumentationBook book, DocumentationReads reads) : IDocumentation
+internal sealed class DocumentationEntry(IDocsRules rules, DocumentationBook book, DocumentationReads reads, SiteDesk site) : IDocumentation
 {
     public Task<RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken) => reads.RepositoryAsync(repository, cancellationToken);
 
@@ -18,7 +18,11 @@ internal sealed class DocumentationEntry(IDocsRules rules, DocumentationBook boo
     public Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken) => reads.StoryAsync(folder, feature, cancellationToken);
 
     public async Task<Option<JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) =>
-        await OfJob(job).Match(found => reads.JobAsync(found, cancellationToken), () => Task.FromResult(Option<JobDocs>.None));
+        await OfJob(job).Match(found => reads.JobAsync(found, site.StateAsync, cancellationToken), () => Task.FromResult(Option<JobDocs>.None));
+
+    public Task<DocsSite> SiteAsync(string folder, CancellationToken cancellationToken) => site.StateAsync(folder, cancellationToken);
+
+    public Task<Result<SiteCreated, DocumentationError>> CreateSiteAsync(string repository, CancellationToken cancellationToken) => site.CreateAsync(repository, cancellationToken);
 
     public async Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken) =>
         await book.ChooseAsync(job, choice, cancellationToken);

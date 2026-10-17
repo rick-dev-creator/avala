@@ -22,6 +22,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
     private readonly TestUiDispatcher ui = new();
     private readonly StrongReferenceMessenger messenger = new();
     private readonly FakeDocumentation documentation = new();
+    private readonly FakeSitePreviews previews = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -63,6 +64,22 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal([new FeatureDocsRequested("/repos/ledger", Payouts)], asked);
     }
 
+    [Fact]
+    public async Task ADocsSiteOpensInThePreviewAndWithoutDocfxThePaneSaysHowToInstallItAsync()
+    {
+        Document(writing: false, site: new DocsSite(true, "docs", true));
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.CanOpenSite, () => "cannot open");
+
+        await ui.RunAsync(() => pane.OpenSiteCommand.ExecuteAsync(null));
+        Document(writing: false, site: new DocsSite(true, "docs", false));
+        await ui.PresentedAsync(pane, () => !pane.CanOpenSite, () => "can open");
+
+        Assert.Equal([(job, "docs/docfx.json")], previews.Served);
+        Assert.Equal(DocsPanePhrases.Install, await ui.ReadAsync(() => pane.SiteHint));
+    }
+
     public void Dispose() => ui.Dispose();
 
     [Fact]
@@ -79,7 +96,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(("Plan v1 · proposed", "None. It is the plan the agent proposed.", 0, true), shown);
     }
 
-    private void Document(bool writing)
+    private void Document(bool writing, DocsSite? site = null)
     {
         var documented = new JobDocumentation(job, Payments)
         {
@@ -87,13 +104,13 @@ public sealed class DocsPaneViewModelScripts : IDisposable
             Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payments/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payments/v2-deviation.md", DateTimeOffset.UnixEpoch)],
             Requests = [new ChangeRequest(1, RequestKind.Steer, "Make sure a refund never applies twice", DateTimeOffset.UnixEpoch, 1) { Version = 2 }],
         };
-        documentation.Job = new JobDocs(documented, "/repos/ledger", DesignStories.Ledger(), new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 1)]));
+        documentation.Job = new JobDocs(documented, "/repos/ledger", DesignStories.Ledger(), new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 1)])) { Site = site ?? new DocsSite(false, "docs", true) };
         board.Publish(ImmutableDictionary<JobId, JobDocumentation>.Empty.Add(job, documented));
     }
 
     private DocsPaneViewModel Pane()
     {
-        var pane = new DocsPaneViewModel(new DocsReader(board, documentation), new LiveFeed(new Pulse(board), ui), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher()));
+        var pane = new DocsPaneViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher()));
         pane.OnRegionContextChanged(job);
         pane.Activate();
 
@@ -102,7 +119,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
 
     private DocsToggleViewModel Toggle()
     {
-        var toggle = new DocsToggleViewModel(new DocsReader(board, documentation), new LiveFeed(new Pulse(board), ui), messenger);
+        var toggle = new DocsToggleViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger);
         toggle.OnRegionContextChanged(job);
 
         return toggle;

@@ -29,6 +29,12 @@ internal interface IDocsPaneViewModel
 
     IReadOnlyList<IFeatureRowViewModel> Others { get; }
 
+    bool CanOpenSite { get; }
+
+    string SiteHint { get; }
+
+    IAsyncRelayCommand OpenSiteCommand { get; }
+
     IRelayCommand CloseCommand { get; }
 }
 
@@ -45,6 +51,7 @@ internal sealed partial class DocsPaneViewModel
     private Option<JobId> job;
     private string played = string.Empty;
     private Option<FeatureStory> stories;
+    private DocsSite site = new(false, "docs", false);
 
     public DocsPaneViewModel(DocsReader reader, LiveFeed feed, IMessenger messenger, C4PlayerViewModel player)
     {
@@ -84,6 +91,13 @@ internal sealed partial class DocsPaneViewModel
 
     [ObservableProperty]
     public partial bool IsWriting { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenSiteCommand))]
+    public partial bool CanOpenSite { get; private set; }
+
+    [ObservableProperty]
+    public partial string SiteHint { get; private set; } = string.Empty;
 
     public void Activate() => feed.Start(ReadAsync, Show);
 
@@ -139,6 +153,9 @@ internal sealed partial class DocsPaneViewModel
             }
 
             history.Show(docs);
+            site = docs.Site;
+            CanOpenSite = docs.Site.Exists && docs.Site.CanServe;
+            SiteHint = docs.Site.Exists && !docs.Site.CanServe ? DocsPanePhrases.Install : string.Empty;
             stories = docs.Story;
 
             others.Clear();
@@ -147,6 +164,15 @@ internal sealed partial class DocsPaneViewModel
             {
                 others.Add(new FeatureRowViewModel(listed, () => messenger.Send(new FeatureDocsRequested(docs.Repository, listed.Feature))));
             }
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenSite))]
+    private async Task OpenSiteAsync(CancellationToken cancellationToken)
+    {
+        foreach (var current in job.Match<JobId[]>(found => [found], () => []))
+        {
+            SiteHint = (await reader.OpenSiteAsync(current, site, cancellationToken)).Match(_ => DocsPanePhrases.Install, () => string.Empty);
         }
     }
 
@@ -171,6 +197,8 @@ internal sealed partial class DocsPaneViewModel
 
 internal static class DocsPanePhrases
 {
+    public const string Install = "Install DocFX to open the docs site: " + DocsSite.Install;
+
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"
         : documented.Versions.Count == 0 ? "waiting for a plan"

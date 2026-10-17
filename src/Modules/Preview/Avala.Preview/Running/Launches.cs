@@ -10,7 +10,13 @@ internal enum LaunchKind
     Page,
 }
 
-internal sealed record Launch(string Name, LaunchKind Kind, string FileName, IReadOnlyList<string> Arguments);
+internal sealed record Launch(string Name, LaunchKind Kind, string FileName, IReadOnlyList<string> Arguments)
+{
+    public const string Port = "{port}";
+
+    public static Launch Site(string config) =>
+        new("docs site", LaunchKind.Script, OperatingSystem.IsWindows() ? "docfx.exe" : "docfx", [config, "--serve", "--hostname", "127.0.0.1", "--port", Port]);
+}
 
 internal interface IProjectLaunches
 {

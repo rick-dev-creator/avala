@@ -96,6 +96,20 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
 
     public Option<Documentation.Contracts.JobDocs> Job { get; set; }
 
+    public Documentation.Contracts.DocsSite Site { get; set; } = new(false, "docs", true);
+
+    public List<string> Created { get; } = [];
+
+    public Task<Documentation.Contracts.DocsSite> SiteAsync(string folder, CancellationToken cancellationToken) => Task.FromResult(Site);
+
+    public Task<Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>> CreateSiteAsync(string repository, CancellationToken cancellationToken)
+    {
+        Created.Add(repository);
+        Site = Site with { Exists = true };
+
+        return Task.FromResult(Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>.Success(new Documentation.Contracts.SiteCreated("docs", ["docs/docfx.json"])));
+    }
+
     public Task<Option<Documentation.Contracts.JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) => Task.FromResult(Job);
 
     public Task<Option<Documentation.Contracts.FeatureStory>> StoryAsync(string folder, Documentation.Contracts.Feature feature, CancellationToken cancellationToken) => Task.FromResult(Story);
@@ -110,4 +124,30 @@ internal sealed class FakeRoles : Delegation.Contracts.IRoleSettings
 
     public ValueTask<Agents.Contracts.Sessions.ModelChoice> OfRoleAsync(string worktree, Delegation.Contracts.ChildRole role, CancellationToken cancellationToken) =>
         ValueTask.FromResult(role == Delegation.Contracts.ChildRole.Research ? Research : Agents.Contracts.Sessions.ModelChoice.Default);
+}
+
+internal sealed class FakeSitePreviews : Preview.Contracts.IPreviews
+{
+    public List<(JobId Job, string Config)> Served { get; } = [];
+
+    public Option<Preview.Contracts.PreviewError> Refusal { get; set; }
+
+    public IReadOnlyList<Preview.Contracts.PreviewTarget> Of(JobId job) => [];
+
+    public bool IsRunning(JobId job) => false;
+
+    public ValueTask<Option<string>> ScriptAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.None);
+
+    public ValueTask<Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>> RunAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken)
+    {
+        Served.Add((job, config));
+
+        return ValueTask.FromResult(Refusal.Match(
+            Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>.Failure,
+            () => Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>.Success(new Preview.Contracts.PreviewRun(job, "docs site"))));
+    }
 }

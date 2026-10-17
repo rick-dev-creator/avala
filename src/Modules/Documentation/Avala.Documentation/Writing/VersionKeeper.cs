@@ -19,7 +19,9 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
             {
                 var path = subject.Folder.Version(pending.Number, pending.Kind);
                 var plan = pending.Plan.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                var written = await WriteAsync(subject.Place.Worktree, path, text, cancellationToken)
+                var decision = await ReadAsync(writer.Worktree, DocumentationDraft.Decision, cancellationToken);
+                var explained = await decision.Match(found => DecideAsync(subject, pending.Number, path, text, found, cancellationToken), () => Task.FromResult(text));
+                var written = await WriteAsync(subject.Place.Worktree, path, explained, cancellationToken)
                     && await WriteAsync(subject.Place.Worktree, subject.Folder.Plan(pending.Number), FeatureFolder.PlanDocument(pending.Number, plan), cancellationToken)
                     && await IndexAsync(subject, subject.Documented.Linked(new FeatureVersion(pending.Number, pending.Kind, path, default)), cancellationToken);
 
@@ -43,9 +45,50 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
         var document = AsBuiltDocument.Compose(subject.Folder.Feature, last.Match(found => found.Number, () => number), previous, evidence);
 
         return await WriteAsync(subject.Place.Worktree, path, document, cancellationToken) && await IndexAsync(subject, subject.Documented.Requests, cancellationToken)
+            && await NewsAsync(subject, path, previous, cancellationToken)
             ? new FeatureVersion(number, VersionKind.AsBuilt, path, default)
             : VersionFailure.Unwritable;
     }
+
+    private async Task<string> DecideAsync(Subject subject, int number, string path, string text, string decision, CancellationToken cancellationToken)
+    {
+        var root = SiteLayout.RootOf(subject.Folder.Root);
+        var folder = SiteRecords.Decisions(root);
+        var record = SiteRecords.Next(await catalog.ListedAsync(subject.Place.Worktree, cancellationToken), root, decision);
+        var toVersion = SiteRecords.Up(folder, root) + path[(root.Length + 1)..];
+        var toDecision = SiteRecords.Up(subject.Folder.Path, root) + $"architecture/decisions/{record.File}";
+
+        if (!await WriteAsync(subject.Place.Worktree, $"{folder}/{record.File}", SiteRecords.Shaped(decision, subject.Folder.Feature.Title, number, toVersion), cancellationToken))
+        {
+            return text;
+        }
+
+        foreach (var toc in (await ReadAsync(subject.Place.Worktree, $"{folder}/toc.yml", cancellationToken)).Match(found => new[] { found }, () => []))
+        {
+            await WriteAsync(subject.Place.Worktree, $"{folder}/toc.yml", toc.TrimEnd() + $"\n- name: {record.Name} {record.Title}\n  href: {record.File}\n", cancellationToken);
+        }
+
+        return SiteRecords.Explained(text, record, toDecision);
+    }
+
+    private async Task<bool> NewsAsync(Subject subject, string path, Option<string> previous, CancellationToken cancellationToken)
+    {
+        var root = SiteLayout.RootOf(subject.Folder.Root);
+        var news = $"{root}/whats-new.md";
+
+        return await (await ReadAsync(subject.Place.Worktree, news, cancellationToken)).Match(
+            async existing =>
+            {
+                var lead = previous.Match(text => VersionReader.Read(text).Lead, () => string.Empty);
+                var entry = $"## {DateTimeOffset.UtcNow:yyyy-MM-dd} · {subject.Folder.Feature.Title}\n\n{lead}\n\n[As built]({path[(root.Length + 1)..]})\n";
+
+                return await WriteAsync(subject.Place.Worktree, news, SiteRecords.WhatsNew(existing, entry), cancellationToken);
+            },
+            () => Task.FromResult(true));
+    }
+
+    private async Task<Option<string>> ReadAsync(string worktree, string path, CancellationToken cancellationToken) =>
+        (await files.ReadAsync(worktree, path, cancellationToken)).Match(content => content, _ => Option<string>.None);
 
     private IReadOnlyList<CheckOutcome> Checks(Subject subject) =>
         verifications.OfJob(subject.Place.Job) is [.., var report]

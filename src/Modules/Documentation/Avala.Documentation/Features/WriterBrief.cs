@@ -37,6 +37,14 @@ internal sealed record WriterBrief(Feature Feature, int Number, VersionKind Kind
             - Read the code the plan touches to name the real containers and components. Do not change any code.
             """);
 
+        if (Kind == VersionKind.Deviation)
+        {
+            brief.Append(CultureInfo.InvariantCulture, $"""
+
+                Only if this change shapes the structure, a key quality attribute or something hard to reverse, also write an architecture decision record to {DocumentationDraft.Decision}: "# <the decision>", then sections Status, Context, Decision, Alternatives and Consequences. If it reverses an earlier decision, say "Supersedes ADR-<number>" under Status. A smaller change, such as a renamed function, gets no record.
+                """);
+        }
+
         return brief.ToString();
     }
 }
