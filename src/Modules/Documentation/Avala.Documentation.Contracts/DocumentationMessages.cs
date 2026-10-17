@@ -23,6 +23,7 @@ public enum DocumentationError
     NoGitIdentity,
     NothingToCommit,
     NotCommitted,
+    NotSubmitted,
 }
 
 public sealed record Feature(string Slug, string Title);
@@ -120,12 +121,11 @@ public sealed record DocsSite(bool Exists, string Root, bool CanServe)
     public const string Install = "dotnet tool install -g docfx";
 
     public string Config => $"{Root}/docfx.json";
+
+    public Option<JobId> Preparing { get; init; }
 }
 
-public sealed record SiteCreated(string Root, IReadOnlyList<string> Written)
-{
-    public Option<JobId> Filler { get; init; }
-}
+public sealed record SiteCreated(string Root, JobId Job);
 
 public sealed record JobDocs(JobDocumentation Documentation, string Repository, Option<FeatureStory> Story, RepositoryDocs Docs)
 {

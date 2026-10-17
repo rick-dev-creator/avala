@@ -46,6 +46,13 @@
                 <TextBlock Text="Create site" />
               </StackPanel>
             </Button>
+            <Button x:Name="OpenSiteJob"
+                    DockPanel.Dock="Right"
+                    Classes="link"
+                    Content="Open its job"
+                    Command="{Binding OpenSiteJobCommand}"
+                    IsVisible="{Binding IsSitePreparing}"
+                    VerticalAlignment="Center" />
             <StackPanel Spacing="2" VerticalAlignment="Center">
               <TextBlock Text="Docs site" />
               <TextBlock x:Name="DocsSite" Classes="caption" TextWrapping="Wrap" Text="{Binding Site}" />
