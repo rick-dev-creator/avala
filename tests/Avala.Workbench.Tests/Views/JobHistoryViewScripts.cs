@@ -14,6 +14,7 @@ public sealed class JobHistoryViewScripts(HeadlessUi ui)
 
             Assert.Equal(["Plan v1 · proposed", "Plan v2 · deviation"], view.All<TextBlock>().Where(text => text.Name == "StepTitle").Select(text => text.Text));
             Assert.Equal(("Plan v2 · deviation", "v2-deviation.md · plans/v2.md"), (view.TextOf("Heading"), view.TextOf("Records")));
+            Assert.True(view.Find<Button>("OpenWriter").IsVisible);
             Assert.Equal(["+ Idempotency store", "~ Payments"], view.All<TextBlock>().Where(text => text.Classes.Contains("mono") && text.Name is null).Select(text => text.Text));
         }, TestContext.Current.CancellationToken);
 }

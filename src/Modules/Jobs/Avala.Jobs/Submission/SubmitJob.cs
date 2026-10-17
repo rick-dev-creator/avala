@@ -17,7 +17,7 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
         var submitted = RepositoryPath.Create(request.RepositoryPath)
             .Bind(path => Instruction.Create(request.Instruction)
                 .Bind(text => AttemptBudget.Create(request.AttemptsPerRound)
-                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, clock.GetUtcNow(), request.Autonomy, request.Connection, request.Parent, request.Model, Option<IReadOnlyList<Avala.Agents.Contracts.Sessions.Attachment>>.Some(request.Attachments)))))
+                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, clock.GetUtcNow(), request.Autonomy, request.Connection, request.Parent, request.Model, Option<IReadOnlyList<Avala.Agents.Contracts.Sessions.Attachment>>.Some(request.Attachments), request.Companion))))
             .Bind(job => job.Submit().Map(_ => job))
             .MapError(Rejection);
 

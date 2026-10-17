@@ -32,6 +32,9 @@ namespace Avala.Jobs.Storage.Migrations
                     b.Property<int>("Budget")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("Companion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Connection")
                         .IsRequired()
                         .HasColumnType("TEXT");

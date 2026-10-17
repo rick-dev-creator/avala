@@ -35,6 +35,14 @@
           <TextBlock Classes="caption" Text="Records" />
           <TextBlock x:Name="Records" Classes="caption mono" TextWrapping="Wrap" Text="{Binding Records}" />
         </StackPanel>
+        <Button x:Name="OpenWriter"
+                Classes="link"
+                HorizontalAlignment="Left"
+                Margin="-10,-4,0,-6"
+                Content="Writer's conversation"
+                ToolTip.Tip="Open the conversation of the companion that wrote this version"
+                IsVisible="{Binding HasWriter}"
+                Command="{Binding OpenWriterCommand}" />
       </StackPanel>
     </Border>
   </StackPanel>

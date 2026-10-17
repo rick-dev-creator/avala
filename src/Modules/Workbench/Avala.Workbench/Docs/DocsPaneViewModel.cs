@@ -4,6 +4,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
+using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Documenting;
 using Avala.Workbench.Following;
 using Avala.Workbench.Sidebar;
@@ -61,6 +62,7 @@ internal sealed partial class DocsPaneViewModel
         this.player = player;
         player.IsCompact = true;
         history.VersionChosen += (_, number) => player.Version = Index(number);
+        history.WriterOpened += (_, writer) => messenger.Send(new JobSelected(writer));
         messenger.RegisterAll(this);
     }
 

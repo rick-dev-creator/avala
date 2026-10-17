@@ -58,6 +58,8 @@ public sealed record JobSummary(
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 
     public bool RemoteControlled { get; init; }
+
+    public bool Companion { get; init; }
 }
 
 public sealed record JobTree(JobSummary Job, IReadOnlyList<JobTree> Children);

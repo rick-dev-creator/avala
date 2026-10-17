@@ -43,7 +43,7 @@ public sealed class JobHistoryViewModelScripts
         var documented = new JobDocumentation(Job, new Feature("payments", "Payments on stripe-go v79"))
         {
             Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payments/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payments/v2-deviation.md", DateTimeOffset.UnixEpoch)],
-            Requests = [new ChangeRequest(1, RequestKind.Steer, "Once only", DateTimeOffset.UnixEpoch, 1) { Version = 2 }, new ChangeRequest(2, RequestKind.SendBack, "Keep the keys in the ledger", DateTimeOffset.UnixEpoch, 1)],
+            Requests = [new ChangeRequest(1, RequestKind.Steer, "Once only.", DateTimeOffset.UnixEpoch, 1) { Version = 2 }, new ChangeRequest(2, RequestKind.SendBack, "Keep the keys in the ledger", DateTimeOffset.UnixEpoch, 1)],
         };
 
         return new JobDocs(documented, "/repos/ledger", DesignStories.Ledger(), RepositoryDocs.Off);

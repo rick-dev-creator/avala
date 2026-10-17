@@ -27,7 +27,7 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
     public async ValueTask<IReadOnlyList<JobSummary>> OrchestratorsAsync(CancellationToken cancellationToken)
     {
         var jobs = await catalog.ListAsync(cancellationToken);
-        var parents = jobs.Select(job => job.Parent)
+        var parents = jobs.Where(job => !job.Companion).Select(job => job.Parent)
             .Concat(delegations.All().Select(record => record.Parent))
             .SelectMany(parent => parent.Match<JobId[]>(found => [found], () => []))
             .ToHashSet();
@@ -38,7 +38,7 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
     public async ValueTask<Option<DelegationTree>> TreeAsync(JobId root, CancellationToken cancellationToken) =>
         (await catalog.TreeAsync(root, cancellationToken)).Map(tree => new DelegationTree(
             tree.Job,
-            [.. tree.Children.SelectMany(child => Nodes(child, 1))],
+            [.. tree.Children.Where(child => !child.Job.Companion).SelectMany(child => Nodes(child, 1))],
             [.. Refusals(tree)])
         {
             RootSpend = spending.Of(tree.Job.Job),
@@ -49,8 +49,8 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
         board.Find(job).Bind(found => found.Summary.Parent).Match(parent => parent == job ? job : RootOf(parent), () => job);
 
     public bool InTree(JobId job) =>
-        board.Find(job).Match(found => found.Summary.Parent.IsSome, () => false)
-        || board.Jobs.Values.Any(other => other.Summary.Parent == Option<JobId>.Some(job));
+        board.Find(job).Match(found => found.Summary.Parent.IsSome && !found.Summary.Companion, () => false)
+        || board.Jobs.Values.Any(other => other.Summary.Parent == Option<JobId>.Some(job) && !other.Summary.Companion);
 
     public bool Offers(JobId job) => InTree(job) || Subagents(job).Any();
 

@@ -54,6 +54,29 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheDocumentationCompanionsStayOutOfTheSidebarAndTheDelegationPaneAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-across-turns] Add the changelog")));
+        _ = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        var header = workbench.Page["Regions"]["Header"].Items;
+        var docs = header.Single(item => item.Kind == "DocsToggleViewModel");
+        var delegation = header.Single(item => item.Kind == "DelegationToggleViewModel");
+        await run.Ui.PresentedAsync(docs.Presentation, () => docs["IsShown"].Value<bool>(), () => "the docs glyph is hidden");
+        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation.Presentation.Revision > 0, () => "the delegation glyph was never presented");
+
+        var shown = await run.Ui.ReadAsync(() => (
+            SidebarRows.TopLevel(workbench.Sidebar).Single(row => row["Job"].Value<JobId>() == job)["Children"].Items.Count,
+            delegation["IsShown"].Value<bool>()));
+        Assert.Equal((0, false), shown);
+        Assert.Single(await run.Get<IJobCatalog>().ChildrenAsync(job, Cancellation), child => child.Companion);
+    }
+
+    [Fact]
     public async Task WithoutTheDocsSectionAJobsPlanStartsNoDocumentationChildAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns");

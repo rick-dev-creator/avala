@@ -309,6 +309,18 @@ public sealed class SidebarViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void ADocumentationCompanionGetsNoRowUnderItsJob()
+    {
+        var job = Job("Handle Stripe refund webhooks", JobStatus.Running);
+        var delegated = ChildOf(job, "Update call sites in internal/payments", JobStatus.Running);
+        var writer = ChildOf(job, "Write version 1 of the feature", JobStatus.Running);
+
+        ViewModelScript.Given(bench.Sidebar())
+            .When(sidebar => sidebar.Show(Board(job, delegated, writer with { Summary = writer.Summary with { Companion = true } })))
+            .Then(sidebar => Assert.Equal(["Update call sites in internal/payments"], Assert.Single(Group(sidebar, "repo").Open).Children.Select(child => child.Title)));
+    }
+
+    [Fact]
     public void ASubAgentSeenBeforeItsOrchestratorMovesUnderItOnceItArrivesAndStaysThere()
     {
         var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);

@@ -57,6 +57,20 @@ public sealed class ChildJobTests
     }
 
     [Fact]
+    public async Task ACompanionIsMarkedInTheCatalogAndADelegatedChildIsNotAsync()
+    {
+        var flow = JobFlow.With();
+        var parent = await flow.RunningAsync();
+
+        var companion = await flow.SubmittedAsync(ChildOf(parent) with { Companion = true });
+        var delegated = await flow.SubmittedAsync(ChildOf(parent));
+
+        Assert.Equal(
+            [(companion.Id, true), (delegated.Id, false)],
+            (await flow.Catalog.ChildrenAsync(parent.Id, Cancellation)).OrderBy(child => child.Submitted).ThenBy(child => child.Job == delegated.Id).Select(child => (child.Job, child.Companion)));
+    }
+
+    [Fact]
     public async Task AChildStartsWithoutAdmissionFromACheckpointOfItsParentWithItsParentsRulesAsync()
     {
         var flow = JobFlow.With();

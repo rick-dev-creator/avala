@@ -20,7 +20,7 @@ Let each job document the feature it builds: the plan it proposed, every change 
   A later job on the same feature continues its numbering.
 - **Read in Avala.** A project's sidebar lists its documented features under **Docs**; choosing one opens its page with its versions, its document and the C4 player. Inside a job, the **Docs** glyph in the header opens a pane with this job's feature, its player, its history and the repository's other docs. The conversation shows a quiet line for each version written and each change request recorded.
 - **The C4 player.** Playing a version builds it from the one before: new elements appear, changed ones are highlighted, removed ones fade. A `C4Dynamic` flow plays hop by hop, numbered, each element lighting as it is reached. Each step brings its section of the document into view, and choosing a section moves the diagram to its step. **Back**, **Play**, **Next**, the speed and **Back to the start** sit under the diagram. Mermaid the player cannot read shows as Mermaid draws it.
-- **The connected history.** The Docs pane lists the job's plans in order with the change requests between them. Choosing one shows what happened, why it deviated, what changed and its records, and plays its C4.
+- **The connected history.** The Docs pane lists the job's plans in order with the change requests between them. Choosing one shows what happened, why it deviated, what changed and its records, and plays its C4. A version written by a companion offers **Writer's conversation**, which opens the companion's job. Companions stay out of the sidebar and the delegation pane; their cost counts in the usage like any job's.
 
 ## How to use it
 
