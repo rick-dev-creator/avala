@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.JobHistoryView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IJobHistoryViewModel">
+  <Design.DataContext>
+    <docs:DesignJobHistoryViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="10" IsVisible="{Binding HasSteps}">
+    <TextBlock Classes="caption" Margin="4,0" Text="History" />
+    <ItemsControl x:Name="Steps" ItemsSource="{Binding Steps}" />
+    <Border Classes="grouped" Padding="14,12">
+      <StackPanel Spacing="10">
+        <TextBlock x:Name="Heading" Classes="strong" Text="{Binding Heading}" />
+        <StackPanel Spacing="3" IsVisible="{Binding Happened, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Classes="caption" Text="What happened" />
+          <TextBlock x:Name="Happened" TextWrapping="Wrap" Text="{Binding Happened}" />
+        </StackPanel>
+        <StackPanel Spacing="3">
+          <TextBlock Classes="caption" Text="Why it deviated" />
+          <TextBlock x:Name="Why" TextWrapping="Wrap" Text="{Binding Why}" />
+        </StackPanel>
+        <StackPanel Spacing="3" IsVisible="{Binding !!Changed.Count}">
+          <TextBlock Classes="caption" Text="What changed" />
+          <ItemsControl x:Name="Changed" ItemsSource="{Binding Changed}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="mono" Text="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <StackPanel Spacing="3">
+          <TextBlock Classes="caption" Text="Records" />
+          <TextBlock x:Name="Records" Classes="caption mono" TextWrapping="Wrap" Text="{Binding Records}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

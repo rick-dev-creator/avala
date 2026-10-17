@@ -35,9 +35,9 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         await ui.InvokeAsync(() => toggle.ToggleCommand.Execute(null), Cancellation);
         await ui.PresentedAsync(pane, () => pane.Feature.Length > 0, () => $"feature '{pane.Feature}'");
 
-        var shown = await ui.ReadAsync(() => (pane.IsOpen, toggle.IsOpen, pane.Feature, pane.State, pane.IsWriting, pane.Player.Versions.Count, pane.Requests.Select(request => request.Fact).ToList(), pane.Others.Select(other => other.Title).ToList()));
+        var shown = await ui.ReadAsync(() => (pane.IsOpen, toggle.IsOpen, pane.Feature, pane.State, pane.IsWriting, pane.Player.Versions.Count, pane.History.Steps.Select(step => step.Title).ToList(), pane.Others.Select(other => other.Title).ToList()));
         Assert.Equal((true, true, "Payments on stripe-go v79", "writing", true, 2), (shown.Item1, shown.Item2, shown.Item3, shown.Item4, shown.Item5, shown.Item6));
-        Assert.Equal(["steer → v2"], shown.Item7);
+        Assert.Equal(["Plan v1 · proposed", "Change request #1", "Plan v2 · deviation"], shown.Item7);
         Assert.Equal(["Payout scheduler"], shown.Item8);
     }
 
@@ -65,11 +65,26 @@ public sealed class DocsPaneViewModelScripts : IDisposable
 
     public void Dispose() => ui.Dispose();
 
+    [Fact]
+    public async Task ChoosingAVersionInTheHistorySummarizesItAndPlaysItsC4Async()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+
+        var shown = await ui.ReadAsync(() => (pane.History.Heading, pane.History.Why, pane.Player.Version, pane.History.Steps[0].IsChosen));
+        Assert.Equal(("Plan v1 · proposed", "None. It is the plan the agent proposed.", 0, true), shown);
+    }
+
     private void Document(bool writing)
     {
         var documented = new JobDocumentation(job, Payments)
         {
             Writing = writing ? JobId.New() : Option<JobId>.None,
+            Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payments/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payments/v2-deviation.md", DateTimeOffset.UnixEpoch)],
             Requests = [new ChangeRequest(1, RequestKind.Steer, "Make sure a refund never applies twice", DateTimeOffset.UnixEpoch, 1) { Version = 2 }],
         };
         documentation.Job = new JobDocs(documented, "/repos/ledger", DesignStories.Ledger(), new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 1)]));

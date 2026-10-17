@@ -17,7 +17,7 @@ public sealed class DocsPaneViewScripts(HeadlessUi ui)
             Assert.Equal(("Payments on stripe-go v79", "writing"), (view.TextOf("Feature"), view.TextOf("State")));
             Assert.True(view.Shows("Hud"));
             Assert.False(view.Shows("Document"));
-            Assert.Equal("Change request #1 recorded", view.TextOf("ChangeText"));
+            Assert.Equal(["Change request #1"], view.All<TextBlock>().Where(text => text.Name == "RequestTitle" && text.IsEffectivelyVisible).Select(text => text.Text));
             Assert.Equal(["Payout scheduler"], view.All<TextBlock>().Where(text => text.Name == "FeatureTitle").Select(text => text.Text));
         }, TestContext.Current.CancellationToken);
 }

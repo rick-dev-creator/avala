@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.HistoryStepView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IHistoryStepViewModel">
+  <Design.DataContext>
+    <docs:DesignHistoryStepViewModel />
+  </Design.DataContext>
+  <Panel>
+    <Button x:Name="Step"
+            Classes="row"
+            Classes.selected="{Binding IsChosen}"
+            IsVisible="{Binding IsVersion}"
+            Command="{Binding ChooseCommand}"
+            AutomationProperties.Name="{Binding Title}">
+      <DockPanel>
+        <TextBlock x:Name="StepFact" DockPanel.Dock="Right" Classes="caption" Text="{Binding Fact}" VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+          <TextBlock x:Name="StepTitle" Classes="strong" Text="{Binding Title}" VerticalAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
+    </Button>
+    <StackPanel Margin="18,2,10,2" Spacing="1" IsVisible="{Binding !IsVersion}">
+      <TextBlock x:Name="RequestTitle" Classes="caption" Text="{Binding Title}" />
+      <TextBlock x:Name="RequestText" Classes="secondary" TextWrapping="Wrap" Text="{Binding Fact}" />
+    </StackPanel>
+  </Panel>
+</UserControl>

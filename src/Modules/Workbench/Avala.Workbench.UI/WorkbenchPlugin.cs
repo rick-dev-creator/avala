@@ -540,6 +540,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IDocsLineViewModel, DocsLineView>();
         views.Register<IDocsToggleViewModel, DocsToggleView>();
         views.Register<IDocsPaneViewModel, DocsPaneView>();
+        views.Register<IJobHistoryViewModel, JobHistoryView>();
+        views.Register<IHistoryStepViewModel, HistoryStepView>();
         views.Register<IChangeLineViewModel, ChangeLineView>();
     }
 

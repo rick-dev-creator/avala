@@ -202,11 +202,43 @@ internal sealed class DesignDocsPaneViewModel : IDocsPaneViewModel, IDisposable
 
     public IC4PlayerViewModel Player => player;
 
-    public IReadOnlyList<Conversation.IChangeLineViewModel> Requests { get; } = [new Conversation.DesignChangeLineViewModel("Change request #1 recorded", "steer → v2")];
+    public IJobHistoryViewModel History { get; } = new DesignJobHistoryViewModel();
 
     public IReadOnlyList<Sidebar.IFeatureRowViewModel> Others { get; } = [new Sidebar.DesignFeatureRowViewModel("Payout scheduler", "1 version")];
 
     public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
 
     public void Dispose() => player.Dispose();
+}
+
+internal sealed class DesignJobHistoryViewModel : IJobHistoryViewModel
+{
+    public bool HasSteps => true;
+
+    public IReadOnlyList<IHistoryStepViewModel> Steps { get; } =
+    [
+        new DesignHistoryStepViewModel("Plan v1 · proposed", "Oct 17, 10:02", true, false),
+        new DesignHistoryStepViewModel("Change request #1", "“Make sure a refund never applies twice”", false, false),
+        new DesignHistoryStepViewModel("Plan v2 · deviation", "Oct 17, 10:40", true, true),
+    ];
+
+    public string Heading => "Plan v2 · deviation";
+
+    public string Happened => "The agent added an idempotency store between Payments and the ledger.";
+
+    public string Why => "You asked “Make sure a refund never applies twice”. The plan changed to do it.";
+
+    public IReadOnlyList<string> Changed { get; } = ["+ Idempotency store", "~ Payments"];
+
+    public string Records => "v2-deviation.md · plans/v2.md";
+}
+
+internal sealed record DesignHistoryStepViewModel(string Title, string Fact, bool IsVersion, bool IsChosen) : IHistoryStepViewModel
+{
+    public DesignHistoryStepViewModel()
+        : this("Plan v2 · deviation", "Oct 17, 10:40", true, true)
+    {
+    }
+
+    public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
 }
