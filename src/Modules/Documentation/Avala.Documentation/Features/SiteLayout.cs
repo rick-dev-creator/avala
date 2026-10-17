@@ -66,7 +66,11 @@ internal static class SiteLayout
     private static string RootToc(string featured) =>
         $"""
         - name: Overview
-          href: index.md
+          items:
+          - name: Overview
+            href: index.md
+          - name: What's new
+            href: whats-new.md
         - name: Get started
           items:
           - name: Quickstart
@@ -77,20 +81,20 @@ internal static class SiteLayout
             href: concepts/architecture.md
           - name: Glossary
             href: concepts/glossary.md
-        - name: How-to guides
-          href: how-to/index.md
-        - name: Tutorials
-          href: tutorials/index.md
+          - name: Architecture decisions
+            href: architecture/decisions/toc.yml
+        - name: Guides
+          items:
+          - name: How-to guides
+            href: how-to/index.md
+          - name: Tutorials
+            href: tutorials/index.md
         - name: Features
           href: {featured}/toc.yml
-        - name: Architecture decisions
-          href: architecture/decisions/toc.yml
         - name: Reference
           items:
           - name: Configuration
             href: reference/configuration.md
-        - name: What's new
-          href: whats-new.md
 
         """;
 

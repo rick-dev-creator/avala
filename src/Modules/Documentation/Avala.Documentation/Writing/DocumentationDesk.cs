@@ -152,9 +152,15 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
                     place => keeper.KeepAsync(place, subject, pending, cancellationToken),
                     () => Task.FromResult(Result<FeatureVersion, VersionFailure>.Failure(VersionFailure.NoDraft))))
                 .Match(
-                    version => book.WrittenAsync(documented.Job, subject.Folder.Feature, version, pending.Plan, cancellationToken),
+                    version => WrittenAsync(subject, version, pending.Plan, cancellationToken),
                     failure => book.NotWrittenAsync(documented.Job, pending.Kind, failure, cancellationToken)),
             () => book.NotWrittenAsync(documented.Job, pending.Kind, VersionFailure.Unwritable, cancellationToken));
+    }
+
+    private async Task WrittenAsync(Subject subject, FeatureVersion version, string plan, CancellationToken cancellationToken)
+    {
+        await subjects.CommitAsync(subject.Place.Job, $"Document {subject.Folder.Feature.Title}, version {version.Number}", cancellationToken);
+        await book.WrittenAsync(subject.Place.Job, subject.Folder.Feature, version, plan, cancellationToken);
     }
 
     private async Task NextAsync(JobId job, CancellationToken cancellationToken) =>
@@ -172,7 +178,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
                 }
 
                 await (await keeper.AsBuiltAsync(subject, cancellationToken)).Match(
-                    version => book.WrittenAsync(job, subject.Folder.Feature, version, subject.Documented.LastPlan, cancellationToken),
+                    version => WrittenAsync(subject, version, subject.Documented.LastPlan, cancellationToken),
                     failure => book.NotWrittenAsync(job, VersionKind.AsBuilt, failure, cancellationToken));
             },
             () => Task.CompletedTask);

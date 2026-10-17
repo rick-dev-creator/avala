@@ -20,6 +20,25 @@ public sealed class C4PlayerViewModelScripts
     }
 
     [Fact]
+    public void TheDocumentListsItsUnchangedSectionsAfterTheChangedOnesSoAnAsBuiltShowsThemAll()
+    {
+        var story = DesignStories.Ledger();
+        var last = story.Versions[^1];
+        var built = last with
+        {
+            Number = 3,
+            Kind = Documentation.Contracts.VersionKind.AsBuilt,
+            Steps = [],
+            Document = last.Document with { Sections = [new("webhooks", "Webhooks", "Checks the signature."), new("payments", "Payments", "Applies the refund.")] },
+        };
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher());
+
+        player.Show(story with { Versions = [.. story.Versions, built] });
+
+        Assert.Equal([("Webhooks", "Checks the signature.", ""), ("Payments", "Applies the refund.", "")], player.Sections.Select(section => (section.Title, section.Text, section.Mark)));
+    }
+
+    [Fact]
     public void BackNextAndStopMoveOneStepOrBackToTheStart()
     {
         using var player = Player(new FakeTimeProvider());

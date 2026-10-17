@@ -17,6 +17,14 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
     public async Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(job, cancellationToken)).Map(history => history.Summary.Status);
 
+    public async Task CommitAsync(JobId job, string label, CancellationToken cancellationToken)
+    {
+        foreach (var place in (await OfAsync(job, cancellationToken)).Match<JobPlace[]>(found => [found], () => []).Where(place => place.Status is not (JobStatus.Running or JobStatus.Checking)))
+        {
+            _ = await workspaces.CheckpointAsync(place.Workspace, label, cancellationToken);
+        }
+    }
+
     public async Task<Option<JobPlace>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
             history => history.Summary.Workspace.Match(

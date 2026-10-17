@@ -54,6 +54,22 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnApprovedJobDeliversEveryVersionOfItsFeatureUpToItsLastAsBuiltAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "docs": { "enabled": true }, "approval": "merge" }"""));
+        var (job, _) = await SentBackAsync(run);
+        var progressed = run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == job && update.Status == JobStatus.Approved);
+
+        var slug = Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Feature.Slug;
+        var delivered = (await run.Get<IDocumentation>().OfRepositoryAsync(run.Repository.Path, Cancellation)).Features.Single(listed => listed.Feature.Slug == slug);
+        Assert.Equal(4, delivered.Versions);
+        Assert.Contains("## Evidence\n", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "features", slug, "v4-as-built.md"), Cancellation));
+    }
+
+    [Fact]
     public async Task TheDocumentationCompanionsStayOutOfTheSidebarAndTheDelegationPaneAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));

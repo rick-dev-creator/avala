@@ -310,6 +310,11 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
         {
             sections.Add(new DocSectionViewModel(shown, GoTo));
         }
+
+        foreach (var kept in played.Match(found => found.Document.Sections, () => []).Where(section => !Steps.Any(shown => shown.Anchor == section.Anchor || shown.Title == section.Title)))
+        {
+            sections.Add(new DocSectionViewModel(new PlayStep(StepKind.Base, kept.Anchor, kept.Title, kept.Text), GoTo));
+        }
     }
 
     private void Render()
