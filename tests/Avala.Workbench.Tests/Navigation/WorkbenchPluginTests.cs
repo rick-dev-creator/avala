@@ -117,6 +117,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<Forges.Contracts.IPullRequests>(new FakePullRequests())
             .AddSingleton<Forges.Contracts.IForgeCatalog>(new FakeForgeCatalog())
             .AddSingleton<Forges.Contracts.ISourceControlAccounts>(new Accounts.FakeSourceControl())
+            .AddSingleton<Forges.Contracts.IForgeReadiness>(new Readiness.FakeForgeReadiness())
             .AddSingleton<Forges.Contracts.IForgeConnections>(new Accounts.FakeSourceControl())
             .AddSingleton<IOpenDeliveries>(new FakeJobs())
             .AddSingleton<IRemoteJobs>(new FakeJobs())

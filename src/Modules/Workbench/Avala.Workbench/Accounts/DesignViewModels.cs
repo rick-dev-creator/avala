@@ -29,6 +29,8 @@ internal sealed class DesignAccountRowViewModel : IAccountRowViewModel
 
     public string Problem { get; init; } = string.Empty;
 
+    public string Purpose { get; init; } = "Opens pull requests and follows their checks";
+
     public IAsyncRelayCommand AddCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand RemoveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);

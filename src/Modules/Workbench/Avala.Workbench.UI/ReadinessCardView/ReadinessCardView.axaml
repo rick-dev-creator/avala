@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:readiness="using:Avala.Workbench.Readiness"
+             x:Class="Avala.Workbench.UI.ReadinessCardView"
+             x:ClassModifier="internal"
+             x:DataType="readiness:IReadinessCardViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <readiness:DesignReadinessCardViewModel />
+  </Design.DataContext>
+  <Border x:Name="Card"
+          Margin="0,12,0,0"
+          Padding="16,12"
+          MaxWidth="{StaticResource ReadingWidth}"
+          Background="{DynamicResource SurfaceFloatBrush}"
+          BorderBrush="{DynamicResource BorderCardBrush}"
+          BorderThickness="1"
+          CornerRadius="{StaticResource RadiusCard}">
+    <StackPanel Spacing="8">
+      <TextBlock x:Name="Title" Classes="section" Text="Before this repository works well" />
+      <ItemsControl x:Name="Items" ItemsSource="{Binding Items}" />
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -1,5 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Workbench.NewJob;
+using Avala.Workbench.Readying;
+using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Settings;
 using Avala.Workbench.Welcome;
 
@@ -9,12 +11,30 @@ internal sealed class SettingsLink(SettingsViewModel settings, JobFocus focus)
 {
     public void Open() => focus.Show(settings);
 
+    public async Task DeclareChecksAsync(string repository)
+    {
+        Open();
+        await settings.Loading;
+        var rules = settings.Repository;
+        await rules.OpenCommand.ExecuteAsync(repository);
+
+        if (rules.Files.FirstOrDefault(file => file.Path == RuleFiles.Checks) is { } checks)
+        {
+            await rules.EditHereCommand.ExecuteAsync(checks);
+        }
+    }
+
     public Task ConnectAsync()
     {
         Open();
 
         return settings.Machine.Accounts.SourceControl.ConnectCommand.ExecuteAsync(null);
     }
+}
+
+internal sealed class ReadinessLinks(Func<SettingsLink> settings) : IReadinessLinks
+{
+    public Task DeclareChecksAsync(string repository) => settings().DeclareChecksAsync(repository);
 }
 
 internal sealed class WelcomeLinks(JobFocus focus, SettingsLink settings, NewJobViewModel newJob) : IWelcomeLinks

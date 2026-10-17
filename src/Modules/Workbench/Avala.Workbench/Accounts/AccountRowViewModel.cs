@@ -23,6 +23,8 @@ internal interface IAccountRowViewModel
 
     string Problem { get; }
 
+    string Purpose { get; }
+
     IAsyncRelayCommand AddCommand { get; }
 
     IAsyncRelayCommand RemoveCommand { get; }
@@ -50,6 +52,8 @@ internal sealed class AccountRowViewModel(AccountStatus account, SourceControlSt
     public bool IsDetected => State == AccountState.Detected;
 
     public string Problem { get; } = account.Problem.Match(AccountPhrases.Problem, () => string.Empty);
+
+    public string Purpose => AccountPhrases.Purpose(State);
 
     public IAsyncRelayCommand AddCommand { get; } = add;
 
