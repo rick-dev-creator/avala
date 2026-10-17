@@ -27,7 +27,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         await run.Ui.RunAsync(() => review["Files"].Items[0].ExecuteAsync("ShowHunksCommand"));
         Assert.Contains("+add(2, 2) = 4", await run.Ui.ReadAsync(() => Assert.Single(review["Files"].Items[0]["Hunks"].Items)["Lines"].Items.Select(line => line["Text"].Text).ToList()));
 
-        Assert.Matches("^Keep branch avala/[0-9a-f]+$", await run.Ui.ReadAsync(() => review["ApproveLabel"].Text));
+        Assert.Matches("^Keep branch avala/[0-9a-f]{8}$", await run.Ui.ReadAsync(() => review["ApproveLabel"].Text));
 
         await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
         await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);

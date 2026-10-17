@@ -9,16 +9,16 @@
     <readiness:DesignReadinessItemViewModel />
   </Design.DataContext>
   <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,4">
-    <Panel Width="16" VerticalAlignment="Top" Margin="0,2,0,0">
+    <Panel Width="16" VerticalAlignment="Center">
       <Path x:Name="Done" Classes="icon small" Data="{StaticResource IconCheck}" Stroke="{DynamicResource DotDoneBrush}" IsVisible="{Binding IsDone}" />
       <Path x:Name="Missing" Classes="icon small" Data="{StaticResource IconAttention}" Stroke="{DynamicResource AttentionBrush}" IsVisible="{Binding !IsDone}" />
     </Panel>
-    <StackPanel Grid.Column="1" Spacing="6">
+    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
       <TextBlock x:Name="Text" privacy:PersonalDetails.Text="{Binding Text}" TextWrapping="Wrap" Classes.secondary="{Binding IsDone}" />
       <Border Classes="code" Padding="10,6" HorizontalAlignment="Left" IsVisible="{Binding Command, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <SelectableTextBlock x:Name="Command" Classes="mono" Text="{Binding Command}" />
       </Border>
-      <ItemsControl x:Name="Accounts" ItemsSource="{Binding Accounts}" />
+      <ItemsControl x:Name="Accounts" ItemsSource="{Binding Accounts}" IsVisible="{Binding !!Accounts.Count}" />
       <TextBlock x:Name="Error"
                  Classes="caption failure"
                  Text="{Binding Error}"
@@ -27,7 +27,7 @@
     </StackPanel>
     <Button x:Name="Act"
             Grid.Column="2"
-            VerticalAlignment="Top"
+            VerticalAlignment="Center"
             Classes="primary"
             Padding="12,3"
             Content="{Binding Action}"
