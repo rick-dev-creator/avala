@@ -13,7 +13,7 @@ public sealed class SettingsEditingTests(PublishedPlugins plugins)
     public async Task AConnectionAddedInSettingsIsWrittenToTheDataFolderAndAJobRunsOnItAtOnceAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins);
-        var machine = (await ActivatedAsync(run, "Settings"))["Machine"];
+        var machine = (await Pages.ActivatedAsync(run, "Settings"))["Machine"];
         var editor = await run.Ui.ReadAsync(() => machine["Editor"]);
 
         await run.Ui.InvokeAsync(() => editor.Execute("NewCommand"), Cancellation);
@@ -41,7 +41,7 @@ public sealed class SettingsEditingTests(PublishedPlugins plugins)
     public async Task ARuleFileEditedInSettingsIsCheckedByItsModuleWrittenInTheWorkingTreeAndAppliesOnlyOnceCommittedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
-        var settings = (await ActivatedAsync(run, "Settings"))["Repository"];
+        var settings = (await Pages.ActivatedAsync(run, "Settings"))["Repository"];
         await run.Ui.RunAsync(() => settings.ExecuteAsync("OpenCommand", run.Repository.Path));
         var editor = await run.Ui.ReadAsync(() => settings["Editor"]);
 
@@ -89,16 +89,4 @@ public sealed class SettingsEditingTests(PublishedPlugins plugins)
         [".avala/permissions.json"] = """{ "autonomy": "supervised", "rules": [] }""",
     };
 
-    private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
-    {
-        var page = run.Page(title);
-        await run.Ui.RunAsync(() =>
-        {
-            ((IActivatable)page.Target).Activate();
-
-            return page.Has("Loading") ? page["Loading"].Value<Task>() : Task.CompletedTask;
-        });
-
-        return page;
-    }
 }

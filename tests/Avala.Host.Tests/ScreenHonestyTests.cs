@@ -42,7 +42,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     public async Task TheResourcesPageAndItsIndicatorSayTheyMeasureAvalasAgentsNotTheComputerAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], []);
-        var resources = await ActivatedAsync(run, "Resources");
+        var resources = await Pages.ActivatedAsync(run, "Resources");
         var indicator = new Bound(Assert.Single(run.Get<IEnumerable<RegionContribution>>(), contribution => contribution.Region == ShellRegions.SidebarFooter && contribution.Order == 0).ViewModel);
 
         Assert.Equal(
@@ -100,7 +100,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     public async Task ANewJobShowsItsRepositorysAutonomyAndRunsSupervisedWhenChosenAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], [(".avala/permissions.json", Autonomous)]);
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
 
         var offered = await run.Ui.RunAsync(async () =>
         {
@@ -126,7 +126,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     public async Task OutsideDeveloperModeTheSimulatorOffersNoConnectionOfItsOwnAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [("simulated-logins/one/.login", string.Empty)], [], developer: false);
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
 
         var catalog = await run.Get<IConnections>().CatalogAsync(Cancellation);
 
@@ -153,7 +153,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     public async Task AutoComparesTheConnectionsOfEveryProviderAndSaysWhenNothingHasBeenReadYetAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [("connections.json", TwoHarnesses)], []);
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
         var unread = await RouteAsync(run, page);
         var recorded = run.Watch<Avala.Observability.Contracts.UsageRecorded>();
         var spent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("near-limit")) { Connection = new ConnectionName("one") }));
@@ -179,7 +179,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     public async Task EditingMissingSettingsFilesCreatesValidOnesFromTheirTemplatesAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], []);
-        var settings = await ActivatedAsync(run, "Settings");
+        var settings = await Pages.ActivatedAsync(run, "Settings");
         var (machine, repository) = await run.Ui.ReadAsync(() => (settings["Machine"], settings["Repository"]));
 
         await run.Ui.RunAsync(() => machine.ExecuteAsync("OpenConnectionsCommand"));
@@ -316,7 +316,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
         Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
-        var connections = (await ActivatedAsync(run, "Overview"))["Connections"];
+        var connections = (await Pages.ActivatedAsync(run, "Overview"))["Connections"];
 
         await run.Ui.PresentedAsync(
             connections.Presentation,
@@ -335,7 +335,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
 
     private static async Task<(string Scope, string Cost)> CostAsync(SimulatedRun run)
     {
-        var usage = await ActivatedAsync(run, "Usage");
+        var usage = await Pages.ActivatedAsync(run, "Usage");
         await run.Ui.PresentedAsync(usage.Presentation, () => usage["Connections"].Items.Count == 1, () => $"{usage["Connections"].Items.Count} connections");
 
         return await run.Ui.ReadAsync(() => (usage["Scope"].Text, usage["Connections"].Items[0]["Cost"].Text));
@@ -350,16 +350,4 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
             return page["Route"].Text;
         });
 
-    private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
-    {
-        var page = run.Page(title);
-        await run.Ui.RunAsync(() =>
-        {
-            ((IActivatable)page.Target).Activate();
-
-            return page.Has("Loading") ? page["Loading"].Value<Task>() : Task.CompletedTask;
-        });
-
-        return page;
-    }
 }

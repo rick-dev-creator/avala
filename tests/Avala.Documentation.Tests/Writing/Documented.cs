@@ -211,9 +211,26 @@ internal sealed class Documented
         public ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    internal sealed class Folders : IWorkingFiles, IRepositoryIndex
+    internal sealed class Folders : IWorkingFiles, IRepositoryIndex, IWorkingCommits
     {
         private readonly ConcurrentDictionary<(string Folder, string Path), string> files = new();
+        private readonly ConcurrentQueue<(string Repository, string Path, string Message)> committed = new();
+
+        public IReadOnlyList<(string Repository, string Path, string Message)> Committed => [.. committed];
+
+        public Option<WorkspaceFailure> Refusal { get; init; }
+
+        public ValueTask<Result<WorkingCommit, WorkspaceFailure>> CommitAsync(string repository, string path, string message, CancellationToken cancellationToken)
+        {
+            if (Refusal.IsSome)
+            {
+                return ValueTask.FromResult(Result<WorkingCommit, WorkspaceFailure>.Failure(Refusal.Match(refusal => refusal, () => WorkspaceFailure.GitFailed)));
+            }
+
+            committed.Enqueue((repository, path, message));
+
+            return ValueTask.FromResult(Result<WorkingCommit, WorkspaceFailure>.Success(new WorkingCommit("c0ffee0c0ffee0c0ffee0c0ffee0c0ffee0c0ff", "main")));
+        }
 
         public string? this[string folder, string path] => files.TryGetValue((folder, path), out var content) ? content : null;
 
@@ -246,6 +263,10 @@ internal sealed class Documented
         public Task<Result<DocsRules, DocumentationError>> OfRepositoryAsync(string repository, CancellationToken cancellationToken) => Task.FromResult(Result<DocsRules, DocumentationError>.Success(rules));
 
         public Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<DocsRulesState> StateAsync(string repository, CancellationToken cancellationToken) => Task.FromResult(new DocsRulesState(rules, rules));
+
+        public Task<Result<DocsCommit, DocumentationError>> CommitAsync(string repository, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     internal sealed class FixedRoles : IRoleSettings

@@ -24,7 +24,11 @@ internal interface IDocsSettingViewModel
 
     bool CanCreateSite { get; }
 
+    bool IsUncommitted { get; }
+
     IAsyncRelayCommand SwitchCommand { get; }
+
+    IAsyncRelayCommand CommitCommand { get; }
 
     IAsyncRelayCommand CreateSiteCommand { get; }
 }
@@ -40,6 +44,10 @@ internal sealed partial class DocsSettingViewModel(IDocumentation documentation,
 
     [ObservableProperty]
     public partial bool IsOn { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CommitCommand))]
+    public partial bool IsUncommitted { get; private set; }
 
     [ObservableProperty]
     public partial string Folder { get; private set; } = DocsRules.DefaultFolder;
@@ -63,11 +71,8 @@ internal sealed partial class DocsSettingViewModel(IDocumentation documentation,
     public async Task ReadAsync(string shown, CancellationToken cancellationToken)
     {
         repository = shown;
-        var docs = await documentation.OfRepositoryAsync(shown, cancellationToken);
-        IsOn = docs.Enabled;
-        Folder = docs.Folder;
+        await ShowRulesAsync(cancellationToken);
         Writer = DocsPhrases.Writer(await roles.OfRoleAsync(shown, ChildRole.Research, cancellationToken));
-        Note = DocsPhrases.Committed;
         Error = string.Empty;
         ShowSite(await documentation.SiteAsync(shown, cancellationToken));
         IsShown = true;
@@ -93,16 +98,27 @@ internal sealed partial class DocsSettingViewModel(IDocumentation documentation,
     {
         var switched = await documentation.SwitchAsync(repository, !IsOn, cancellationToken);
 
-        switched.Match<Action>(
-            rules => () =>
-            {
-                IsOn = rules.Enabled;
-                Folder = rules.Folder;
-                Note = DocsPhrases.Saved;
-                Error = string.Empty;
-            },
-            error => () => Error = DocsPhrases.NotSwitched(error))();
+        Error = switched.Match(_ => string.Empty, DocsPhrases.NotSwitched);
+        await ShowRulesAsync(cancellationToken);
         OnPropertyChanged(nameof(IsOn));
+    }
+
+    [RelayCommand(CanExecute = nameof(IsUncommitted))]
+    private async Task CommitAsync(CancellationToken cancellationToken)
+    {
+        var committed = await documentation.CommitRulesAsync(repository, cancellationToken);
+        Error = committed.Match(_ => string.Empty, DocsPhrases.NotCommitted);
+        await ShowRulesAsync(cancellationToken);
+        Note = committed.Match(DocsPhrases.JustCommitted, _ => Note);
+    }
+
+    private async Task ShowRulesAsync(CancellationToken cancellationToken)
+    {
+        var rules = await documentation.RulesAsync(repository, cancellationToken);
+        IsOn = rules.Working.Enabled;
+        Folder = rules.Working.Folder;
+        IsUncommitted = rules.Working != rules.Committed;
+        Note = IsUncommitted ? DocsPhrases.Uncommitted(IsOn) : DocsPhrases.Committed;
     }
 }
 
@@ -112,9 +128,22 @@ internal static class DocsPhrases
 
     public const string Description = "Each plan becomes a version with its C4; every change you ask for is recorded.";
 
-    public const string Committed = "Read from .avala/jobs.json. New jobs pick it up once it is committed.";
+    public const string Committed = "Read from .avala/jobs.json as committed. New jobs follow it.";
 
-    public const string Saved = "Saved to .avala/jobs.json. New jobs pick it up once it is committed.";
+    public static string Uncommitted(bool on) =>
+        on
+            ? "On in your working copy only: new jobs run without docs until .avala/jobs.json is committed."
+            : "Off in your working copy only: new jobs keep writing docs until .avala/jobs.json is committed.";
+
+    public static string JustCommitted(DocsCommit commit) => $"Committed .avala/jobs.json as {commit.Commit[..Math.Min(7, commit.Commit.Length)]} on {commit.Branch}. New jobs follow it.";
+
+    public static string NotCommitted(DocumentationError error) => error switch
+    {
+        DocumentationError.NotOnABranch => "Not committed: the repository is not on a branch. Check out a branch, then commit again.",
+        DocumentationError.NoGitIdentity => "Not committed: git has no name and email for you. Set user.name and user.email, then commit again.",
+        DocumentationError.NothingToCommit => "Nothing to commit: .avala/jobs.json is already as committed.",
+        _ => "Not committed: git refused the commit. Commit .avala/jobs.json yourself.",
+    };
 
     public static string Writer(ModelChoice research) =>
         research.Model.IsNone && research.Effort.IsNone

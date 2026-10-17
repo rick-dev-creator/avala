@@ -62,10 +62,19 @@
         </StackPanel>
       </StackPanel>
     </Border>
-    <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
-      <Ellipse Classes="dot" VerticalAlignment="Center" />
-      <TextBlock x:Name="DocsNote" Classes="caption" TextWrapping="Wrap" Text="{Binding Note}" />
-    </StackPanel>
+    <DockPanel Margin="4,0">
+      <Button x:Name="CommitRules"
+              DockPanel.Dock="Right"
+              Classes="small"
+              Margin="12,0,0,0"
+              VerticalAlignment="Center"
+              Content="Commit .avala/jobs.json"
+              ToolTip.Tip="Commit only .avala/jobs.json on the checked-out branch, so new jobs follow it"
+              IsVisible="{Binding IsUncommitted}"
+              Command="{Binding CommitCommand}" />
+      <Ellipse DockPanel.Dock="Left" Classes="dot" Classes.attention="{Binding IsUncommitted}" Margin="0,0,8,0" VerticalAlignment="Center" />
+      <TextBlock x:Name="DocsNote" Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding Note}" />
+    </DockPanel>
     <TextBlock x:Name="DocsError"
                Classes="caption failure"
                Margin="4,0"

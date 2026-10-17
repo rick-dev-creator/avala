@@ -31,6 +31,8 @@ internal readonly record struct Bound(object Target)
         ((ICommand)target).Execute(Enum.Parse(target.GetType().GetGenericArguments()[0], value));
     }
 
+    public bool CanExecute(string command, object? parameter = null) => ((ICommand)this[command].Target).CanExecute(parameter);
+
     public Task ExecuteAsync(string command, object? parameter = null) => ((IAsyncRelayCommand)this[command].Target).ExecuteAsync(parameter);
 
     public IPresentation Presentation => (IPresentation)Target;

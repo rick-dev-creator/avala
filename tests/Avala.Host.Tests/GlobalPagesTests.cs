@@ -40,7 +40,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         _ = Outcomes.Succeeds(await run.SubmitAsync(Hanging("Add an endpoint", "personal")));
         _ = await run.OpenedAsync();
         _ = await run.OpenedAsync();
-        var connections = (await ActivatedAsync(run, "Overview"))["Connections"];
+        var connections = (await Pages.ActivatedAsync(run, "Overview"))["Connections"];
 
         await run.Ui.PresentedAsync(
             connections.Presentation,
@@ -67,7 +67,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
             ]);
         var orchestrator = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(orchestrator)));
-        var delegation = (await ActivatedAsync(run, "Overview"))["Delegation"];
+        var delegation = (await Pages.ActivatedAsync(run, "Overview"))["Delegation"];
         await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
 
         await run.Ui.PresentedAsync(
@@ -89,7 +89,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
         Assert.Equal(HoldReason.LimitNearlyReached, (await run.BudgetInterventionAsync()).Hold.Reason);
         Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
-        var usage = await ActivatedAsync(run, "Usage");
+        var usage = await Pages.ActivatedAsync(run, "Usage");
 
         await run.Ui.PresentedAsync(
             usage.Presentation,
@@ -126,7 +126,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
                 (".avala/checks.json", PassingChecks),
                 (".avala/jobs.json", """{ "approval": "merge" }"""),
             ]);
-        var settings = (await ActivatedAsync(run, "Settings"))["Repository"];
+        var settings = (await Pages.ActivatedAsync(run, "Settings"))["Repository"];
 
         await run.Ui.RunAsync(() =>
         {
@@ -162,7 +162,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
         var server = Assert.Single((await run.OrphansFoundAsync()).Processes);
-        var resources = await ActivatedAsync(run, "Resources");
+        var resources = await Pages.ActivatedAsync(run, "Resources");
         await run.Ui.PresentedAsync(
             resources.Presentation,
             () => resources["Orphans"].Items.Count == 1,
@@ -184,7 +184,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     public async Task ANewJobSubmittedFromItsPageStartsOnTheChosenConnectionAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoLogins, []);
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
         Assert.Contains("personal", await run.Ui.ReadAsync(() => page["Connections"].Items.Select(connection => connection.Text).ToList()));
 
         await run.Ui.RunAsync(() =>
@@ -205,16 +205,4 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     private static JobRequest Hanging(string title, string connection) =>
         new(string.Empty, $"{title} {SimulatedRun.Simulate("hang")}") { Connection = new Avala.Agents.Contracts.Connections.ConnectionName(connection) };
 
-    private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
-    {
-        var page = run.Page(title);
-        await run.Ui.RunAsync(() =>
-        {
-            ((IActivatable)page.Target).Activate();
-
-            return page.Has("Loading") ? page["Loading"].Value<Task>() : Task.CompletedTask;
-        });
-
-        return page;
-    }
 }

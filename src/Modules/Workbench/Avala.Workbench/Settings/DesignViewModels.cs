@@ -424,11 +424,15 @@ internal sealed class DesignDocsSettingViewModel : IDocsSettingViewModel
 
     public string Writer => "research · haiku · low";
 
-    public string Note => DocsPhrases.Committed;
+    public string Note => DocsPhrases.Uncommitted(on: true);
 
     public string Error => string.Empty;
 
     public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand SwitchCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+
+    public bool IsUncommitted { get; init; } = true;
+
+    public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand CommitCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 
     public string Site => "DocFX, laid out like Microsoft Learn, with the C4 player.";
 
