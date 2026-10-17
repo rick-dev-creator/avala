@@ -135,10 +135,18 @@ internal static class ReviewPhrases
                 { IntoParent: true } => "Merge into the parent job",
                 { Strategy: Merge } => plan.Base.Match(target => $"Merge into {target}", () => "Merge"),
                 { Strategy: PullRequestDelivery.Strategy } => facts.PullRequest.Match(offer => $"Open pull request on {offer.Forge.Value}", () => "Open pull request"),
-                { Strategy: Keep } => $"Keep branch {plan.Branch}",
+                { Strategy: Keep } => $"Keep branch {Short(plan.Branch)}",
                 _ => $"Approve through {plan.Strategy}",
             },
             () => "Approve");
+
+    public static string Short(string branch)
+    {
+        var slash = branch.LastIndexOf('/');
+        var name = branch[(slash + 1)..];
+
+        return name.Length > 12 ? $"{branch[..(slash + 1)]}{name[..8]}" : branch;
+    }
 
     public static string PullRequestAction(DeliveryFacts facts) =>
         facts.PullRequest.Match(
