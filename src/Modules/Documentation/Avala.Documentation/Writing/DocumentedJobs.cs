@@ -13,6 +13,8 @@ internal sealed class DocumentedJobs(JobPlaces places, IDocsRules rules, Feature
 {
     public Task<Option<JobPlace>> PlaceAsync(JobId job, CancellationToken cancellationToken) => places.OfAsync(job, cancellationToken);
 
+    public Task<IReadOnlyList<AttemptRecord>> AttemptsAsync(JobId job, CancellationToken cancellationToken) => places.AttemptsAsync(job, cancellationToken);
+
     public Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) => places.StatusAsync(job, cancellationToken);
 
     public async Task<Option<Subject>> OfAsync(JobId job, CancellationToken cancellationToken) =>

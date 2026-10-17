@@ -7,6 +7,8 @@ namespace Avala.Documentation.Features;
 
 internal sealed record WriterBrief(Feature Feature, int Number, VersionKind Kind, string Instruction, IReadOnlyList<string> Plan, Option<string> Previous)
 {
+    public IReadOnlyList<string> Asked { get; init; } = [];
+
     public string Text()
     {
         var brief = new StringBuilder();
@@ -16,6 +18,12 @@ internal sealed record WriterBrief(Feature Feature, int Number, VersionKind Kind
             : "The job's plan changed. This version records the feature as the new plan describes it, and says what changed against the previous version and why.\n\n");
         brief.Append(CultureInfo.InvariantCulture, $"The job's instruction:\n\n{Instruction.Trim()}\n\nThe plan:\n\n");
         brief.Append(string.Concat(Plan.Select((step, index) => string.Create(CultureInfo.InvariantCulture, $"{index + 1}. {step}\n"))));
+        if (Asked.Count > 0)
+        {
+            brief.Append("\nWhat a person asked that changed the work, to explain in this version:\n\n");
+            brief.Append(string.Concat(Asked.Select(asked => $"- {asked.Trim()}\n")));
+        }
+
         Previous.Match(
             text => brief.Append(CultureInfo.InvariantCulture, $"\nThe previous version, to build on:\n\n{text.Trim()}\n"),
             () => brief);

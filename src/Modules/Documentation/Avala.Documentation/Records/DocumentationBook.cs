@@ -16,8 +16,13 @@ internal sealed record DocumentedJob(JobId Job, FeatureChoice Choice)
 
     public string LastPlan { get; init; } = string.Empty;
 
+    public ImmutableList<ChangeRequest> Requests { get; init; } = [];
+
+    public IReadOnlyList<ChangeRequest> Linked(FeatureVersion version) =>
+        version.Kind == VersionKind.AsBuilt ? Requests : [.. Requests.Select(request => request.Version.IsSome ? request : request with { Version = version.Number })];
+
     public Option<JobDocumentation> Public => Choice.Feature.Map(
-        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer) });
+        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer), Requests = Requests });
 }
 
 internal interface IDocumentationStore
@@ -29,6 +34,8 @@ internal interface IDocumentationStore
     Task WritingAsync(JobId job, PendingWriter writer, CancellationToken cancellationToken);
 
     Task WrittenAsync(JobId job, FeatureVersion version, string plan, CancellationToken cancellationToken);
+
+    Task RequestedAsync(JobId job, ChangeRequest request, CancellationToken cancellationToken);
 
     Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken);
 }
@@ -63,11 +70,19 @@ internal sealed class DocumentationBook(IDocumentationStore store, IEventBus bus
         await bus.PublishAsync(new VersionWriting(job, writer.Writer, writer.Number, writer.Kind), cancellationToken);
     }
 
+    public async Task RequestedAsync(JobId job, RequestKind kind, string text, int attempt, CancellationToken cancellationToken)
+    {
+        var request = new ChangeRequest(Of(job).Match(found => found.Requests.Count, () => 0) + 1, kind, text, time.GetUtcNow(), attempt);
+        await store.RequestedAsync(job, request, cancellationToken);
+        Change(job, found => found with { Requests = found.Requests.Add(request) }, FeatureChoice.Undocumented);
+        await bus.PublishAsync(new ChangeRequested(job, request), cancellationToken);
+    }
+
     public async Task WrittenAsync(JobId job, Feature feature, FeatureVersion version, string plan, CancellationToken cancellationToken)
     {
         var stamped = version with { At = time.GetUtcNow() };
         await store.WrittenAsync(job, stamped, plan, cancellationToken);
-        Change(job, found => found with { Versions = found.Versions.Add(stamped), Writer = Option<PendingWriter>.None, LastPlan = plan }, FeatureChoice.Undocumented);
+        Change(job, found => found with { Versions = found.Versions.Add(stamped), Writer = Option<PendingWriter>.None, LastPlan = plan, Requests = [.. found.Linked(stamped)] }, FeatureChoice.Undocumented);
         await bus.PublishAsync(new VersionWritten(job, feature, stamped), cancellationToken);
     }
 

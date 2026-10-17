@@ -19,7 +19,10 @@ internal sealed class WriterLauncher(IJobs jobs, IRoleSettings roles, FeatureCat
         var previous = await (versions.Count > 0 ? Option<VersionFile>.Some(versions[^1]) : Option<VersionFile>.None).Match(
             async last => (await files.ReadAsync(subject.Place.Worktree, $"{subject.Folder.Path}/{last.File}", cancellationToken)).Match(content => content, _ => Option<string>.None),
             () => Task.FromResult(Option<string>.None));
-        var brief = new WriterBrief(subject.Folder.Feature, number, kind, subject.Place.Instruction, plan, previous);
+        var brief = new WriterBrief(subject.Folder.Feature, number, kind, subject.Place.Instruction, plan, previous)
+        {
+            Asked = [.. subject.Documented.Requests.Where(request => request.Version.IsNone).Select(request => request.Text)],
+        };
         var request = new JobRequest(subject.Place.Repository, brief.Text())
         {
             Parent = subject.Place.Job,

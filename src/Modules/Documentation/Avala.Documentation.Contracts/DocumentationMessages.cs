@@ -51,6 +51,18 @@ public sealed record FeatureVersion(int Number, VersionKind Kind, string Path, D
     public Option<JobId> Writer { get; init; }
 }
 
+public enum RequestKind
+{
+    Steer,
+    SendBack,
+    Message,
+}
+
+public sealed record ChangeRequest(int Number, RequestKind Kind, string Text, DateTimeOffset At, int Attempt)
+{
+    public Option<int> Version { get; init; }
+}
+
 public enum VersionFailure
 {
     WriterRefused,
@@ -64,6 +76,8 @@ public sealed record JobDocumentation(JobId Job, Feature Feature)
     public IReadOnlyList<FeatureVersion> Versions { get; init; } = [];
 
     public Option<JobId> Writing { get; init; }
+
+    public IReadOnlyList<ChangeRequest> Requests { get; init; } = [];
 }
 
 public interface IDocumentation
@@ -80,6 +94,8 @@ public interface IDocumentation
 }
 
 public sealed record FeatureChosen(JobId Job, FeatureChoice Choice) : IIntegrationEvent;
+
+public sealed record ChangeRequested(JobId Job, ChangeRequest Request) : IIntegrationEvent;
 
 public sealed record VersionWriting(JobId Job, JobId Writer, int Number, VersionKind Kind) : IIntegrationEvent;
 
