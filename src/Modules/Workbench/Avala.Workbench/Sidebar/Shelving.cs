@@ -8,5 +8,5 @@ internal static class Shelving
     public static IAsyncRelayCommand Idle { get; } = new AsyncRelayCommand(() => Task.CompletedTask, () => false);
 
     public static bool Archivable(JobStatus status) =>
-        status is JobStatus.AwaitingReview or JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
+        status is JobStatus.NeedsHelp or JobStatus.AwaitingReview or JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
 }
