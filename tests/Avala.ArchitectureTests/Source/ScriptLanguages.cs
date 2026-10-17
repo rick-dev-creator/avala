@@ -7,8 +7,19 @@ internal static partial class ScriptLanguages
     private static readonly string[] ForeignExtensions =
         [".py", ".sh", ".bash", ".zsh", ".ps1", ".psm1", ".bat", ".cmd", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl", ".lua", ".php"];
 
+    public const string SiteTemplate = "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/";
+
     public static IEnumerable<string> ForeignScripts(IEnumerable<string> paths) =>
-        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase));
+        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) && !InSiteTemplate(path));
+
+    private static bool InSiteTemplate(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+
+        return Path.GetExtension(normalized).Equals(".js", StringComparison.Ordinal)
+            && (normalized.StartsWith(SiteTemplate, StringComparison.Ordinal) || normalized.Contains("/" + SiteTemplate, StringComparison.Ordinal))
+            && normalized[(normalized.IndexOf(SiteTemplate, StringComparison.Ordinal) + SiteTemplate.Length)..].IndexOf('/', StringComparison.Ordinal) < 0;
+    }
 
     public static IEnumerable<string> NonDotnetCommands(string workflow)
     {

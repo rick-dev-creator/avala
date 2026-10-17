@@ -11,6 +11,19 @@ public sealed class ScriptLanguagesTests
             ScriptLanguages.ForeignScripts(["scripts/metrics.cs", "tools/clean.sh", "build.ps1", "gen.py", "setup.CMD", "README.md"]));
 
     [Fact]
+    public void AcceptsOnlyTheJavaScriptOfTheDocsSiteTemplateItsOwnFolder() =>
+        Assert.Equal(
+            ["src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh", "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts"],
+            ScriptLanguages.ForeignScripts([
+                "/home/dev/avala/src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/main.js",
+                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/avala-c4.js",
+                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js",
+                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh",
+                "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js",
+                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts",
+            ]));
+
+    [Fact]
     public void AcceptsDotnetCommandsInEveryRunStyle()
     {
         const string workflow = """

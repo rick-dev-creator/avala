@@ -6,7 +6,7 @@ namespace Avala.Documentation.Tests.Writing;
 public sealed class SiteDeskTests
 {
     [Fact]
-    public async Task CreatingTheSiteWritesOnlyTheFilesItLacksInTheDocsFolderAndStartsAJobThatFillsItAsync()
+    public async Task CreatingTheSiteWritesOnlyTheFilesItLacksInTheDocsFolderWithAvalasC4PlayerAndStartsAJobThatFillsItAsync()
     {
         var documented = Documented.With();
         documented.Files.Draft(Documented.Repository, "docs/index.md", "# Ledger API\n\nOurs.\n");
@@ -19,6 +19,8 @@ public sealed class SiteDeskTests
         Assert.Equal("# Ledger API\n\nOurs.\n", documented.Files[Documented.Repository, "docs/index.md"]);
         Assert.All(created.Written, path => Assert.StartsWith("docs/", path));
         Assert.Contains("docs/docfx.json", created.Written);
+        Assert.StartsWith("import \"./avala-c4.js\";", documented.Files[Documented.Repository, "docs/template/public/main.js"]);
+        Assert.Contains("customElements.define(\"avala-c4\"", documented.Files[Documented.Repository, "docs/template/public/avala-c4.js"]);
         Assert.Equal("- name: Refund webhooks\n  href: refunds/toc.yml\n", documented.Files[Documented.Repository, "docs/features/toc.yml"]);
         var (filler, request) = Assert.Single(documented.Jobs.Submitted);
         Assert.Equal(created.Filler, Sdk.Option<Jobs.Contracts.JobId>.Some(filler));

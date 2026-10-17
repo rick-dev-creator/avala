@@ -45,9 +45,12 @@ docs/
   architecture/decisions/     one record per significant decision
   whats-new.md
   media/  includes/
+  template/public/            Avala's C4 player for the site
 ```
 
 It writes only the files that are missing, inside the docs folder, and starts a job that fills the overview, quickstart, architecture and configuration from the repository and records the decisions of features already documented. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
+
+On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid out the way Avala lays it out, in the site's light or dark theme, with **Previous**, **Play**, **Next** and the speed. Playing it reveals the elements level by level, then walks each relation, a flow hop by hop with its number. Choosing an element scrolls to its section. Other Mermaid diagrams show as DocFX's Mermaid draws them.
 
 **Open the docs site** with the globe in a job's Docs pane: Avala runs `docfx` on the job's leased port and shows the site in the Preview pane. It needs DocFX: `dotnet tool install -g docfx`; without it, Avala says so instead of offering it.
 
@@ -67,4 +70,4 @@ The documentation companion runs on the `research` role of the `delegation` sect
 ## Limits
 
 - A version for code the diff touches outside the plan is not written yet; only a new plan or an attempt that changes it writes a deviation.
-- On the docs site, the C4 shows as DocFX's Mermaid draws it, without Avala's player.
+- The site's player walks one version at a time; building a version from the one before, as the app does, is only in Avala.

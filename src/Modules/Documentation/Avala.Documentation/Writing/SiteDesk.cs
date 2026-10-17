@@ -8,9 +8,11 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.Writing;
 
-internal sealed class Docfx(IProcessRunner processes)
+internal sealed class Docfx(IProcessRunner processes, ISiteTemplate template)
 {
     private bool? installed;
+
+    public IReadOnlyList<SiteFile> Template => template.Files;
 
     public async Task<bool> InstalledAsync(CancellationToken cancellationToken) =>
         installed ??= (await processes.RunAsync(new ProcessRequest("docfx", ["--version"]), cancellationToken)).Match(outcome => outcome.Succeeded, _ => false);
@@ -47,7 +49,7 @@ internal sealed class SiteDesk(DocumentationReads reads, IWorkingFiles files, Do
         var name = Path.GetFileName(repository.TrimEnd('/', '\\'));
         var written = new List<string>();
 
-        foreach (var file in SiteLayout.Files(root, docs.Folder, name, [.. docs.Features.Select(listed => (listed.Feature.Slug, listed.Feature.Title))]))
+        foreach (var file in SiteLayout.Files(root, docs.Folder, name, [.. docs.Features.Select(listed => (listed.Feature.Slug, listed.Feature.Title))], docfx.Template))
         {
             var current = await files.ReadAsync(repository, file.Path, cancellationToken);
 
