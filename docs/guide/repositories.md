@@ -8,6 +8,7 @@ Pick, clone, create or publish the git repositories your jobs work in, or let a 
 - **Repositories come from you, never from an agent**: no agent is offered cloning or publishing as a tool.
 - **Your forge accounts are found on their own**, from the `gh` and `tea` logins and token variables you already have, and listed with their repositories, most recently changed first.
 - Avala uses the git credentials you already have; it never holds a token for git.
+- **What a repository needs is told when it matters.** A repository's first job opens with a card that lists, with one action each, what it still needs: "Connect github.com as octocat through gh to open pull requests and follow their checks" (**Connect**), the account to choose when there are several, or the sign-in command and **Check again** when there is no login; ".avala/jobs.json has changes jobs do not see until they are committed" (**Commit**); "Without .avala/checks.json Avala cannot verify the work" (**Declare checks**, which opens its editor in Settings). A fixed item turns into a check mark in place. Avala never connects a forge without you. The welcome tour's **Your code** step says what each account is for.
 
 ## How to use it
 
@@ -44,7 +45,8 @@ Start a job from the welcome, choose **No repository** in New job's Repository p
 - Publishing again when `origin` already is that repository only pushes, so a push refused for credentials can be retried once they are fixed.
 - A failed or cancelled clone removes only the folder Avala made for it.
 - Scratch repositories are kept: Avala never deletes anything in `scratch`. To keep one as a regular repository, move it out yourself.
-- Scratch repositories declare no checks, so their review shows the diff with no verdict from checks.
+- Scratch repositories declare no checks, so their review shows the diff with no verdict from checks, and their jobs open with no readiness card.
+- The card does not show for a repository with nothing missing, nor for any job but its first; an `origin` on a host no forge plugin signs in to, or on a local path, shows no forge item.
 - Making a repository of your own needs a git identity (`user.name` and `user.email`); a scratch repository does not.
 
 ## See also

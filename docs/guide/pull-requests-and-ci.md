@@ -5,15 +5,16 @@ Open a pull request from an approved job, and let Avala watch its checks and rev
 ## What it does
 
 - **Open pull request** pushes the job's branch and opens a pull request on GitHub, Gitea or Forgejo, titled after the first line of the instruction.
-- **Avala watches it**: its checks ("2 passed · 1 failed · 0 pending"), its reviews and its conflicts with the base, until it is merged, closed or its checks pass.
+- **Avala watches it**: its checks ("2 passed · 1 failed · 0 pending"), its reviews and its conflicts with the base, until it is merged or closed. Once its checks pass the inspector reads "Checks passed · waiting for it to be merged".
+- **A delivered job stays in sight.** Its row reads "delivered · #123 · checks 2 of 3" among the project's open jobs, and moves under done as "merged · #123" or "closed · #123".
 - **The conversation says how CI ended.** While checks run, the job's header shows "Checks running · 1 of 3", with each check in its tooltip. Once every check of a commit has ended, a card "CI failed: build" names the failing checks, their summaries and a **Log** link to each; **Ask the agent to fix it** sends the agent those checks, when the job takes a message. When the agent was woken for that failure, the card says so instead. When every check passed, one quiet line says so. Each commit gets one card, also on a pull request the agent opened itself.
 - **The agent is woken** when the repository allows it: on failing checks and conflicts, and optionally on requested changes, a limited number of times. Each fix is pushed once its turn passes its own checks.
 
 ## How to use it
 
-1. **Connect the forge account** in Settings, Accounts, Source control; see [Repositories](repositories.md).
-2. **Declare the pull request** in the `pullRequest` section of `.avala/jobs.json` and commit it.
-3. **Open the review** of a job and choose **Open pull request**.
+1. **Connect the forge account** in Settings, Accounts, Source control, or from the card a repository's first job opens with; see [Repositories](repositories.md).
+2. **Optionally declare the pull request** in the `pullRequest` section of `.avala/jobs.json` and commit it, to choose the connection, the remote or to wake the agent. Without it, the connection that hosts `origin` is used and the pull request is only watched.
+3. **Open the review** of a job and choose **Open pull request on <connection>**.
 4. **Follow it** in the inspector's **Pull request** section, with **Open in browser** and **Check now**.
 
 ## Settings and files
@@ -34,8 +35,9 @@ Open a pull request from an approved job, and let Avala watch its checks and rev
 
 ## Good to know
 
-- Open pull request only shows when the repository declares `pullRequest`.
-- A pull request the agent opens itself from its job, for example with `gh pr create`, is found when its turn ends and watched the same way, on the forge connection that hosts the repository's `origin` when the repository declares no `pullRequest`.
+- Open pull request shows when the repository declares `pullRequest` or a usable connection hosts `origin`; otherwise the review says which forge to connect.
+- A pull request the agent opens itself, for example with `gh pr create`, is found when its turn ends and watched the same way, whether it is on the job's branch or on a branch the agent switched to in its worktree. A pull request opened from another clone is not adopted.
+- Without a connection, a pull request the agent reports is named once above its conversation: "Pull request #123 was opened by the agent. Connect github.com in Settings to follow its checks."
 - The forge is polled, so nothing needs to reach your computer from outside.
 - Avala pushes with your own git credentials and keeps only a reference to a forge token, never the token.
 
