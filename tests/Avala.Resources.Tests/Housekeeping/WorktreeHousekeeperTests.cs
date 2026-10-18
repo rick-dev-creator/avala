@@ -67,6 +67,24 @@ public sealed class WorktreeHousekeeperTests
     }
 
     [Fact]
+    public async Task AJobThatWorksAgainWhenItsRetentionComesDueKeepsItsWorktreeAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        var home = Resourced.Home("one");
+        _ = resources.Workspaces.Add(home);
+        _ = await resources.OpenAsync(job, home);
+        await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Failed), Cancellation);
+
+        resources.Jobs.Working.Add(job);
+        resources.Clock.Advance(TimeSpan.FromDays(7));
+        await resources.Tracker.HandleAsync(new ResourcesSampled(await resources.SampleAsync()), Cancellation);
+
+        Assert.Empty(resources.Workspaces.Removed);
+        Assert.Empty(resources.Housekeeper.Reclaimed());
+    }
+
+    [Fact]
     public async Task AnApprovedJobsWorktreeIsKeptByDefaultAsync()
     {
         await using var resources = new Resourced();

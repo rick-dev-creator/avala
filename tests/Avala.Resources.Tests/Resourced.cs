@@ -15,6 +15,23 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Resources.Tests;
 
+internal sealed class FakeEndedJobs : IEndedJobs
+{
+    public HashSet<JobId> Working { get; } = [];
+
+    public async ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
+    {
+        if (Working.Contains(job))
+        {
+            return false;
+        }
+
+        await work(cancellationToken);
+
+        return true;
+    }
+}
+
 internal sealed class Resourced : IAsyncDisposable
 {
     public Resourced(ResourceSettings settings)
@@ -24,7 +41,7 @@ internal sealed class Resourced : IAsyncDisposable
         Book = new ResourceBook(Settings, Leases);
         Readings = new ProcessReadings(Trees, Listening);
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
-        Housekeeper = new WorktreeHousekeeper(Workspaces, Settings, Bus, Clock);
+        Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Jobs), Settings, Bus, Clock);
         Tracker = new ResourceTracker(Book, Reaper, Leases, Housekeeper);
         Recovery = new RetentionRecovery(Catalog, Workspaces, Housekeeper, Reaper);
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
@@ -48,6 +65,8 @@ internal sealed class Resourced : IAsyncDisposable
     public FakeFolders Folders { get; } = new();
 
     public FakeWorkspaces Workspaces { get; } = new();
+
+    public FakeEndedJobs Jobs { get; } = new();
 
     public FixedSettings Settings { get; }
 

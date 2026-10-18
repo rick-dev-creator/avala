@@ -38,6 +38,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<ProcessReadings>()
             .AddSingleton<OrphanReaper>()
             .AddForwarded<IOrphans, OrphanReaper>()
+            .AddSingleton<RetainedWorktrees>()
             .AddSingleton<WorktreeHousekeeper>()
             .AddForwarded<IWorktreeHousekeeping, WorktreeHousekeeper>()
             .AddForwarded<IStartupTask, WorktreeHousekeeper>()

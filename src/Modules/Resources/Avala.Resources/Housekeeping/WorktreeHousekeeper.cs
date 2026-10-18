@@ -9,7 +9,23 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Resources.Housekeeping;
 
-internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSettings settings, IEventBus bus, TimeProvider clock)
+internal sealed class RetainedWorktrees(IWorkspaces workspaces, IEndedJobs jobs)
+{
+    public IWorkspaces Workspaces => workspaces;
+
+    public async Task<Option<Result<WorkspaceId, WorkspaceFailure>>> RemoveEndedAsync(JobId job, string worktree, CancellationToken cancellationToken)
+    {
+        var removed = Result<WorkspaceId, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace);
+        var ended = await jobs.WhileEndedAsync(
+            job,
+            async token => removed = await workspaces.FindAtAsync(worktree, token).AsTask().BindAsync(found => workspaces.RemoveAsync(found.Id, token).AsTask()),
+            cancellationToken);
+
+        return ended ? removed : Option<Result<WorkspaceId, WorkspaceFailure>>.None;
+    }
+}
+
+internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResourceSettings settings, IEventBus bus, TimeProvider clock)
     : IWorktreeHousekeeping, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
@@ -32,7 +48,7 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
 
     public async ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {
-        var found = await workspaces.ReconcileAsync(cancellationToken);
+        var found = await worktrees.Workspaces.ReconcileAsync(cancellationToken);
         await bus.PublishAsync(new WorktreesReconciled(found, Cleaned: false), cancellationToken);
 
         return found;
@@ -40,7 +56,7 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
 
     public async ValueTask<WorktreeReconciliation> CleanAsync(CancellationToken cancellationToken)
     {
-        var cleaned = await workspaces.CleanAsync(await workspaces.ReconcileAsync(cancellationToken), cancellationToken);
+        var cleaned = await worktrees.Workspaces.CleanAsync(await worktrees.Workspaces.ReconcileAsync(cancellationToken), cancellationToken);
         await bus.PublishAsync(new WorktreesReconciled(cleaned, Cleaned: true), cancellationToken);
 
         return cleaned;
@@ -85,8 +101,16 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
         foreach (var due in retained.Where(kept => kept.Due <= now).ToList())
         {
             _ = await orphans.ReapAsync(due.Job, cancellationToken);
-            var removed = await workspaces.FindAtAsync(due.Worktree, cancellationToken).AsTask()
-                .BindAsync(found => workspaces.RemoveAsync(found.Id, cancellationToken).AsTask());
+
+            var attempt = await worktrees.RemoveEndedAsync(due.Job, due.Worktree, cancellationToken);
+
+            if (attempt.IsNone)
+            {
+                retained.Remove(due);
+                continue;
+            }
+
+            var removed = attempt.Match(found => found, () => WorkspaceFailure.UnknownWorkspace);
 
             if (removed.IsSuccess || removed.Match(_ => false, failure => failure == WorkspaceFailure.UnknownWorkspace))
             {

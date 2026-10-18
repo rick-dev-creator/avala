@@ -38,6 +38,11 @@ public interface IOpenDeliveries
     ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 
+public interface IEndedJobs
+{
+    ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
+}
+
 public interface IJobSessions
 {
     ValueTask<Result<JobId, JobRejection>> RestAsync(JobId job, CancellationToken cancellationToken);
