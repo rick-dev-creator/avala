@@ -140,6 +140,25 @@ public sealed class DocumentationDeskTests
         Assert.Contains("1. Add a Webhooks container\n2. Keep idempotency keys in the ledger\n", documented.Jobs.Submitted[^1].Request.Instruction);
     }
 
+    [Fact]
+    public async Task APlanChangedWhileItsVersionIsWrittenIsStillDocumentedNextAfterARestartAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        var first = documented.LastWriter;
+        await documented.PlanAsync(session, "Add a Webhooks container", "Keep idempotency keys in the ledger");
+        await documented.ProgressAsync(job, JobStatus.AwaitingReview);
+        documented.Files.Draft(FakeJobs.Worktree(first), DocumentationDraft.Path, "# v1\n");
+        documented.Jobs.Move(first, JobStatus.AwaitingReview);
+
+        _ = await documented.RestartedAsync();
+
+        Assert.Equal([(1, VersionKind.Proposed)], documented.Published<VersionWritten>().Select(written => (written.Version.Number, written.Version.Kind)));
+        Assert.Equal(new VersionWriting(job, documented.LastWriter, 2, VersionKind.Deviation), documented.Published<VersionWriting>()[^1]);
+        Assert.Contains("1. Add a Webhooks container\n2. Keep idempotency keys in the ledger\n", documented.Jobs.Submitted[^1].Request.Instruction);
+    }
+
     [Theory]
     [InlineData(JobStatus.AwaitingReview, "NoDraft", true)]
     [InlineData(JobStatus.NeedsHelp, "WriterStopped", true)]

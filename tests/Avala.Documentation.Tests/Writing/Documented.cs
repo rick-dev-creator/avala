@@ -10,6 +10,7 @@ using Avala.Documentation.Records;
 using Avala.Documentation.Writing;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
@@ -21,8 +22,17 @@ internal sealed class Documented
     public const string Repository = "/repos/ledger";
 
     private Documented(DocsRules rules)
+        : this(new FixedRules(rules), new FakeJobs(), new Folders(), new MemoryStore(), new RecordingBus())
     {
-        Rules = new FixedRules(rules);
+    }
+
+    private Documented(FixedRules rules, FakeJobs jobs, Folders files, MemoryStore store, RecordingBus bus)
+    {
+        Rules = rules;
+        Jobs = jobs;
+        Files = files;
+        Store = store;
+        Bus = bus;
         Book = new DocumentationBook(Store, Bus, TimeProvider.System);
         var catalog = new FeatureCatalog(Files, Files);
         Desk = new DocumentationDesk(
@@ -34,13 +44,13 @@ internal sealed class Documented
 
     public static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public FakeJobs Jobs { get; } = new();
+    public FakeJobs Jobs { get; }
 
-    public Folders Files { get; } = new();
+    public Folders Files { get; }
 
-    public MemoryStore Store { get; } = new();
+    public MemoryStore Store { get; }
 
-    public RecordingBus Bus { get; } = new();
+    public RecordingBus Bus { get; }
 
     public FixedRules Rules { get; }
 
@@ -49,6 +59,15 @@ internal sealed class Documented
     public DocumentationDesk Desk { get; }
 
     public static Documented With(bool enabled = true) => new(new DocsRules(enabled, DocsRules.DefaultFolder));
+
+    public async Task<Documented> RestartedAsync()
+    {
+        var restarted = new Documented(Rules, Jobs, Files, Store, Bus);
+        await restarted.Book.RunAsync(Cancellation);
+        await restarted.Desk.HandleAsync(new StartupCompleted(), Cancellation);
+
+        return restarted;
+    }
 
     public async Task<(JobId Job, SessionId Session)> RunningAsync(string instruction = "Handle Stripe refund webhooks", Option<JobId> parent = default)
     {
@@ -315,6 +334,8 @@ internal sealed class Documented
 
         public Task RequestedAsync(JobId job, ChangeRequest request, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Requests = found.Requests.Add(request) });
+
+        public Task PlannedAsync(JobId job, string plan, CancellationToken cancellationToken) => ChangeAsync(job, found => found with { Plan = plan });
 
         public Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = plan });

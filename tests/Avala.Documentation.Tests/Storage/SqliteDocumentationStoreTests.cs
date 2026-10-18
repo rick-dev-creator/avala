@@ -1,0 +1,32 @@
+using Avala.Documentation.Contracts;
+using Avala.Documentation.Storage;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Testing;
+
+namespace Avala.Documentation.Tests.Storage;
+
+public sealed class SqliteDocumentationStoreTests
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AJobsLatestPlanIsKeptAcrossRestartsBesideTheLastPlanItsVersionsWereWrittenFromAsync()
+    {
+        await using var data = new TemporaryFolder();
+        var paths = new AvalaPaths(data.Path);
+        var job = new JobId(Guid.CreateVersion7());
+
+        await using (var store = new SqliteDocumentationStore(paths))
+        {
+            await store.ChooseAsync(job, FeatureChoice.Of(new Feature("refund-webhooks", "Refund webhooks")), Cancellation);
+            await store.WrittenAsync(job, new FeatureVersion(1, VersionKind.Proposed, "docs/features/refund-webhooks/v1-proposed.md", DateTimeOffset.UnixEpoch), "Add a Webhooks container", Cancellation);
+            await store.PlannedAsync(job, "Add a Webhooks container\nKeep idempotency keys in the ledger", Cancellation);
+        }
+
+        await using var restarted = new SqliteDocumentationStore(paths);
+
+        var kept = Assert.Single(await restarted.ReadAsync(Cancellation));
+        Assert.Equal(("Add a Webhooks container", "Add a Webhooks container\nKeep idempotency keys in the ledger"), (kept.LastPlan, kept.Plan));
+    }
+}
