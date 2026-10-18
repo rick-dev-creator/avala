@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.MediaView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IMediaViewModel"
+             theme:Motion.Enter="Arrive"
+             states:Realized.Command="{Binding ShowCommand}"
+             Margin="0,10">
+  <Design.DataContext>
+    <conversation:DesignMediaViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="{DynamicResource Space2}" HorizontalAlignment="Left">
+    <Border x:Name="Frame"
+            HorizontalAlignment="Left"
+            Background="{DynamicResource FillCodeBrush}"
+            BorderBrush="{DynamicResource SeparatorBrush}"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource RadiusCard}"
+            ClipToBounds="True"
+            ToolTip.Tip="{Binding Name}">
+      <Image x:Name="Picture"
+             MaxWidth="{DynamicResource ReadingWidth}"
+             MaxHeight="{DynamicResource ReadingWidth}"
+             Stretch="Uniform"
+             StretchDirection="DownOnly"
+             AutomationProperties.Name="{Binding Name}"
+             Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}" />
+    </Border>
+    <TextBlock x:Name="Caption"
+               Classes="caption secondary"
+               TextWrapping="Wrap"
+               Text="{Binding Caption}"
+               IsVisible="{Binding HasCaption}" />
+  </StackPanel>
+</UserControl>

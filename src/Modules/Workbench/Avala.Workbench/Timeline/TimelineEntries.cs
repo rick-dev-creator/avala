@@ -87,6 +87,8 @@ internal sealed record CanvasEntry(string Key, string Title, string MediaType, s
     public bool IsOffered { get; init; } = true;
 }
 
+internal sealed record MediaEntry(string Key, Attachment Media, string Caption) : ITimelineEntry;
+
 internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title, string Target) : ITimelineEntry
 {
     public Option<PolicyDecision> Decision { get; init; }

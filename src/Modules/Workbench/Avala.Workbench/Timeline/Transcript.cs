@@ -151,6 +151,9 @@ internal sealed record Transcript
             ? canvas with { Title = snapshot.Title, MediaType = snapshot.MediaType, Content = snapshot.Content, Status = snapshot.Status, IsOffered = snapshot.IsOffered }
             : entry);
 
+    public Transcript Apply(MediaShown shown) =>
+        Add(new MediaEntry(EntryKeys.Media(shown.Turn, shown.Item), shown.Media, shown.Caption));
+
     public Transcript Apply(PolicyDecision decision)
     {
         var decided = Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry)

@@ -52,6 +52,18 @@ public sealed class TranscriptMarkdownTests
     }
 
     [Fact]
+    public void AShownImageIsWrittenAsAnImageOfItsKeptCopyNamedByItsCaptionOrElseItsFile()
+    {
+        var transcript = Transcript.Empty.Apply(new TurnStarted(session, turn), Now)
+            .Apply(new MediaShown(session, turn, new ItemId("shown"), new Attachment("screen.png", "image/png", "/data/a b/screen.png"), "The checkout page"))
+            .Apply(new MediaShown(session, turn, new ItemId("bare"), new Attachment("icon.png", "image/png", "/data/icon.png"), string.Empty));
+
+        Assert.Equal(
+            "# Job\n\n![The checkout page](</data/a b/screen.png>)\n\n![icon.png](</data/icon.png>)\n",
+            TranscriptMarkdown.Write("Job", transcript, MarkdownChoices.Collapsed));
+    }
+
+    [Fact]
     public void ReasoningIsLeftOutUnlessItIsChosen()
     {
         var transcript = Transcript.Empty.Apply(new TurnStarted(session, turn), Now)

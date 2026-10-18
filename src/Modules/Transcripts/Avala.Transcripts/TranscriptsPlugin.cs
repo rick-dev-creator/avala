@@ -30,6 +30,7 @@ public sealed class TranscriptsPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, TranscriptKeeper>()
             .AddForwarded<IHandle<AgentActivity>, TranscriptKeeper>()
             .AddForwarded<IHandle<CanvasUpdated>, TranscriptKeeper>()
+            .AddForwarded<IHandle<MediaShown>, TranscriptKeeper>()
             .AddForwarded<IHandle<PermissionDecided>, TranscriptKeeper>()
             .AddForwarded<IHandle<FormDecided>, TranscriptKeeper>()
             .AddForwarded<IHandle<WorktreeReclaimed>, TranscriptKeeper>();

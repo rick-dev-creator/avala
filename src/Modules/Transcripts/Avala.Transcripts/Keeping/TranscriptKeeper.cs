@@ -15,6 +15,7 @@ internal sealed class TranscriptKeeper(IJobCatalog catalog, ITranscriptLog log, 
     IHandle<JobProgressed>,
     IHandle<AgentActivity>,
     IHandle<CanvasUpdated>,
+    IHandle<MediaShown>,
     IHandle<PermissionDecided>,
     IHandle<FormDecided>,
     IHandle<WorktreeReclaimed>
@@ -49,6 +50,9 @@ internal sealed class TranscriptKeeper(IJobCatalog catalog, ITranscriptLog log, 
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         KeepAsync(integrationEvent.Snapshot.Session, new CanvasDrawn(TranscriptBounds.Bounded(integrationEvent.Snapshot)));
+
+    public ValueTask HandleAsync(MediaShown integrationEvent, CancellationToken cancellationToken) =>
+        KeepAsync(integrationEvent.Session, new MediaKept(integrationEvent));
 
     public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken) =>
         KeepAsync(integrationEvent.Decision.Session, new PermissionRuled(integrationEvent.Decision));

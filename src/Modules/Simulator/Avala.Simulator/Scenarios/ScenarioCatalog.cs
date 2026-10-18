@@ -485,6 +485,17 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario ShownMedia { get; } = new("show-media",
+    [
+        [
+            new WriteFile(new ItemId("capture"), "checkout.png", "PNG\n"),
+            new CallTool(new ItemId("show"), ShowMedia, """{ "path": "checkout.png", "caption": "The checkout page after the fix" }"""),
+            Message("I showed you ", "the checkout page."),
+            .. Bill(1_800, 120, 0.0080m, 0.21),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario LimitHandoff { get; } = new("limit-handoff",
     [
         [
@@ -519,10 +530,12 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
+        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, ShownMedia, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
+
+    public const string ShowMedia = "show_media";
 
     public const string Delegate = "delegate";
 

@@ -257,6 +257,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IPlanPanelViewModel, PlanPanelView>();
         views.Register<IPlanStepViewModel, PlanStepView>();
         views.Register<ICanvasViewModel, CanvasView>();
+        views.Register<IMediaViewModel, MediaView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
         views.Register<IDeniedCardViewModel, DeniedCardView>();
@@ -643,6 +644,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ConnectionChosen>, BoardKeeper>()
             .AddForwarded<IHandle<AgentActivity>, BoardKeeper>()
             .AddForwarded<IHandle<CanvasUpdated>, BoardKeeper>()
+            .AddForwarded<IHandle<MediaShown>, BoardKeeper>()
             .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
             .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
             .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()

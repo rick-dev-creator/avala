@@ -31,6 +31,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<ConnectionChosen>,
     IHandle<AgentActivity>,
     IHandle<CanvasUpdated>,
+    IHandle<MediaShown>,
     IHandle<PermissionDecided>,
     IHandle<FormDecided>,
     IHandle<AttemptVerified>,
@@ -51,7 +52,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<WorktreeReclaimed>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
-    private readonly HashSet<SessionId> steerable = [];
+    private readonly Dictionary<SessionId, bool> steerable = [];
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
@@ -93,10 +94,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
-        if (integrationEvent.Capabilities.Has<AcceptsMessagesMidTurn>())
-        {
-            steerable.Add(integrationEvent.Session);
-        }
+        steerable[integrationEvent.Session] = integrationEvent.Capabilities.Has<AcceptsMessagesMidTurn>();
 
         return ValueTask.CompletedTask;
     }
@@ -105,7 +103,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     {
         sessions[integrationEvent.Session] = integrationEvent.Job;
         await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
-        Change(integrationEvent.Job, job => Audited(job with { TakesMessagesMidTurn = steerable.Contains(integrationEvent.Session) }));
+        Change(integrationEvent.Job, job => Audited(job with { TakesMessagesMidTurn = steerable.GetValueOrDefault(integrationEvent.Session) }));
     }
 
     public async ValueTask HandleAsync(ConnectionChosen integrationEvent, CancellationToken cancellationToken)
@@ -128,6 +126,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });
+
+    public ValueTask HandleAsync(MediaShown integrationEvent, CancellationToken cancellationToken) =>
+        InSessionAsync(integrationEvent.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent) });
 
     public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken)
     {

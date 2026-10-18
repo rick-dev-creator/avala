@@ -38,6 +38,7 @@ internal static class Recollection
         AttemptBegan began => attempts.Where(attempt => attempt.Number == began.Attempt).Aggregate(transcript, (recalled, attempt) => recalled.WithPrompt(instruction, attempt)),
         AgentActed acted => transcript.Apply(acted.Event, kept.At),
         CanvasDrawn drawn => transcript.Apply(drawn.Snapshot),
+        MediaKept media => transcript.Apply(media.Shown),
         PermissionRuled ruled => transcript.Apply(ruled.Decision),
         FormRuled ruled => transcript.Apply(ruled.Decision),
         _ => transcript,

@@ -33,6 +33,7 @@ internal static class TranscriptMarkdown
         ReasoningEntry { Text.Length: > 0 } reasoning when choices.Reasoning => [Quoted(reasoning.Text)],
         ToolEntry tool => Tool(tool, choices),
         CanvasEntry canvas => [$"- {canvas.Title}", Fenced(canvas.Content, Language(canvas.MediaType))],
+        MediaEntry media => [$"![{(media.Caption.Length > 0 ? media.Caption : media.Media.Name)}](<{media.Media.Path}>)"],
         _ => [],
     };
 

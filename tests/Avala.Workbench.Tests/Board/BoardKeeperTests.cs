@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
+using Avala.Canvas.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Jobs.Contracts;
@@ -68,6 +69,23 @@ public sealed class BoardKeeperTests
         var joined = Joined(job);
         Assert.Equal([typeof(PromptEntry), typeof(PermissionEntry)], joined.Transcript.Entries.Select(entry => entry.GetType()));
         Assert.Equal(1, joined.PendingDecisions);
+    }
+
+    [Fact]
+    public async Task AShownImageAppearsInTheConversationOfItsSessionsJob()
+    {
+        var job = catalog.Add("Fix the failing test").Summary.Job;
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        var screen = new Attachment("screen.png", "image/png", "/data/attachments/screen.png");
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+
+        await keeper.HandleAsync(new MediaShown(session, turn, new ItemId("show"), screen, "The checkout page"), Cancellation);
+        await keeper.HandleAsync(new MediaShown(SessionId.New(), turn, new ItemId("other"), screen, "Elsewhere"), Cancellation);
+
+        var media = Assert.Single(Joined(job).Transcript.Entries.OfType<MediaEntry>());
+        Assert.Equal((screen, "The checkout page"), (media.Media, media.Caption));
     }
 
     [Fact]

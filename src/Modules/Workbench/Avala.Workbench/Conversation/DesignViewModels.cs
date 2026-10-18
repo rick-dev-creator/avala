@@ -415,6 +415,19 @@ internal sealed class DesignCanvasViewModel : ICanvasViewModel
     }
 }
 
+internal sealed class DesignMediaViewModel : IMediaViewModel
+{
+    public string Name { get; init; } = "checkout-screen.png";
+
+    public string Caption { get; init; } = "The checkout page after the rounding fix";
+
+    public bool HasCaption => Caption.Length > 0;
+
+    public Avala.Components.Pictures.IPicture Picture => Avala.Components.Pictures.NoPicture.Instance;
+
+    public IAsyncRelayCommand<bool> ShowCommand { get; } = new AsyncRelayCommand<bool>(_ => Task.CompletedTask);
+}
+
 internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
 {
     public TurnOutcome Outcome => TurnOutcome.Finished;

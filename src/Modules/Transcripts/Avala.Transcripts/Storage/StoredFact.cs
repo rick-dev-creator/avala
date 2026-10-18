@@ -63,6 +63,7 @@ internal sealed class StoredFact
         {
             AgentActed acted => StoredJson.Write<object>(acted.Event),
             CanvasDrawn canvas => StoredJson.Write(canvas.Snapshot),
+            MediaKept media => StoredJson.Write(media.Shown),
             PermissionRuled ruled => StoredJson.Write(ruled.Decision),
             FormRuled ruled => StoredJson.Write(ruled.Decision),
             var other => StoredJson.Write<object>(other),
@@ -76,6 +77,7 @@ internal sealed class StoredFact
         {
             nameof(AttemptBegan) => Option<ITranscriptFact>.Some(new AttemptBegan(Attempt)),
             nameof(CanvasDrawn) => Option<ITranscriptFact>.Some(new CanvasDrawn(StoredJson.Read<CanvasSnapshot>(Fact))),
+            nameof(MediaKept) => Option<ITranscriptFact>.Some(new MediaKept(StoredJson.Read<MediaShown>(Fact))),
             nameof(PermissionRuled) => Option<ITranscriptFact>.Some(new PermissionRuled(StoredJson.Read<PolicyDecision>(Fact))),
             nameof(FormRuled) => Option<ITranscriptFact>.Some(new FormRuled(StoredJson.Read<FormDecision>(Fact))),
             _ => Activity().Map<ITranscriptFact>(activity => new AgentActed(activity)),
