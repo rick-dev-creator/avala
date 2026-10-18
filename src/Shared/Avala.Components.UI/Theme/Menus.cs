@@ -61,6 +61,10 @@ public sealed class Menus
             SetIsHighlighting(menu, true);
             e.Handled = true;
         }
+        else if (e.Key is Key.Home or Key.End or Key.PageUp or Key.PageDown)
+        {
+            SetIsHighlighting(menu, true);
+        }
         else if (e.Key is Key.Enter or Key.Space or Key.Right or Key.Left)
         {
             e.Handled = true;
