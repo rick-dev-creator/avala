@@ -312,6 +312,43 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
             Assert.False(first.Intersects(second), $"{first} overlaps {second}");
         }, Cancellation);
 
+    [Fact]
+    public Task FourRelationsBetweenTheSamePairKeepTheirLabelsApartAndOffTheirElementsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Pair", [Element("a", "Alpha"), Element("b", "Beta")], [], [new C4Relation("a", "b", "Asks for a charge"), new C4Relation("b", "a", "Confirms"), new C4Relation("a", "b", "Captures"), new C4Relation("b", "a", "Captured")]);
+            using var player = Player(structure, [new PlayStep(StepKind.Base, "relations", "Relations", string.Empty) { Relations = structure.Relations }]);
+            var graph = Screen.Show(player, ThemeVariant.Dark, 1240, 720).All<C4GraphPanel>().Single();
+            var nodes = graph.Children.Select(child => child.Bounds).ToList();
+            var labels = graph.Labels;
+
+            var overlaps = labels.SelectMany((one, index) => labels.Skip(index + 1).Concat(nodes).Where(other => one.Intersects(other)).Select(other => $"{one} overlaps {other}")).ToList();
+
+            Assert.True(overlaps.Count == 0, string.Join("; ", overlaps));
+        }, Cancellation);
+
+    [Fact]
+    public Task AFlowThereAndBackTwiceKeepsItsNumberedLabelsApartAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Pair", [Element("a", "Alpha"), Element("b", "Beta")], [], [new C4Relation("a", "b", "Asks"), new C4Relation("b", "a", "Confirms")]);
+            C4Relation[] hops = [new("a", "b", "Asks"), new("b", "a", "Confirms"), new("a", "b", "Captures"), new("b", "a", "Captured")];
+            using var player = Player(structure, [new PlayStep(StepKind.Flow, "flow", "Flow", string.Empty) { Relations = hops }]);
+            var graph = Screen.Show(player, ThemeVariant.Dark, 1240, 720).All<C4GraphPanel>().Single();
+            player.GoTo("flow");
+            for (var hop = 1; hop < hops.Length; hop++)
+            {
+                player.NextCommand.Execute(null);
+            }
+
+            var labels = graph.Labels;
+
+            var overlaps = labels.SelectMany((one, index) => labels.Skip(index + 1).Where(other => one.Intersects(other)).Select(other => $"{one} overlaps {other}")).ToList();
+
+            Assert.Equal(hops.Length, labels.Count);
+            Assert.True(overlaps.Count == 0, string.Join("; ", overlaps));
+        }, Cancellation);
+
     private static readonly IEqualityComparer<(double, double)> Close = EqualityComparer<(double, double)>.Create((one, other) => Math.Abs(one.Item1 - other.Item1) < 0.01 && Math.Abs(one.Item2 - other.Item2) < 0.01, pair => 0);
 
     private static C4PlayerViewModel Player()

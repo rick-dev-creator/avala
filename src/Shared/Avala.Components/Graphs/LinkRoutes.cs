@@ -18,7 +18,7 @@ public static class LinkRoutes
         var (origin, target) = (Inside(from, from.Center.Offset(shift.X, shift.Y)), Inside(to, to.Center.Offset(shift.X, shift.Y)));
         var straight = new LinkRoute([Exit(from, origin, target), Exit(to, target, origin)]);
         var blocking = others.Where(other => other != from && other != to).ToList();
-        var lane = Math.Sqrt((shift.X * shift.X) + (shift.Y * shift.Y)) * (shift.X + shift.Y >= 0 ? 1 : -1);
+        var lane = Math.Sqrt((shift.X * shift.X) + (shift.Y * shift.Y)) * (Math.Abs(shift.X) >= Math.Abs(shift.Y) ? Math.Sign(shift.X) : Math.Sign(shift.Y));
 
         return Clear(straight, blocking)
             ? straight
@@ -31,11 +31,19 @@ public static class LinkRoutes
         var length = Distance(a, b);
         var (nx, ny) = length > 0 ? (-(b.Y - a.Y) / length, (b.X - a.X) / length) : (1d, 0d);
         var beside = (Math.Abs(nx) * label.Width / 2) + (Math.Abs(ny) * label.Height / 2) + Clearance + 2;
-        var spots = new[] { 0, beside, -beside, 2 * beside, -2 * beside }
-            .SelectMany(side => Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t) + (nx * side), a.Y + ((b.Y - a.Y) * t) + (ny * side)), label)))
+        var spots = new[] { 0, 1, -1, 2, -2, 3, -3, 4, -4 }
+            .SelectMany(side => Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t) + (nx * side * beside), a.Y + ((b.Y - a.Y) * t) + (ny * side * beside)), label)))
             .ToList();
 
-        return spots.MinBy(spot => taken.Count(other => other.Overlaps(spot, Clearance)));
+        return spots.MinBy(spot => taken.Sum(other => Covered(spot, other)));
+    }
+
+    private static double Covered(GraphRect one, GraphRect other)
+    {
+        var width = Math.Min(one.Right, other.Right) - Math.Max(one.X, other.X) + (2 * Clearance);
+        var height = Math.Min(one.Bottom, other.Bottom) - Math.Max(one.Y, other.Y) + (2 * Clearance);
+
+        return width > 0 && height > 0 ? width * height : 0;
     }
 
     public static double Distance(GraphPoint a, GraphPoint b) => Math.Sqrt(((b.X - a.X) * (b.X - a.X)) + ((b.Y - a.Y) * (b.Y - a.Y)));
@@ -46,13 +54,14 @@ public static class LinkRoutes
         var (left, right) = (Math.Min(from.Center.X, to.Center.X), Math.Max(from.Center.X, to.Center.X));
         var column = blocking.Where(other => other.Y < bottom && other.Bottom > top).Append(from).Append(to).ToList();
         var row = blocking.Where(other => other.X < right && other.Right > left).Append(from).Append(to).ToList();
-        var outward = lane >= 0 ? 2 * lane : (-2 * lane) - LinkLanes.Gap;
+        var outward = Math.Max(0, lane >= 0 ? 2 * lane : (-2 * lane) - LinkLanes.Gap);
+        var (downward, rightward) = (to.Center.Y >= from.Center.Y ? 1 : -1, to.Center.X >= from.Center.X ? 1 : -1);
         var east = column.Max(rect => rect.Right) + LaneGap + outward;
         var west = column.Min(rect => rect.X) - LaneGap - outward;
         var north = row.Min(rect => rect.Y) - LaneGap - outward;
         var south = row.Max(rect => rect.Bottom) + LaneGap + outward;
-        var (y, ty) = (WithinHeight(from, from.Center.Y + lane), WithinHeight(to, to.Center.Y + lane));
-        var (x, tx) = (WithinWidth(from, from.Center.X + lane), WithinWidth(to, to.Center.X + lane));
+        var (y, ty) = (WithinHeight(from, from.Center.Y - (downward * outward / 2)), WithinHeight(to, to.Center.Y + (downward * outward / 2)));
+        var (x, tx) = (WithinWidth(from, from.Center.X - (rightward * outward / 2)), WithinWidth(to, to.Center.X + (rightward * outward / 2)));
 
         yield return new LinkRoute([new(from.Right, y), new(east, y), new(east, ty), new(to.Right, ty)]);
         yield return new LinkRoute([new(from.X, y), new(west, y), new(west, ty), new(to.X, ty)]);

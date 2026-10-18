@@ -45,6 +45,39 @@ public sealed class LinkRoutesTests
     }
 
     [Fact]
+    public void ACallAndItsReplyThatGoAroundANodeNeverCrossEachOther()
+    {
+        var links = new[] { new GraphLink("a", "c", "Asks", EdgeKind.Quiet), new GraphLink("c", "a", "Answers", EdgeKind.Quiet) };
+        var routes = links.Select(link => (Link: link, Shift: LinkLanes.Shift(links, link, link.From == "a" ? (80, 30) : (80, 270), link.From == "a" ? (80, 270) : (80, 30))))
+            .Select(pair => LinkRoutes.Route(pair.Link.From == "a" ? Top : Bottom, pair.Link.From == "a" ? Bottom : Top, [Top, Middle, Bottom], new GraphPoint(pair.Shift.X, pair.Shift.Y)).Points)
+            .ToList();
+
+        var crossings = Segments(routes[0]).SelectMany(one => Segments(routes[1]).Where(other => Cross(one, other)).Select(other => $"{one} crosses {other}")).ToList();
+
+        Assert.Empty(crossings);
+    }
+
+    [Fact]
+    public void TwoLinksBetweenADiagonalPairThatGoAroundANodeKeepTheirOwnLanes()
+    {
+        GraphRect from = new(0, 0, 100, 100), between = new(150, 150, 100, 100), to = new(300, 300, 100, 100);
+        var links = new[] { new GraphLink("a", "b", "First", EdgeKind.Quiet), new GraphLink("a", "b", "Second", EdgeKind.Quiet) };
+
+        var routes = links.Select(link => LinkLanes.Shift(links, link, (50, 50), (350, 350))).Select(shift => LinkRoutes.Route(from, to, [from, between, to], new GraphPoint(shift.X, shift.Y)).Points).ToList();
+
+        Assert.NotEqual(routes[0], routes[1]);
+    }
+
+    private static IEnumerable<(GraphPoint, GraphPoint)> Segments(IReadOnlyList<GraphPoint> points) => points.Zip(points.Skip(1));
+
+    private static bool Cross((GraphPoint A, GraphPoint B) one, (GraphPoint A, GraphPoint B) other)
+    {
+        static double Side(GraphPoint p, GraphPoint q, GraphPoint r) => Math.Sign(((q.X - p.X) * (r.Y - p.Y)) - ((q.Y - p.Y) * (r.X - p.X)));
+
+        return Side(one.A, one.B, other.A) * Side(one.A, one.B, other.B) < 0 && Side(other.A, other.B, one.A) * Side(other.A, other.B, one.B) < 0;
+    }
+
+    [Fact]
     public void ALabelSitsOnItsLinkWhereItCoversNoNodeAndNoOtherLabel()
     {
         var route = new LinkRoute([new GraphPoint(80, 0), new GraphPoint(80, 400)]);
