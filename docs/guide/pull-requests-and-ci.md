@@ -36,7 +36,7 @@ Open a pull request from an approved job, and let Avala watch its checks and rev
 ## Good to know
 
 - Open pull request shows when the repository declares `pullRequest` or a usable connection hosts `origin`; otherwise the review says which forge to connect.
-- A pull request the agent opens itself, for example with `gh pr create`, is found when its turn ends and watched the same way, whether it is on the job's branch or on a branch the agent switched to in its worktree. A pull request opened from another clone is not adopted.
+- A pull request the agent opens itself, for example with `gh pr create`, is found when its turn ends and watched the same way, whether it is on the job's branch or on a branch the agent switched to in its worktree. One on a branch the agent never checked out, for example made with `git commit-tree` and `git branch`, is found from the link the agent reported, in a command's output or in its reply, when that branch is in the job's repository. A pull request opened from another clone is not adopted, even when the agent names it.
 - Without a connection, a pull request the agent reports is named once above its conversation: "Pull request #123 was opened by the agent. Connect github.com in Settings to follow its checks."
 - The forge is polled, so nothing needs to reach your computer from outside.
 - Avala pushes with your own git credentials and keeps only a reference to a forge token, never the token.
