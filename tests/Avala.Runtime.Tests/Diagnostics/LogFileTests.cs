@@ -13,8 +13,14 @@ public sealed class LogFileTests
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
+    private static readonly Action<ILogger, string, string, Exception?> Held =
+        LoggerMessage.Define<string, string>(LogLevel.Warning, default, "Job {Job} is held as {Reason}");
+
     private static void Say(ILogger logger, LogLevel level, string message, Exception? exception = null) =>
         logger.Log(level, default, message, exception, (said, _) => said);
+
+    private static async Task<IReadOnlyList<LogEvent>> EventsAsync(string folder) =>
+        LogEvents.Parse(await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(folder)), Cancellation));
 
     [Fact]
     public async Task EveryLoggerMessageOfTheRuntimeReachesTheFileOfTheDayWithItsLevelCategoryAndExceptionAsync()
@@ -30,13 +36,54 @@ public sealed class LogFileTests
             Say(logger, LogLevel.Debug, "Too chatty to keep");
         }
 
-        var file = Assert.Single(Directory.GetFiles(paths.Logs));
-        var text = await File.ReadAllTextAsync(file, Cancellation);
+        var logged = Assert.Single(await EventsAsync(paths.Logs));
 
-        Assert.Equal("avala-20261010-000.log", Path.GetFileName(file));
-        Assert.Contains("Error Avala.Jobs.Ledger.JobQueues: Work on job job-7 failed", text, StringComparison.Ordinal);
-        Assert.Contains("System.InvalidOperationException: the store is gone", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("Too chatty", text, StringComparison.Ordinal);
+        Assert.Equal("avala-20261010-000.log", Path.GetFileName(Assert.Single(Directory.GetFiles(paths.Logs))));
+        Assert.Equal((Morning, "Error", "Avala.Jobs.Ledger.JobQueues", "Work on job job-7 failed"), (logged.At, logged.Level, logged.Category, logged.Message));
+        Assert.StartsWith("System.InvalidOperationException: the store is gone", logged.Exception, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AMessageIsKeptAsACompactLogEventWithItsTemplateAndEachOfItsPropertiesAsync()
+    {
+        await using var data = new TemporaryFolder();
+
+        await using (var log = new LogFile(data.Path, new FakeTimeProvider(Morning), LogRedaction.From(new Dictionary<string, string>()), LogFile.Limit))
+        {
+            Held(log.CreateLogger("Avala.Jobs.Holding.JobJournal"), "job-7", "Stalled", null);
+        }
+
+        var logged = Assert.Single(await EventsAsync(data.Path));
+
+        Assert.Equal(
+            ("Warning", "Job {Job} is held as {Reason}", "Job job-7 is held as Stalled", "job-7", "Stalled"),
+            (logged.Level, logged.Template, logged.Message, logged.Property("Job"), logged.Property("Reason")));
+    }
+
+    [Fact]
+    public async Task AMessageLoggedInsideAScopeCarriesThePropertiesOfEveryScopeAroundItAsync()
+    {
+        await using var data = new TemporaryFolder();
+        var clock = new FakeTimeProvider(Morning);
+
+        await using (var services = new ServiceCollection().AddLogging().AddSingleton<TimeProvider>(clock).AddRuntime(new AvalaPaths(data.Path)).BuildServiceProvider())
+        {
+            var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Avala.Jobs.Holding.JobJournal");
+
+            using (logger.BeginScope(new Dictionary<string, object?> { ["Job"] = "job-7" }))
+            using (logger.BeginScope(new Dictionary<string, object?> { ["Session"] = "session-3" }))
+            {
+                Say(logger, LogLevel.Information, "Inside");
+            }
+
+            Say(logger, LogLevel.Information, "Outside");
+        }
+
+        var logged = await EventsAsync(new AvalaPaths(data.Path).Logs);
+
+        Assert.Equal(
+            [("Inside", "job-7", "session-3"), ("Outside", string.Empty, string.Empty)],
+            logged.Select(entry => (entry.Message, entry.Property("Job"), entry.Property("Session"))));
     }
 
     [Fact]
@@ -57,7 +104,7 @@ public sealed class LogFileTests
                 "env work-key-1234567890 and ghp_abcdefghijklmnop, key sk-ant-api03-Zx_9-q, header Authorization: Bearer eyJhbGciOi.payload, path /usr/bin:/bin, abc");
         }
 
-        var text = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(data.Path)), Cancellation);
+        var text = Assert.Single(await EventsAsync(data.Path)).Message;
 
         Assert.Contains("env [redacted] and [redacted], key [redacted], header Authorization: Bearer [redacted], path /usr/bin:/bin, abc", text, StringComparison.Ordinal);
     }

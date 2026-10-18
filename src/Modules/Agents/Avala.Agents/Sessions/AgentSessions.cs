@@ -131,6 +131,7 @@ internal sealed partial class AgentSessions(
         var session = running.Session;
         Turn? turn = null;
         var ending = SessionEnding.Closed;
+        using var scope = logger.BeginScope(new Dictionary<string, object?> { ["Session"] = session.Id.Value });
 
         try
         {

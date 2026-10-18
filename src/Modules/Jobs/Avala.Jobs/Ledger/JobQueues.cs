@@ -48,10 +48,14 @@ internal sealed partial class JobQueues(JobLedger ledger, ILogger<JobQueues> log
     }
 
     private async Task<Option<T>> LoadedAsync<T>(JobId id, Func<Job, CancellationToken, Task<T>> work, CancellationToken cancellationToken)
-        where T : notnull =>
-        await ledger.FindAsync(id, cancellationToken).MatchAsync(
+        where T : notnull
+    {
+        using var scope = logger.BeginScope(new Dictionary<string, object?> { ["Job"] = id.Value });
+
+        return await ledger.FindAsync(id, cancellationToken).MatchAsync(
             async job => Option<T>.Some(await work(job, cancellationToken)),
             () => Task.FromResult(Option<T>.None));
+    }
 
     private async Task LoggedAsync(JobId id, Func<Job, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
