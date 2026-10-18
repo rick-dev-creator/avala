@@ -18,7 +18,7 @@ public sealed class FeatureDocsViewModelScripts
         var shown = new List<Sdk.Presentation.PageRequested>();
         messenger.Register<Sdk.Presentation.PageRequested>(shown, (list, message) => ((List<Sdk.Presentation.PageRequested>)list).Add(message));
         var documentation = new FakeDocumentation { Story = DesignStories.Ledger() };
-        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher());
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
         var page = new FeatureDocsViewModel(documentation, new JobFocus(new TestRegions(), messenger), messenger, player);
 
         messenger.Send(new FeatureDocsRequested("/home/ada/code/ledger-api", new Feature("payments", "Payments on stripe-go v79")));

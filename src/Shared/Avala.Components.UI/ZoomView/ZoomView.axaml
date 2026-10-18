@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:zooming="using:Avala.Components.Zooming"
+             x:Class="Avala.Components.UI.ZoomView"
+             x:ClassModifier="internal"
+             x:DataType="zooming:IZoomViewModel">
+  <Design.DataContext>
+    <zooming:DesignZoomViewModel />
+  </Design.DataContext>
+  <StackPanel Orientation="Horizontal" Spacing="2">
+    <Button x:Name="ZoomOut" Classes="hud ghost" Command="{Binding ZoomOutCommand}" AutomationProperties.Name="Zoom out" ToolTip.Tip="Zoom out">
+      <Path Classes="icon small" Height="2" Data="{StaticResource IconMinus}" />
+    </Button>
+    <Button x:Name="ActualSize" Classes="hud ghost wide" Command="{Binding ActualSizeCommand}" AutomationProperties.Name="Actual size" ToolTip.Tip="Actual size">
+      <TextBlock x:Name="Percent" Classes="caption mono" Text="{Binding Percent}" />
+    </Button>
+    <Button x:Name="ZoomIn" Classes="hud ghost" Command="{Binding ZoomInCommand}" AutomationProperties.Name="Zoom in" ToolTip.Tip="Zoom in">
+      <Path Classes="icon small" Data="{StaticResource IconPlus}" />
+    </Button>
+    <Button x:Name="Fit" Classes="hud ghost" Command="{Binding FitCommand}" AutomationProperties.Name="Fit to view" ToolTip.Tip="Fit to view">
+      <Path Classes="icon small" Data="{StaticResource IconFit}" />
+    </Button>
+  </StackPanel>
+</UserControl>

@@ -83,8 +83,33 @@
     </Style.Animations>
   </Style>
 
+  <Style Selector="Button.hud">
+    <Setter Property="Width" Value="32" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.hud.wide">
+    <Setter Property="Width" Value="48" />
+  </Style>
+  <Style Selector="Button.hud:disabled Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
+  </Style>
+  <Style Selector="Button.hud:disabled TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+  </Style>
+  <Style Selector="Button.hud.play">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+
   <Style Selector="graphs|C4GraphPanel">
-    <Setter Property="LabelBrush" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="LabelBrush" Value="{DynamicResource TextSecondaryBrush}" />
+    <Setter Property="LabelPlateBrush" Value="{DynamicResource NodeBrush}" />
+    <Setter Property="LabelSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="FrameLabelBrush" Value="{DynamicResource TextTertiaryBrush}" />
     <Setter Property="BadgeBrush" Value="{DynamicResource AccentBrush}" />
     <Setter Property="BadgeTextBrush" Value="{DynamicResource OnAccentBrush}" />
     <Setter Property="graphs:EdgeBrushes.Flowing" Value="{DynamicResource AccentBrush}" />

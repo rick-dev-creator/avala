@@ -128,7 +128,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
 
     private DocsPaneViewModel Pane()
     {
-        var pane = new DocsPaneViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher()));
+        var pane = new DocsPaneViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel()));
         pane.OnRegionContextChanged(job);
         pane.Activate();
 
