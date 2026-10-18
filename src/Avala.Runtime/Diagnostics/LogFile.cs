@@ -90,7 +90,7 @@ internal sealed class LogFile : ILoggerProvider, ISupportExternalScope, IAsyncDi
 
             foreach (var (name, value) in said.Properties.DistinctBy(property => property.Key))
             {
-                json.WriteString(name, Rendered(value));
+                json.WriteString(name, value);
             }
 
             json.WriteEndObject();
@@ -99,21 +99,24 @@ internal sealed class LogFile : ILoggerProvider, ISupportExternalScope, IAsyncDi
         return new Entry(at, redaction.Apply(Utf8.GetString(buffer.ToArray())) + "\n");
     }
 
-    private List<KeyValuePair<string, object?>> Scoped(IEnumerable<KeyValuePair<string, object?>> own)
+    private List<KeyValuePair<string, string>> Scoped(IEnumerable<KeyValuePair<string, object?>> own)
     {
-        var properties = own.Where(property => property.Key != TemplateKey).ToList();
+        var properties = Rendered(own);
         Volatile.Read(ref scopes).ForEachScope(
             (scope, collected) =>
             {
                 if (scope is IEnumerable<KeyValuePair<string, object?>> pairs)
                 {
-                    collected.AddRange(pairs.Where(pair => pair.Key != TemplateKey));
+                    collected.AddRange(Rendered(pairs));
                 }
             },
             properties);
 
         return properties;
     }
+
+    private static List<KeyValuePair<string, string>> Rendered(IEnumerable<KeyValuePair<string, object?>> pairs) =>
+        [.. pairs.Where(pair => pair.Key != TemplateKey).Select(pair => KeyValuePair.Create(pair.Key, Rendered(pair.Value)))];
 
     private static string Rendered(object? value) => value switch
     {
@@ -193,7 +196,7 @@ internal sealed class LogFile : ILoggerProvider, ISupportExternalScope, IAsyncDi
 
     private sealed record Entry(DateTimeOffset At, string Text);
 
-    private sealed record Said(LogLevel Level, string Category, string Template, string Message, IReadOnlyList<KeyValuePair<string, object?>> Properties, Option<Exception> Exception);
+    private sealed record Said(LogLevel Level, string Category, string Template, string Message, IReadOnlyList<KeyValuePair<string, string>> Properties, Option<Exception> Exception);
 
     private sealed class FileLogger(LogFile file, string category) : ILogger
     {

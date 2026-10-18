@@ -29,8 +29,8 @@ public sealed class SmokeRunTests(PublishedPlugins plugins)
         var (exitCode, _) = await RunAsync(plugins.Directory, data.Path, SmokeRun.Flag);
 
         Assert.Equal(0, exitCode);
-        var log = await File.ReadAllLinesAsync(Assert.Single(Directory.GetFiles(Path.Combine(data.Path, "logs"))), Cancellation);
-        Assert.EndsWith($"Information {CrashLog.Category}: {CrashLog.StoppedMessage}", log[^1]);
+        var last = LogEvents.Parse(await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(Path.Combine(data.Path, "logs"))), Cancellation))[^1];
+        Assert.Equal(("Information", CrashLog.Category, CrashLog.StoppedMessage), (last.Level, last.Category, last.Message));
     }
 
     [Fact]

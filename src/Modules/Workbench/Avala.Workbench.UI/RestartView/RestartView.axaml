@@ -10,15 +10,25 @@
   <Design.DataContext>
     <conversation:DesignRestartViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
-    <Border Classes="separator" VerticalAlignment="Center" MinWidth="24" />
-    <TextBlock x:Name="Note"
-               Grid.Column="1"
-               Classes="caption"
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+      <Border Classes="separator" VerticalAlignment="Center" MinWidth="24" />
+      <TextBlock x:Name="Note"
+                 Grid.Column="1"
+                 Classes="caption"
+                 MaxWidth="480"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"
+                 Text="{Binding Note}" />
+      <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" MinWidth="24" />
+    </Grid>
+    <TextBlock x:Name="Lost"
+               Classes="caption attention"
                MaxWidth="480"
+               HorizontalAlignment="Center"
                TextAlignment="Center"
                TextWrapping="Wrap"
-               Text="{Binding Note}" />
-    <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" MinWidth="24" />
-  </Grid>
+               Text="{Binding Lost}"
+               IsVisible="{Binding HasLost}" />
+  </StackPanel>
 </UserControl>

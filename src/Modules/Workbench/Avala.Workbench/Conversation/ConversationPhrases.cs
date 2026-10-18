@@ -196,10 +196,12 @@ internal static class ConversationPhrases
         return string.Create(CultureInfo.InvariantCulture, $"The checks of pull request #{ci.PullRequest} failed on {ci.Head[..Math.Min(7, ci.Head.Length)]}:\n{string.Join("\n", lines)}\nFix what makes them fail.");
     }
 
-    public static string Lost(IReadOnlyList<string> titles) =>
+    public static string Lost(IReadOnlyList<string> titles) => Lost("The turn ended", titles);
+
+    public static string Lost(string when, IReadOnlyList<string> titles) =>
         titles.Count == 0
             ? string.Empty
-            : $"The turn ended while {string.Join(", ", titles.Select(title => $"“{title}”"))} still worked in the background, so {(titles.Count == 1 ? "its" : "their")} work is lost";
+            : $"{when} while {string.Join(", ", titles.Select(title => $"“{title}”"))} still worked in the background, so {(titles.Count == 1 ? "its" : "their")} work is lost";
 
     public static string Turn(TurnOutcome outcome, TimeSpan duration) => outcome switch
     {

@@ -24,7 +24,10 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
     public Option<HandoffRecord> Handoff { get; init; }
 }
 
-internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
+internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry
+{
+    public IReadOnlyList<string> Lost { get; init; } = [];
+}
 
 internal sealed record CiEntry(string Key, int PullRequest, string Head, IReadOnlyList<CheckRun> Checks) : ITimelineEntry
 {

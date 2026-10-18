@@ -510,6 +510,10 @@ internal sealed class DesignCiCheck : ICiCheck
 internal sealed class DesignRestartViewModel : IRestartViewModel
 {
     public string Note => RestartViewModel.KeptNote;
+
+    public string Lost { get; init; } = string.Empty;
+
+    public bool HasLost => Lost.Length > 0;
 }
 
 internal sealed record DesignConversationViewModel(string Title, string Place, IStatusPillViewModel Pill, IComposerViewModel Composer, IReadOnlyList<object> Entries) : IConversationViewModel

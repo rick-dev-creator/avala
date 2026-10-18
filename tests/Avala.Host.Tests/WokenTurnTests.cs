@@ -38,6 +38,28 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AllowingADenialWhileATurnTheAgentWokeOnItsOwnIsLiveTellsTheAgentInThatTurnAndTheJobGoesOnAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Survey), claude.Data, [(".avala/permissions.json", Autonomous)]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsAsync(() =>
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            && OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
+
+        await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
+        await workbench.ShowsAsync(() =>
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Failed
+            || OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(Retried));
+
+        var (status, messages) = await run.Ui.ReadAsync(() => (conversation["Composer"]["Status"].Value<JobStatus>(), OpenWorkbench.Texts(conversation, "MessageViewModel", "Text")));
+        Assert.NotEqual(JobStatus.Failed, status);
+        Assert.Contains(Retried, messages);
+    }
+
+    [Fact]
     public async Task AMessageSentWhileABackgroundAgentStillWorksJoinsTheAgentsTurnAndTheJobGoesOnAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-send-back");

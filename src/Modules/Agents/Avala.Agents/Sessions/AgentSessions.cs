@@ -89,28 +89,31 @@ internal sealed partial class AgentSessions(
         : !running.Capabilities.Has<ControlsRemotely>() ? AgentError.NotRemoteControllable
         : await running.Session.ControlRemotelyAsync(on, cancellationToken);
 
-    public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
+    public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
+        StopAsync(session, closesItsTurn: true, cancellationToken);
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        foreach (var session in Volatile.Read(ref live).Keys)
+        {
+            await StopAsync(session, closesItsTurn: false, cancellationToken);
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
+
+    private async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, bool closesItsTurn, CancellationToken cancellationToken)
     {
         if (!ImmutableInterlocked.TryRemove(ref live, session, out var running))
         {
             return AgentError.SessionClosed;
         }
 
-        await running.DisposeAsync();
+        await (closesItsTurn ? running.StopAsync() : running.DisposeAsync());
         await bus.PublishAsync(new SessionStopped(session), cancellationToken);
 
         return session;
     }
-
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        foreach (var session in Volatile.Read(ref live).Keys)
-        {
-            await StopAsync(session, cancellationToken);
-        }
-    }
-
-    public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
 
     private async Task<Result<TurnId, AgentError>> ConfirmedAsync(LiveSession running, CancellationToken cancellationToken)
     {
@@ -186,7 +189,7 @@ internal sealed partial class AgentSessions(
 
     private async Task CloseStoppedAsync(Turn? turn, LiveSession running)
     {
-        if (turn is not { IsLive: true })
+        if (!running.ClosesItsTurn || turn is not { IsLive: true })
         {
             return;
         }

@@ -26,6 +26,8 @@ internal sealed record Transcript
 
     private ImmutableDictionary<int, HandoffRecord> Handoffs { get; init; } = ImmutableDictionary<int, HandoffRecord>.Empty;
 
+    private ImmutableList<string> StoppedInBackground { get; init; } = [];
+
     public IEnumerable<ITimelineEntry> Awaiting =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or FormEntry { AwaitsHuman: true });
 
@@ -84,7 +86,7 @@ internal sealed record Transcript
     }
 
     public Transcript WithRestart(bool kept) =>
-        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart, kept));
+        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : (this with { StoppedInBackground = [] }).Add(new RestartEntry(EntryKeys.Restart, kept) { Lost = StoppedInBackground });
 
     public Transcript WithCi(Option<PullRequestWatchState> watch, IReadOnlyList<WakeUpRecord> wakeUps) =>
         watch.Bind(found => found.Last).Match(observed => WithCi(observed, wakeUps), () => this);
@@ -113,7 +115,7 @@ internal sealed record Transcript
     public Transcript KeptIn(int attempt, ITimelineEntry entry) =>
         Positions.ContainsKey(entry.Key) || !Positions.TryGetValue(EntryKeys.Attempt(attempt + 1), out var next) ? Kept(entry) : Inserted(next, entry);
 
-    public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
+    public Transcript WithEarlierRestart(int number) => (this with { StoppedInBackground = [] }).Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true) { Lost = StoppedInBackground });
 
     public Transcript Stopped(DateTimeOffset at) =>
         Entries.Aggregate(this with { LiveSince = Option<DateTimeOffset>.None }, (transcript, entry) => entry switch
@@ -122,6 +124,7 @@ internal sealed record Transcript
             FormEntry { Closed: false } form => transcript.Put(form with { Closed = true }),
             MessageEntry { Outcome.IsNone: true } message => transcript.Put(message with { Outcome = ItemOutcome.Abandoned }),
             ReasoningEntry { Outcome.IsNone: true } reasoning => transcript.Put(reasoning with { Outcome = ItemOutcome.Abandoned, Duration = at - reasoning.Started }),
+            ToolEntry { Outcome.IsNone: true, Backgrounded: true } tool => (transcript with { StoppedInBackground = transcript.StoppedInBackground.Add(tool.Named) }).Put(tool with { Outcome = ItemOutcome.Abandoned }),
             ToolEntry { Outcome.IsNone: true } tool => transcript.Put(tool with { Outcome = ItemOutcome.Abandoned }),
             CanvasEntry { Status: CanvasStatus.Streaming } canvas => transcript.Put(canvas with { Status = CanvasStatus.Abandoned }),
             _ => transcript,

@@ -26,6 +26,8 @@ internal sealed class LiveSession : IAsyncDisposable
 
     public bool Ended => pump.IsCompleted;
 
+    public bool ClosesItsTurn { get; private set; }
+
     public Option<AgentForm> OpenForm(ItemId item) => Volatile.Read(ref forms).GetValueOrDefault(item).ToOption();
 
     public bool AwaitsResult(ItemId item) => Volatile.Read(ref calls).Contains(item);
@@ -54,6 +56,13 @@ internal sealed class LiveSession : IAsyncDisposable
             TurnCompleted => calls.Clear(),
             _ => calls,
         });
+    }
+
+    public ValueTask StopAsync()
+    {
+        ClosesItsTurn = true;
+
+        return DisposeAsync();
     }
 
     public async ValueTask DisposeAsync()
