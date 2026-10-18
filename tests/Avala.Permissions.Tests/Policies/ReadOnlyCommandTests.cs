@@ -161,6 +161,12 @@ public sealed class ReadOnlyCommandTests
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Theory]
+    [InlineData("git log --format --output=.avala/permissions.json")]
+    [InlineData("git show --format --output=.git/config")]
+    public void AGitFormatWithoutAnEqualsSignDoesNotHideTheWordAfterIt(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
     [InlineData("cat < /etc/passwd")]
     [InlineData("head -n 5 < ../secret.txt")]
     [InlineData("wc -l 0</etc/shadow")]
