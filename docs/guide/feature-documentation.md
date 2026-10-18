@@ -24,9 +24,9 @@ Let each job document the feature it builds: the plan it proposed, every change 
 
 ## How to use it
 
-1. **Turn it on** in Settings, Repositories, **Feature documentation**, or add the `docs` section to `.avala/jobs.json`. Jobs read the file from the commit they start from, so the switch shows what your working copy says and, until it is committed, an amber dot and **Commit .avala/jobs.json**, which commits that file alone on the checked-out branch and leaves anything else you staged as it was.
+1. **Turn it on for a repository**: choose **Document Features** in its project's menu in the sidebar, or use Settings, Repositories, **Feature documentation**, or add the `docs` section to `.avala/jobs.json`. It is a setting of each repository, never of the whole machine. Jobs read the file from the commit they start from, so the switch shows what your working copy says and, until it is committed, an amber dot and **Commit .avala/jobs.json**, which commits that file alone on the checked-out branch and leaves anything else you staged as it was.
 2. **Start a job** from New job. The feature chip under the instruction holds the feature Avala suggests from it; open it to choose another of the repository's features, a new one, or **Don't document this job**.
-3. **Follow it** in the job's Docs pane, and read the feature later from the project's **Docs** in the sidebar.
+3. **Follow it** in the job's Docs pane, and read the feature later from the project's **Docs** in the sidebar. A job writes its docs in its own branch, so they reach your `docs/` folder only once you merge that branch; until then the project's Docs lists the feature as "not merged", with its branch on hover, and opens it from the job's worktree. Approving under `keep` says "Its docs stay on that branch until you merge it."
 
 ## The docs site
 

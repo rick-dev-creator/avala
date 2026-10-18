@@ -533,6 +533,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
 
     private static void RegisterReadiness(IServiceCollection services) =>
         services
+            .AddSingleton<ForgeGaps>()
             .AddSingleton<DeliveryOffers>()
             .AddSingleton<SettingsLink>()
             .AddSingleton<IReadinessLinks>(provider => new ReadinessLinks(provider.GetRequiredService<SettingsLink>))

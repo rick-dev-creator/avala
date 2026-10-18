@@ -27,6 +27,8 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
 
     public ProjectMap Projects => board.Projects;
 
+    public ImmutableDictionary<JobId, Documentation.Contracts.JobDocumentation> Docs => board.Docs;
+
     public ImmutableHashSet<JobId> Drafted => board.Drafted;
 
     public IReadOnlyList<JobCheckpoint> CheckpointsOf(JobId job) => board.Checkpoints.GetValueOrDefault(job, []);

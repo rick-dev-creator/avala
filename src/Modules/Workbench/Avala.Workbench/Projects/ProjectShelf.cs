@@ -38,6 +38,12 @@ internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout, IDo
 
     public Task<RepositoryDocs> DocsAsync(string repository, CancellationToken cancellationToken) => documentation.OfRepositoryAsync(repository, cancellationToken);
 
+    public Task<DocsRulesState> DocsRulesAsync(string repository, CancellationToken cancellationToken) => documentation.RulesAsync(repository, cancellationToken);
+
+    public Task<Result<DocsRules, DocumentationError>> SwitchDocsAsync(string repository, bool enabled, CancellationToken cancellationToken) => documentation.SwitchAsync(repository, enabled, cancellationToken);
+
+    public Task<Result<DocsCommit, DocumentationError>> CommitDocsAsync(string repository, CancellationToken cancellationToken) => documentation.CommitRulesAsync(repository, cancellationToken);
+
     public void OpenFeature(string repository, Feature feature) => messenger.Send(new FeatureDocsRequested(repository, feature));
 
     public async Task<ImmutableHashSet<string>> CollapsedAsync(CancellationToken cancellationToken) =>

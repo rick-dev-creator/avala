@@ -77,7 +77,7 @@ internal sealed class Bench : IDisposable
 
     public FakePullRequests PullRequests { get; } = new();
 
-    public ReviewDesk Desk => new(Jobs, new ConflictFinder(Catalog, Changes), Queue, new DeliveryOffers(Plans, Forge, ForgeReadiness, Links));
+    public ReviewDesk Desk => new(Jobs, new ConflictFinder(Catalog, Changes), Queue, new DeliveryOffers(Plans, Forge, new ForgeGaps(ForgeReadiness, Links), Board));
 
     public Readiness.FakeDeliveryPlans Plans { get; } = new();
 

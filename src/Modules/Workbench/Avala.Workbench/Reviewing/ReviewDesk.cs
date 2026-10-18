@@ -1,6 +1,7 @@
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Board;
 using Avala.Workbench.Readying;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
@@ -13,9 +14,20 @@ internal sealed record ApprovalAttempt(Result<ApprovalDelivery, JobRejection> Ou
     public Option<ForgeError> ForgeRefusal { get; init; }
 }
 
-internal sealed record DeliveryFacts(Option<DeliveryPlan> Plan, Option<PullRequestOffer> PullRequest, Option<ForgeReadiness> Forge);
+internal sealed record DeliveryFacts(Option<DeliveryPlan> Plan, Option<PullRequestOffer> PullRequest, Option<ForgeReadiness> Forge)
+{
+    public bool Documented { get; init; }
+}
 
-internal sealed class DeliveryOffers(IDeliveryPlans plans, ForgeDesk forge, IForgeReadiness readiness, IReadinessLinks links)
+internal sealed class ForgeGaps(IForgeReadiness readiness, IReadinessLinks links)
+{
+    public async Task<Option<ForgeReadiness>> OfAsync(string worktree, CancellationToken cancellationToken) =>
+        Option<ForgeReadiness>.Some(await readiness.OfAsync(worktree, cancellationToken));
+
+    public void OpenSettings() => links.OpenSettings();
+}
+
+internal sealed class DeliveryOffers(IDeliveryPlans plans, ForgeDesk forge, ForgeGaps gaps, JobBoard board)
 {
     public ForgeDesk Forge => forge;
 
@@ -26,13 +38,13 @@ internal sealed class DeliveryOffers(IDeliveryPlans plans, ForgeDesk forge, IFor
         var gap = offer.IsSome || plan.Match(found => found.IntoParent, () => true)
             ? Option<ForgeReadiness>.None
             : await plan.Match(
-                async found => Option<ForgeReadiness>.Some(await readiness.OfAsync(found.Worktree, cancellationToken)),
+                found => gaps.OfAsync(found.Worktree, cancellationToken),
                 () => Task.FromResult(Option<ForgeReadiness>.None));
 
-        return new DeliveryFacts(plan, offer, gap);
+        return new DeliveryFacts(plan, offer, gap) { Documented = board.Docs.ContainsKey(job) };
     }
 
-    public void OpenSettings() => links.OpenSettings();
+    public void OpenSettings() => gaps.OpenSettings();
 }
 
 internal sealed class ReviewDesk(IJobs jobs, ConflictFinder conflicts, QueuedMessages queue, DeliveryOffers offers)

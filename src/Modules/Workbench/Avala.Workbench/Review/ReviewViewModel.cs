@@ -125,6 +125,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private readonly ObservableCollection<ChangedFileViewModel> files = [];
     private string closedAs = string.Empty;
     private Option<BoardJob> held;
+    private bool documented;
 
     public ReviewViewModel(JobId job, ReviewReader reader, ReviewDesk desk, IUiDispatcher ui)
     {
@@ -324,6 +325,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     private void ShowDelivery(DeliveryFacts offer)
     {
+        documented = offer.Documented;
         ApproveLabel = ReviewPhrases.Approve(offer);
         PullRequestAction = ReviewPhrases.PullRequestAction(offer);
         PullRequestOffer = PullRequestAction.Length > 0 ? offer.PullRequest.Match(ReviewPhrases.Offer, () => string.Empty) : string.Empty;
@@ -353,7 +355,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         {
             var attempt = await desk.ApproveAsync(Job, cancellationToken);
             Conflicts = attempt.Conflicts;
-            Settle("Approved", attempt.Outcome.Map(ReviewPhrases.Delivered), rejection => rejection == JobRejection.MergeConflict ? ReviewPhrases.Conflicted(attempt.Conflicts) : ReviewPhrases.Refusal(rejection, attempt.ForgeRefusal));
+            Settle("Approved", attempt.Outcome.Map(delivery => ReviewPhrases.Delivered(delivery, documented)), rejection => rejection == JobRejection.MergeConflict ? ReviewPhrases.Conflicted(attempt.Conflicts) : ReviewPhrases.Refusal(rejection, attempt.ForgeRefusal));
         });
 
     [RelayCommand(CanExecute = nameof(CanOpenPullRequest))]

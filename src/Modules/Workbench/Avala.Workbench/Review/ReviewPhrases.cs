@@ -121,6 +121,9 @@ internal static class ReviewPhrases
     public static string Counts(FileChange file) =>
         file.Added.Match(added => Lines(added, file.Removed.Match(removed => removed, () => 0)), () => "binary");
 
+    public static string Delivered(ApprovalDelivery delivery, bool documented) =>
+        delivery.Strategy == Keep && documented ? $"{Delivered(delivery)} Its docs stay on that branch until you merge it." : Delivered(delivery);
+
     public static string Delivered(ApprovalDelivery delivery) =>
         delivery.Strategy == PullRequestDelivery.Strategy
             ? $"Pushed {delivery.Branch} and opened its pull request; the inspector follows its checks"

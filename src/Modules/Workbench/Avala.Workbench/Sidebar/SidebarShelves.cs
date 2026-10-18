@@ -49,6 +49,14 @@ internal sealed class SidebarShelves
             project => KeyOf(project.Project),
             () => scratch.Holds(repository) ? ProjectGroupViewModel.ChatsKey : RepositoryKey + repository);
 
+    public void RefreshDocs()
+    {
+        foreach (var group in groups.Values)
+        {
+            group.RefreshDocs();
+        }
+    }
+
     public void Show(ProjectMap map)
     {
         Map = map;
