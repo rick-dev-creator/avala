@@ -112,6 +112,8 @@ public sealed class ReportedRunsTests
     [InlineData("git revert --no-edit HEAD")]
     [InlineData("git am fix.patch")]
     [InlineData("git clean -fd")]
+    [InlineData("git -C . checkout -- src")]
+    [InlineData("git --no-pager stash pop")]
     public void ACommandRunBeforeAGitCommandThatChangedTheWorkingTreeIsNotReportedAsAfterTheLastEdit(string command) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
@@ -127,6 +129,12 @@ public sealed class ReportedRunsTests
     [InlineData("npx eslint --fix src")]
     [InlineData("npm install")]
     [InlineData("go generate ./...")]
+    [InlineData("clang-format -i src/rounding.c")]
+    [InlineData("goimports -w .")]
+    [InlineData("npm run format")]
+    [InlineData("dotnet add package Newtonsoft.Json")]
+    [InlineData("pip3 install requests")]
+    [InlineData("cargo add serde")]
     public void ACommandRunBeforeAFormatterRewroteTheFilesIsNotReportedAsAfterTheLastEdit(string formatter) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
@@ -158,16 +166,37 @@ public sealed class ReportedRunsTests
             Tool(ItemKind.Command, rewrite, ItemOutcome.Succeeded),
         ]));
 
-    [Fact]
-    public void ACommandRunBeforeAVerificationLineThatAlsoWroteASourceFileIsNotReportedAsAfterTheLastEdit() =>
+    [Theory]
+    [InlineData("dotnet build && printf '}' >> src/Rounding.cs")]
+    [InlineData("dotnet build && printf '}' | tee -a src/Rounding.cs")]
+    public void ACommandRunBeforeAVerificationLineThatAlsoWroteASourceFileIsNotReportedAsAfterTheLastEdit(string line) =>
         Assert.DoesNotContain(
             new ReportedRun("dotnet test", Passed: true),
             ReportedRuns.AfterLastEdit(
             [
                 Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
                 Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
-                Tool(ItemKind.Command, "dotnet build && printf '}' >> src/Rounding.cs", ItemOutcome.Succeeded),
+                Tool(ItemKind.Command, line, ItemOutcome.Succeeded),
             ]));
+
+    [Theory]
+    [InlineData("CI=true npm test > test.log")]
+    [InlineData("timeout 600 dotnet test > test.log")]
+    public void AVerificationRunWithAVariableOrAWrapperThatLogsToAFileIsReportedAndIsNotAnEdit(string line) =>
+        Assert.Equal(
+            [new ReportedRun(line, Passed: true)],
+            ReportedRuns.AfterLastEdit([Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded), Tool(ItemKind.Command, line, ItemOutcome.Succeeded)]));
+
+    [Theory]
+    [InlineData("npx tsc --version")]
+    [InlineData("pytest --version")]
+    [InlineData("npm ls jest")]
+    public void AskingForACheckersVersionOrWhetherItIsInstalledIsNotReported(string inspection) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, inspection, ItemOutcome.Succeeded),
+        ]));
 
     [Theory]
     [InlineData("du -sh build")]

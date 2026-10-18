@@ -135,6 +135,19 @@ public sealed class ReadOnlyCommandTests
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Theory]
+    [InlineData("cat .?/.?/.?/.?/.?/.?/.?/.?/.?/.?/etc/passwd")]
+    [InlineData("grep -rn PRIVATE src/.*/.*/.*/.*/.*/.*/.*/.*/.*/home")]
+    [InlineData("ls .?")]
+    public void AWordWhoseDotGlobCanMatchTheParentFolderStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git log --format='%h %G?' -5")]
+    [InlineData("git show --pretty=%GS HEAD")]
+    public void AGitFormatThatVerifiesSignaturesRunsAnotherProgramAndStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
     [InlineData("cat < /etc/passwd")]
     [InlineData("head -n 5 < ../secret.txt")]
     [InlineData("wc -l 0</etc/shadow")]
