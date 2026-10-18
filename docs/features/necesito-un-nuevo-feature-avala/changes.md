@@ -95,4 +95,34 @@ Asked 2026-10-18 14:47 UTC. Produced [v2](v2-deviation.md).
 
 Asked 2026-10-18 14:49 UTC. Produced [v3](v3-deviation.md).
 
+### Change request 16 · sent back in review · attempt 16
+
+> pues te lo inventaste re bien, porque avala sigue visual first basado en macOS design system debe verse muy pulido
+
+Asked 2026-10-18 14:51 UTC. Produced [v5](v5-deviation.md).
+
+### Change request 17 · steer · attempt 16
+
+> Avala now allows /tmp/avala-ref/permission-dark.png in this job. You may retry it.
+
+Asked 2026-10-18 14:52 UTC. Produced [v5](v5-deviation.md).
+
+### Change request 18 · steer · attempt 16
+
+> ese color terrible verdi azul ? te lo inventaste?
+
+Asked 2026-10-18 14:55 UTC. Produced [v5](v5-deviation.md).
+
+### Change request 19 · sent back in review · attempt 17
+
+> ok perfecto comienza a hacerlo por favor, tienes la metodologia en agents.md y en .method de gitea verdad?
+
+Asked 2026-10-18 14:57 UTC. Produced [v5](v5-deviation.md).
+
+### Change request 20 · steer · attempt 17
+
+> puedes usar sub-agents tienes a tu disposicion el harness claude
+
+Asked 2026-10-18 15:00 UTC. Produced [v5](v5-deviation.md).
+
 <!-- /avala:job 01a14f58-18bb-7efc-a8fe-0e25f10c70a1 -->

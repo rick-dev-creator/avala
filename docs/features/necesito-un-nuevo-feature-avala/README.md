@@ -8,5 +8,6 @@ Written by Avala as the feature is built. Each version is a moment of the featur
 | v2 | Deviation | [v2-deviation.md](v2-deviation.md) |
 | v3 | Deviation | [v3-deviation.md](v3-deviation.md) |
 | v4 | As built | [v4-as-built.md](v4-as-built.md) |
+| v5 | Deviation | [v5-deviation.md](v5-deviation.md) |
 
 What people asked while it was built: [Change requests](changes.md).
