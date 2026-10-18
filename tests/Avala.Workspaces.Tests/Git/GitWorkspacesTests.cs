@@ -287,7 +287,7 @@ public sealed class GitWorkspacesTests
         var store = new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
         var git = new GitCli(recording, NullLogger<GitCli>.Instance);
-        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, []));
         var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
 
         Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "turn 1", Cancellation));
@@ -379,6 +379,22 @@ public sealed class GitWorkspacesTests
         }
     }
 
+    [Fact]
+    public async Task AWorkspaceIsAnnouncedWhileItsWorktreeStillExistsBeforeItIsRemovedAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var removals = new SeenRemovals();
+        var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
+        var kept = new InMemoryWorkspaceStore();
+        var settings = new WorkspaceSettings(repository.WorktreeRoot);
+        var service = new WorkspaceService(git, kept, settings, new WorktreeReconciler(git, kept, settings, [removals]));
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+
+        Outcomes.Succeeds(await service.RemoveAsync(workspace.Id, Cancellation));
+
+        Assert.Equal([(workspace.Id, true)], removals.Seen);
+    }
+
     private static WorkspaceService Service(TemporaryRepository repository, InMemoryWorkspaceStore? store = null) =>
         Service(repository.WorktreeRoot, store);
 
@@ -388,7 +404,19 @@ public sealed class GitWorkspacesTests
         var kept = store ?? new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(worktreeRoot);
 
-        return new(git, kept, settings, new WorktreeReconciler(git, kept, settings));
+        return new(git, kept, settings, new WorktreeReconciler(git, kept, settings, []));
+    }
+
+    private sealed class SeenRemovals : IWorkspaceRemovals
+    {
+        public List<(WorkspaceId Workspace, bool Present)> Seen { get; } = [];
+
+        public ValueTask RemovingAsync(WorkspaceInfo workspace, CancellationToken cancellationToken)
+        {
+            Seen.Add((workspace.Id, Directory.Exists(workspace.Path)));
+
+            return ValueTask.CompletedTask;
+        }
     }
 
     private static BaseFileReader BaseFiles(InMemoryWorkspaceStore store) => new(new GitCli(Processes, NullLogger<GitCli>.Instance), store);

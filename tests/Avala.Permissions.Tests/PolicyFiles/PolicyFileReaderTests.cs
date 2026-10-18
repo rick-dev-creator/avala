@@ -80,6 +80,7 @@ public sealed class PolicyFileReaderTests
         Assert.Equal(
             [
                 (RuleOrigin.BuiltIn, "policy-file-goes-to-a-human"),
+                (RuleOrigin.BuiltIn, "notes-belong-to-the-developer"),
                 (RuleOrigin.BuiltIn, "edits-outside-the-workspace-go-to-a-human"),
                 (RuleOrigin.BuiltIn, "git-files-go-to-a-human"),
                 (RuleOrigin.BuiltIn, "git-folder-goes-to-a-human"),
@@ -107,7 +108,7 @@ public sealed class PolicyFileReaderTests
             (Enum.Parse<PolicyFileStatus>(status), error is null ? Option<PolicyError>.None : Enum.Parse<PolicyError>(error), Autonomy.Supervised),
             (policy.File, policy.Error, policy.Autonomy));
         Assert.Equal(
-            ["policy-file-goes-to-a-human", "edits-outside-the-workspace-go-to-a-human", "git-files-go-to-a-human", "git-folder-goes-to-a-human", "edits-inside-the-workspace", "read-only allowed", "reads-in-readable-folders"],
+            ["policy-file-goes-to-a-human", "notes-belong-to-the-developer", "edits-outside-the-workspace-go-to-a-human", "git-files-go-to-a-human", "git-folder-goes-to-a-human", "edits-inside-the-workspace", "read-only allowed", "reads-in-readable-folders"],
             policy.Rules.Select(rule => rule.Name));
     }
 

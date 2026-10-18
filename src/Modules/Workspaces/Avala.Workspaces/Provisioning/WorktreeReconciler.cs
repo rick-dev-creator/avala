@@ -1,9 +1,10 @@
+using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Workspaces;
 
 namespace Avala.Workspaces.Provisioning;
 
-internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, WorkspaceSettings settings)
+internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, WorkspaceSettings settings, IEnumerable<IWorkspaceRemovals> removals)
 {
     private static readonly EnumerationOptions OwnFiles = new()
     {
@@ -37,6 +38,23 @@ internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, Worksp
         }
 
         return new WorktreeReconciliation(strays, missing);
+    }
+
+    public async Task<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(Workspace workspace, CancellationToken cancellationToken)
+    {
+        foreach (var removal in removals)
+        {
+            await removal.RemovingAsync(workspace.Describe(), cancellationToken);
+        }
+
+        return await git.RemoveWorktreeAsync(workspace.Location, workspace.Branch, workspace.Id, cancellationToken)
+            .BindAsync(_ => workspace.Remove().MapError(_ => WorkspaceFailure.InvalidState))
+            .BindAsync(async removed =>
+            {
+                await store.RemoveAsync(removed.Workspace, cancellationToken);
+
+                return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
+            });
     }
 
     private async Task ForgetAsync(Workspace workspace, CancellationToken cancellationToken)

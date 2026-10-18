@@ -131,6 +131,16 @@ public sealed class PermissionPolicyTests
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: true)).Answer);
 
     [Fact]
+    public void AnAgentsEditOfTheDevelopersNotesIsDeniedWhateverTheRepositoryRulesSay()
+    {
+        var policy = PermissionPolicy.With([Rule("edits", PolicyAnswer.Allow, kind: ItemKind.FileEdit)]);
+
+        var verdict = policy.Decide(new PermissionRequest(ItemKind.FileEdit, ".avala/notes/project/2026-10-19-1432-login-bug/note.md", InsideWorkspace: true));
+
+        Assert.Equal((PolicyAnswer.Deny, "notes-belong-to-the-developer"), (verdict.Answer, Outcomes.Present(verdict.Rule).Name));
+    }
+
+    [Fact]
     public void AnEditOutsideTheWorkspaceGoesToAHumanWhateverTheRepositoryRulesSay()
     {
         var policy = PermissionPolicy.With([Rule("edits", PolicyAnswer.Allow, kind: ItemKind.FileEdit)]);

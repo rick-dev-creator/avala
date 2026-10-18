@@ -106,6 +106,6 @@ public sealed class WorkspaceServiceTests
     {
         var kept = store ?? new InMemoryWorkspaceStore();
 
-        return new(git, kept, new WorkspaceSettings(Root), new WorktreeReconciler(git, kept, new WorkspaceSettings(Root)));
+        return new(git, kept, new WorkspaceSettings(Root), new WorktreeReconciler(git, kept, new WorkspaceSettings(Root), []));
     }
 }

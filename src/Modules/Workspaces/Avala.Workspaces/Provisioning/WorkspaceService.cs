@@ -42,15 +42,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
     public async ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(
         WorkspaceId workspace,
         CancellationToken cancellationToken) =>
-        await LoadAsync(workspace, cancellationToken)
-            .BindAsync(found => git.RemoveWorktreeAsync(found.Location, found.Branch, found.Id, cancellationToken)
-                .BindAsync(_ => Valid(found.Remove())))
-            .BindAsync(async removed =>
-            {
-                await store.RemoveAsync(removed.Workspace, cancellationToken);
-
-                return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
-            });
+        await LoadAsync(workspace, cancellationToken).BindAsync(found => reconciler.RemoveAsync(found, cancellationToken));
 
     private async Task<Result<Checkpoint, WorkspaceFailure>> CheckpointAsync(Workspace workspace, string label, CancellationToken cancellationToken)
     {

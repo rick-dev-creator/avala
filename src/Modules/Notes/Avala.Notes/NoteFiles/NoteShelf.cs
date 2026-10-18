@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avala.Jobs.Contracts;
 using Avala.Notes.Contracts;
 using Avala.Notes.Notebook;
 using Avala.Notes.Taking;
@@ -94,6 +95,45 @@ internal sealed class NoteShelf : INoteShelf
         }
 
         return notes;
+    }
+
+    public IReadOnlyList<JobId> JobsAt(string root)
+    {
+        var notes = Absolute(root, NoteFolder.Notes);
+
+        return Directory.Exists(notes)
+            ? [.. Directory.EnumerateDirectories(notes)
+                .Select(folder => Guid.TryParseExact(Path.GetFileName(folder), "N", out var job) ? Option<JobId>.Some(new JobId(job)) : Option<JobId>.None)
+                .SelectMany(job => job.Match<JobId[]>(found => [found], () => []))]
+            : [];
+    }
+
+    public async Task<bool> KeepAsync(string from, string to, string folder, CancellationToken cancellationToken)
+    {
+        var source = Absolute(from, folder);
+
+        if (!Directory.Exists(source))
+        {
+            return false;
+        }
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            {
+                var target = Path.Combine(Absolute(to, folder), Path.GetRelativePath(source, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                await using var reading = File.OpenRead(file);
+                await using var writing = File.Create(target);
+                await reading.CopyToAsync(writing, cancellationToken);
+            }
+
+            return true;
+        }
+        catch (Exception refused) when (refused is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static string Absolute(string root, string folder) => Path.Combine(root, folder.Replace('/', Path.DirectorySeparatorChar));
