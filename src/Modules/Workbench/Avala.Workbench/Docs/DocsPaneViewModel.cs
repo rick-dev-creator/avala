@@ -243,11 +243,9 @@ internal static class DocsPanePhrases
     public static string Problem(string reason) => $"Could not read this feature's docs: {reason}";
 
     public static string Unplayed(IReadOnlyList<UnplayedVersion> unplayed) =>
-        string.Join(' ', unplayed.Select(version => version.Repeated.Match(
-            name => $"{version.File} names {name} twice in its diagram, so the story leaves it out.",
-            () => version.After.Match(
-                after => $"{version.File} could not be played after {after}, so the story leaves it out.",
-                () => $"{version.File} could not be played, so the story leaves it out."))));
+        string.Join(' ', unplayed.Select(version => version.After.Match(
+            after => $"{version.File} could not be played after {after}, so the story leaves it out.",
+            () => $"{version.File} could not be played, so the story leaves it out.")));
 
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"

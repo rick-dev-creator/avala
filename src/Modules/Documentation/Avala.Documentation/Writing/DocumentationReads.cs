@@ -60,12 +60,6 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
                 var text = (await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).Match(content => content.Match(found => found, () => string.Empty), _ => string.Empty);
                 var shown = Storyboard.Play(version.Number, version.Kind, version.File, VersionReader.Read(text), previous.Map(before => before.Structure));
 
-                if (shown.Structure.Elements.GroupBy(element => element.Alias, StringComparer.Ordinal).FirstOrDefault(named => named.Skip(1).Any()) is { } repeated)
-                {
-                    unplayed.Add(new UnplayedVersion(version.File) { Repeated = repeated.Key });
-                    continue;
-                }
-
                 played.Add(shown);
                 previous = shown.Structure.Elements.Count > 0 ? (shown.Structure, version.File) : previous;
             }

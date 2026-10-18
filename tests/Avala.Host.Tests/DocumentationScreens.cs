@@ -116,7 +116,7 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
     }
 
     [Fact]
-    public async Task TheDocsPaneFollowsATaskListRevisedAfterASendBackAndSaysWhenAVersionCannotBeReadAsync()
+    public async Task TheDocsPaneFollowsATaskListRevisedAfterASendBackAndPlaysAVersionWhoseDiagramNamesAnElementTwiceAsync()
     {
         Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
@@ -125,6 +125,10 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
         _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
         Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
         var asBuilt = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt && version.Version.Number == 4);
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
+        var worktree = Outcomes.Succeeds(await run.Get<Avala.Workspaces.Contracts.IWorkspaces>().FindAsync(workspace, Cancellation)).Path;
+        var deviation = Path.Combine(worktree, Path.GetDirectoryName(asBuilt.Version.Path)!, "v3-deviation.md");
+        await File.WriteAllTextAsync(deviation, "# Changelog\n\n```mermaid\nC4Container\n  Container(log, \"Changelog\", \"Markdown\")\n  Container(log, \"Changelog again\", \"Markdown\")\n```\n", Cancellation);
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(job);
         var pane = await OpenPaneAsync(run, "4 versions");
@@ -132,17 +136,13 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
         await Camera.ShootAsync(run, "docs-plan-followed-dark", window => FeatureCamera.ScrollTo(window, "History"));
         await Camera.ShootAsync(run, "docs-plan-followed-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "History"));
 
-        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
-        var worktree = Outcomes.Succeeds(await run.Get<Avala.Workspaces.Contracts.IWorkspaces>().FindAsync(workspace, Cancellation)).Path;
-        var deviation = Path.Combine(worktree, Path.GetDirectoryName(asBuilt.Version.Path)!, "v3-deviation.md");
-        await File.WriteAllTextAsync(deviation, "# Changelog\n\n```mermaid\nC4Container\n  Container(log, \"Changelog\", \"Markdown\")\n  Container(log, \"Changelog again\", \"Markdown\")\n```\n", Cancellation);
-        var toggle = new Bound(run.Get<IEnumerable<RegionContribution>>().Single(contribution => contribution.Region == WorkbenchRegions.JobHeader && contribution.ViewModel.GetType().Name == "DocsToggleViewModel").ViewModel);
-        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
-        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
-        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Problem"].Text.Length > 0, () => $"the pane says {pane["State"].Text}");
+        await run.Ui.InvokeAsync(() => pane["History"]["Steps"].Items.Single(step => step["Title"].Text == "Plan v3 · deviation").Execute("ChooseCommand"), Cancellation);
 
-        await Camera.ShootAsync(run, "docs-pane-unreadable-dark");
-        await Camera.ShootAsync(run, "docs-pane-unreadable-light", ThemeVariant.Light);
+        var shown = await run.Ui.ReadAsync(() => (pane["Problem"].Text, pane["Player"]["Nodes"].Items.Select(node => node["Label"].Text).ToList()));
+        Assert.Equal(string.Empty, shown.Item1);
+        Assert.Contains("Changelog again", shown.Item2);
+        await Camera.ShootAsync(run, "docs-pane-repeated-name-dark");
+        await Camera.ShootAsync(run, "docs-pane-repeated-name-light", ThemeVariant.Light);
     }
 
     private static void Copy(string from, string to)

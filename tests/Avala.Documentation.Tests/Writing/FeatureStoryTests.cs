@@ -64,7 +64,7 @@ public sealed class FeatureStoryTests
     }
 
     [Fact]
-    public async Task AVersionWhoseDiagramNamesAnElementTwiceIsLeftOutOfItsJobsStoryWithTheNameAndTheNextIsPlayedAsync()
+    public async Task AVersionWhoseDiagramNamesAnElementTwicePlaysInItsJobsStoryAndSoDoesTheNextAsync()
     {
         var documented = Documented.With();
         var (job, session) = await documented.RunningAsync();
@@ -78,8 +78,8 @@ public sealed class FeatureStoryTests
 
         var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
 
-        Assert.Equal([1, 3], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
-        Assert.Equal([new UnplayedVersion("v2-deviation.md") { Repeated = "log" }], docs.Unplayed);
+        Assert.Equal([1, 2, 3], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
+        Assert.Empty(docs.Unplayed);
     }
 
     [Fact]

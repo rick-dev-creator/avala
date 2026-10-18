@@ -145,8 +145,6 @@ public sealed record JobDocs(JobDocumentation Documentation, string Repository, 
 
 public sealed record UnplayedVersion(string File)
 {
-    public Option<string> Repeated { get; init; }
-
     public Option<string> After { get; init; }
 }
 
