@@ -134,6 +134,29 @@ public sealed class DocsPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AnotherJobsHistoryOpensOnItsLatestVersionNotOnTheVersionChosenInTheJobShownBeforeAsync()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+        var other = JobId.New();
+        var payouts = new JobDocumentation(other, Payouts)
+        {
+            Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payouts/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payouts/v2-deviation.md", DateTimeOffset.UnixEpoch)],
+        };
+        documentation.Job = new JobDocs(payouts, "/repos/ledger", DesignStories.Ledger(), new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 2)]));
+        board.Publish(board.Docs.Add(other, payouts));
+
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(other), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Feature == Payouts.Title, () => $"feature '{pane.Feature}'");
+
+        var shown = await ui.ReadAsync(() => (pane.History.Heading, pane.History.Steps.Single(step => step.IsChosen).Title));
+        Assert.Equal(("Plan v2 · deviation", "Plan v2 · deviation"), shown);
+    }
+
+    [Fact]
     public async Task AVersionsWriterOpensFromTheHistoryInItsOwnConversationAsync()
     {
         Document(writing: false);
