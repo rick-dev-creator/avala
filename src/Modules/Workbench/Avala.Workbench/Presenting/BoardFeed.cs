@@ -74,7 +74,7 @@ internal sealed partial class BoardFeed(JobBoard board, IUiDispatcher ui, ILogge
             {
                 if (!following.IsCancellationRequested)
                 {
-                    show();
+                    Guarded(show);
                     Revision++;
                     Presented?.Invoke(this, new Presented(Revision));
                 }
@@ -84,14 +84,30 @@ internal sealed partial class BoardFeed(JobBoard board, IUiDispatcher ui, ILogge
     public Task RunAsync(Func<CancellationToken, Task> load) =>
         active is { } following ? GuardedAsync(load, following.Token) : Task.CompletedTask;
 
-    private static async Task GuardedAsync(Func<CancellationToken, Task> load, CancellationToken following)
+    private async Task GuardedAsync(Func<CancellationToken, Task> load, CancellationToken following)
     {
         try
         {
             await load(following);
         }
-        catch (OperationCanceledException) when (following.IsCancellationRequested)
+        catch (Exception exception)
         {
+            if (!following.IsCancellationRequested)
+            {
+                LogFailed(exception);
+            }
+        }
+    }
+
+    private void Guarded(Action show)
+    {
+        try
+        {
+            show();
+        }
+        catch (Exception exception)
+        {
+            LogFailed(exception);
         }
     }
 

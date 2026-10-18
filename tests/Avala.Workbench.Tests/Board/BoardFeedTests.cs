@@ -41,6 +41,30 @@ public sealed class BoardFeedTests : IDisposable
         Assert.Single(logger.Entries);
     }
 
+    [Fact]
+    public async Task AShowAgainThatThrowsIsLoggedAndTheBoardFeedKeepsFollowingAsync()
+    {
+        feed.Start(_ => []);
+        await ui.PresentedAsync(feed, () => feed.Revision == 1, () => $"revision {feed.Revision}");
+
+        await feed.ShowAgainAsync(() => throw new InvalidOperationException("An aged row with no view"));
+        board.Publish(Pages.Board(Pages.Summary("Fix the failing test", JobStatus.Running)).Jobs);
+
+        await ui.PresentedAsync(feed, () => feed.Revision == 3, () => $"revision {feed.Revision}");
+        Assert.Single(logger.Entries);
+    }
+
+    [Fact]
+    public async Task ALoadOutsideTheFollowedChangesThatThrowsIsLoggedAsync()
+    {
+        feed.Start(_ => []);
+        await ui.PresentedAsync(feed, () => feed.Revision == 1, () => $"revision {feed.Revision}");
+
+        await feed.LoadAsync<bool>(_ => throw new IOException("The shelf file went away"), _ => { });
+
+        Assert.Single(logger.Entries);
+    }
+
     public void Dispose()
     {
         feed.Dispose();
