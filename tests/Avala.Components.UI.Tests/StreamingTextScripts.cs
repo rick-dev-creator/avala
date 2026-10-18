@@ -104,6 +104,13 @@ public sealed class StateConverterScripts
     public void AnEnumMatchesAnyOfTheNamesItIsGiven(TextWrapping value, string names, bool matches) =>
         Assert.Equal(matches, EnumIs.Any.Convert(value, typeof(bool), names, Culture));
 
+    [Theory]
+    [InlineData("resets Tue 20 Oct 18:10", "Resets Tue 20 Oct 18:10")]
+    [InlineData("No reset reported", "No reset reported")]
+    [InlineData("", "")]
+    public void APhraseShownOnItsOwnStartsAsASentence(string phrase, string shown) =>
+        Assert.Equal(shown, Texts.Sentence.Convert(phrase, typeof(string), null, Culture));
+
     [Fact]
     public void ANullSelectionIsNeverWrittenBackSoAHiddenPageStaysSelected()
     {

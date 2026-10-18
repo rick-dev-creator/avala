@@ -1,25 +1,24 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:usage="using:Avala.Workbench.Usage"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.LimitView"
              x:ClassModifier="internal"
              x:DataType="usage:ILimitViewModel">
   <Design.DataContext>
     <usage:DesignLimitViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="7">
+  <StackPanel Spacing="6">
     <DockPanel>
-      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-        <TextBlock x:Name="UsedText" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Classes.tertiary="{Binding IsExpired}" Text="{Binding UsedText}" />
-        <TextBlock x:Name="Resets" Classes="tertiary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Resets, StringFormat=' · {0}'}" />
-      </StackPanel>
-      <TextBlock x:Name="Window" Classes="secondary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="UsedText" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Classes.tertiary="{Binding IsExpired}" Text="{Binding UsedText}" Margin="12,0,0,0" />
+      <TextBlock x:Name="Window" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
     </DockPanel>
     <Panel>
       <ProgressBar x:Name="Used" Classes="bar thick" Classes.attention="{Binding IsNear}" Value="{Binding Used}" VerticalAlignment="Center" />
       <ProgressBar x:Name="Hold" Classes="marker" Classes.attention="{Binding IsNear}" Height="14" Value="{Binding Hold}" IsVisible="{Binding HasHold}" />
     </Panel>
-    <TextBlock x:Name="HoldAt" Classes="caption" Text="{Binding HoldAt}" IsVisible="{Binding IsNear}" TextWrapping="Wrap" />
+    <TextBlock x:Name="Resets" Classes="caption" Text="{Binding Resets, Converter={x:Static states:Texts.Sentence}}" TextWrapping="Wrap" />
+    <TextBlock x:Name="HoldAt" Classes="caption attention" Text="{Binding HoldAt}" IsVisible="{Binding IsNear}" TextWrapping="Wrap" />
     <TextBlock x:Name="Outside" Classes="caption" Text="{Binding Outside}" IsVisible="{Binding Outside, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" />
   </StackPanel>
 </UserControl>

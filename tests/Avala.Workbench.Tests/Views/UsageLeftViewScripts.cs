@@ -1,5 +1,10 @@
 using Avala.Testing.UI;
 using Avala.Workbench.Usage;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -25,6 +30,24 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
             view.Click("Open");
 
             Assert.Equal(1, chip.Opened);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task HoveringTheChipShowsTheConnectionAndEachWindowBelowItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageLeftViewModel(), ThemeVariant.Dark, 640, 900);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+            var chip = view.Find<Button>("Open");
+
+            ToolTip.SetIsOpen(chip, true);
+            view.Settle();
+            var detail = Assert.IsAssignableFrom<Control>(ToolTip.GetTip(chip));
+            string? Text(string name) => detail.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == name).Text;
+
+            Assert.Equal(("claude-work", "12% usage left"), (Text("Connection"), Text("LeftDetail")));
+            Assert.Equal(2, detail.GetVisualDescendants().Count(control => control.GetType().Name == "LimitView"));
+            Assert.True(detail.TranslatePoint(default, view.Window)!.Value.Y >= chip.TranslatePoint(new Point(0, chip.Bounds.Height), view.Window)!.Value.Y);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

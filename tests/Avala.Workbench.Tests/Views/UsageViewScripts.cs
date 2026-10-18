@@ -2,6 +2,7 @@ using Avala.Components.UI.Graphs;
 using Avala.Jobs.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Usage;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
@@ -114,10 +115,20 @@ public sealed class LimitViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignLimitViewModel());
 
-            Assert.Equal(("5-hour window", "88%", " · resets 2026-10-09 16:20"), (view.TextOf("Window"), view.TextOf("UsedText"), view.TextOf("Resets")));
+            Assert.Equal(("5-hour window", "88%"), (view.TextOf("Window"), view.TextOf("UsedText")));
             Assert.Equal((0.88, 0.9), (view.Find<ProgressBar>("Used").Value, view.Find<ProgressBar>("Hold").Value));
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
-            Assert.Equal((true, true, "Jobs on this connection hold at the 90% threshold."), (view.HasClass("UsedText", "attention"), view.Shows("HoldAt"), view.TextOf("HoldAt")));
+            Assert.Equal((true, true, true, "Jobs on this connection hold at the 90% threshold."), (view.HasClass("UsedText", "attention"), view.HasClass("HoldAt", "attention"), view.Shows("HoldAt"), view.TextOf("HoldAt")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ALimitSaysWhenItResetsAsASentenceUnderItsBarAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignLimitViewModel());
+
+            Assert.Equal("Resets 2026-10-09 16:20", view.TextOf("Resets"));
+            Assert.True(view.Find("Resets").TranslatePoint(default, view.Window)!.Value.Y >= view.Find("Used").TranslatePoint(new Point(0, view.Find("Used").Bounds.Height), view.Window)!.Value.Y);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

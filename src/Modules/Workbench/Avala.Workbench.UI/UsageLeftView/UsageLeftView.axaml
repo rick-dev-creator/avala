@@ -20,19 +20,27 @@
           Classes="line"
           IsVisible="{Binding IsShown}"
           Command="{Binding OpenCommand}"
+          ToolTip.Placement="Bottom"
+          ToolTip.VerticalOffset="6"
           AutomationProperties.Name="{Binding Summary}">
     <ToolTip.Tip>
-      <StackPanel Width="320" Spacing="12">
-        <TextBlock x:Name="Connection" Classes="caption secondary" Text="{Binding Connection, StringFormat='Usage left on {0}'}" TextTrimming="CharacterEllipsis" />
+      <StackPanel x:Name="Detail" Width="{DynamicResource TipWidth}" Margin="2,4" Spacing="14">
+        <DockPanel>
+          <TextBlock x:Name="LeftDetail" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Text="{Binding Left}" Margin="12,0,0,0" VerticalAlignment="Center" />
+          <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Connection}" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </DockPanel>
         <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="12" />
+              <StackPanel Spacing="14" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
-        <TextBlock x:Name="Shared" Classes="caption secondary" Text="{Binding Shared}" TextWrapping="Wrap" />
-        <TextBlock Classes="caption tertiary" Text="Open Usage for this connection" />
+        <StackPanel Spacing="6">
+          <Border Classes="separator" Margin="0,0,0,4" />
+          <TextBlock x:Name="Shared" Classes="caption" Text="{Binding Shared}" TextWrapping="Wrap" />
+          <TextBlock x:Name="OpenHint" Classes="caption" Text="Click to open Usage for this connection." TextWrapping="Wrap" />
+        </StackPanel>
       </StackPanel>
     </ToolTip.Tip>
     <StackPanel Orientation="Horizontal" Spacing="7">
