@@ -62,7 +62,7 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
 
         foreach (var (session, rounds, cache) in (await ledger.SnapshotAsync(job, cancellationToken)).Bind(Idle).Match<(SessionId, int, TimeSpan)[]>(found => [found], () => []))
         {
-            alarms[job] = clock.CreateAlarm(() => _ = queues.PostAsync(job, (found, token) => RestAsync(found, session, rounds, token), CancellationToken.None), cache);
+            alarms[job] = clock.CreateAlarm(() => _ = queues.PostAsync(job, (found, token) => RestIdleAsync(found, session, rounds, token), CancellationToken.None), cache);
         }
     }
 
@@ -91,11 +91,15 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
             ? Option<(SessionId, int, TimeSpan)>.Some((session, job.Attempts.Count, cache))
             : Option<(SessionId, int, TimeSpan)>.None);
 
+    private Task<bool> RestIdleAsync(Job job, SessionId session, int rounds, CancellationToken cancellationToken) =>
+        job.Held == Option<HoldReason>.Some(HoldReason.LimitNearlyReached)
+            ? Task.FromResult(false)
+            : RestAsync(job, session, rounds, cancellationToken);
+
     private async Task<bool> RestAsync(Job job, SessionId session, int rounds, CancellationToken cancellationToken)
     {
         if (job.State is not (JobState.AwaitingReview or JobState.NeedsHelp)
             || job.RemoteControlled
-            || job.Held == Option<HoldReason>.Some(HoldReason.LimitNearlyReached)
             || job.Resume.IsNone
             || job.Session != Option<SessionId>.Some(session)
             || job.Attempts.Count != rounds

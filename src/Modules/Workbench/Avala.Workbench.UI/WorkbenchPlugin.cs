@@ -627,6 +627,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         services
             .AddSingleton<JobBoard>()
             .AddSingleton<TranscriptRecall>()
+            .AddSingleton<JobSurroundings>()
             .AddSingleton<BoardJoiner>()
             .AddSingleton<BoardKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, BoardKeeper>()

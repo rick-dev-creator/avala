@@ -193,6 +193,23 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobLeftWaitingForThePersonAfterTheResetEndsItsIdleAgentAndAMessageResumesItsConversationAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
+        var waits = run.Watch<JobWaitsForReset>();
+        var stopped = run.Watch<SessionStopped>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Instruction) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+        var session = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Sessions[^1].Session;
+
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        _ = await waits.UntilAsync(announced => announced.Wait.Job == job && announced.Wait.HasReset);
+        _ = await stopped.UntilAsync(found => found.Session == session);
+
+        Assert.Equal(ContinuedIn.ResumedConversation, Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(job, "Go on.", Cancellation)).Conversation);
+    }
+
+    [Fact]
     public async Task AJobOverTwoWindowsWaitsForTheWindowWhoseResetItWaitsForAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
