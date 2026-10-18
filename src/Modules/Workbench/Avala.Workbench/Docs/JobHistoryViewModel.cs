@@ -101,6 +101,20 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
         }
     }
 
+    public void Clear()
+    {
+        shown = null;
+        steps.Clear();
+        HasSteps = false;
+        Heading = string.Empty;
+        Happened = string.Empty;
+        Why = string.Empty;
+        Changed = [];
+        Records = string.Empty;
+        writer = Option<JobId>.None;
+        HasWriter = false;
+    }
+
     private void Choose(int number)
     {
         Summarize(number);

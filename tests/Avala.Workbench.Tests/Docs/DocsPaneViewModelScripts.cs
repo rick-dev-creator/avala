@@ -99,6 +99,24 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(string.Empty, await ui.ReadAsync(() => pane.Problem));
     }
 
+    [Fact]
+    public async Task AnotherJobWhoseDocsReadFailsShowsNothingOfTheJobShownBeforeAsync()
+    {
+        Document(writing: false);
+        var other = JobId.New();
+        board.Publish(board.Docs.Add(other, new JobDocumentation(other, Payouts)));
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Feature.Length > 0, () => "no feature");
+        documentation.Unreadable = "The section Webhooks is repeated";
+
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(other), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.State == DocsPanePhrases.Unreadable, () => $"state '{pane.State}'");
+
+        var shown = await ui.ReadAsync(() => (pane.IsOpen, pane.Feature, pane.Player.IsShown, pane.History.Steps.Count, pane.Others.Count, pane.CanOpenSite));
+        Assert.Equal((true, "Payout scheduler", false, 0, 0, false), shown);
+    }
+
     public void Dispose() => ui.Dispose();
 
     [Fact]

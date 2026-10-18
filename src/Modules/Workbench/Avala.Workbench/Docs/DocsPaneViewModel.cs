@@ -52,6 +52,7 @@ internal sealed partial class DocsPaneViewModel
     private readonly JobHistoryViewModel history = new();
     private readonly ObservableCollection<FeatureRowViewModel> others = [];
     private Option<JobId> job;
+    private Option<JobId> shownJob;
     private string played = string.Empty;
     private Option<FeatureStory> stories;
     private DocsSite site = new(false, "docs", false);
@@ -145,13 +146,15 @@ internal sealed partial class DocsPaneViewModel
 
     private void Show(Option<JobDocs> read)
     {
+        Problem = string.Empty;
+
         foreach (var docs in read.Match<JobDocs[]>(found => [found], () => []))
         {
             var documented = docs.Documentation;
+            shownJob = documented.Job;
             Feature = documented.Feature.Title;
             IsWriting = documented.Writing.IsSome;
             State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
-            Problem = string.Empty;
             var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
 
             if (story != played)
@@ -180,6 +183,24 @@ internal sealed partial class DocsPaneViewModel
         IsWriting = false;
         State = DocsPanePhrases.Unreadable;
         Problem = DocsPanePhrases.Problem(exception.Message);
+
+        if (shownJob != job)
+        {
+            Forget();
+        }
+    }
+
+    private void Forget()
+    {
+        shownJob = job;
+        Feature = job.Match(reader.FeatureOf, () => string.Empty);
+        played = string.Empty;
+        player.Show(Option<FeatureStory>.None);
+        history.Clear();
+        stories = Option<FeatureStory>.None;
+        others.Clear();
+        CanOpenSite = false;
+        SiteHint = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenSite))]
