@@ -11,6 +11,7 @@ using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Verification.Contracts;
@@ -46,7 +47,8 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<JobWaitsForReset>,
     IHandle<ParentAsked>,
     IHandle<PullRequestWatchChanged>,
-    IHandle<PullRequestWakeUp>
+    IHandle<PullRequestWakeUp>,
+    IHandle<WorktreeReclaimed>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly HashSet<SessionId> steerable = [];
@@ -79,6 +81,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(JobApproved integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Approval.Job, job => Audited(job with { Delivery = integrationEvent.Approval.Delivery }));
+
+    public ValueTask HandleAsync(WorktreeReclaimed integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.Reclaimed.Job, job => job with { Reclaimed = true });
 
     public ValueTask HandleAsync(JobModelChosen integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Job, job => Audited(job with { Summary = job.Summary with { Model = integrationEvent.Model } }));

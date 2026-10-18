@@ -195,6 +195,11 @@ internal static class ConversationPhrases
         _ => Placeholder(status, takesMessagesMidTurn),
     };
 
+    public static Option<string> Closed(BoardJob job) =>
+        job.Status != JobStatus.Approved || job.TakesMessages ? Option<string>.None
+        : job.Summary.Parent.IsSome ? "Approved · its work is in its parent"
+        : "Approved · its worktree was removed, so it takes no more messages";
+
     private static string HeldPlaceholder(HoldReason reason) =>
         reason == HoldReason.CouldNotStart
             ? "Could not start · retry it from the inspector's worktree section"

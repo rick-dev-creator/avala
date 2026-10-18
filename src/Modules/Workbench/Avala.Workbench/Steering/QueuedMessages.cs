@@ -92,7 +92,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             return;
         }
 
-        if ((await jobs.ContinueAsync(job, message, cancellationToken)).Match(_ => false, rejection => rejection != JobRejection.NotRoot))
+        if ((await jobs.ContinueAsync(job, message, cancellationToken)).Match(_ => false, rejection => rejection is not (JobRejection.NotRoot or JobRejection.WorkspaceUnavailable)))
         {
             Queue(job, message);
         }

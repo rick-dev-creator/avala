@@ -119,6 +119,18 @@ public sealed class ConversationViewModelScripts
         conversation.Show(child with { Summary = child.Summary with { Parent = JobId.New() } });
 
         Assert.Equal((JobStatus.Approved, false, false), (conversation.Composer.Status, conversation.Composer.AcceptsMessages, conversation.Composer.ShowsSend));
+        Assert.Equal("Approved · its work is in its parent", conversation.Composer.Placeholder);
+    }
+
+    [Fact]
+    public void AnApprovedJobWhoseWorktreeWasRemovedSaysSoAndTakesNoMessage()
+    {
+        var conversation = Open();
+
+        conversation.Show(Board(Job(), JobStatus.Approved) with { Reclaimed = true });
+
+        Assert.Equal((false, false), (conversation.Composer.AcceptsMessages, conversation.Composer.ShowsSend));
+        Assert.Equal("Approved · its worktree was removed, so it takes no more messages", conversation.Composer.Placeholder);
     }
 
     [Fact]

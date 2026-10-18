@@ -8,6 +8,7 @@ using Avala.Handoffs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Transcripts.Contracts;
@@ -165,6 +166,18 @@ public sealed class BoardKeeperTests
         Assert.Equal(
             [Option<HandoffRecord>.None, Option<HandoffRecord>.Some(handoff)],
             joined.Transcript.Entries.OfType<PromptEntry>().Select(prompt => prompt.Handoff));
+    }
+
+    [Fact]
+    public async Task AnApprovedJobWhoseWorktreeWasReclaimedTakesNoMoreMessagesAsync()
+    {
+        var job = catalog.Add("Fix the failing test", JobStatus.Approved).Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        var before = Joined(job).TakesMessages;
+
+        await keeper.HandleAsync(new WorktreeReclaimed(new ReclaimedWorktree(job, "/worktrees/job", JobStatus.Approved, time.GetUtcNow())), Cancellation);
+
+        Assert.Equal((true, false), (before, Joined(job).TakesMessages));
     }
 
     [Fact]

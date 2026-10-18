@@ -14,7 +14,9 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public JobStatus Status => Summary.Status;
 
-    public bool TakesMessages => Status.AcceptsMessages && (Status != JobStatus.Approved || Summary.Parent.IsNone);
+    public bool TakesMessages => Status.AcceptsMessages && (Status != JobStatus.Approved || (Summary.Parent.IsNone && !Reclaimed));
+
+    public bool Reclaimed { get; init; }
 
     public int Attempts { get; init; }
 

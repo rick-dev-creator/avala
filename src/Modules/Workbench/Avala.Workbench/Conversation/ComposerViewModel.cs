@@ -178,7 +178,11 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [ObservableProperty]
     public partial int Edits { get; private set; }
 
-    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch, Hold);
+    public string Placeholder => Closed.Match(note => note, () => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch, Hold));
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Placeholder))]
+    public partial Option<string> Closed { get; private set; }
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
 
@@ -188,6 +192,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         Status = shown.Status;
         TakesMessages = shown.TakesMessages;
+        Closed = ConversationPhrases.Closed(shown);
         TakesMessagesMidTurn = shown.TakesMessagesMidTurn;
         Watch = shown.PullRequest;
         Hold = shown.Hold;

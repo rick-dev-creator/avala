@@ -112,6 +112,18 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AMessageWaitingForAJobApprovedWithoutItsWorktreeIsDropped()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+
+        (jobs.Status, jobs.Refusal) = (JobStatus.Approved, JobRejection.WorkspaceUnavailable);
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.Approved), Cancellation);
+
+        Assert.True(steering.Queued(job).IsNone);
+    }
+
+    [Fact]
     public async Task AMessageToAnIntegratedChildIsRefusedAndOneWaitingWhenItIsIntegratedIsDropped()
     {
         jobs.Status = JobStatus.Checking;
