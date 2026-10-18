@@ -119,6 +119,44 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task BesideAnOpenInspectorAtTheSmallestWindowThePopoverOfALongConnectionOpensUnderItsChipAndFitsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var outside = UsagePhrases.Outside(0.12);
+            var usage = new Chip(isShown: true, "claude-work-account-for-the-payments-platform-team")
+            {
+                HoldAt = "Jobs on this connection hold at the 98% threshold.",
+                More = "2 more windows on the Usage page",
+                Outside = UsageLeftPhrases.Outside,
+                Windows =
+                [
+                    new DesignLimitViewModel("5h", "5-hour window", 0.97, "97%", "resets Tue 20 Oct 18:45", 0.98, false) { Outside = outside },
+                    new DesignLimitViewModel("7d", "7-day window", 0.92, "92%", "resets Mon 26 Oct 09:00", 0.98, false) { Outside = outside },
+                    new DesignLimitViewModel("7d_opus", "7-day Opus window", 0.64, "64%", "resets Mon 26 Oct 09:00", 0.98, false) { Outside = outside },
+                ],
+            };
+            var regions = new Avala.Workbench.Navigation.JobRegions(
+                [
+                    new Avala.Sdk.Regions.RegionContribution(Avala.Sdk.Regions.WorkbenchRegions.JobHeader, 2, new Avala.Workbench.Remoting.DesignRemoteControlViewModel()),
+                    new Avala.Sdk.Regions.RegionContribution(Avala.Sdk.Regions.WorkbenchRegions.JobHeader, 4, new DesignContextLeftViewModel()),
+                    new Avala.Sdk.Regions.RegionContribution(Avala.Sdk.Regions.WorkbenchRegions.JobHeader, 5, usage),
+                ],
+                new Avala.Testing.RememberedLayout());
+            var view = Screen.Show(new Avala.Workbench.Navigation.DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 400, 480);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+            var chip = view.All<Button>().First(button => button.Name == "Open" && button.GetVisualAncestors().Any(parent => parent.GetType().Name == "UsageLeftView"));
+
+            ToolTip.SetIsOpen(chip, true);
+            view.Settle();
+            var detail = Assert.IsAssignableFrom<Control>(ToolTip.GetTip(chip));
+            var top = detail.TranslatePoint(default, view.Window)!.Value.Y;
+            var bottom = detail.TranslatePoint(new Point(0, detail.Bounds.Height), view.Window)!.Value.Y;
+            var under = chip.TranslatePoint(new Point(0, chip.Bounds.Height), view.Window)!.Value.Y;
+
+            Assert.True(top >= under && bottom <= view.Window.Bounds.Height, $"the popover runs from {top:0} to {bottom:0} under a chip ending at {under:0} in a window {view.Window.Bounds.Height:0} high");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutAWindowToShowTheChipIsHiddenAsync() =>
         ui.RunAsync(() =>
         {
@@ -150,7 +188,7 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
         public string Summary => "Usage left on claude-work";
 
-        public string Shared => "Shared with every app signed in to claude-work, not only Avala.";
+        public string Shared => UsagePhrases.Shared(Connection);
 
         public string HoldAt { get; init; } = string.Empty;
 

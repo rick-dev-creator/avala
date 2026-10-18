@@ -210,6 +210,19 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task EndOnAMenuJustOpenedHighlightsItsLastItemAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var view = Opened(rename, archive);
+
+            view.Press(Avalonia.Input.Key.End);
+
+            Assert.Equal((true, Brush(view, "AccentBrush")), (archive.IsSelected, Color(Part<Border>(archive, "PART_LayoutRoot").Background)));
+        }, Cancellation);
+
+    [Fact]
     public Task EnterOnAMenuJustOpenedInvokesNoItemAsync() =>
         ui.RunAsync(() =>
         {
