@@ -6,6 +6,8 @@ internal sealed record OptionSet(string Flags, string Valued, FrozenSet<string> 
 {
     public string Attached { get; init; } = string.Empty;
 
+    public FrozenSet<string> LongAttached { get; init; } = FrozenSet<string>.Empty;
+
     public bool Digits { get; init; }
 
     public bool TakesPattern { get; init; }
@@ -40,7 +42,9 @@ internal static class ReadOnlyOptions
         + "basic-regexp extended-regexp perl-regexp children parents log-size walk-reflogs mailmap no-mailmap";
 
     private const string GitLogValued =
-        "max-count skip since until after before author committer grep format date diff-filter inter-hunk-context stat-width encoding";
+        "max-count skip since author grep date diff-filter inter-hunk-context stat-width";
+
+    private const string GitLogAttached = "until after before committer format encoding";
 
     public static FrozenDictionary<string, OptionSet> Programs { get; } = new Dictionary<string, OptionSet>
     {
@@ -86,8 +90,8 @@ internal static class ReadOnlyOptions
     {
         ["status"] = OptionSet.Of("sbvz", string.Empty, "short branch porcelain long verbose untracked-files ignored ignore-submodules column no-column ahead-behind no-ahead-behind renames no-renames", string.Empty) with { Attached = "u" },
         ["diff"] = OptionSet.Of("pusMCRbwaz", "SG", GitDiffing, "diff-filter inter-hunk-context stat-width") with { Digits = true, Attached = "U" },
-        ["log"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U" },
-        ["show"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U" },
+        ["log"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U", LongAttached = OptionSet.Words(GitLogAttached) },
+        ["show"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U", LongAttached = OptionSet.Words(GitLogAttached) },
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static FrozenSet<string> FindFlags { get; } = OptionSet.Words(

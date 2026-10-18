@@ -163,6 +163,8 @@ public sealed class ReadOnlyCommandTests
     [Theory]
     [InlineData("git log --format --output=.avala/permissions.json")]
     [InlineData("git show --format --output=.git/config")]
+    [InlineData("git log --encoding --output=.git/config")]
+    [InlineData("git log --committer --output=.git/config")]
     public void AGitFormatWithoutAnEqualsSignDoesNotHideTheWordAfterIt(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 

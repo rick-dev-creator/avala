@@ -127,6 +127,11 @@ internal static class ReadOnlyCommands
                 return !attached || Safe(name, word.Split('=', 2)[1]);
             }
 
+            if (options.LongAttached.Contains(name))
+            {
+                return attached && Safe(name, word.Split('=', 2)[1]);
+            }
+
             var value = attached ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) ? next.Value : null;
 
             return options.LongValued.Contains(name) && value is not null && Safe(name, value);
