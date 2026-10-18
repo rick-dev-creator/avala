@@ -38,6 +38,21 @@ public sealed class C4PlayerViewModelScripts
         Assert.Equal([("Webhooks", "Checks the signature.", ""), ("Payments", "Applies the refund.", "")], player.Sections.Select(section => (section.Title, section.Text, section.Mark)));
     }
 
+    [Theory]
+    [InlineData(0, "No change to the diagram")]
+    [InlineData(1, "1 step")]
+    public void AtTheStartAVersionSaysHowManyStepsItPlaysOrThatItChangesNothing(int count, string position)
+    {
+        var story = DesignStories.Ledger();
+        var last = story.Versions[^1];
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
+        player.Show(story with { Versions = [.. story.Versions, last with { Number = 3, Kind = Documentation.Contracts.VersionKind.AsBuilt, Steps = [.. last.Steps.Take(count)] }] });
+
+        player.StopCommand.Execute(null);
+
+        Assert.Equal(position, player.Position);
+    }
+
     [Fact]
     public void BackNextAndStopMoveOneStepOrBackToTheStart()
     {
