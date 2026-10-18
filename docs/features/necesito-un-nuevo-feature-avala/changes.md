@@ -155,4 +155,10 @@ Asked 2026-10-18 16:40 UTC. No version yet.
 
 Asked 2026-10-18 16:43 UTC. No version yet.
 
+### Change request 26 · sent back in review · attempt 21
+
+> interesante, como no veo actividad por eso pregunto, usa sub-agents para que no te acabes tu contexto
+
+Asked 2026-10-18 16:44 UTC. No version yet.
+
 <!-- /avala:job 01a14f58-18bb-7efc-a8fe-0e25f10c70a1 -->
