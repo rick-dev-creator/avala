@@ -357,7 +357,7 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ThePlusBesideProjectsCreatesAProjectAsync() =>
+    public Task TheFolderButtonBesideProjectsCreatesAProjectAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -430,6 +430,15 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
 
             Assert.Equal(("3", true, true), (view.TextOf("Pending"), view.Shows("PendingBadge"), view.Shows("NewJob")));
             Assert.Equal(("Pending decisions", "New job"), (AutomationProperties.GetName(view.Find("ToggleDecisions")), AutomationProperties.GetName(view.Find("NewJob"))));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheNewJobButtonSaysNewJobInWordsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignToolbarViewModel());
+
+            Assert.Equal("New job", view.TextOf("NewJobText"));
         }, Cancellation);
 
     [Fact]
