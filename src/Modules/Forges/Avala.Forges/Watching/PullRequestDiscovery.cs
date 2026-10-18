@@ -94,7 +94,9 @@ internal sealed class PullRequestDiscovery(WatchBook book, JobPlaces places, Pul
             worktree => finder.FindAsync(integrationEvent.Job, worktree, reported.Of(integrationEvent.Job), cancellationToken),
             () => Task.FromResult(Option<Delivered>.None));
 
-        await found.Match(delivered => adoption.AdoptFoundAsync(delivered, cancellationToken), () => Task.CompletedTask);
+        await found.Match(
+            delivered => Taken(delivered) ? Task.CompletedTask : adoption.AdoptFoundAsync(delivered, cancellationToken),
+            () => Task.CompletedTask);
     }
 
     public ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
@@ -110,4 +112,10 @@ internal sealed class PullRequestDiscovery(WatchBook book, JobPlaces places, Pul
 
         return ValueTask.CompletedTask;
     }
+
+    private bool Taken(Delivered delivered) =>
+        book.Live.Any(kept => kept.State.Job != delivered.Job
+            && kept.State.Forge == delivered.Rules.Forge
+            && kept.State.PullRequest.Number == delivered.PullRequest.Number
+            && kept.RemoteUrl == delivered.RemoteUrl);
 }
