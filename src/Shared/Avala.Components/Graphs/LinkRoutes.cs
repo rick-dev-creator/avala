@@ -11,65 +11,78 @@ public static class LinkRoutes
 
     private const double Clearance = 4;
 
-    private static readonly double[] Along = [0.5, 0.35, 0.65, 0.2, 0.8];
+    private static readonly double[] Along = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9];
 
     public static LinkRoute Route(GraphRect from, GraphRect to, IReadOnlyList<GraphRect> others, GraphPoint shift)
     {
-        var start = Edge(from, to.Center);
-        var end = Edge(to, from.Center);
-        var straight = new LinkRoute([start.Offset(shift.X, shift.Y), end.Offset(shift.X, shift.Y)]);
+        var (origin, target) = (Inside(from, from.Center.Offset(shift.X, shift.Y)), Inside(to, to.Center.Offset(shift.X, shift.Y)));
+        var straight = new LinkRoute([Exit(from, origin, target), Exit(to, target, origin)]);
         var blocking = others.Where(other => other != from && other != to).ToList();
+        var lane = Math.Sqrt((shift.X * shift.X) + (shift.Y * shift.Y)) * (shift.X + shift.Y >= 0 ? 1 : -1);
 
         return Clear(straight, blocking)
             ? straight
-            : Detours(from, to, blocking).Select(route => new LinkRoute([.. route.Points.Select(point => point.Offset(shift.X, shift.Y))])).Where(route => Clear(route, blocking)).OrderBy(route => route.Length).DefaultIfEmpty(straight).First();
+            : Detours(from, to, blocking, lane).Where(route => Clear(route, blocking)).OrderBy(route => route.Length).DefaultIfEmpty(straight).First();
     }
 
     public static GraphRect Label(LinkRoute route, GraphSize label, IReadOnlyList<GraphRect> taken)
     {
         var (a, b) = route.Points.Zip(route.Points.Skip(1)).MaxBy(segment => Distance(segment.First, segment.Second));
-        var beside = (label.Width / 2) + Clearance + 2;
-        double[] sides = Math.Abs(a.X - b.X) < 0.5 ? [0, beside, -beside] : [0];
-        var spots = sides.SelectMany(side => Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t) + side, a.Y + ((b.Y - a.Y) * t)), label))).ToList();
+        var length = Distance(a, b);
+        var (nx, ny) = length > 0 ? (-(b.Y - a.Y) / length, (b.X - a.X) / length) : (1d, 0d);
+        var beside = (Math.Abs(nx) * label.Width / 2) + (Math.Abs(ny) * label.Height / 2) + Clearance + 2;
+        var spots = new[] { 0, beside, -beside, 2 * beside, -2 * beside }
+            .SelectMany(side => Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t) + (nx * side), a.Y + ((b.Y - a.Y) * t) + (ny * side)), label)))
+            .ToList();
 
-        return spots.FirstOrDefault(spot => !taken.Any(other => other.Overlaps(spot, Clearance)), spots[0]);
+        return spots.MinBy(spot => taken.Count(other => other.Overlaps(spot, Clearance)));
     }
 
     public static double Distance(GraphPoint a, GraphPoint b) => Math.Sqrt(((b.X - a.X) * (b.X - a.X)) + ((b.Y - a.Y) * (b.Y - a.Y)));
 
-    private static IEnumerable<LinkRoute> Detours(GraphRect from, GraphRect to, List<GraphRect> blocking)
+    private static IEnumerable<LinkRoute> Detours(GraphRect from, GraphRect to, List<GraphRect> blocking, double lane)
     {
         var (top, bottom) = (Math.Min(from.Center.Y, to.Center.Y), Math.Max(from.Center.Y, to.Center.Y));
         var (left, right) = (Math.Min(from.Center.X, to.Center.X), Math.Max(from.Center.X, to.Center.X));
         var column = blocking.Where(other => other.Y < bottom && other.Bottom > top).Append(from).Append(to).ToList();
         var row = blocking.Where(other => other.X < right && other.Right > left).Append(from).Append(to).ToList();
-        var east = column.Max(rect => rect.Right) + LaneGap;
-        var west = column.Min(rect => rect.X) - LaneGap;
-        var north = row.Min(rect => rect.Y) - LaneGap;
-        var south = row.Max(rect => rect.Bottom) + LaneGap;
+        var outward = lane >= 0 ? 2 * lane : (-2 * lane) - LinkLanes.Gap;
+        var east = column.Max(rect => rect.Right) + LaneGap + outward;
+        var west = column.Min(rect => rect.X) - LaneGap - outward;
+        var north = row.Min(rect => rect.Y) - LaneGap - outward;
+        var south = row.Max(rect => rect.Bottom) + LaneGap + outward;
+        var (y, ty) = (WithinHeight(from, from.Center.Y + lane), WithinHeight(to, to.Center.Y + lane));
+        var (x, tx) = (WithinWidth(from, from.Center.X + lane), WithinWidth(to, to.Center.X + lane));
 
-        yield return new LinkRoute([new(from.Right, from.Center.Y), new(east, from.Center.Y), new(east, to.Center.Y), new(to.Right, to.Center.Y)]);
-        yield return new LinkRoute([new(from.X, from.Center.Y), new(west, from.Center.Y), new(west, to.Center.Y), new(to.X, to.Center.Y)]);
-        yield return new LinkRoute([new(from.Center.X, from.Y), new(from.Center.X, north), new(to.Center.X, north), new(to.Center.X, to.Y)]);
-        yield return new LinkRoute([new(from.Center.X, from.Bottom), new(from.Center.X, south), new(to.Center.X, south), new(to.Center.X, to.Bottom)]);
+        yield return new LinkRoute([new(from.Right, y), new(east, y), new(east, ty), new(to.Right, ty)]);
+        yield return new LinkRoute([new(from.X, y), new(west, y), new(west, ty), new(to.X, ty)]);
+        yield return new LinkRoute([new(x, from.Y), new(x, north), new(tx, north), new(tx, to.Y)]);
+        yield return new LinkRoute([new(x, from.Bottom), new(x, south), new(tx, south), new(tx, to.Bottom)]);
     }
+
+    private static double WithinHeight(GraphRect rect, double y) => Math.Clamp(y, rect.Y + 2, rect.Bottom - 2);
+
+    private static double WithinWidth(GraphRect rect, double x) => Math.Clamp(x, rect.X + 2, rect.Right - 2);
+
+    private static GraphPoint Inside(GraphRect rect, GraphPoint point) => new(WithinWidth(rect, point.X), WithinHeight(rect, point.Y));
 
     private static bool Clear(LinkRoute route, List<GraphRect> blocking) =>
         !route.Points.Zip(route.Points.Skip(1)).Any(segment => blocking.Any(rect => Cuts(segment.First, segment.Second, rect)));
 
-    private static GraphPoint Edge(GraphRect rect, GraphPoint toward)
+    private static GraphPoint Exit(GraphRect rect, GraphPoint origin, GraphPoint toward)
     {
-        var center = rect.Center;
-        var (dx, dy) = (toward.X - center.X, toward.Y - center.Y);
+        var (dx, dy) = (toward.X - origin.X, toward.Y - origin.Y);
 
-        if (dx == 0 && dy == 0)
+        if (Math.Abs(dx) < 0.001 && Math.Abs(dy) < 0.001)
         {
-            return center;
+            return origin;
         }
 
-        var scale = Math.Min(Math.Abs(dx) < 0.001 ? double.MaxValue : rect.Width / 2 / Math.Abs(dx), Math.Abs(dy) < 0.001 ? double.MaxValue : rect.Height / 2 / Math.Abs(dy));
+        var tx = dx > 0 ? (rect.Right - origin.X) / dx : dx < 0 ? (rect.X - origin.X) / dx : double.MaxValue;
+        var ty = dy > 0 ? (rect.Bottom - origin.Y) / dy : dy < 0 ? (rect.Y - origin.Y) / dy : double.MaxValue;
+        var t = Math.Min(tx, ty);
 
-        return new GraphPoint(center.X + (dx * scale), center.Y + (dy * scale));
+        return new GraphPoint(origin.X + (dx * t), origin.Y + (dy * t));
     }
 
     private static bool Cuts(GraphPoint from, GraphPoint to, GraphRect rect)

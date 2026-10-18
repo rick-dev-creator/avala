@@ -226,7 +226,7 @@ public sealed class C4GraphPanel : Panel
     private List<(GraphLink Link, LinkRoute Route, Rect Plate, FormattedText? Label)> Placed(IReadOnlyList<GraphLink> links)
     {
         var nodes = layout.Nodes;
-        var taken = new List<GraphRect>([.. nodes, .. layout.Groups.Where(group => group.Width > 0).SelectMany(Borders)]);
+        var taken = new List<GraphRect>([.. nodes, .. layout.Groups.Where(group => group.Width > 0).SelectMany(Borders), .. FrameLabels()]);
         var placed = new List<(GraphLink, LinkRoute, Rect, FormattedText?)>();
 
         foreach (var link in links.Where(link => keys.TryGetValue(link.From, out var from) && keys.TryGetValue(link.To, out var to) && from < nodes.Count && to < nodes.Count && from != to))
@@ -263,6 +263,21 @@ public sealed class C4GraphPanel : Panel
     }
 
     private static Rect Rect(GraphRect rect) => new(rect.X, rect.Y, rect.Width, rect.Height);
+
+    private IEnumerable<GraphRect> FrameLabels()
+    {
+        for (var index = 0; index < Frames.Count && index < layout.Groups.Count; index++)
+        {
+            var frame = layout.Groups[index];
+
+            if (frame.Width > 0)
+            {
+                var label = Text(Frames[index].Label, FrameLabelBrush, frame.Width - 24);
+
+                yield return new GraphRect(frame.X + 12, frame.Bottom - label.Height - 6, label.Width, label.Height);
+            }
+        }
+    }
 
     private static GraphRect[] Borders(GraphRect frame) =>
     [

@@ -26,6 +26,25 @@ public sealed class LinkRoutesTests
             LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom], new GraphPoint(9, 0)).Points);
 
     [Fact]
+    public void ALinkInItsOwnLaneAroundANodeStillLeavesAndReachesTheEdgesOfItsNodes()
+    {
+        var points = LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom], new GraphPoint(-9, 0)).Points;
+
+        Assert.Contains(points[0].X, new[] { Bottom.X, Bottom.Right });
+        Assert.Contains(points[^1].X, new[] { Top.X, Top.Right });
+    }
+
+    [Fact]
+    public void EveryLaneOfThreeLinksAroundANodeLiesOutsideTheFrameAroundTheirNodes()
+    {
+        var padding = new LayeredSpacing().GroupPadding;
+
+        var lanes = new[] { -LinkLanes.Gap, 0, LinkLanes.Gap }.Select(shift => LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom], new GraphPoint(shift, 0)).Points[1].X).ToList();
+
+        Assert.All(lanes, lane => Assert.True(lane > Top.Right + padding || lane < Top.X - padding, $"the lane at {lane} runs inside the frame from {Top.X - padding} to {Top.Right + padding}"));
+    }
+
+    [Fact]
     public void ALabelSitsOnItsLinkWhereItCoversNoNodeAndNoOtherLabel()
     {
         var route = new LinkRoute([new GraphPoint(80, 0), new GraphPoint(80, 400)]);

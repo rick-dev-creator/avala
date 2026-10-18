@@ -285,6 +285,33 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
             Assert.Equal((shown.X, shown.Y), (surface.Bounds.Width - shown.Right, surface.Bounds.Height - shown.Bottom), Close);
         }, Cancellation);
 
+    [Fact]
+    public Task ARelationLabelOfAFewWordsLeavingAFrameSitsOffItsBorderAsync() =>
+        ui.RunAsync(() =>
+        {
+            const string text = "Calls the payments core to settle";
+            var structure = new C4Diagram(C4Level.Container, "Framed", [Element("a", "Alpha") with { Boundary = "core" }, Element("b", "Beta") with { Boundary = "core" }, Element("c", "Gamma"), Element("d", "Delta")], [new C4Boundary("core", "Core")], [new C4Relation("a", "b", "Next"), new C4Relation("b", "c", text), new C4Relation("a", "d", text)]);
+            using var player = Player(structure, [new PlayStep(StepKind.Base, "relations", "Relations", string.Empty) { Relations = structure.Relations }]);
+            var graph = Screen.Show(player, ThemeVariant.Dark, 1240, 720).All<C4GraphPanel>().Single();
+            var origin = graph.Children[0].Bounds.Position - new Point(graph.Layout.Nodes[0].X, graph.Layout.Nodes[0].Y);
+            var frame = new Rect(graph.Layout.Groups[0].X, graph.Layout.Groups[0].Y, graph.Layout.Groups[0].Width, graph.Layout.Groups[0].Height).Translate(origin);
+
+            Assert.All(graph.Labels, label => Assert.True(frame.Contains(label) || !frame.Intersects(label), $"{label} sits on the frame {frame}"));
+        }, Cancellation);
+
+    [Fact]
+    public Task TwoRelationsBetweenTheSamePairKeepTheirLabelsApartAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Pair", [Element("a", "Alpha"), Element("b", "Beta")], [], [new C4Relation("a", "b", "Calls the ledger"), new C4Relation("b", "a", "Returns the rows")]);
+            using var player = Player(structure, [new PlayStep(StepKind.Base, "relations", "Relations", string.Empty) { Relations = structure.Relations }]);
+            var graph = Screen.Show(player, ThemeVariant.Dark, 1240, 720).All<C4GraphPanel>().Single();
+
+            var (first, second) = (graph.Labels[0], graph.Labels[1]);
+
+            Assert.False(first.Intersects(second), $"{first} overlaps {second}");
+        }, Cancellation);
+
     private static readonly IEqualityComparer<(double, double)> Close = EqualityComparer<(double, double)>.Create((one, other) => Math.Abs(one.Item1 - other.Item1) < 0.01 && Math.Abs(one.Item2 - other.Item2) < 0.01, pair => 0);
 
     private static C4PlayerViewModel Player()
