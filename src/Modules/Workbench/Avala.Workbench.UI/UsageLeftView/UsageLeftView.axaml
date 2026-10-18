@@ -56,7 +56,7 @@
              StrokeThickness="2.5"
              StrokeLineCap="Round" />
       </Panel>
-      <TextBlock x:Name="Left" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding Left}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Left" Classes="chip-label" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding Left}" VerticalAlignment="Center" />
     </StackPanel>
   </Button>
 </UserControl>

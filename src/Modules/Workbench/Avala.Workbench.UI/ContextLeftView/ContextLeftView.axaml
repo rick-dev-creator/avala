@@ -40,7 +40,7 @@
              StrokeThickness="2.5"
              StrokeLineCap="Round" />
       </Panel>
-      <TextBlock x:Name="Share" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding Share}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Share" Classes="chip-label" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding Share}" VerticalAlignment="Center" />
     </StackPanel>
   </Border>
 </UserControl>

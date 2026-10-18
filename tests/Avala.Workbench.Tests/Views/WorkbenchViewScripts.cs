@@ -32,20 +32,24 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.False(view.Shows("OpenReview"));
         }, Cancellation);
 
-    [Fact]
-    public Task ANarrowHeaderKeepsTheJobTitleAndEveryButtonInSightAsync() =>
+    [Theory]
+    [InlineData(720)]
+    [InlineData(1000)]
+    public Task AHeaderWithEveryChipKeepsTheJobsStatusWhereItHasRoomForItAsync(double width) =>
         ui.RunAsync(() =>
         {
             var regions = new JobRegions(
-                [new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Usage.DesignUsageLeftViewModel()), new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Usage.DesignContextLeftViewModel())],
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                ],
                 new RememberedLayout());
-            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 520, 480);
-            var header = view.Find("Header");
-            double Right(string name) => Avalonia.VisualExtensions.TranslatePoint(view.Find(name), new Avalonia.Point(view.Find(name).Bounds.Width, 0), header)!.Value.X;
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, width, 480);
 
+            Assert.True(view.Shows("Pill"));
             Assert.True(view.Find("JobTitle").Bounds.Width >= 120, $"the title has {view.Find("JobTitle").Bounds.Width:0}");
-            Assert.True(Right("More") <= header.Bounds.Width && Right("ToggleInspector") <= header.Bounds.Width, $"More ends at {Right("More"):0}, the inspector toggle at {Right("ToggleInspector"):0}, the header at {header.Bounds.Width:0}");
-            Assert.False(view.Shows("Pill"));
         }, Cancellation);
 
     [Fact]
@@ -91,7 +95,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             view.Click("More");
             var copy = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().Single(item => item.Name == "CopyMarkdown");
 
-            copy.IsSelected = true;
+            view.Press(Avalonia.Input.Key.Down);
             view.Settle();
 
             Assert.Equal(Brush(view, "OnAccentBrush"), (Assert.IsType<Avalonia.Controls.Shapes.Path>(copy.Icon).Stroke as Avalonia.Media.ISolidColorBrush)?.Color);

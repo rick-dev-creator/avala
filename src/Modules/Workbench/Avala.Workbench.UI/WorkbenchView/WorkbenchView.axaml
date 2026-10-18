@@ -12,10 +12,10 @@
     <navigation:DesignWorkbenchViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="Button.glyph Path.icon">
+    <Style Selector="Button.glyph > Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
-    <Style Selector="Button.glyph Path.icon.solid">
+    <Style Selector="Button.glyph > Path.icon.solid">
       <Setter Property="Stroke" Value="{x:Null}" />
       <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
@@ -37,19 +37,23 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
     </Style>
-    <ContainerQuery Name="JobHeader" Query="max-width:680">
-      <Style Selector="ContentControl#Pill">
-        <Setter Property="IsVisible" Value="False" />
-      </Style>
-      <Style Selector="ItemsControl#JobHeaderRegion TextBlock#Left, ItemsControl#JobHeaderRegion TextBlock#Share">
-        <Setter Property="IsVisible" Value="False" />
-      </Style>
-    </ContainerQuery>
-    <ContainerQuery Name="JobHeader" Query="max-width:400">
-      <Style Selector="ItemsControl#JobHeaderRegion">
-        <Setter Property="IsVisible" Value="False" />
-      </Style>
-    </ContainerQuery>
+    <Style Selector="ItemsControl#JobHeaderRegion">
+      <Setter Property="Grid.Column" Value="1" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <Style Selector="Border#Header.stacked ItemsControl#JobHeaderRegion">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="0" />
+      <Setter Property="Grid.ColumnSpan" Value="6" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="0,8,0,0" />
+    </Style>
+    <Style Selector="Border#Header.compact TextBlock.chip-label">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Border#Header.quiet ContentControl#Pill">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
   </UserControl.Styles>
   <Panel>
     <DockPanel>
@@ -59,14 +63,12 @@
                 BorderBrush="{DynamicResource EdgeBrush}"
                 BorderThickness="0,0,0,1"
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}" Container.Name="JobHeader" Container.Sizing="Width">
-            <StackPanel VerticalAlignment="Center">
+          <Grid x:Name="HeaderRow" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" Margin="{DynamicResource ChromeLeading}">
+            <StackPanel x:Name="HeaderTitle" VerticalAlignment="Center">
               <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
             <ItemsControl x:Name="JobHeaderRegion"
-                          Grid.Column="1"
-                          Margin="12,0,0,0"
                           VerticalAlignment="Center"
                           ItemsSource="{Binding Regions.Header}">
               <ItemsControl.ItemsPanel>
