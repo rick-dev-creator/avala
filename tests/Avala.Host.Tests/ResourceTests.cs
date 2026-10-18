@@ -18,12 +18,12 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AProcessAnEarlierRunLeftInATreeItRecordedIsReapedAtStartupAndAProcessAvalaNeverStartedIsLeftAloneAsync()
+    public async Task AProcessAnEarlierRunLeftInATreeItRecordedIsReapedAtStartupEvenIfItIgnoresBeingAskedToEndAndAProcessAvalaNeverStartedIsLeftAloneAsync()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "On Windows a tree is a job object that kills its processes when the run that held it ends.");
         var earlier = ProcessTreeId.New();
-        using var left = await HoldingAsync(Option<ProcessTreeId>.Some(earlier));
-        using var stranger = await HoldingAsync(Option<ProcessTreeId>.None);
+        using var left = await HoldingAsync("stubborn", Option<ProcessTreeId>.Some(earlier));
+        using var stranger = await HoldingAsync("hold", Option<ProcessTreeId>.None);
 
         await using var run = await SimulatedRun.PreparedAsync(plugins, [(TreeLedgerFile, $"[\"{earlier.Value}\"]")], []);
         await run.StartedAsync();
@@ -35,7 +35,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
 
     private const string TreeLedgerFile = "process-trees.json";
 
-    private async Task<System.Diagnostics.Process> HoldingAsync(Option<ProcessTreeId> tree)
+    private async Task<System.Diagnostics.Process> HoldingAsync(string mode, Option<ProcessTreeId> tree)
     {
         var start = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
@@ -44,7 +44,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
             RedirectStandardInput = true,
         };
         start.ArgumentList.Add(Path.Combine(plugins.Directory, "Avala.Simulator", "Avala.Simulator.Workload.dll"));
-        start.ArgumentList.Add("hold");
+        start.ArgumentList.Add(mode);
         start.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         start.Environment.Remove(ProcessTreeId.Variable);
 
@@ -54,7 +54,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         }
 
         var process = System.Diagnostics.Process.Start(start)!;
-        Assert.StartsWith("holding", await process.StandardOutput.ReadLineAsync(Cancellation));
+        Assert.NotNull(await process.StandardOutput.ReadLineAsync(Cancellation));
 
         return process;
     }

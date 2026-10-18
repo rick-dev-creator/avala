@@ -24,7 +24,7 @@ internal sealed class ProcessTrees(IContainment containment, IEnumerable<IProces
         environment[ProcessTreeId.Variable] = id.Value.ToString();
         var tree = new ProcessTree(id, home, environment.ToImmutable(), await containment.CreateAsync(id, cancellationToken));
         ImmutableInterlocked.Update(ref open, trees => trees.Add(tree));
-        await ledger.KeepAsync(OpenIds, cancellationToken);
+        await ledger.KeepAsync(OpenIds, CancellationToken.None);
 
         return tree;
     }
@@ -40,7 +40,7 @@ internal sealed class ProcessTrees(IContainment containment, IEnumerable<IProces
             try
             {
                 var members = await tree.MembersAsync(cancellationToken);
-                _ = await tree.KillAsync(clock, cancellationToken);
+                _ = await tree.KillAsync(TimeProvider.System, askFirst: false, cancellationToken);
                 reaped.Add((earlier, members.Count));
             }
             finally
