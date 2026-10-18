@@ -157,6 +157,22 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ThePopoverSaysItsWindowsAreSharedWithEveryAppOnTheAccountAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageLeftViewModel(), ThemeVariant.Dark, 640, 900);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+            var chip = view.Find<Button>("Open");
+
+            ToolTip.SetIsOpen(chip, true);
+            view.Settle();
+
+            Assert.Contains(
+                Assert.IsAssignableFrom<Control>(ToolTip.GetTip(chip)).GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).Select(text => text.Text),
+                text => text?.StartsWith("Shared with every app on this account, not only Avala.", StringComparison.Ordinal) == true);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutAWindowToShowTheChipIsHiddenAsync() =>
         ui.RunAsync(() =>
         {
@@ -187,8 +203,6 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         public bool IsNear => false;
 
         public string Summary => "Usage left on claude-work";
-
-        public string Shared => UsagePhrases.Shared(Connection);
 
         public string HoldAt { get; init; } = string.Empty;
 

@@ -27,8 +27,6 @@ internal interface IUsageLeftViewModel
 
     string Summary { get; }
 
-    string Shared { get; }
-
     string HoldAt { get; }
 
     string More { get; }
@@ -77,9 +75,6 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
     public partial string Summary { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Shared { get; private set; } = string.Empty;
-
-    [ObservableProperty]
     public partial string HoldAt { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -119,7 +114,6 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
         Left = most is null ? string.Empty : UsageLeftPhrases.Left(Used);
         IsNear = windows.Any(window => window.IsNear) || (most is not null && Used >= 1 - MeterViewModel.AttentionMargin);
         Summary = UsageLeftPhrases.Summary(Connection, windows);
-        Shared = UsagePhrases.Shared(Connection);
         HoldAt = windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
         More = UsageLeftPhrases.More(readings.Count - windows.Count);
         Outside = windows.Any(window => window.Outside.Length > 0) ? UsageLeftPhrases.Outside : string.Empty;

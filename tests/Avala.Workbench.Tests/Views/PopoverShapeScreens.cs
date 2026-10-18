@@ -146,8 +146,6 @@ public sealed class PopoverShapeScreens(HeadlessUi ui)
 
         public string Summary => "summary";
 
-        public string Shared => UsagePhrases.Shared(connection);
-
         public string HoldAt => windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
 
         public string More { get; init; } = string.Empty;

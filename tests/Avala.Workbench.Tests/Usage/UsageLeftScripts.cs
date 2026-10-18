@@ -60,20 +60,6 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         Assert.Equal("1 more window on the Usage page", await ui.ReadAsync(() => chip.More));
     }
 
-    [Fact]
-    public async Task TheChipSaysTheWindowIsSharedWithEveryAppOnTheLoginAsync()
-    {
-        var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");
-        Reports("claude-work", 0.72, 0.43);
-        var (chip, _) = Chip(Pages.Board(job));
-
-        chip.Activate();
-        chip.OnRegionContextChanged(job.Job);
-
-        await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
-        Assert.Equal("Shared with every app signed in to claude-work, not only Avala.", await ui.ReadAsync(() => chip.Shared));
-    }
-
     [Theory]
     [InlineData(JobStatus.AwaitingReview, "Rose 20% while Avala was idle, from use outside Avala.")]
     [InlineData(JobStatus.Running, "")]
