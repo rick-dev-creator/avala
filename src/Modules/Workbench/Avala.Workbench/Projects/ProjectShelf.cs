@@ -44,7 +44,7 @@ internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout, IDo
 
     public Task<Result<DocsCommit, DocumentationError>> CommitDocsAsync(string repository, CancellationToken cancellationToken) => documentation.CommitRulesAsync(repository, cancellationToken);
 
-    public void OpenFeature(string repository, Feature feature) => messenger.Send(new FeatureDocsRequested(repository, feature));
+    public void OpenFeature(string repository, RepositoryFeature listed) => messenger.Send(FeatureDocsRequested.Of(repository, listed));
 
     public async Task<ImmutableHashSet<string>> CollapsedAsync(CancellationToken cancellationToken) =>
         [.. (await layout.ReadAsync(cancellationToken)).CollapsedGroups];

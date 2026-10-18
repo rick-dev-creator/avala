@@ -110,4 +110,12 @@ public sealed class StoryboardTests
         Assert.Equal(["webhooks>payments"], played.Steps[0].Relations.Select(relation => $"{relation.From}>{relation.To}"));
         Assert.Equal(["postgres"], played.Removed.Select(element => element.Alias));
     }
+
+    [Fact]
+    public void AVersionWithTwoSectionsOfOneTitleIsStillPlayedFromTheFirstOfThem()
+    {
+        var played = Storyboard.Play(1, VersionKind.AsBuilt, "v1-as-built.md", VersionReader.Read(Proposed + "\n## Evidence\n\nFirst.\n\n## Evidence\n\nSecond.\n"), Option<C4Diagram>.None);
+
+        Assert.NotEmpty(played.Steps);
+    }
 }

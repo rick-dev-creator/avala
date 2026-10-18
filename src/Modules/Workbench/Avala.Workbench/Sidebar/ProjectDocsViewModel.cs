@@ -77,7 +77,7 @@ internal sealed partial class ProjectDocsViewModel(ProjectShelf shelf) : IProjec
 
         foreach (var listed in docs.Features)
         {
-            features.Add(new FeatureRowViewModel(listed, () => shelf.OpenFeature(listed.Folder.Match(folder => folder, () => repository), listed.Feature)));
+            features.Add(new FeatureRowViewModel(listed, () => shelf.OpenFeature(repository, listed)));
         }
 
         Count = features.Count;

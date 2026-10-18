@@ -141,15 +141,19 @@ public sealed class C4GraphPanel : Panel
     {
         var from = layout.Nodes[keys[link.From]];
         var to = layout.Nodes[keys[link.To]];
-        var start = Edge(from, Center(to));
-        var end = Edge(to, Center(from));
+        var edgeStart = Edge(from, Center(to));
+        var edgeEnd = Edge(to, Center(from));
+        var (dx, dy) = LinkLanes.Shift(Links, link, (edgeStart.X, edgeStart.Y), (edgeEnd.X, edgeEnd.Y));
+        var start = new Point(edgeStart.X + dx, edgeStart.Y + dy);
+        var end = new Point(edgeEnd.X + dx, edgeEnd.Y + dy);
         context.DrawLine(pen, start, end);
         Arrow(context, pen, start, end);
         var middle = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2);
 
         if (link.Label.Length > 0)
         {
-            context.DrawText(Text(link.Label, 10.5), new Point(middle.X + 6, middle.Y - 14));
+            var label = Text(link.Label, 10.5);
+            context.DrawText(label, new Point(dx < 0 ? middle.X - 6 - label.Width : middle.X + 6, dy > 0 ? middle.Y + 2 : middle.Y - 14));
         }
 
         if (link.Badge.Length > 0)
