@@ -335,7 +335,7 @@ internal sealed class Documented
         public Task RequestedAsync(JobId job, ChangeRequest request, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Requests = found.Requests.Add(request) });
 
-        public Task PlannedAsync(JobId job, string plan, CancellationToken cancellationToken) => ChangeAsync(job, found => found with { Plan = plan });
+        public Task PlannedAsync(JobId job, IReadOnlyList<string> plan, CancellationToken cancellationToken) => ChangeAsync(job, found => found with { Plan = [.. plan] });
 
         public Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = plan });

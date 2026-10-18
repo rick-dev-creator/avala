@@ -159,6 +159,17 @@ public sealed class DocumentationDeskTests
         Assert.Contains("1. Add a Webhooks container\n2. Keep idempotency keys in the ledger\n", documented.Jobs.Submitted[^1].Request.Instruction);
     }
 
+    [Fact]
+    public async Task AStepTitleOnTwoLinesReachesTheWriterAsOneStepAsync()
+    {
+        var documented = Documented.With();
+        var (_, session) = await documented.RunningAsync();
+
+        await documented.PlanAsync(session, "Write the changelog\nwith a date per entry", "Link it");
+
+        Assert.Contains("2. Link it\n", documented.Jobs.Submitted[^1].Request.Instruction);
+    }
+
     [Theory]
     [InlineData(JobStatus.AwaitingReview, "NoDraft", true)]
     [InlineData(JobStatus.NeedsHelp, "WriterStopped", true)]

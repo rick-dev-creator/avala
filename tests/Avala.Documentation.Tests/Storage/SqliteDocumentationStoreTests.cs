@@ -21,12 +21,13 @@ public sealed class SqliteDocumentationStoreTests
         {
             await store.ChooseAsync(job, FeatureChoice.Of(new Feature("refund-webhooks", "Refund webhooks")), Cancellation);
             await store.WrittenAsync(job, new FeatureVersion(1, VersionKind.Proposed, "docs/features/refund-webhooks/v1-proposed.md", DateTimeOffset.UnixEpoch), "Add a Webhooks container", Cancellation);
-            await store.PlannedAsync(job, "Add a Webhooks container\nKeep idempotency keys in the ledger", Cancellation);
+            await store.PlannedAsync(job, ["Add a Webhooks container", "Keep idempotency keys in the ledger\nonce per event"], Cancellation);
         }
 
         await using var restarted = new SqliteDocumentationStore(paths);
 
         var kept = Assert.Single(await restarted.ReadAsync(Cancellation));
-        Assert.Equal(("Add a Webhooks container", "Add a Webhooks container\nKeep idempotency keys in the ledger"), (kept.LastPlan, kept.Plan));
+        Assert.Equal("Add a Webhooks container", kept.LastPlan);
+        Assert.Equal(["Add a Webhooks container", "Keep idempotency keys in the ledger\nonce per event"], kept.Plan);
     }
 }

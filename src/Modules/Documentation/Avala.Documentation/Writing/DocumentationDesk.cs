@@ -93,7 +93,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
     private async Task PlannedAsync(Subject subject, PlanUpdated updated, CancellationToken cancellationToken)
     {
-        var documented = await book.PlannedAsync(subject.Documented, string.Join('\n', updated.Steps.Select(step => step.Title)), cancellationToken);
+        var documented = await book.PlannedAsync(subject.Documented, [.. updated.Steps.Select(step => step.Title)], cancellationToken);
 
         if (updated.Steps.Any(step => step.Status != PlanStepStatus.Pending))
         {
@@ -106,14 +106,13 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
     private async Task LaunchAsync(Subject subject, CancellationToken cancellationToken)
     {
-        var signature = subject.Documented.Plan;
+        var plan = subject.Documented.Plan;
+        var signature = string.Join('\n', plan);
 
-        if (signature.Length == 0 || subject.Documented.Writer.IsSome || signature == subject.Documented.LastPlan)
+        if (plan.Count == 0 || subject.Documented.Writer.IsSome || signature == subject.Documented.LastPlan)
         {
             return;
         }
-
-        var plan = signature.Split('\n');
 
         var job = subject.Place.Job;
         var kind = subject.Documented.Versions.Count == 0 ? VersionKind.Proposed : VersionKind.Deviation;

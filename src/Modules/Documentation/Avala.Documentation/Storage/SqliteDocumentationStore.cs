@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avala.Documentation.Contracts;
 using Avala.Documentation.Records;
 using Avala.Jobs.Contracts;
@@ -97,7 +98,7 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
                     Versions = [.. versions[row.Job].OrderBy(version => version.Number).Select(version => version.Read())],
                     Writer = writers[row.Job].Select(writer => new PendingWriter(new JobId(writer.Writer), writer.Number, Enum.Parse<VersionKind>(writer.Kind), writer.Plan)).FirstOrDefault().ToOption(),
                     LastPlan = row.LastPlan,
-                    Plan = row.Plan,
+                    Plan = row.Plan.Length == 0 ? [] : [.. JsonSerializer.Deserialize<string[]>(row.Plan) ?? []],
                     Requests = [.. requests[row.Job].OrderBy(request => request.Number).Select(request => request.Read())],
                 })];
             },
@@ -162,7 +163,7 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
             },
             cancellationToken);
 
-    public Task PlannedAsync(JobId job, string plan, CancellationToken cancellationToken) => ChangeAsync(job, row => row.Plan = plan, cancellationToken);
+    public Task PlannedAsync(JobId job, IReadOnlyList<string> plan, CancellationToken cancellationToken) => ChangeAsync(job, row => row.Plan = JsonSerializer.Serialize(plan), cancellationToken);
 
     public async Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken)
     {
