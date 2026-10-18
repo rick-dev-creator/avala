@@ -414,6 +414,7 @@
     <Setter Property="MinWidth" Value="{DynamicResource MenuMinWidth}" />
     <Setter Property="MaxWidth" Value="{DynamicResource MenuMaxWidth}" />
     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="theme:Menus.OpensUnhighlighted" Value="True" />
   </Style>
   <Style Selector="ContextMenu MenuItem:open /template/ Popup#PART_Popup > Border, MenuFlyoutPresenter MenuItem:open /template/ Popup#PART_Popup > Border">
     <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
@@ -460,19 +461,19 @@
   <Style Selector="ContextMenu MenuItem.destructive Path.icon, MenuFlyoutPresenter MenuItem.destructive Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:pressed /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:pressed /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected /template/ TextBlock#PART_InputGestureText">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ TextBlock#PART_InputGestureText">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:selected /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:selected /template/ Path#PART_ChevronPath">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Path#PART_ChevronPath">
     <Setter Property="Fill" Value="{DynamicResource OnAccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:selected > Path.icon, MenuFlyoutPresenter MenuItem:selected > Path.icon, ContextMenu MenuItem:selected > Panel > Path.icon, MenuFlyoutPresenter MenuItem:selected > Panel > Path.icon">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Path.icon, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Path.icon, ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Panel > Path.icon, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Panel > Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource OnAccentBrush}" />
   </Style>
   <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">

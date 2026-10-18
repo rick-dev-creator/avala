@@ -23,7 +23,7 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             var rename = new MenuItem { Header = "Rename", Icon = icon };
             var view = Opened(rename, new MenuItem { Header = "Archive" });
 
-            rename.IsSelected = true;
+            view.Press(Avalonia.Input.Key.Down);
             view.Settle();
 
             Assert.Equal((Brush(view, "AccentBrush"), Brush(view, "OnAccentBrush"), Brush(view, "OnAccentBrush")), (Color(Part<Border>(rename, "PART_LayoutRoot").Background), Color(Part<ContentPresenter>(rename, "PART_HeaderPresenter").Foreground), Color(icon.Stroke)));
@@ -135,7 +135,7 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             var rename = new MenuItem { Header = "Rename" };
             var view = Opened(rename, new MenuItem { Header = "Archive" });
 
-            rename.IsSelected = true;
+            view.Press(Avalonia.Input.Key.Down);
             view.Settle();
             var surface = Color(Presenter(view).Background)!.Value;
             var row = Color(Part<Border>(rename, "PART_LayoutRoot").Background)!.Value;
@@ -155,6 +155,33 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             var start = gesture.TranslatePoint(default, view.Window)!.Value.X;
 
             Assert.True(gesture.Bounds.Width > 0 && start - end >= 12, $"the shortcut starts {start - end:0} after the header ends");
+        }, Cancellation);
+
+    [Fact]
+    public Task TheKeyboardReachesTheFirstItemOfAMenuThatOpenedUnhighlightedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var view = Opened(rename, archive);
+
+            view.Press(Avalonia.Input.Key.Down);
+
+            Assert.Equal((true, false), (rename.IsSelected, archive.IsSelected));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnItemThePointerReachesIsHighlightedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var view = Opened(rename, archive);
+
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(view.Window, archive.TranslatePoint(new Point(20, archive.Bounds.Height / 2), view.Window)!.Value);
+            view.Settle();
+
+            Assert.Equal((Brush(view, "AccentBrush"), false), (Color(Part<Border>(archive, "PART_LayoutRoot").Background), Color(Part<Border>(rename, "PART_LayoutRoot").Background) == Brush(view, "AccentBrush")));
         }, Cancellation);
 
     private static ViewScript Opened(params MenuItem[] items)
