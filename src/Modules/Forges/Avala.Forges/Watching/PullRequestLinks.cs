@@ -36,7 +36,9 @@ internal static partial class PullRequestLinks
 
     public static Option<int> NumberOf(Uri link, RepositoryAddress origin, IReadOnlySet<string> segments)
     {
-        if (origin.Host.Contains('.', StringComparison.Ordinal) && !Same(link.Host, origin.Host))
+        if (origin.Host.Contains('.', StringComparison.Ordinal)
+            && !Same(link.Host, origin.Host)
+            && !origin.Host.EndsWith($".{link.Host}", StringComparison.OrdinalIgnoreCase))
         {
             return Option<int>.None;
         }

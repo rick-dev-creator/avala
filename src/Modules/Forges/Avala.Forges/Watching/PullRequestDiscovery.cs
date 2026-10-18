@@ -27,7 +27,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 
         if (found.IsNone)
         {
-            found = await ReportedAsync(forge, worktree, reported, cancellationToken);
+            found = await ReportedAsync(forge, worktree, declared.Remote, reported, cancellationToken);
         }
 
         return found.Map(pullRequest => new Delivered(job, declared, remote, pullRequest, pullRequest.Head));
@@ -48,7 +48,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
         return Option<PullRequestRef>.None;
     }
 
-    private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
+    private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, string remote, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
     {
         var segments = new HashSet<string>([forge.Forge.Info.PullRequestSegment], StringComparer.Ordinal);
         var candidates = reported.Reverse()
@@ -61,7 +61,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
             if ((await forge.Forge.ReadAsync(forge.Context, new PullRequestRef(number, link, string.Empty, string.Empty), cancellationToken)).TryGetValue(out var state, out _)
                 && state.Lifecycle == PullRequestLifecycle.Open
                 && string.Equals(state.PullRequest.Link.Host, link.Host, StringComparison.OrdinalIgnoreCase)
-                && await git.HoldsAsync(worktree.Path, state.PullRequest.Head, state.HeadCommit, cancellationToken))
+                && await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken))
             {
                 return state.PullRequest;
             }

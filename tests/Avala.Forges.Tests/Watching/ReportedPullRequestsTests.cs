@@ -64,6 +64,22 @@ public sealed class ReportedPullRequestsTests
     }
 
     [Fact]
+    public void ALinkACommandThatCreatesAPullRequestPrintedIsTriedBeforeTheLinksMentionedAfterIt()
+    {
+        var (reported, job, say) = Reporting();
+        var session = new SessionId(Guid.CreateVersion7());
+        var turn = new TurnId(Guid.CreateVersion7());
+        reported.Started(job, session);
+        reported.Saw(new ItemStarted(session, turn, new ItemId("create"), ItemKind.Command, "Run gh pr create --fill") { Input = "gh pr create --fill" });
+        reported.Saw(new ItemProgressed(session, turn, new ItemId("create"), "https://forge.example/octo/shop/pulls/7\n"));
+        reported.Saw(new ItemCompleted(session, turn, new ItemId("create"), ItemOutcome.Succeeded));
+
+        say([string.Join(' ', Enumerable.Range(20, 6).Select(number => $"https://forge.example/octo/shop/pulls/{number}"))]);
+
+        Assert.Equal(new Uri("https://forge.example/octo/shop/pulls/7"), reported.Of(job)[^1]);
+    }
+
+    [Fact]
     public void AJobThatEndsForgetsItsUnfinishedItemsAndItsLinks()
     {
         var (reported, job, say) = Reporting();
@@ -135,7 +151,7 @@ public sealed class ReportedPullRequestsTests
     {
         var forge = new CountingForge(PullRequestLifecycle.Open);
         var connections = new ForgeConnections(new Declared(), [forge], new Transports());
-        var git = new FetchedGit(new Dictionary<string, string[]> { ["avala/shop"] = ["f00d123"], ["fix/old"] = ["abc1234"] });
+        var git = new FetchedGit();
         var finder = new PullRequestFinder(new EffectiveRules(new DeclaredRules(), git, connections), git, connections);
 
         var found = await finder.FindAsync(
@@ -147,7 +163,7 @@ public sealed class ReportedPullRequestsTests
         Assert.True(found.IsNone);
     }
 
-    private sealed class FetchedGit(IReadOnlyDictionary<string, string[]> branches) : IGitRemote
+    private sealed class FetchedGit : IGitRemote
     {
         public ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Result<string, ForgeError>.Success(Origin));
 
@@ -157,8 +173,8 @@ public sealed class ReportedPullRequestsTests
 
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
 
-        public ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(branches.TryGetValue(branch, out var commits) && commits.Contains(commit, StringComparer.Ordinal));
+        public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(false);
     }
 
     private sealed class CountingForge(PullRequestLifecycle lifecycle = PullRequestLifecycle.Merged) : IForge
@@ -223,6 +239,6 @@ public sealed class ReportedPullRequestsTests
 
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
 
-        public ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(true);
+        public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(true);
     }
 }

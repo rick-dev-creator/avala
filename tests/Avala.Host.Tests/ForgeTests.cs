@@ -248,6 +248,24 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AColleaguesPullRequestFetchedIntoThisCloneIsNotAdoptedEvenWhenTheAgentReportsItLastAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var own = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+
+        await run.Repository.CommitToRemoteAsync("colleague", "OTHER.md", "A colleague's work.\n", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "fetch", "--quiet", "origin", "colleague:colleague", "+refs/heads/colleague:refs/remotes/origin/colleague");
+        var other = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("colleague", "main", "A colleague's change", Cancellation);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(own)}, next to {PullRequestLink(other)}", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
+
+        Assert.Equal((own, "fix/rounding"), (adopted.PullRequest.Number, adopted.PullRequest.Head));
+    }
+
+    [Fact]
     public async Task APullRequestWhoseHeadOnlySharesItsNameWithALocalBranchIsNotAdoptedEvenWhenTheAgentReportsItLastAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);

@@ -30,8 +30,10 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
             output => [.. output.ReplaceLineEndings("\n").Split('\n').Select(Moved).OfType<string>().Distinct(StringComparer.Ordinal)],
             _ => []);
 
-    public async ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) =>
-        branch.Length > 0 && commit.Length > 0 && (await GitAsync(worktree, ["merge-base", "--is-ancestor", commit, $"refs/heads/{branch}"], cancellationToken)).IsSuccess;
+    public async ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) =>
+        branch.Length > 0 && commit.Length > 0 && (await GitAsync(worktree, ["reflog", "show", "--format=%H %gs", $"refs/remotes/{remote}/{branch}"], cancellationToken)).Match(
+            output => output.ReplaceLineEndings("\n").Split('\n').Any(line => line.StartsWith($"{commit} update by push", StringComparison.Ordinal)),
+            _ => false);
 
     private static string? Moved(string subject)
     {
