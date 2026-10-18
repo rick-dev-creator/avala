@@ -47,9 +47,16 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
             return failure;
         }
 
-        return tipTree == plan.Merged.Tree
+        var merged = tipTree == plan.Merged.Tree
             ? new MergedWork(merge.Workspace, plan.Target.Value, Option<string>.None, Option<string>.None)
             : await CommitAsync(merge, checkout, cancellationToken);
+
+        if (merged.IsSuccess)
+        {
+            _ = await git.RecordMergedAsync(merge.Repository, merge.Workspace, plan.Work, cancellationToken);
+        }
+
+        return merged;
     }
 
     private async Task<Result<MergedWork, WorkspaceFailure>> CommitAsync(Merge merge, Option<string> checkout, CancellationToken cancellationToken)
@@ -93,8 +100,13 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
             return failure;
         }
 
-        return await git.MergeTreeAsync(repository, workspace.Base, tip, head, cancellationToken)
-            .MapAsync(merged => new MergePlan(target, tip, merged));
+        if (!(await git.LastMergedAsync(repository, workspace.Id, cancellationToken)).TryGetValue(out var lastMerged, out failure))
+        {
+            return failure;
+        }
+
+        return await git.MergeTreeAsync(repository, lastMerged.Match(merged => merged, () => workspace.Base), tip, head, cancellationToken)
+            .MapAsync(merged => new MergePlan(target, tip, head, merged));
     }
 
     private async Task<Result<bool, WorkspaceFailure>> CleanAsync(Option<string> checkout, CancellationToken cancellationToken) =>
@@ -113,7 +125,7 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
     private async Task<Result<Workspace, WorkspaceFailure>> LoadAsync(WorkspaceId id, CancellationToken cancellationToken) =>
         (await store.FindAsync(id, cancellationToken)).ToResult(WorkspaceFailure.UnknownWorkspace);
 
-    private sealed record MergePlan(BranchName Target, CommitSha Tip, MergedTree Merged);
+    private sealed record MergePlan(BranchName Target, CommitSha Tip, CommitSha Work, MergedTree Merged);
 
     private sealed record Merge(WorkspaceId Workspace, string Repository, MergePlan Plan, string Message);
 }

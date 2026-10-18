@@ -210,6 +210,23 @@ public sealed class GitChangesTests
     }
 
     [Fact]
+    public async Task MergingAgainAfterMoreWorkLandsOnlyWhatChangedSinceTheLastMergeAsync()
+    {
+        await using var job = await Job.PreparedAsync();
+        await job.WriteAsync("calculator.txt", "add(2, 2) = 5\n");
+        await job.CheckpointAsync();
+        _ = Outcomes.Succeeds(await job.Changes.MergeAsync(job.Workspace.Id, Message, Cancellation));
+        await job.WriteAsync("calculator.txt", "add(2, 2) = 4\n");
+        await job.CheckpointAsync();
+        var first = await job.Repository.GitAsync(Cancellation, "rev-parse", "main");
+
+        var merged = Outcomes.Succeeds(await job.Changes.MergeAsync(job.Workspace.Id, Message, Cancellation));
+
+        Assert.Equal(first, await job.Repository.GitAsync(Cancellation, "rev-parse", $"{Outcomes.Present(merged.Commit)}^"));
+        Assert.Equal("add(2, 2) = 4\n", (await File.ReadAllTextAsync(Path.Combine(job.Repository.Path, "calculator.txt"), Cancellation)).ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
     public async Task WorkTheBaseAlreadyHoldsMergesWithoutANewCommitAsync()
     {
         await using var job = await Job.PreparedAsync();
