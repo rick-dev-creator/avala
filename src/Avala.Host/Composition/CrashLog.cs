@@ -58,6 +58,9 @@ internal sealed class CrashLog(LogFile log)
 
     public void Stopped() => log.WriteNow(LogLevel.Information, Category, StoppedMessage, Option<Exception>.None);
 
+    public void CutShort() =>
+        log.WriteNow(LogLevel.Warning, Category, $"Avala did not stop within {BoundedStop.Limit.TotalSeconds:0} seconds, so it ended every process tree still open", Option<Exception>.None);
+
     public void Failed(Exception failure) => log.WriteNow(LogLevel.Critical, Category, "Avala could not start", failure);
 
     private void OnDomainException(object? sender, UnhandledExceptionEventArgs e) => Unhandled(e);

@@ -66,11 +66,7 @@ internal sealed partial class App : Application
         composition.Start();
         _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();
-        desktop.Exit += (_, _) =>
-        {
-            shell.Deactivate();
-            new OrderlyExit(composition, claim, log, crashes).Hold();
-        };
+        new OrderlyExit(composition, claim, log, crashes).Follow(desktop, shell.Deactivate);
         DataTemplates.Add(composition.Views);
         shell.Activate();
         var showing = ShowAsync(desktop, composition, appearance, shell);
