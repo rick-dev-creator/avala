@@ -55,6 +55,8 @@ internal interface IProjectGroupViewModel : ISidebarCommands
 
     bool CanDelete { get; }
 
+    bool HasRepository { get; }
+
     IProjectDocsViewModel Docs { get; }
 
     IAsyncRelayCommand ToggleCommand { get; }
@@ -70,6 +72,8 @@ internal interface IProjectGroupViewModel : ISidebarCommands
     IAsyncRelayCommand DeleteCommand { get; }
 
     IAsyncRelayCommand ArchiveDoneCommand { get; }
+
+    IRelayCommand OpenNotesCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -129,6 +133,8 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
 
     public bool HasProblem => Problem.Length > 0;
 
+    public bool HasRepository => Project.Bind(found => found.Repository).IsSome;
+
     [ObservableProperty]
     public partial string Name { get; private set; }
 
@@ -163,7 +169,9 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
         Name = project.Name;
         OnPropertyChanged(nameof(IsProject));
         OnPropertyChanged(nameof(CanDelete));
+        OnPropertyChanged(nameof(HasRepository));
         StartRenameCommand.NotifyCanExecuteChanged();
+        OpenNotesCommand.NotifyCanExecuteChanged();
     }
 
     public void Expand(bool expanded) => IsExpanded = expanded;
@@ -226,6 +234,15 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
     [RelayCommand(CanExecute = nameof(HasDone))]
     private async Task ArchiveDoneAsync(CancellationToken cancellationToken) =>
         Problem = (await shelf.ArchiveAsync([.. done.SelectMany(entry => entry.Shelved)], cancellationToken)).Match(ProjectPhrases.Refusal, () => string.Empty);
+
+    [RelayCommand(CanExecute = nameof(HasRepository))]
+    private void OpenNotes()
+    {
+        foreach (var repository in Project.Bind(found => found.Repository).Match<string[]>(found => [found], () => []))
+        {
+            shelf.OpenNotes(repository);
+        }
+    }
 
     private void Counted(object? sender, NotifyCollectionChangedEventArgs e)
     {

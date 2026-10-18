@@ -7,6 +7,7 @@ using Avala.Workbench.Presenting;
 using Avala.Workbench.Projects;
 using Avala.Workbench.Sidebar;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Sidebar;
 
@@ -108,15 +109,31 @@ public sealed class ProjectGroupViewModelScripts
     }
 
     [Fact]
+    public void NotesInTheProjectMenuAsksForTheProjectsNotesPage()
+    {
+        var messenger = new StrongReferenceMessenger();
+        var asked = new List<ProjectNotesRequested>();
+        messenger.Register<ProjectNotesRequested>(asked, (list, message) => ((List<ProjectNotesRequested>)list).Add(message));
+        var project = book.Add("ledger", "/home/rick/code/ledger");
+        var group = new ProjectGroupViewModel(new ProjectShelf(book, layout, new FakeDocumentation(), messenger), new RelayCommand<object>(_ => { }), new GroupHeading(project.Project.Value.ToString(), project.Name, project, true));
+        var unplaced = Group(book.Add("Side projects"));
+
+        group.OpenNotesCommand.Execute(null);
+
+        Assert.Equal([new ProjectNotesRequested("/home/rick/code/ledger")], asked);
+        Assert.False(unplaced.OpenNotesCommand.CanExecute(null));
+    }
+
+    [Fact]
     public void ChatsCanBeFoldedButNeitherRenamedNorDeleted()
     {
-        var chats = new ProjectGroupViewModel(new ProjectShelf(book, layout, new FakeDocumentation(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(ProjectGroupViewModel.ChatsKey, "Chats", Option<ProjectRecord>.None, true));
+        var chats = new ProjectGroupViewModel(new ProjectShelf(book, layout, new FakeDocumentation(), new StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(ProjectGroupViewModel.ChatsKey, "Chats", Option<ProjectRecord>.None, true));
 
         Assert.Equal((true, false, false, false), (chats.IsChats, chats.IsProject, chats.StartRenameCommand.CanExecute(null), chats.CanDelete));
     }
 
     private ProjectGroupViewModel Group(ProjectRecord project) =>
-        new(new ProjectShelf(book, layout, new FakeDocumentation(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(project.Project.Value.ToString(), project.Name, project, true));
+        new(new ProjectShelf(book, layout, new FakeDocumentation(), new StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(project.Project.Value.ToString(), project.Name, project, true));
 
     private static DesignJobRowViewModel Row(string title) =>
         new(JobId.New(), title, JobStatus.Running, "working", StatusKind.Working, 0);

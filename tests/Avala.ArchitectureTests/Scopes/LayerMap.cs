@@ -124,6 +124,7 @@ internal static class LayerMap
             ["NewJob"] = Layer.ViewModels,
             ["Documenting"] = Layer.Application,
             ["Docs"] = Layer.ViewModels,
+            ["Notes"] = Layer.ViewModels,
             ["Readying"] = Layer.Application,
             ["Readiness"] = Layer.ViewModels,
             ["RepositoryChoice"] = Layer.ViewModels,

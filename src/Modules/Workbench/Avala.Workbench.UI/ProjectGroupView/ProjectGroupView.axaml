@@ -138,6 +138,11 @@
               </Panel>
             </MenuItem.Icon>
           </MenuItem>
+          <MenuItem x:Name="NotesItem" Header="Notes" Command="{Binding OpenNotesCommand}" IsVisible="{Binding HasRepository}">
+            <MenuItem.Icon>
+              <Path Classes="icon" Data="{StaticResource IconEdit}" />
+            </MenuItem.Icon>
+          </MenuItem>
           <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}">
             <MenuItem.Icon>
               <Path Classes="icon" Data="{StaticResource IconArchive}" />

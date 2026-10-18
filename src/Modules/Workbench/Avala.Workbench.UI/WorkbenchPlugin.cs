@@ -131,6 +131,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterRegions(registrar);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
+        NotesRegistration.Register(registrar);
         RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
         RegisterBoardGroups(registrar);
@@ -284,6 +285,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
         RegisterDocumentationViews(views);
+        NotesRegistration.RegisterViews(views);
         RegisterReadinessViews(views);
         RegisterFollowingViews(views);
     }

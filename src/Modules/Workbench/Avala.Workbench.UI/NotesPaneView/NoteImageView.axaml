@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.NoteImageView"
+             x:ClassModifier="internal"
+             x:DataType="notes:INoteImageViewModel"
+             states:Realized.Command="{Binding ShowCommand}"
+             Margin="0,0,8,8">
+  <Design.DataContext>
+    <notes:DesignNoteImageViewModel />
+  </Design.DataContext>
+  <Border x:Name="Frame"
+          Width="128"
+          Height="96"
+          Background="{DynamicResource FillCodeBrush}"
+          BorderBrush="{DynamicResource SeparatorBrush}"
+          BorderThickness="1"
+          CornerRadius="{DynamicResource RadiusCard}"
+          ClipToBounds="True"
+          ToolTip.Tip="{Binding Name}">
+    <Image x:Name="Picture"
+           Stretch="UniformToFill"
+           AutomationProperties.Name="{Binding Name}"
+           Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}" />
+  </Border>
+</UserControl>

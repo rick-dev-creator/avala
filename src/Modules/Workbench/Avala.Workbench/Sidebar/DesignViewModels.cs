@@ -168,6 +168,8 @@ internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
 
     public bool CanDelete => IsProject && !HasRows;
 
+    public bool HasRepository => IsProject;
+
     public IRelayCommand<object> SelectCommand { get; init; } = new RelayCommand<object>(_ => { });
 
     public IAsyncRelayCommand ToggleCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
@@ -183,6 +185,8 @@ internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
     public IAsyncRelayCommand DeleteCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ArchiveDoneCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand OpenNotesCommand { get; init; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignSidebarViewModel : ISidebarViewModel

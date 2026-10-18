@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             x:Class="Avala.Workbench.UI.NotesPaneView"
+             x:ClassModifier="internal"
+             x:DataType="notes:INotesPaneViewModel">
+  <Design.DataContext>
+    <notes:DesignNotesPaneViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    </Style>
+    <Style Selector="Border#PaneHeader">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Surface" IsVisible="{Binding IsOpen}">
+    <DockPanel>
+      <Border x:Name="PaneHeader" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="18,0,10,0" Height="44">
+        <DockPanel>
+          <Button x:Name="Close"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  Command="{Binding CloseCommand}"
+                  ToolTip.Tip="Close"
+                  AutomationProperties.Name="Close the notes pane">
+            <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
+          </Button>
+          <Button x:Name="NewNote"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  Command="{Binding Board.NewCommand}"
+                  ToolTip.Tip="New note"
+                  AutomationProperties.Name="New note">
+            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconPlus}" />
+          </Button>
+          <TextBlock Classes="strong" Text="Notes" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+      <ContentControl x:Name="Board" Content="{Binding Board}" />
+    </DockPanel>
+  </Border>
+</UserControl>
