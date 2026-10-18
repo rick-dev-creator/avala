@@ -2,6 +2,7 @@ using System.Globalization;
 using Avala.Components.Graphs;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 
 namespace Avala.Components.UI.Graphs;
@@ -20,23 +21,39 @@ public sealed class C4GraphPanel : Panel
     public static readonly StyledProperty<IBrush> LabelBrushProperty =
         AvaloniaProperty.Register<C4GraphPanel, IBrush>(nameof(LabelBrush), Brushes.Gray);
 
+    public static readonly StyledProperty<IBrush> LabelPlateBrushProperty =
+        AvaloniaProperty.Register<C4GraphPanel, IBrush>(nameof(LabelPlateBrush), Brushes.Transparent);
+
+    public static readonly StyledProperty<double> LabelSizeProperty =
+        AvaloniaProperty.Register<C4GraphPanel, double>(nameof(LabelSize), 11.5);
+
+    public static readonly StyledProperty<IBrush> FrameLabelBrushProperty =
+        AvaloniaProperty.Register<C4GraphPanel, IBrush>(nameof(FrameLabelBrush), Brushes.Gray);
+
     public static readonly StyledProperty<IBrush> BadgeBrushProperty =
         AvaloniaProperty.Register<C4GraphPanel, IBrush>(nameof(BadgeBrush), Brushes.SlateBlue);
 
     public static readonly StyledProperty<IBrush> BadgeTextBrushProperty =
         AvaloniaProperty.Register<C4GraphPanel, IBrush>(nameof(BadgeTextBrush), Brushes.White);
 
+    private const double Room = 12;
+
+    private const double LabelWidth = 200;
+
+    private const double BadgeRadius = 9;
+
     private static readonly LayeredSpacing Spacing = new();
 
-    private const double LabelRoom = 180;
+    private static readonly Thickness PlatePadding = new(6, 2);
 
     private readonly EdgeLayer edges;
     private LayeredGraphLayout layout = LayeredGraphLayout.Empty;
     private Dictionary<string, int> keys = [];
+    private Vector origin;
 
     static C4GraphPanel()
     {
-        AffectsMeasure<C4GraphPanel>(StructureProperty, FramesProperty);
+        AffectsMeasure<C4GraphPanel>(StructureProperty, FramesProperty, LabelSizeProperty);
         LinksProperty.Changed.AddClassHandler<C4GraphPanel>((panel, _) => EdgeLayer.Refresh(panel));
     }
 
@@ -70,6 +87,24 @@ public sealed class C4GraphPanel : Panel
         set => SetValue(LabelBrushProperty, value);
     }
 
+    public IBrush LabelPlateBrush
+    {
+        get => GetValue(LabelPlateBrushProperty);
+        set => SetValue(LabelPlateBrushProperty, value);
+    }
+
+    public double LabelSize
+    {
+        get => GetValue(LabelSizeProperty);
+        set => SetValue(LabelSizeProperty, value);
+    }
+
+    public IBrush FrameLabelBrush
+    {
+        get => GetValue(FrameLabelBrushProperty);
+        set => SetValue(FrameLabelBrushProperty, value);
+    }
+
     public IBrush BadgeBrush
     {
         get => GetValue(BadgeBrushProperty);
@@ -84,6 +119,8 @@ public sealed class C4GraphPanel : Panel
 
     public LayeredGraphLayout Layout => layout;
 
+    public IReadOnlyList<Rect> Labels => [.. Placed(Links).Select(placed => placed.Plate)];
+
     protected override Size MeasureOverride(Size availableSize)
     {
         foreach (var child in Children)
@@ -91,23 +128,32 @@ public sealed class C4GraphPanel : Panel
             child.Measure(Size.Infinity);
         }
 
-        var frames = Frames.Select((frame, index) => (frame.Key, index)).ToDictionary(pair => pair.Key, pair => pair.index, StringComparer.Ordinal);
+        var frames = Frames.Select((frame, index) => (frame.Key, index)).DistinctBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(pair => pair.Key, pair => pair.index, StringComparer.Ordinal);
         keys = Children.Select((child, index) => (Key: Graph.Read(child, Graph.KeyProperty), index)).Where(pair => pair.Key.Length > 0).GroupBy(pair => pair.Key).ToDictionary(group => group.Key, group => group.First().index, StringComparer.Ordinal);
         layout = LayeredLayout.Arrange(
             [.. Children.Select(child => new LayeredNodeSpec(new GraphSize(child.DesiredSize.Width, child.DesiredSize.Height)) { Group = frames.TryGetValue(Graph.Read(child, Graph.FrameProperty), out var group) ? group : -1 })],
             [.. Structure.Where(link => keys.ContainsKey(link.From) && keys.ContainsKey(link.To)).Select(link => new LayeredLink(keys[link.From], keys[link.To]))],
             Frames.Count,
             Spacing);
+        origin = default;
+        var drawn = layout.Nodes.Concat(layout.Groups.Where(group => group.Width > 0)).Select(Rect).Concat(Placed(Structure).SelectMany(placed => new[] { placed.Plate, Extent(placed.Route) })).ToList();
 
-        return new Size(layout.Size.Width + LabelRoom, layout.Size.Height);
+        if (drawn.Count == 0)
+        {
+            return default;
+        }
+
+        var bounds = drawn.Aggregate((all, rect) => all.Union(rect)).Inflate(Room);
+        origin = new Vector(-bounds.X, -bounds.Y);
+
+        return bounds.Size;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         for (var index = 0; index < Children.Count && index < layout.Nodes.Count; index++)
         {
-            var bounds = layout.Nodes[index];
-            Children[index].Arrange(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+            Children[index].Arrange(Rect(layout.Nodes[index]).Translate(origin));
         }
 
         edges.Fit(finalSize);
@@ -117,6 +163,7 @@ public sealed class C4GraphPanel : Panel
 
     private void Draw(DrawingContext context, EdgePens pens)
     {
+        using var shifted = context.PushTransform(Matrix.CreateTranslation(origin));
         var quiet = pens.For(EdgeKind.Waiting);
 
         for (var index = 0; index < Frames.Count && index < layout.Groups.Count; index++)
@@ -125,43 +172,75 @@ public sealed class C4GraphPanel : Panel
 
             if (frame.Width > 0)
             {
-                context.DrawRectangle(null, quiet, new RoundedRect(new Rect(frame.X, frame.Y, frame.Width, frame.Height), 12));
-                var label = Text(Frames[index].Label, 11);
+                context.DrawRectangle(null, quiet, new RoundedRect(Rect(frame), 12));
+                var label = Text(Frames[index].Label, FrameLabelBrush, frame.Width - 24);
                 context.DrawText(label, new Point(frame.X + 12, frame.Bottom - label.Height - 6));
             }
         }
 
-        foreach (var link in Links.Where(link => keys.ContainsKey(link.From) && keys.ContainsKey(link.To) && keys[link.From] < layout.Nodes.Count && keys[link.To] < layout.Nodes.Count))
+        var placed = Placed(Links);
+
+        foreach (var (link, route, _, _) in placed)
         {
-            Link(context, pens.For(link.Kind), link);
+            var pen = pens.For(link.Kind);
+            var points = route.Points.Select(point => new Point(point.X, point.Y)).ToList();
+
+            for (var index = 1; index < points.Count; index++)
+            {
+                context.DrawLine(pen, points[index - 1], points[index]);
+            }
+
+            Arrow(context, pen, points[^2], points[^1]);
+        }
+
+        foreach (var (link, _, plate, label) in placed.Where(placed => placed.Plate.Width > 0))
+        {
+            context.DrawRectangle(LabelPlateBrush, null, new RoundedRect(plate, plate.Height / 2));
+            var left = plate.X + PlatePadding.Left;
+
+            if (link.Badge.Length > 0)
+            {
+                var center = new Point(left + BadgeRadius, plate.Center.Y);
+                context.DrawEllipse(BadgeBrush, null, center, BadgeRadius, BadgeRadius);
+                var badge = Text(link.Badge, BadgeTextBrush, LabelWidth);
+                context.DrawText(badge, new Point(center.X - (badge.Width / 2), center.Y - (badge.Height / 2)));
+                left += (2 * BadgeRadius) + 5;
+            }
+
+            if (label is not null)
+            {
+                context.DrawText(label, new Point(left, plate.Center.Y - (label.Height / 2)));
+            }
         }
     }
 
-    private void Link(DrawingContext context, IPen pen, GraphLink link)
+    private List<(GraphLink Link, LinkRoute Route, Rect Plate, FormattedText? Label)> Placed(IReadOnlyList<GraphLink> links)
     {
-        var from = layout.Nodes[keys[link.From]];
-        var to = layout.Nodes[keys[link.To]];
-        var edgeStart = Edge(from, Center(to));
-        var edgeEnd = Edge(to, Center(from));
-        var (dx, dy) = LinkLanes.Shift(Links, link, (edgeStart.X, edgeStart.Y), (edgeEnd.X, edgeEnd.Y));
-        var start = new Point(edgeStart.X + dx, edgeStart.Y + dy);
-        var end = new Point(edgeEnd.X + dx, edgeEnd.Y + dy);
-        context.DrawLine(pen, start, end);
-        Arrow(context, pen, start, end);
-        var middle = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2);
+        var nodes = layout.Nodes;
+        var taken = new List<GraphRect>(nodes);
+        var placed = new List<(GraphLink, LinkRoute, Rect, FormattedText?)>();
 
-        if (link.Label.Length > 0)
+        foreach (var link in links.Where(link => keys.TryGetValue(link.From, out var from) && keys.TryGetValue(link.To, out var to) && from < nodes.Count && to < nodes.Count && from != to))
         {
-            var label = Text(link.Label, 10.5);
-            context.DrawText(label, new Point(dx < 0 ? middle.X - 6 - label.Width : middle.X + 6, dy > 0 ? middle.Y + 2 : middle.Y - 14));
+            var (from, to) = (nodes[keys[link.From]], nodes[keys[link.To]]);
+            var (dx, dy) = LinkLanes.Shift(links, link, (from.Center.X, from.Center.Y), (to.Center.X, to.Center.Y));
+            var route = LinkRoutes.Route(from, to, nodes, new GraphPoint(dx, dy));
+            var label = link.Label.Length > 0 ? Text(link.Label, LabelBrush, LabelWidth) : null;
+            var width = (label?.Width ?? 0) + (link.Badge.Length > 0 ? (2 * BadgeRadius) + (label is null ? 0 : 5) : 0);
+            var height = Math.Max(label?.Height ?? 0, link.Badge.Length > 0 ? 2 * BadgeRadius : 0);
+
+            if (width <= 0)
+            {
+                placed.Add((link, route, default, null));
+                continue;
+            }
+
+            var plate = LinkRoutes.Label(route, new GraphSize(width + PlatePadding.Left + PlatePadding.Right, height + PlatePadding.Top + PlatePadding.Bottom), taken);
+            taken.Add(plate);
+            placed.Add((link, route, Rect(plate), label));
         }
 
-        if (link.Badge.Length > 0)
-        {
-            context.DrawEllipse(BadgeBrush, null, middle, 9, 9);
-            var badge = Text(link.Badge, 10.5, BadgeTextBrush);
-            context.DrawText(badge, new Point(middle.X - (badge.Width / 2), middle.Y - (badge.Height / 2)));
-        }
+        return placed;
     }
 
     private static void Arrow(DrawingContext context, IPen pen, Point start, Point end)
@@ -174,24 +253,19 @@ public sealed class C4GraphPanel : Panel
         }
     }
 
-    private static Point Center(GraphRect rect) => new(rect.X + (rect.Width / 2), rect.Y + (rect.Height / 2));
+    private static Rect Rect(GraphRect rect) => new(rect.X, rect.Y, rect.Width, rect.Height);
 
-    private static Point Edge(GraphRect rect, Point toward)
+    private static Rect Extent(LinkRoute route)
     {
-        var center = Center(rect);
-        var dx = toward.X - center.X;
-        var dy = toward.Y - center.Y;
+        var (left, top) = (route.Points.Min(point => point.X), route.Points.Min(point => point.Y));
 
-        if (dx == 0 && dy == 0)
-        {
-            return center;
-        }
-
-        var scale = Math.Min(Math.Abs(dx) < 0.001 ? double.MaxValue : rect.Width / 2 / Math.Abs(dx), Math.Abs(dy) < 0.001 ? double.MaxValue : rect.Height / 2 / Math.Abs(dy));
-
-        return new Point(center.X + (dx * scale), center.Y + (dy * scale));
+        return new Rect(left, top, route.Points.Max(point => point.X) - left, route.Points.Max(point => point.Y) - top);
     }
 
-    private FormattedText Text(string text, double size, IBrush? brush = null) =>
-        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(FontFamily.Default), size, brush ?? LabelBrush);
+    private FormattedText Text(string text, IBrush brush, double width) =>
+        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface(TextElement.GetFontFamily(this)), LabelSize, brush)
+        {
+            MaxTextWidth = Math.Max(1, width),
+            TextAlignment = TextAlignment.Left,
+        };
 }
