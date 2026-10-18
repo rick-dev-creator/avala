@@ -4,6 +4,7 @@ using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Transcripts.Contracts;
 
@@ -14,6 +15,48 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     private const string ServicesPolicy = """{ "rules": [ { "name": "services", "kind": "command", "target": "dotnet *", "answer": "allow" } ] }""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AProcessAnEarlierRunLeftInATreeItRecordedIsReapedAtStartupAndAProcessAvalaNeverStartedIsLeftAloneAsync()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "On Windows a tree is a job object that kills its processes when the run that held it ends.");
+        var earlier = ProcessTreeId.New();
+        using var left = await HoldingAsync(Option<ProcessTreeId>.Some(earlier));
+        using var stranger = await HoldingAsync(Option<ProcessTreeId>.None);
+
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [(TreeLedgerFile, $"[\"{earlier.Value}\"]")], []);
+        await run.StartedAsync();
+        await left.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.False(stranger.HasExited);
+        stranger.Kill();
+    }
+
+    private const string TreeLedgerFile = "process-trees.json";
+
+    private async Task<System.Diagnostics.Process> HoldingAsync(Option<ProcessTreeId> tree)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardInput = true,
+        };
+        start.ArgumentList.Add(Path.Combine(plugins.Directory, "Avala.Simulator", "Avala.Simulator.Workload.dll"));
+        start.ArgumentList.Add("hold");
+        start.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+        start.Environment.Remove(ProcessTreeId.Variable);
+
+        foreach (var id in tree.Match<ProcessTreeId[]>(found => [found], () => []))
+        {
+            start.Environment[ProcessTreeId.Variable] = id.Value.ToString();
+        }
+
+        var process = System.Diagnostics.Process.Start(start)!;
+        Assert.StartsWith("holding", await process.StandardOutput.ReadLineAsync(Cancellation));
+
+        return process;
+    }
 
     [Fact]
     public async Task AProcessLeftRunningByADiscardedJobIsReportedWithItsJobAndReapedAsync()
