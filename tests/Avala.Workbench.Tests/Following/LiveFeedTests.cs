@@ -86,12 +86,12 @@ public sealed class LiveFeedTests : IDisposable
     [Fact]
     public async Task AFailureIsLoggedWithTheComponentItBelongsToEvenWithoutAFailCallbackAsync()
     {
-        var shown = new Shown();
-        feed.Start(_ => ValueTask.FromResult(0), shown.Show);
+        var shown = 0;
+        feed.Start(_ => ValueTask.FromResult(0), state => shown = state == 0 ? throw new InvalidOperationException("State 0 has no view") : state);
         await ui.PresentedAsync(feed, () => logger.Entries.Count == 1, () => $"{logger.Entries.Count} logged");
 
         var (level, message) = Assert.Single(logger.Entries);
-        Assert.Equal((LogLevel.Error, "Shown failed to read or show what it follows, and keeps following"), (level, message));
+        Assert.Equal((LogLevel.Error, 0, "LiveFeedTests failed to read or show what it follows, and keeps following"), (level, shown, message));
     }
 
     [Fact]
@@ -140,13 +140,6 @@ public sealed class LiveFeedTests : IDisposable
     {
         feed.Dispose();
         ui.Dispose();
-    }
-
-    private sealed class Shown
-    {
-        public int Last { get; private set; }
-
-        public void Show(int state) => Last = state == 0 ? throw new InvalidOperationException("State 0 has no view") : state;
     }
 
     private sealed class HeldDispatcher : Avala.Sdk.IUiDispatcher

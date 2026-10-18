@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Microsoft.Extensions.Logging;
@@ -16,15 +17,16 @@ internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<Li
 
     public bool IsActive => active is not null;
 
-    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show) => Start(read, show, _ => { });
+    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, [CallerFilePath] string component = "") =>
+        Start(read, show, _ => { }, component);
 
-    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail)
+    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail, [CallerFilePath] string component = "")
     {
         if (active is null)
         {
             active = new CancellationTokenSource();
             var following = active.Token;
-            var component = (show.Target ?? read.Target)?.GetType().Name ?? "A component";
+            component = Path.GetFileNameWithoutExtension(component);
             Following = Task.Run(() => FollowAsync(read, show, Reported(component, fail), following), CancellationToken.None);
         }
     }
