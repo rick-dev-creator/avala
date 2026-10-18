@@ -186,6 +186,10 @@ internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
 
     public string Shared => UsagePhrases.Shared("claude-work");
 
+    public string HoldAt => "Jobs on this connection hold at the 90% threshold.";
+
+    public string More => string.Empty;
+
     public IReadOnlyList<ILimitViewModel> Windows { get; } = [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)];
 
     public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });

@@ -136,15 +136,24 @@ public sealed class ConnectionMeterViewScripts(HeadlessUi ui)
 public sealed class LimitViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ALimitNearItsHoldTurnsAmberMarksTheThresholdAndExplainsItAsync() =>
+    public Task ALimitNearItsHoldTurnsAmberAndMarksTheThresholdAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignLimitViewModel());
 
-            Assert.Equal(("5-hour window", "88%"), (view.TextOf("Window"), view.TextOf("UsedText")));
+            Assert.Equal(("5-hour window", "88%", " used"), (view.TextOf("Window"), view.TextOf("UsedText"), view.TextOf("UsedWord")));
             Assert.Equal((0.88, 0.9), (view.Find<ProgressBar>("Used").Value, view.Find<ProgressBar>("Hold").Value));
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
-            Assert.Equal((true, true, true, "Jobs on this connection hold at the 90% threshold."), (view.HasClass("UsedText", "attention"), view.HasClass("HoldAt", "attention"), view.Shows("HoldAt"), view.TextOf("HoldAt")));
+            Assert.Equal((true, true), (view.HasClass("UsedText", "attention"), view.HasClass("UsedWord", "attention")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnExpiredLimitSaysResetWithoutCallingItUsedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignLimitViewModel("7d", "7-day window", 0, "reset", "reset 2026-10-13 09:00, no reading since", 0.9, false));
+
+            Assert.Equal(("reset", false), (view.TextOf("UsedText"), view.Shows("UsedWord")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -163,7 +172,7 @@ public sealed class LimitViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false));
 
-            Assert.Equal((false, false), (view.HasClass("UsedText", "attention"), view.Shows("HoldAt")));
+            Assert.False(view.HasClass("UsedText", "attention"));
             Assert.Equal(Color.Parse("#A3A3AD"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
@@ -237,6 +246,16 @@ public sealed class JobMeterViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, "held 2 times"), (view.HasClass("Used", "attention"), view.TextOf("Interventions")));
             Assert.True(view.HasClass("Interventions", "attention"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AJobsLongTitleIsTrimmedWithAnEllipsisAndKeepsHowOftenItWasHeldInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobMeterViewModel(Presenting.SampleJobs.SyncQueue, "[simulate: two-windows-spent] Rewrite the importer for the new CSV export format of the bank and keep the old one working", JobStatus.NeedsHelp, "claude-personal", "3.04 USD", 1, "3 USD", 2), Avalonia.Styling.ThemeVariant.Dark, 640, 200);
+            var title = view.Find<TextBlock>("Title");
+
+            Assert.Equal((true, true), (title.TextLayout.TextLines[0].HasCollapsed, view.Shows("Interventions")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

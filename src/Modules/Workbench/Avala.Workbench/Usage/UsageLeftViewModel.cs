@@ -29,6 +29,10 @@ internal interface IUsageLeftViewModel
 
     string Shared { get; }
 
+    string HoldAt { get; }
+
+    string More { get; }
+
     IReadOnlyList<ILimitViewModel> Windows { get; }
 
     IRelayCommand OpenCommand { get; }
@@ -73,6 +77,12 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
     [ObservableProperty]
     public partial string Shared { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string HoldAt { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string More { get; private set; } = string.Empty;
+
     public IReadOnlyList<ILimitViewModel> Windows => windows;
 
     public void Activate() => feed.Start(_ => ValueTask.FromResult(job.Bind(allowance.Of)), Show);
@@ -92,8 +102,9 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
         var shown = spend.Match(found => found.Limits.Count > 0 ? found : Option<ConnectionSpend>.None, () => Option<ConnectionSpend>.None);
         var holdAt = shown.Bind(found => found.Caps).Bind(caps => caps.HoldAtLimit);
         var readings = shown.Match(found => found.Limits, () => (IReadOnlyList<LimitReading>)[]);
+        var mostUsed = readings.OrderByDescending(reading => reading.Used).Take(UsageLeftPhrases.Shown).ToHashSet();
         windows.ShowInPlace(
-            readings,
+            readings.Where(mostUsed.Contains),
             (window, reading) => window.Window == reading.Limit.Window,
             reading => new LimitViewModel(reading, holdAt),
             (window, reading) => window.Show(reading, holdAt));
@@ -104,6 +115,8 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
         IsNear = windows.Any(window => window.IsNear) || (most is not null && Used >= 1 - MeterViewModel.AttentionMargin);
         Summary = UsageLeftPhrases.Summary(Connection, windows);
         Shared = UsagePhrases.Shared(Connection);
+        HoldAt = windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
+        More = UsageLeftPhrases.More(readings.Count - windows.Count);
         IsShown = shown.IsSome;
     }
 
@@ -117,6 +130,15 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
 
 internal static class UsageLeftPhrases
 {
+    public const int Shown = 3;
+
+    public static string More(int hidden) => hidden switch
+    {
+        <= 0 => string.Empty,
+        1 => "1 more window on the Usage page",
+        _ => $"{hidden} more windows on the Usage page",
+    };
+
     public static string Left(double used) => $"{Amounts.Percent(1 - used)} usage left";
 
     public static string Summary(string connection, IEnumerable<ILimitViewModel> windows) =>

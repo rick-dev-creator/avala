@@ -43,6 +43,24 @@ public sealed class UsageLeftViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task WithMoreWindowsThanThePopoverHoldsItShowsTheMostUsedInOrderAndCountsTheRestAsync()
+    {
+        var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");
+        usage.Connections.Add(new ConnectionUsage(
+            new ConnectionName("claude-work"),
+            Pages.Simulator,
+            Pages.Used(1m, new UsageLimit("5h", 0.2, FiveHourReset), new UsageLimit("7d", 0.9, SevenDayReset), new UsageLimit("7d-opus", 0.5, SevenDayReset), new UsageLimit("monthly", 0.7, SevenDayReset))));
+        var (chip, _) = Chip(Pages.Board(job));
+
+        chip.Activate();
+        chip.OnRegionContextChanged(job.Job);
+
+        await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
+        Assert.Equal(["7d", "7d-opus", "monthly"], await ui.ReadAsync(() => chip.Windows.Select(window => window.Window).ToList()));
+        Assert.Equal("1 more window on the Usage page", await ui.ReadAsync(() => chip.More));
+    }
+
+    [Fact]
     public async Task TheChipSaysTheWindowIsSharedWithEveryAppOnTheLoginAsync()
     {
         var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");

@@ -11,7 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
 
-public sealed class AdversaryPopoverScreens(HeadlessUi ui)
+public sealed class PopoverShapeScreens(HeadlessUi ui)
 {
     private static string? Folder => Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 } found ? found : null;
 
@@ -105,9 +105,10 @@ public sealed class AdversaryPopoverScreens(HeadlessUi ui)
             new DesignLimitViewModel("5h", "5-hour window", 0.97, "97%", "resets Tue 20 Oct 18:45", 0.98, false) { Outside = "61% of it was spent outside Avala." },
             new DesignLimitViewModel("7d", "7-day window", 0.92, "92%", "resets Mon 26 Oct 09:00", 0.98, false),
             new DesignLimitViewModel("7d-opus", "7-day Opus window with a very long label from the provider", 0.64, "64%", "resets Mon 26 Oct 09:00", 0.98, false),
-            new DesignLimitViewModel("7d-sonnet", "7-day Sonnet window", 0.12, "12%", "resets Mon 26 Oct 09:00", 0.98, false),
-            new DesignLimitViewModel("month", "Monthly window", 0.55, "55%", "no reset reported", 0.98, false),
-        ]),
+        ])
+        {
+            More = "2 more windows on the Usage page",
+        },
         "full-and-expired" => new Fake("claude-personal", "0% usage left", 1, true,
         [
             new DesignLimitViewModel("5h", "5-hour window", 1, "100%", "resets Tue 20 Oct 18:45", 0.98, true),
@@ -146,6 +147,10 @@ public sealed class AdversaryPopoverScreens(HeadlessUi ui)
         public string Summary => "summary";
 
         public string Shared => UsagePhrases.Shared(connection);
+
+        public string HoldAt => windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
+
+        public string More { get; init; } = string.Empty;
 
         public IReadOnlyList<ILimitViewModel> Windows => windows;
 

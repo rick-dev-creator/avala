@@ -26,8 +26,8 @@
     <ToolTip.Tip>
       <StackPanel x:Name="Detail" Width="{DynamicResource TipWidth}" Margin="2,4" Spacing="14">
         <DockPanel>
-          <TextBlock x:Name="LeftDetail" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Text="{Binding Left}" Margin="12,0,0,0" VerticalAlignment="Center" />
-          <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Connection}" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          <TextBlock x:Name="LeftDetail" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Text="{Binding Left}" Margin="12,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center" />
+          <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Connection}" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
         </DockPanel>
         <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}">
           <ItemsControl.ItemsPanel>
@@ -36,6 +36,8 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
+        <TextBlock x:Name="More" Classes="caption" Text="{Binding More}" IsVisible="{Binding More, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,-6,0,0" />
+        <TextBlock x:Name="HoldAt" Classes="caption attention" Text="{Binding HoldAt}" IsVisible="{Binding HoldAt, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" Margin="0,-6,0,0" />
         <StackPanel Spacing="6">
           <Border Classes="separator" Margin="0,0,0,4" />
           <TextBlock x:Name="Shared" Classes="caption" Text="{Binding Shared}" TextWrapping="Wrap" />

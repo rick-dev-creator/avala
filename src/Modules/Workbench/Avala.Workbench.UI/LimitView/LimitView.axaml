@@ -10,15 +10,17 @@
   </Design.DataContext>
   <StackPanel Spacing="6">
     <DockPanel>
-      <TextBlock x:Name="UsedText" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Classes.tertiary="{Binding IsExpired}" Text="{Binding UsedText}" Margin="12,0,0,0" />
-      <TextBlock x:Name="Window" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
+        <TextBlock x:Name="UsedText" Classes="medium" Classes.attention="{Binding IsNear}" Classes.tertiary="{Binding IsExpired}" Text="{Binding UsedText}" TextWrapping="NoWrap" />
+        <TextBlock x:Name="UsedWord" Classes="secondary" Classes.attention="{Binding IsNear}" Text=" used" TextWrapping="NoWrap" IsVisible="{Binding !IsExpired}" />
+      </StackPanel>
+      <TextBlock x:Name="Window" Text="{Binding Label}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
     </DockPanel>
     <Panel>
       <ProgressBar x:Name="Used" Classes="bar thick" Classes.attention="{Binding IsNear}" Value="{Binding Used}" VerticalAlignment="Center" />
       <ProgressBar x:Name="Hold" Classes="marker" Classes.attention="{Binding IsNear}" Height="14" Value="{Binding Hold}" IsVisible="{Binding HasHold}" />
     </Panel>
     <TextBlock x:Name="Resets" Classes="caption" Text="{Binding Resets, Converter={x:Static states:Texts.Sentence}}" TextWrapping="Wrap" />
-    <TextBlock x:Name="HoldAt" Classes="caption attention" Text="{Binding HoldAt}" IsVisible="{Binding IsNear}" TextWrapping="Wrap" />
     <TextBlock x:Name="Outside" Classes="caption" Text="{Binding Outside}" IsVisible="{Binding Outside, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" />
   </StackPanel>
 </UserControl>

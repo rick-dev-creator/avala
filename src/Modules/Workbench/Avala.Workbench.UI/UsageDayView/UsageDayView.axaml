@@ -8,7 +8,13 @@
     <usage:DesignUsageDayViewModel />
   </Design.DataContext>
   <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,9" ToolTip.Tip="{Binding Types}">
-    <Grid ColumnDefinitions="150,*,150,110" ColumnSpacing="16">
+    <Grid ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Day" />
+        <ColumnDefinition Width="*" MinWidth="40" />
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Tokens" />
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Cost" />
+      </Grid.ColumnDefinitions>
       <TextBlock x:Name="Day" Text="{Binding Day}" Classes.secondary="{Binding !IsToday}" VerticalAlignment="Center" />
       <ProgressBar x:Name="Share" Grid.Column="1" Classes="bar" Value="{Binding Share}" Maximum="1" VerticalAlignment="Center" />
       <TextBlock x:Name="Tokens" Grid.Column="2" Classes="caption" HorizontalAlignment="Right" Text="{Binding Tokens}" VerticalAlignment="Center" />

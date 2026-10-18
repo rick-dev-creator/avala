@@ -30,10 +30,10 @@
       </Border>
       <StackPanel Spacing="2" VerticalAlignment="Center">
         <TextBlock Classes="section" Text="Usage by day" />
-        <TextBlock x:Name="Caption" Classes="caption" Text="{Binding Caption}" />
+        <TextBlock x:Name="Caption" Classes="caption" Text="{Binding Caption}" TextWrapping="Wrap" />
       </StackPanel>
     </DockPanel>
     <ContentControl x:Name="Total" Content="{Binding Total}" />
-    <ItemsControl x:Name="Days" ItemsSource="{Binding Days}" />
+    <ItemsControl x:Name="Days" ItemsSource="{Binding Days}" Grid.IsSharedSizeScope="True" />
   </StackPanel>
 </UserControl>

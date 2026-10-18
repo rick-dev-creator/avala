@@ -66,6 +66,23 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ThePopoverExplainsTheHoldOnceUnderTheWindowsNearItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageLeftViewModel(), ThemeVariant.Dark, 640, 900);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+            var chip = view.Find<Button>("Open");
+
+            ToolTip.SetIsOpen(chip, true);
+            view.Settle();
+            var detail = Assert.IsAssignableFrom<Control>(ToolTip.GetTip(chip));
+
+            Assert.Equal(
+                ["Jobs on this connection hold at the 90% threshold."],
+                detail.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible && text.Text?.Contains("hold at", StringComparison.Ordinal) == true).Select(text => text.Text));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutAWindowToShowTheChipIsHiddenAsync() =>
         ui.RunAsync(() =>
         {
@@ -98,6 +115,10 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         public string Summary => "Usage left on claude-work";
 
         public string Shared => "Shared with every app signed in to claude-work, not only Avala.";
+
+        public string HoldAt => string.Empty;
+
+        public string More => string.Empty;
 
         public IReadOnlyList<ILimitViewModel> Windows => [];
 
