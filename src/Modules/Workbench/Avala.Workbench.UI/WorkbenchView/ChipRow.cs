@@ -18,36 +18,47 @@ internal sealed class ChipRow : Panel
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var width = 0d;
-        var height = 0d;
-        var shown = 0;
-
         foreach (var child in Children)
         {
-            child.Measure(new Size(double.PositiveInfinity, availableSize.Height));
-
-            if (child.DesiredSize.Width > 0)
-            {
-                width += child.DesiredSize.Width;
-                height = Math.Max(height, child.DesiredSize.Height);
-                shown++;
-            }
+            child.Measure(new Size(availableSize.Width, availableSize.Height));
         }
 
-        return new Size(width + (Math.Max(shown - 1, 0) * Spacing), height);
+        return Lay(availableSize.Width, (_, _) => { });
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        var x = 0d;
+        Lay(finalSize.Width, (child, place) => child.Arrange(place));
+
+        return finalSize;
+    }
+
+    private Size Lay(double width, Action<Control, Rect> place)
+    {
+        var (x, y, line, widest) = (0d, 0d, 0d, 0d);
 
         foreach (var child in Children)
         {
-            var width = child.DesiredSize.Width;
-            child.Arrange(new Rect(x, 0, width, finalSize.Height));
-            x += width > 0 ? width + Spacing : 0;
+            var size = child.DesiredSize;
+
+            if (size.Width <= 0)
+            {
+                place(child, new Rect(x, y, 0, 0));
+                continue;
+            }
+
+            if (x > 0 && x + Spacing + size.Width > width)
+            {
+                (x, y, line) = (0, y + line + Spacing, 0);
+            }
+
+            var left = x > 0 ? x + Spacing : 0;
+            place(child, new Rect(left, y, size.Width, Math.Max(size.Height, line)));
+            x = left + size.Width;
+            line = Math.Max(line, size.Height);
+            widest = Math.Max(widest, x);
         }
 
-        return finalSize;
+        return new Size(widest, y + line);
     }
 }
