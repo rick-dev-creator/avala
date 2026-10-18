@@ -77,4 +77,16 @@ Asked 2026-10-18 14:38 UTC. Produced [v1](v1-proposed.md).
 
 Asked 2026-10-18 14:40 UTC. Produced [v1](v1-proposed.md).
 
+### Change request 13 · sent back in review · attempt 13
+
+> ok si vi la notificacion pero no es obvia, esto afecta directamente como se percibe avala entonces ese permiso debe aparecer en este chat y obligar a que el usuario responda, porque si no va a creer que no sirve, es decir hacer requerido su permiso agregalo a tu lista de tareas
+
+Asked 2026-10-18 14:45 UTC. Produced [v2](v2-deviation.md).
+
+### Change request 14 · sent back in review · attempt 14
+
+> perfecto, muestrame el design de como se veria
+
+Asked 2026-10-18 14:47 UTC. Produced [v2](v2-deviation.md).
+
 <!-- /avala:job 01a14f58-18bb-7efc-a8fe-0e25f10c70a1 -->

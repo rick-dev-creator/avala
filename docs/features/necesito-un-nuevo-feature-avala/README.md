@@ -5,5 +5,6 @@ Written by Avala as the feature is built. Each version is a moment of the featur
 | Version | Kind | Document |
 | --- | --- | --- |
 | v1 | Proposed | [v1-proposed.md](v1-proposed.md) |
+| v2 | Deviation | [v2-deviation.md](v2-deviation.md) |
 
 What people asked while it was built: [Change requests](changes.md).
