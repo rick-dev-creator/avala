@@ -336,13 +336,13 @@ The rules are code, and a failing rule explains itself.
 
 - **Architecture tests** in `tests/Avala.ArchitectureTests` enforce the module boundaries, the layer map, the domain's purity, the view rules, the absence of comments, type and component size limits, the concurrency and timing rules, and that every script is C#. The one exception is the docs site's template in `src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/`: the `<avala-c4>` player runs in the reader's browser, where only JavaScript runs, so that folder alone may hold `.js` files; they are embedded in the Documentation module and written into a repository's docs site by **Create site**. Each rule runs against the production code, a compliant fixture module and a violating fixture module, so it can never pass vacuously.
 - **Analyzers** run on every project as errors: banned symbols for blocking calls, timed waits and coordination primitives, the threading analyzers, SonarAnalyzer.CSharp and the .NET code metrics rules, with their limits in `SonarLint.xml` and `CodeMetricsConfig.txt`.
-- **CI** builds and tests on Linux, Windows and macOS on every push to `main` and every pull request, using only `dotnet` steps.
+- **CI** builds and tests on Linux on every push to `main` and every pull request, using only `dotnet` steps. Windows and macOS run the whole suite when CI is started by hand, with Run workflow on the CI workflow, and on every release tag before anything is packaged, since Avala's tests run many short processes and take several times longer there.
 
 ### Quality metrics
 
 On every push to `main` and every pull request, CI also measures coverage, code metrics, technical debt and lines of code with open-source tools and no external service, and shows them in the run summary.
 
-- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on every operating system and merged, so platform-specific code counts where it runs.
+- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on every operating system the run tested and merged: Linux on a push or a pull request, and all three when CI is started by hand, when platform-specific code counts where it runs.
 - **Code metrics** are the maintainability index, cyclomatic complexity, class coupling and lines of every production assembly, type and member, computed by `scripts/code-metrics.cs`.
 - **Lines of code** are physical lines of C# outside tests and generated code. They are compared with [T3 Code](https://github.com/pingdotgg/t3code), about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, as a fixed yardstick: Avala aims for a better product in no more than 15% of that.
 

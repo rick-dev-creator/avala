@@ -162,7 +162,7 @@ The notes of a release are written by hand in `docs/releases/<tag>.md`, such as 
 
 ## Cutting a release
 
-1. Make sure `main` is green in CI and holds everything the release should.
+1. Make sure `main` is green in CI and holds everything the release should. CI tests only Linux on a push, so run it by hand on `main` with Run workflow to see Windows and macOS green before tagging.
 2. Choose the version. The first public one is `v0.1.0-beta.1`.
 3. Write its notes in `docs/releases/<tag>.md` and merge them to `main`.
 4. Tag the commit and push the tag:
@@ -172,7 +172,7 @@ The notes of a release are written by hand in `docs/releases/<tag>.md`, such as 
    git push origin v0.1.0-beta.1
    ```
 
-5. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit, packages each platform on its own runner with the smoke run, makes the Velopack installers and update feed from those archives, smoke testing the AppImage, generates the AUR recipe, and creates a **draft** release named after the tag with all of them, their checksums and the notes from `docs/releases/<tag>.md`.
+5. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit on Linux, Windows and macOS, packages each platform on its own runner with the smoke run, makes the Velopack installers and update feed from those archives, smoke testing the AppImage, generates the AUR recipe, and creates a **draft** release named after the tag with all of them, their checksums and the notes from `docs/releases/<tag>.md`.
 6. Open the draft on GitHub, read the notes, download each package and run `--smoke` on it, then publish it. Publishing is the only step that makes it visible, and the only one the update check sees.
 7. Publish `avala-bin` to the AUR, as described above, and build the Flatpak by hand if it is wanted.
 8. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.

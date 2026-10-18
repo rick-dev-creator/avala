@@ -86,6 +86,6 @@ Issues are planned on the [Avala project board](https://github.com/users/rick-de
 
 - Keep each change small and focused, one commit per step.
 - A commit message is one English sentence in the imperative that says what changed and why, such as "Read the wrapped timeline entry by its index, since the oldest entry is built only by the navigation".
-- A pull request must be green on CI, on Linux, Windows and macOS, before it is reviewed.
+- A pull request must be green on CI before it is reviewed. CI runs on Linux; a change that touches Windows or macOS, such as processes, paths or containment, is also run there by hand with Run workflow on its branch.
 - A pull request says `Fixes #<issue>`, lists the issue's acceptance criteria, and shows the evidence: the tests that prove them and, for a change a person sees, screenshots.
 - `main` is protected: every change reaches it through a pull request with CI green, merged by squash or rebase so the history stays linear. Bugs and small changes are merged once green; a feature with a visible change waits for the maintainer's approval.
