@@ -33,6 +33,8 @@ internal interface IUsageLeftViewModel
 
     string More { get; }
 
+    string Outside { get; }
+
     IReadOnlyList<ILimitViewModel> Windows { get; }
 
     IRelayCommand OpenCommand { get; }
@@ -83,6 +85,9 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
     [ObservableProperty]
     public partial string More { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string Outside { get; private set; } = string.Empty;
+
     public IReadOnlyList<ILimitViewModel> Windows => windows;
 
     public void Activate() => feed.Start(_ => ValueTask.FromResult(job.Bind(allowance.Of)), Show);
@@ -117,6 +122,7 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
         Shared = UsagePhrases.Shared(Connection);
         HoldAt = windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
         More = UsageLeftPhrases.More(readings.Count - windows.Count);
+        Outside = windows.Any(window => window.Outside.Length > 0) ? UsageLeftPhrases.Outside : string.Empty;
         IsShown = shown.IsSome;
     }
 
@@ -131,6 +137,8 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
 internal static class UsageLeftPhrases
 {
     public const int Shown = 3;
+
+    public const string Outside = "Some of this was used outside Avala; Usage shows how much.";
 
     public static string More(int hidden) => hidden switch
     {

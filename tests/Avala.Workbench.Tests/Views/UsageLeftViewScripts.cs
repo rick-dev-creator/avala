@@ -156,6 +156,8 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
         public string More { get; init; } = string.Empty;
 
+        public string Outside { get; init; } = string.Empty;
+
         public IReadOnlyList<ILimitViewModel> Windows { get; init; } = [];
 
         public IRelayCommand OpenCommand { get; }

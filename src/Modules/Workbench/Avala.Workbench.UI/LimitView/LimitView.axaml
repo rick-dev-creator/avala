@@ -21,6 +21,8 @@
       <ProgressBar x:Name="Hold" Classes="marker" Classes.attention="{Binding IsNear}" Height="14" Value="{Binding Hold}" IsVisible="{Binding HasHold}" />
     </Panel>
     <TextBlock x:Name="Resets" Classes="caption" Text="{Binding Resets, Converter={x:Static states:Texts.Sentence}}" TextWrapping="Wrap" />
-    <TextBlock x:Name="Outside" Classes="caption" Text="{Binding Outside}" IsVisible="{Binding Outside, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" />
+    <Border x:Name="OutsideSlot">
+      <TextBlock x:Name="Outside" Classes="caption" Text="{Binding Outside}" IsVisible="{Binding Outside, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" />
+    </Border>
   </StackPanel>
 </UserControl>

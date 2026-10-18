@@ -9,6 +9,9 @@
     <usage:DesignUsageLeftViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector="ItemsControl#Windows Border#OutsideSlot">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
     <Style Selector="Arc#Ring">
       <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
@@ -24,7 +27,7 @@
           ToolTip.VerticalOffset="6"
           AutomationProperties.Name="{Binding Summary}">
     <ToolTip.Tip>
-      <StackPanel x:Name="Detail" Width="{DynamicResource TipWidth}" Margin="2,4" Spacing="14">
+      <StackPanel x:Name="Detail" Width="{DynamicResource TipWidth}" Margin="2,4" Spacing="12">
         <DockPanel>
           <TextBlock x:Name="LeftDetail" DockPanel.Dock="Right" Classes="medium" Classes.attention="{Binding IsNear}" Text="{Binding Left}" Margin="12,0,0,0" TextWrapping="NoWrap" VerticalAlignment="Center" />
           <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Connection}" FontSize="{DynamicResource FontSizeBody}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
@@ -32,11 +35,12 @@
         <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="14" />
+              <StackPanel Spacing="12" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
         <TextBlock x:Name="More" Classes="caption" Text="{Binding More}" IsVisible="{Binding More, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,-6,0,0" />
+        <TextBlock x:Name="OutsideNote" Classes="caption" Text="{Binding Outside}" IsVisible="{Binding Outside, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" Margin="0,-6,0,0" />
         <TextBlock x:Name="HoldAt" Classes="caption attention" Text="{Binding HoldAt}" IsVisible="{Binding HoldAt, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" Margin="0,-6,0,0" />
         <StackPanel Spacing="6">
           <Border Classes="separator" Margin="0,0,0,4" />

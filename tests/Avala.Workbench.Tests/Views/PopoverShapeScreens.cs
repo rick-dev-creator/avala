@@ -152,6 +152,8 @@ public sealed class PopoverShapeScreens(HeadlessUi ui)
 
         public string More { get; init; } = string.Empty;
 
+        public string Outside => windows.Any(window => window.Outside.Length > 0) ? UsageLeftPhrases.Outside : string.Empty;
+
         public IReadOnlyList<ILimitViewModel> Windows => windows;
 
         public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
