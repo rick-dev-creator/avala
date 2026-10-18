@@ -45,6 +45,7 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
     {
         if (!integrationEvent.Status.Ended())
         {
+            await housekeeper.ReleaseAsync(integrationEvent.Job, cancellationToken);
             return;
         }
 

@@ -63,6 +63,16 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
             },
             cancellationToken);
 
+    public Task ReleaseAsync(JobId job, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            _ =>
+            {
+                retained.RemoveAll(kept => kept.Job == job);
+
+                return Task.CompletedTask;
+            },
+            cancellationToken);
+
     public Task SweepAsync(IOrphans orphans, CancellationToken cancellationToken) =>
         owner.RunAsync(token => SweepOwnedAsync(orphans, token), cancellationToken);
 

@@ -85,6 +85,28 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnApprovedJobReopenedByAMessageKeepsItsWorktreeWhenItsApprovedRetentionComesDueAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepApprovedHours": 1 } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "One more thing.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        var due = run.Clock.GetUtcNow() + TimeSpan.FromHours(1);
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await run.SampledAsync(sample => sample.At >= due);
+        await run.DeliveredAsync();
+
+        Assert.True(Directory.Exists(worktree));
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+    }
+
+    [Fact]
     public async Task ARetentionPendingWhenTheApplicationStopsReclaimsTheWorktreeAndReleasesTheConversationOnceItsDeadlinePassesAfterARestartAsync()
     {
         await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepDiscardedHours": 1 } }""")], []);
