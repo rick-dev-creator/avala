@@ -38,4 +38,41 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
 
         Assert.True(title >= 120, $"the job's title has {title:0} beside '{script["Problem"].Text}'");
     }
+
+    [Fact]
+    public async Task BesideAnOpenInspectorAtTheNarrowestWindowARunThatCannotStartKeepsTheRunButtonInsideTheHeaderAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(
+            plugins,
+            "[simulate: two-windows-spent] Rewrite the importer for the new CSV export format of the bank",
+            [("resources.json", $$"""{ {{LeasedPorts.OneBlock(test: 2)}} }""")],
+            [("package.json", """{ "name": "orders", "scripts": { "dev": "vite --port $AVALA_PORT" } }""")]);
+        _ = await run.SettledAsync();
+        var workbench = await run.WorkbenchAsync();
+        var other = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: reply] Explain the rounding rules to the team")));
+        _ = await run.SettledAsync(other);
+        _ = await workbench.InspectAsync(other);
+        var script = workbench.Page["Regions"]["Header"].Items.Single(item => item.Kind == "RunScriptViewModel");
+        await run.Ui.PresentedAsync(script.Presentation, () => script["IsShown"].Value<bool>(), () => script["Label"].Text);
+        var (end, width) = (0d, 0d);
+
+        await FeatureCamera.InWindowAsync(ui, run, ThemeVariant.Dark, async (window, drain) =>
+        {
+            window.Width = 720;
+            window.Height = 480;
+            await FeatureCamera.SettleAsync(window, drain);
+            await script.ExecuteAsync("ToggleCommand");
+            await FeatureCamera.SettleAsync(window, drain);
+            var header = window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Header" && border.GetVisualAncestors().Any(parent => parent.GetType().Name == "WorkbenchView"));
+            var button = window.GetVisualDescendants().OfType<Button>().First(found => found.Name == "Run" && found.IsEffectivelyVisible);
+            (end, width) = (Avalonia.VisualExtensions.TranslatePoint(button, new Avalonia.Point(button.Bounds.Width, 0), header)?.X ?? double.MaxValue, header.Bounds.Width);
+
+            if (FeatureCamera.Folder is { } folder)
+            {
+                Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(window)?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, "r5-run-problem-720-inspector.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            }
+        });
+
+        Assert.True(end <= width, $"Run ends at {end:0} in a header {width:0} wide beside '{script["Problem"].Text}'");
+    }
 }
