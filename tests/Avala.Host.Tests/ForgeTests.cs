@@ -284,6 +284,26 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task APullRequestAnotherJobOfThisCloneDeliveredIsNotAdoptedByAJobWhoseAgentOnlyNamesItAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var (first, worktree) = await ReviewedEditAsync(run, "mentions");
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(first, $"Opened {PullRequestLink(number)}", Cancellation));
+        _ = await opened.UntilAsync(found => found.Job == first);
+        var (second, _) = await ReviewedEditAsync(run, "mentions");
+        var progressed = run.Watch<JobProgressed>();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(second, $"This builds on {PullRequestLink(number)}", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == second && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.True(run.Get<IPullRequests>().Of(second).IsNone);
+    }
+
+    [Fact]
     public async Task APullRequestLinkTheAgentWrapsInBackticksIsAdoptedAndWatchedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);

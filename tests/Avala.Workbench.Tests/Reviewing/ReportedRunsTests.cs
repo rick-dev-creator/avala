@@ -135,6 +135,50 @@ public sealed class ReportedRunsTests
             Tool(ItemKind.Command, formatter, ItemOutcome.Succeeded),
         ]));
 
+    [Theory]
+    [InlineData("npm run lint -- --fix")]
+    [InlineData("ruff check --fix .")]
+    [InlineData("cargo clippy --fix --allow-dirty")]
+    public void ACommandRunBeforeALinterThatFixedTheFilesIsNotReportedAsAfterTheLastEdit(string linter) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, linter, ItemOutcome.Succeeded),
+        ]));
+
+    [Theory]
+    [InlineData("perl -pi -e 's/Floor/Round/' src/Rounding.cs")]
+    [InlineData("sed -Ei 's/Floor/Round/' src/Rounding.cs")]
+    public void ACommandRunBeforeAnInPlaceRewriteWithCombinedFlagsIsNotReportedAsAfterTheLastEdit(string rewrite) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, rewrite, ItemOutcome.Succeeded),
+        ]));
+
+    [Fact]
+    public void ACommandRunBeforeAVerificationLineThatAlsoWroteASourceFileIsNotReportedAsAfterTheLastEdit() =>
+        Assert.DoesNotContain(
+            new ReportedRun("dotnet test", Passed: true),
+            ReportedRuns.AfterLastEdit(
+            [
+                Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+                Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+                Tool(ItemKind.Command, "dotnet build && printf '}' >> src/Rounding.cs", ItemOutcome.Succeeded),
+            ]));
+
+    [Theory]
+    [InlineData("du -sh build")]
+    [InlineData("fd test src")]
+    public void AnInspectionThatNamesABuildOrTestFolderIsNotReported(string inspection) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, inspection, ItemOutcome.Succeeded),
+        ]));
+
     private static ToolEntry Tool(ItemKind kind, string input, Option<ItemOutcome> outcome) =>
         new($"item:{Guid.NewGuid():N}", kind, input, string.Empty, outcome) { Input = input };
 }

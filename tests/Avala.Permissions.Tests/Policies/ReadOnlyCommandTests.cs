@@ -49,6 +49,10 @@ public sealed class ReadOnlyCommandTests
         "find . -name '*.cs' -type f",
         "find src -maxdepth 2 -type d -newermt 2026-01-01",
         "uniq -c -",
+        "git --no-pager log --oneline -5",
+        "grep -rIn TODO src",
+        "git log -S Rounding --oneline",
+        "grep -rn '[Tt]odo' src",
     ];
 
     public static TheoryData<string> NotReadOnly =>
@@ -114,10 +118,33 @@ public sealed class ReadOnlyCommandTests
     [InlineData("git log --output=log.txt")]
     [InlineData("git diff --textconv")]
     [InlineData("rg --search-zip TODO")]
+    [InlineData("file -zS archive.lz")]
     [InlineData("tail -f build.log")]
     [InlineData("find . -name x -newer /etc/passwd")]
     [InlineData("find . -fls found.txt")]
     public void AnOptionOutsideWhatAReadOnlyProgramIsKnownToReadWithIsNotAllowedWithoutAsking(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("find {.,-exec,touch,pwned,';'}")]
+    [InlineData("find . {-delete,}")]
+    [InlineData("sort {-o,sorted.txt} names.txt")]
+    [InlineData("git diff {--output=changes.diff,HEAD}")]
+    [InlineData("cat {/etc/passwd,README.md}")]
+    public void AWordWhoseBracesCouldExpandIntoAnOptionOrAPathOutsideStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("cat < /etc/passwd")]
+    [InlineData("head -n 5 < ../secret.txt")]
+    [InlineData("wc -l 0</etc/shadow")]
+    public void AnInputRedirectedFromOutsideTheWorktreeStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("rg --files /etc")]
+    [InlineData("rg --files ../other")]
+    public void ListingTheFilesOfAFolderOutsideTheWorktreeWithRgStillAsks(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Fact]
