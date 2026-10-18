@@ -40,6 +40,7 @@ public static class RuntimeServices
                 .AddSingleton<ProcessTrees>()
                 .AddForwarded<IProcessTrees, ProcessTrees>()
                 .AddSingleton<IProcessRunner, ProcessRunner>()
+                .AddSingleton<IEnvironmentVariables, ProcessEnvironment>()
                 .AddSingleton<AppearanceFile>()
                 .AddForwarded<IAppearance, AppearanceFile>()
                 .AddForwarded<IStartupTask, AppearanceFile>()

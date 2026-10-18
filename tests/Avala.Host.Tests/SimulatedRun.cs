@@ -182,6 +182,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool realNotifier = false,
         bool telemetry = false,
         IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null,
+        IReadOnlyDictionary<string, string>? environment = null,
         bool onboarded = true,
         TimeSpan pace = default,
         string repositoryName = "repository",
@@ -206,6 +207,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
             surroundings.SignIns.Recorded[tool] = outcome;
+        }
+
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            surroundings.Environment.Variables[name] = value;
         }
 
         var root = surroundings.Compose(plugins, data);
@@ -439,6 +445,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SignInGate SignIns { get; } = new();
 
+        public EnvironmentGate Environment { get; } = new();
+
         public ProcessGate Processes { get; } = new();
 
         public SurfaceGate Surfaces { get; } = new();
@@ -466,7 +474,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Processes, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Processes, Surfaces, Cues]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
     }
 
     private sealed class Application : IAsyncDisposable

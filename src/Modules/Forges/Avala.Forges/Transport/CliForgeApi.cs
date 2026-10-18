@@ -54,7 +54,7 @@ internal sealed partial class CliForgeApi(IProcessRunner processes, IForge forge
 
 internal sealed class ForgeTransports(IProcessRunner processes, ForgeHttp http) : IForgeTransports
 {
-    public Func<string, Option<string>> Environment { get; init; } = variable => System.Environment.GetEnvironmentVariable(variable).ToOption();
+    public Func<string, Option<string>> Environment { get; init; } = _ => Option<string>.None;
 
     public IForgeApi Open(ForgeDeclaration declaration, IForge forge, ForgeTarget target) => declaration.Source switch
     {

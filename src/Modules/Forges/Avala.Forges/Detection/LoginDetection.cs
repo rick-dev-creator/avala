@@ -34,7 +34,7 @@ internal sealed class HttpForgeProbes(ForgeHttp http) : IForgeProbes
 
 internal sealed class LoginDetection(IEnumerable<IForgeLogins> logins, IEnumerable<IForge> forges, IProcessRunner processes, IForgeProbes probes) : ILoginDetection
 {
-    public Func<string, Option<string>> Environment { get; init; } = variable => System.Environment.GetEnvironmentVariable(variable).ToOption();
+    public Func<string, Option<string>> Environment { get; init; } = _ => Option<string>.None;
 
     public async ValueTask<DetectedAccounts> DetectAsync(CancellationToken cancellationToken)
     {
