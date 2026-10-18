@@ -4,10 +4,11 @@ using Avala.Projects.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Workbench.Presenting;
 
-internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentation, IDisposable
+internal sealed partial class BoardFeed(JobBoard board, IUiDispatcher ui, ILogger<BoardFeed> logger) : IPresentation, IDisposable
 {
     private CancellationTokenSource? active;
 
@@ -107,7 +108,7 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
 
                 foreach (var load in loads)
                 {
-                    await load(following);
+                    await LoadAsync(load, following);
                 }
             }
         }
@@ -125,12 +126,40 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
             return [];
         }
 
-        var loads = show(board.Jobs);
+        IReadOnlyList<Func<CancellationToken, Task>> loads = [];
+
+        try
+        {
+            loads = show(board.Jobs);
+        }
+        catch (Exception exception)
+        {
+            LogFailed(exception);
+        }
+
         Revision++;
         Presented?.Invoke(this, new Presented(Revision));
 
         return loads;
     }
+
+    private async Task LoadAsync(Func<CancellationToken, Task> load, CancellationToken following)
+    {
+        try
+        {
+            await load(following);
+        }
+        catch (Exception exception)
+        {
+            if (!following.IsCancellationRequested)
+            {
+                LogFailed(exception);
+            }
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The board feed failed to show or load what it follows, and keeps following")]
+    private partial void LogFailed(Exception exception);
 
     private static void ApplyWhileFollowing<T>(T state, Action<T> apply, CancellationToken following)
     {
