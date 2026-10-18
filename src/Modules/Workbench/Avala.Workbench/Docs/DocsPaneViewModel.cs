@@ -156,19 +156,20 @@ internal sealed partial class DocsPaneViewModel
             IsWriting = documented.Writing.IsSome;
             State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
             Problem = DocsPanePhrases.Unplayed(docs.Unplayed);
-            var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
+            var story = $"{documented.Job}:{docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty)}";
+            history.Show(docs);
+            stories = docs.Story;
 
             if (story != played)
             {
                 played = story;
                 player.Show(docs.Story);
+                player.Version = Index(history.Chosen);
             }
 
-            history.Show(docs);
             site = docs.Site;
             CanOpenSite = docs.Site.Exists && docs.Site.CanServe;
             SiteHint = docs.Site.Exists && !docs.Site.CanServe ? DocsPanePhrases.Install : string.Empty;
-            stories = docs.Story;
 
             others.Clear();
 

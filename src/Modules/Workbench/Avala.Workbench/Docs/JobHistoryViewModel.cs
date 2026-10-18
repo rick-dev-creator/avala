@@ -35,6 +35,7 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
     private readonly ObservableCollection<HistoryStepViewModel> steps = [];
     private JobDocs? shown;
     private Option<JobId> writer;
+    private bool chosenByPerson;
 
     public event EventHandler<int>? VersionChosen;
 
@@ -43,6 +44,8 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
     public IReadOnlyList<IHistoryStepViewModel> Steps => steps;
 
     public IReadOnlyList<HistoryStepViewModel> Listed => steps;
+
+    public int Chosen { get; private set; }
 
     [ObservableProperty]
     public partial bool HasSteps { get; private set; }
@@ -68,10 +71,10 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
 
     public void Show(JobDocs docs)
     {
-        var sameJob = shown?.Documentation.Job == docs.Documentation.Job;
+        chosenByPerson &= shown?.Documentation.Job == docs.Documentation.Job;
         shown = docs;
         var versions = docs.Documentation.Versions;
-        var kept = sameJob ? steps.FirstOrDefault(step => step.IsChosen)?.Number : null;
+        var kept = chosenByPerson ? steps.FirstOrDefault(step => step.IsChosen)?.Number : null;
         var chosen = kept ?? (versions.Count > 0 ? versions[^1].Number : 0);
         steps.Clear();
 
@@ -106,6 +109,8 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
     public void Clear()
     {
         shown = null;
+        chosenByPerson = false;
+        Chosen = 0;
         steps.Clear();
         HasSteps = false;
         Heading = string.Empty;
@@ -119,12 +124,15 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
 
     private void Choose(int number)
     {
+        chosenByPerson = true;
         Summarize(number);
         VersionChosen?.Invoke(this, number);
     }
 
     private void Summarize(int number)
     {
+        Chosen = number;
+
         foreach (var step in steps)
         {
             step.Mark(step.IsVersion && step.Number == number);

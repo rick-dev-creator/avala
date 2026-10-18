@@ -132,6 +132,69 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(("2 versions", "v1-proposed.md could not be played, so the story leaves it out. v3-deviation.md could not be played after v2-deviation.md, so the story leaves it out."), shown);
     }
 
+    [Fact]
+    public async Task AnotherJobsPlayerOpensOnItsLatestVersionAndItsOwnStoryWhenItsVersionFilesAreNamedAlikeAsync()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+        var other = JobId.New();
+        var payouts = new JobDocumentation(other, Payouts)
+        {
+            Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payouts/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payouts/v2-deviation.md", DateTimeOffset.UnixEpoch)],
+        };
+        var ledger = DesignStories.Ledger();
+        var story = new FeatureStory(Payouts, [.. ledger.Versions.Select(version => version with { Document = version.Document with { Title = Payouts.Title } })]);
+        documentation.Job = new JobDocs(payouts, "/repos/ledger", story, new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 2)]));
+        board.Publish(board.Docs.Add(other, payouts));
+
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(other), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Feature == Payouts.Title, () => $"feature '{pane.Feature}'");
+
+        Assert.Equal((1, Payouts.Title), await ui.ReadAsync(() => (pane.Player.Version, pane.Player.Title)));
+    }
+
+    [Fact]
+    public async Task AVersionChosenInTheHistoryStaysPlayedWhenANewVersionArrivesAsync()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+
+        Grow();
+        await ui.PresentedAsync(pane, () => pane.Player.Versions.Count == 3, () => $"{pane.Player.Versions.Count} versions");
+
+        Assert.Equal(("Plan v1 · proposed", 0), await ui.ReadAsync(() => (pane.History.Heading, pane.Player.Version)));
+    }
+
+    [Fact]
+    public async Task WithoutAChoiceTheHistoryAndThePlayerFollowANewVersionAsync()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+
+        Grow();
+        await ui.PresentedAsync(pane, () => pane.Player.Versions.Count == 3, () => $"{pane.Player.Versions.Count} versions");
+
+        Assert.Equal(("v3 · as built", 2), await ui.ReadAsync(() => (pane.History.Heading, pane.Player.Version)));
+    }
+
+    private void Grow()
+    {
+        var ledger = DesignStories.Ledger();
+        var grown = ledger with { Versions = [.. ledger.Versions, ledger.Versions[^1] with { Number = 3, Kind = VersionKind.AsBuilt, File = "v3-as-built.md" }] };
+        var documented = Outcomes.Present(documentation.Job).Documentation;
+        documented = documented with { Versions = [.. documented.Versions, new FeatureVersion(3, VersionKind.AsBuilt, "docs/features/payments/v3-as-built.md", DateTimeOffset.UnixEpoch)] };
+        documentation.Job = documentation.Job.Map(docs => docs with { Documentation = documented, Story = grown });
+        board.Publish(ImmutableDictionary<JobId, JobDocumentation>.Empty.Add(job, documented));
+    }
+
     public void Dispose() => ui.Dispose();
 
     [Fact]
