@@ -173,6 +173,13 @@ public sealed class CommandRuleTests
         Assert.Equal(PolicyAnswer.Ask, tests.Decide(Command("node --test; echo done > /tmp/out")).Answer);
     }
 
+    [Theory]
+    [InlineData("sort --outp=.avala/permissions.json notes.txt")]
+    [InlineData("node --test; sort --outp=notes.txt notes.txt")]
+    [InlineData("sort --compress-prog=./compress.sh -S 1K notes.txt")]
+    public void ARuleThatRunsTheTestsDoesNotAllowAReadOnlyCommandThatWritesOrRunsAProgramThroughAnAbbreviatedOption(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.With([Rule("run the tests", "node --test*", PolicyAnswer.Allow)]).Decide(Command(line)).Answer);
+
     private static PermissionRequest Command(string line) =>
         new(ItemKind.Command, line, InsideWorkspace: false)
         {

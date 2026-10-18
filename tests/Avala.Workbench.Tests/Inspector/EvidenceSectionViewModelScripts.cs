@@ -53,6 +53,19 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
         Assert.Equal(["/repo"], links.Declared);
     }
 
+    [Fact]
+    public async Task AChecksFileThatDeclaresNoChecksIsNotSaidToBeMissing()
+    {
+        using var section = new EvidenceSectionViewModel(bench.Inspected(), links);
+        var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview);
+        bench.Audit.Reports.Add(new VerificationReport(job.Job, 1, VerificationOutcome.NoChecksDeclared, new Workspaces.Contracts.FileOrigin("abc1234", EditedInWorktree: false), [], GateVerdict.Pass, DateTimeOffset.UnixEpoch));
+        bench.Publish(Bench.OnBoard(job));
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.DoesNotContain("has no .avala/checks.json", section.Lacks, StringComparison.Ordinal);
+    }
+
     private static Avala.Workbench.Timeline.ToolEntry Tool(string item, ItemKind kind, string input, ItemOutcome outcome) =>
         new($"item:{item}", kind, input, string.Empty, outcome) { Input = input };
 

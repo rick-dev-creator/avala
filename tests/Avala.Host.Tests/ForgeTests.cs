@@ -248,6 +248,40 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task APullRequestWhoseHeadOnlySharesItsNameWithALocalBranchIsNotAdoptedEvenWhenTheAgentReportsItLastAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var own = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+
+        await run.Repository.CommitToRemoteAsync("elsewhere", "OTHER.md", "Another clone's work.\n", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "branch", "elsewhere", "origin/main");
+        var other = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("elsewhere", "main", "Another change", Cancellation);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(own)}, next to {PullRequestLink(other)}", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
+
+        Assert.Equal((own, "fix/rounding"), (adopted.PullRequest.Number, adopted.PullRequest.Head));
+    }
+
+    [Fact]
+    public async Task APullRequestLinkTheAgentWrapsInBackticksIsAdoptedAndWatchedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+        var progressed = run.Watch<JobProgressed>();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened `{PullRequestLink(number)}`.", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.Equal(Option<int>.Some(number), run.Get<IPullRequests>().Of(job).Map(watch => watch.PullRequest.Number));
+    }
+
+    [Fact]
     public async Task WithoutAUsableConnectionAPullRequestTheAgentReportsIsNamedOnceAboveItsConversationWithConnectAndNothingIsWatchedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/permissions.json", Autonomous));
