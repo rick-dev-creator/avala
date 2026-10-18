@@ -75,7 +75,8 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
         shown = docs;
         var versions = docs.Documentation.Versions;
         var kept = chosenByPerson ? steps.FirstOrDefault(step => step.IsChosen)?.Number : null;
-        var chosen = kept ?? (versions.Count > 0 ? versions[^1].Number : 0);
+        var played = docs.Story.Match(story => story.Versions.Select(version => version.Number).LastOrDefault(), () => 0);
+        var chosen = kept ?? (played > 0 ? played : versions.Count > 0 ? versions[^1].Number : 0);
         steps.Clear();
 
         foreach (var version in docs.Documentation.Versions)

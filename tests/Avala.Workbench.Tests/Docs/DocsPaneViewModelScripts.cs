@@ -222,6 +222,22 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal((true, false, 0, 0), await ui.ReadAsync(() => (pane.IsOpen, pane.Player.IsShown, pane.History.Steps.Count, pane.Others.Count)));
     }
 
+    [Fact]
+    public async Task WhenTheLatestVersionCannotBePlayedTheHistoryAndThePlayerShowTheSameVersionAsync()
+    {
+        Document(writing: false);
+        var documented = Outcomes.Present(documentation.Job).Documentation;
+        documented = documented with { Versions = [.. documented.Versions, new FeatureVersion(3, VersionKind.AsBuilt, "docs/features/payments/v3-as-built.md", DateTimeOffset.UnixEpoch)] };
+        documentation.Job = documentation.Job.Map(docs => docs with { Documentation = documented, Unplayed = [new UnplayedVersion("v3-as-built.md") { After = "v2-deviation.md" }] });
+        board.Publish(ImmutableDictionary<JobId, JobDocumentation>.Empty.Add(job, documented));
+        using var pane = Pane();
+
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 4 && pane.Player.Versions.Count == 2, () => $"{pane.History.Steps.Count} steps");
+
+        Assert.Equal(("Plan v2 · deviation", 1), await ui.ReadAsync(() => (pane.History.Heading, pane.Player.Version)));
+    }
+
     private void Grow()
     {
         var ledger = DesignStories.Ledger();
