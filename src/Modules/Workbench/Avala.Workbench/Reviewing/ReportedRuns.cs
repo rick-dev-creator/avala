@@ -21,20 +21,36 @@ internal static class ReportedRuns
         "dotnet", "cargo", "go", "npm", "yarn", "pnpm", "bun", "deno", "make", "just", "gradle", "gradlew", "mvn", "mvnw", "mix", "swift", "zig", "python", "python3",
         "npx", "bundle", "rake", "cmake", "node", "flutter", "poetry", "uv", "composer", "sbt", "lein", "stack", "cabal", "ruff", "nx", "turbo");
 
+    private static readonly FrozenSet<string> Scripts = FrozenSet.Create(StringComparer.Ordinal, "run", "run-script", "exec", "x", "-m");
+
     private static readonly FrozenSet<string> Verifying = FrozenSet.Create(
         StringComparer.Ordinal,
         "test", "tests", "build", "check", "lint", "vet", "verify", "typecheck", "tsc", "pytest", "jest", "vitest", "mocha", "rspec", "clippy", "ctest", "phpunit", "unittest");
 
+    private static readonly FrozenSet<string> Asking = FrozenSet.Create(StringComparer.Ordinal, "--version", "-V", "--help", "-h");
+
+    private static readonly FrozenSet<string> Formatting = FrozenSet.Create(StringComparer.Ordinal, "format", "fmt", "prettier", "fix", "codegen", "generate");
+
     private static readonly FrozenSet<string> Writing = FrozenSet.Create(
-        StringComparer.Ordinal, "cp", "mv", "rm", "rmdir", "touch", "mkdir", "patch", "ln", "truncate", "dd", "install", "gofmt", "rustfmt", "black", "isort", "autopep8");
+        StringComparer.Ordinal,
+        "cp", "mv", "rm", "rmdir", "touch", "mkdir", "patch", "ln", "truncate", "dd", "install", "gofmt", "goimports", "rustfmt", "black", "isort", "autopep8");
+
+    private static readonly FrozenSet<string> InPlaceEditors = FrozenSet.Create(StringComparer.Ordinal, "sed", "perl", "clang-format");
 
     private static readonly FrozenSet<string> GitWriting = FrozenSet.Create(
         StringComparer.Ordinal, "apply", "am", "checkout", "restore", "reset", "revert", "clean", "merge", "rebase", "cherry-pick", "stash", "pull", "switch", "mv", "rm");
 
+    private static readonly FrozenSet<string> GitValued = FrozenSet.Create(StringComparer.Ordinal, "-C", "-c", "--git-dir", "--work-tree", "--namespace");
+
     private static readonly FrozenSet<string> Rewriting = FrozenSet.Create(
         StringComparer.Ordinal,
-        "dotnet format", "cargo fmt", "cargo fix", "go fmt", "go generate", "go mod", "ruff format", "npm install", "npm i", "npm ci", "npm update", "yarn add", "yarn install",
-        "pnpm install", "pnpm add", "bundle install", "pip install", "composer install");
+        "dotnet format", "dotnet add", "dotnet remove", "cargo fmt", "cargo fix", "cargo add", "cargo remove", "go fmt", "go generate", "go mod", "go get", "ruff format",
+        "npm install", "npm i", "npm ci", "npm update", "npm uninstall", "yarn add", "yarn install", "yarn remove", "pnpm install", "pnpm add", "pnpm remove",
+        "bundle install", "bundle add", "pip install", "pip3 install", "uv add", "uv pip", "poetry add", "composer install", "composer require");
+
+    private static readonly FrozenSet<string> Wrappers = FrozenSet.Create(StringComparer.Ordinal, "env", "nohup", "time", "command", "nice", "stdbuf", "timeout");
+
+    private static readonly FrozenSet<string> Logs = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, ".log", ".txt", ".out", ".trx");
 
     private static readonly char[] Separators = [':', '='];
 
@@ -68,47 +84,111 @@ internal static class ReportedRuns
     private static bool Changed(DelegationRecord delegation) =>
         delegation.Report.Match(report => report.Outcome == ChildOutcome.Integrated || report.Files.Count > 0, () => false);
 
-    private static bool Writes(CommandLine line) =>
-        line.Opaque
-        || line.Commands.Any(simple => Rewrites(simple) || (simple.Writes.Count > 0 && !Verifies(simple)))
-        || (line.Commands.Any(Tees) && !line.Commands.Any(Verifies));
-
-    private static bool Rewrites(ShellCommand simple) => simple.Words switch
+    private static bool Writes(CommandLine line)
     {
-        [] => false,
-        ["git", var verb, ..] => GitWriting.Contains(verb),
-        ["sed" or "perl", ..] => simple.Words.Skip(1).Any(InPlace),
-        [var program, ..] => Writing.Contains(Program(program))
-            || (simple.Words.Count > 1 && Rewriting.Contains($"{Program(program)} {simple.Words[1]}"))
-            || simple.Words.Any(word => word is "--fix" or "--write" or "--apply" || word.StartsWith("--fix=", StringComparison.Ordinal))
-            || (simple.Words.Contains("prettier") && simple.Words.Contains("-w")),
-    };
+        var verifies = line.Commands.Any(Verifies);
+
+        return line.Opaque
+            || line.Commands.Any(simple => Rewrites(simple)
+                || (simple.Writes.Count > 0 && !(Verifies(simple) && simple.Writes.All(Logged)))
+                || (Tees(simple) && !(verifies && Teed(simple).All(Logged))));
+    }
+
+    private static bool Logged(string path) => Logs.Contains(Path.GetExtension(path));
+
+    private static IEnumerable<string> Teed(ShellCommand simple) => Unwrapped(simple).Skip(1).Where(word => !word.StartsWith('-'));
+
+    private static bool Rewrites(ShellCommand simple)
+    {
+        var words = Unwrapped(simple);
+
+        return words switch
+        {
+            [] => false,
+            ["git", ..] => GitVerb(words).Match(GitWriting.Contains, () => false),
+            [var program, ..] when InPlaceEditors.Contains(Program(program)) => words.Skip(1).Any(InPlace),
+            [var program, ..] => Writing.Contains(Program(program))
+                || (words.Count > 1 && Rewriting.Contains($"{Program(program)} {words[1]}"))
+                || (Runners.Contains(Program(program)) && Named(words).Take(2).Any(Formatting.Contains))
+                || words.Any(word => word is "--fix" or "--write" or "--apply" || word.StartsWith("--fix=", StringComparison.Ordinal))
+                || (words.Contains("prettier") && words.Contains("-w")),
+        };
+    }
+
+    private static Sdk.Option<string> GitVerb(List<string> words)
+    {
+        var valued = false;
+
+        foreach (var word in words.Skip(1))
+        {
+            if (!valued && !word.StartsWith('-'))
+            {
+                return word;
+            }
+
+            valued = !valued && GitValued.Contains(word);
+        }
+
+        return Sdk.Option<string>.None;
+    }
 
     private static bool InPlace(string word) =>
         word.StartsWith("--in-place", StringComparison.Ordinal)
         || (word.Length > 1 && word[0] == '-' && word[1] != '-' && word.Contains('i', StringComparison.Ordinal));
 
-    private static bool Tees(ShellCommand simple) => simple.Words is [var program, ..] && Program(program) == "tee";
+    private static bool Tees(ShellCommand simple) => Unwrapped(simple) is [var program, ..] && Program(program) == "tee";
 
     private static bool Verifies(ShellCommand simple)
     {
-        if (simple.Words.Count == 0 || Rewrites(simple))
+        var words = Unwrapped(simple);
+
+        if (words.Count == 0 || Rewrites(simple) || words.Any(Asking.Contains))
         {
             return false;
         }
 
-        var program = Program(simple.Words[0]);
+        var program = Program(words[0]);
 
         if (Checkers.Contains(program))
         {
             return true;
         }
 
-        var named = simple.Words.Skip(1).Take(3).Where(word => !word.StartsWith('-')).Select(Path.GetFileName);
-        var flagged = simple.Words.Where(word => word.StartsWith("--", StringComparison.Ordinal)).Select(word => word.TrimStart('-'));
+        var named = Named(words).ToList();
+        var task = named is [var first, var second, ..] && Scripts.Contains(first) ? second : named.FirstOrDefault() ?? string.Empty;
+        var flagged = words.Where(word => word.StartsWith("--", StringComparison.Ordinal)).Select(word => word.TrimStart('-'));
 
-        return Runners.Contains(program) && named.Concat(flagged).Any(word => Verifying.Contains(word!.Split(Separators)[0].ToLowerInvariant()));
+        return Runners.Contains(program) && flagged.Append(Path.GetFileName(task)).Any(word => Verifying.Contains(word.Split(Separators)[0].ToLowerInvariant()));
     }
+
+    private static IEnumerable<string> Named(IReadOnlyList<string> words) =>
+        words.Skip(1).Where(word => !word.StartsWith('-') || word == "-m");
+
+    private static List<string> Unwrapped(ShellCommand simple)
+    {
+        var words = simple.Words.ToList();
+
+        while (words.Count > 0 && (Assigns(words[0]) || Wrappers.Contains(Program(words[0]))))
+        {
+            var wrapper = Program(words[0]);
+            words.RemoveAt(0);
+
+            while (words.Count > 0 && (words[0].StartsWith('-') || (wrapper == "env" && Assigns(words[0]))))
+            {
+                words.RemoveAt(0);
+            }
+
+            if (wrapper == "timeout" && words.Count > 0)
+            {
+                words.RemoveAt(0);
+            }
+        }
+
+        return words;
+    }
+
+    private static bool Assigns(string word) =>
+        word.IndexOf('=', StringComparison.Ordinal) is var equals and > 0 && word[..equals].All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
 
     private static string Program(string word) => Path.GetFileName(word);
 }
