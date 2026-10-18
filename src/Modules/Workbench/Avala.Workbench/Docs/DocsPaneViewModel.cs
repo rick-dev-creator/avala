@@ -22,6 +22,8 @@ internal interface IDocsPaneViewModel
 
     string State { get; }
 
+    string Problem { get; }
+
     bool IsWriting { get; }
 
     IC4PlayerViewModel Player { get; }
@@ -92,6 +94,9 @@ internal sealed partial class DocsPaneViewModel
     public partial string State { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string Problem { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial bool IsWriting { get; private set; }
 
     [ObservableProperty]
@@ -101,7 +106,7 @@ internal sealed partial class DocsPaneViewModel
     [ObservableProperty]
     public partial string SiteHint { get; private set; } = string.Empty;
 
-    public void Activate() => feed.Start(ReadAsync, Show);
+    public void Activate() => feed.Start(ReadAsync, Show, Fail);
 
     public void Deactivate() => feed.Stop();
 
@@ -146,6 +151,7 @@ internal sealed partial class DocsPaneViewModel
             Feature = documented.Feature.Title;
             IsWriting = documented.Writing.IsSome;
             State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
+            Problem = string.Empty;
             var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
 
             if (story != played)
@@ -167,6 +173,13 @@ internal sealed partial class DocsPaneViewModel
                 others.Add(new FeatureRowViewModel(listed, () => messenger.Send(FeatureDocsRequested.Of(docs.Repository, listed))));
             }
         }
+    }
+
+    private void Fail(Exception exception)
+    {
+        IsWriting = false;
+        State = DocsPanePhrases.Unreadable;
+        Problem = DocsPanePhrases.Problem(exception.Message);
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenSite))]
@@ -202,6 +215,10 @@ internal static class DocsPanePhrases
     public const string Install = "Install DocFX to open the docs site: " + DocsSite.Install;
 
     public const string NoPlan = "No plan yet: the agent has not recorded a task list, so there is nothing to document.";
+
+    public const string Unreadable = "unreadable";
+
+    public static string Problem(string reason) => $"Could not read this feature's docs: {reason}";
 
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"

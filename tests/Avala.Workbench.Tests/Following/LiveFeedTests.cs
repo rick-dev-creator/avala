@@ -48,6 +48,23 @@ public sealed class LiveFeedTests : IDisposable
     }
 
     [Fact]
+    public async Task AReadThatThrowsIsReportedOnTheUiAndTheFeedKeepsFollowingAsync()
+    {
+        var reads = 0;
+        var shown = new List<string>();
+        feed.Start(
+            _ => Interlocked.Increment(ref reads) == 1 ? throw new InvalidOperationException("A repeated section") : ValueTask.FromResult("read"),
+            shown.Add,
+            exception => shown.Add(exception.Message));
+        await ui.PresentedAsync(feed, () => shown.Count == 1, () => $"{shown.Count} shown");
+
+        await pulse.HandleAsync(new UsageRecorded(SessionId.New(), Avala.Sdk.Option<JobId>.None), CancellationToken.None);
+
+        await ui.PresentedAsync(feed, () => shown.Count == 2, () => $"{shown.Count} shown");
+        Assert.Equal(["A repeated section", "read"], await ui.ReadAsync(() => shown.ToList()));
+    }
+
+    [Fact]
     public async Task AStateQueuedForTheUiBeforeTheFeedStoppedIsNeverShownAsync()
     {
         var queue = new HeldDispatcher();

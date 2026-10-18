@@ -198,6 +198,8 @@ internal sealed class DesignDocsPaneViewModel : IDocsPaneViewModel, IDisposable
 
     public string State => "writing";
 
+    public string Problem => string.Empty;
+
     public bool IsWriting => true;
 
     public IC4PlayerViewModel Player => player;

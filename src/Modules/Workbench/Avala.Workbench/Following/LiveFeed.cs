@@ -15,13 +15,15 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
 
     public bool IsActive => active is not null;
 
-    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show)
+    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show) => Start(read, show, _ => { });
+
+    public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail)
     {
         if (active is null)
         {
             active = new CancellationTokenSource();
             var following = active.Token;
-            Following = Task.Run(() => FollowAsync(read, show, following), CancellationToken.None);
+            Following = Task.Run(() => FollowAsync(read, show, fail, following), CancellationToken.None);
         }
     }
 
@@ -36,14 +38,14 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
 
     public void Dispose() => Stop();
 
-    private async Task FollowAsync<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, CancellationToken following)
+    private async Task FollowAsync<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail, CancellationToken following)
     {
         try
         {
             await foreach (var _ in pulse.ChangesAsync(following))
             {
-                var state = await read(following);
-                await ui.InvokeAsync(() => ShowWhileFollowing(state, show, following), following);
+                var next = await ReadAsync(read, show, fail, following);
+                await ui.InvokeAsync(() => ShowWhileFollowing(next, fail, following), following);
             }
         }
         catch (OperationCanceledException) when (following.IsCancellationRequested)
@@ -51,13 +53,37 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
         }
     }
 
-    private void ShowWhileFollowing<T>(T state, Action<T> show, CancellationToken following)
+    private static async Task<Action> ReadAsync<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail, CancellationToken following)
     {
-        if (!following.IsCancellationRequested)
+        try
         {
-            show(state);
-            Revision++;
-            Presented?.Invoke(this, new Presented(Revision));
+            var state = await read(following);
+
+            return () => show(state);
         }
+        catch (Exception exception) when (!following.IsCancellationRequested)
+        {
+            return () => fail(exception);
+        }
+    }
+
+    private void ShowWhileFollowing(Action next, Action<Exception> fail, CancellationToken following)
+    {
+        if (following.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            next();
+        }
+        catch (Exception exception)
+        {
+            fail(exception);
+        }
+
+        Revision++;
+        Presented?.Invoke(this, new Presented(Revision));
     }
 }

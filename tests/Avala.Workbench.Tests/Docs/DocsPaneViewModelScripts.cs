@@ -81,6 +81,24 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(DocsPanePhrases.Install, await ui.ReadAsync(() => pane.SiteHint));
     }
 
+    [Fact]
+    public async Task ADocsReadThatFailsMakesThePaneSaySoAndTheNextReadShowsTheFeatureAgainAsync()
+    {
+        Document(writing: false);
+        documentation.Unreadable = "The section Webhooks is repeated";
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.State.Length > 0, () => "no state");
+        var failed = await ui.ReadAsync(() => (pane.State, pane.Problem));
+
+        documentation.Unreadable = Option<string>.None;
+        Document(writing: true);
+
+        await ui.PresentedAsync(pane, () => pane.State == "writing", () => $"state '{pane.State}'");
+        Assert.Equal(("unreadable", "Could not read this feature's docs: The section Webhooks is repeated"), failed);
+        Assert.Equal(string.Empty, await ui.ReadAsync(() => pane.Problem));
+    }
+
     public void Dispose() => ui.Dispose();
 
     [Fact]
