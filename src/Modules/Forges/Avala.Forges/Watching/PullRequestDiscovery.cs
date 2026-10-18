@@ -12,6 +12,8 @@ namespace Avala.Forges.Watching;
 
 internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, ForgeConnections connections)
 {
+    public const int MostReadLinks = 5;
+
     public async Task<Option<Delivered>> FindAsync(JobId job, WorkspaceInfo worktree, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
     {
         if (!(await rules.OfWorktreeAsync(worktree.Path, cancellationToken)).TryGetValue(out var declared, out _)
@@ -49,12 +51,17 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
     private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
     {
         var segments = new HashSet<string>([forge.Forge.Info.PullRequestSegment], StringComparer.Ordinal);
+        var candidates = reported.Reverse()
+            .SelectMany(link => PullRequestLinks.NumberOf(link, forge.Context.Target.Repository, segments).Match<(Uri Link, int Number)[]>(number => [(link, number)], () => []))
+            .DistinctBy(candidate => candidate.Number)
+            .Take(MostReadLinks);
 
-        foreach (var (link, number) in reported.Reverse().SelectMany(link => PullRequestLinks.NumberOf(link, forge.Context.Target.Repository, segments).Match<(Uri, int)[]>(number => [(link, number)], () => [])))
+        foreach (var (link, number) in candidates)
         {
             if ((await forge.Forge.ReadAsync(forge.Context, new PullRequestRef(number, link, string.Empty, string.Empty), cancellationToken)).TryGetValue(out var state, out _)
                 && state.Lifecycle == PullRequestLifecycle.Open
-                && await git.HasBranchAsync(worktree.Path, state.PullRequest.Head, cancellationToken))
+                && string.Equals(state.PullRequest.Link.Host, link.Host, StringComparison.OrdinalIgnoreCase)
+                && await git.HoldsAsync(worktree.Path, state.PullRequest.Head, state.HeadCommit, cancellationToken))
             {
                 return state.PullRequest;
             }

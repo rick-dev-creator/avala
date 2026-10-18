@@ -30,8 +30,8 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
             output => [.. output.ReplaceLineEndings("\n").Split('\n').Select(Moved).OfType<string>().Distinct(StringComparer.Ordinal)],
             _ => []);
 
-    public async ValueTask<bool> HasBranchAsync(string worktree, string branch, CancellationToken cancellationToken) =>
-        branch.Length > 0 && (await GitAsync(worktree, ["rev-parse", "--verify", "--quiet", $"refs/heads/{branch}"], cancellationToken)).IsSuccess;
+    public async ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) =>
+        branch.Length > 0 && commit.Length > 0 && (await GitAsync(worktree, ["merge-base", "--is-ancestor", commit, $"refs/heads/{branch}"], cancellationToken)).IsSuccess;
 
     private static string? Moved(string subject)
     {

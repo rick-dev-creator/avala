@@ -50,6 +50,56 @@ public sealed class ReportedPullRequestsTests
     }
 
     [Fact]
+    public void ALinkOnAnotherHostWithOriginsOwnerAndNameIsNotOneOfOriginsPullRequests() =>
+        Assert.True(PullRequestLinks.NumberOf(new Uri("https://elsewhere.example/octo/shop/pulls/7"), Shop, new HashSet<string>(["pulls"], StringComparer.Ordinal)).IsNone);
+
+    [Fact]
+    public void ALinkSplitAcrossChunksIsReportedWholeAndOnlyLinksShapedLikePullRequestsAreKept()
+    {
+        var (reported, job, say) = Reporting();
+
+        say(["See https://example.com/docs/guide and https://forge.example/octo/shop/pu", "lls/12 when CI ends."]);
+
+        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/12")], reported.Of(job));
+    }
+
+    [Fact]
+    public void AJobThatEndsForgetsItsUnfinishedItemsAndItsLinks()
+    {
+        var (reported, job, say) = Reporting();
+        say(["Opened https://forge.example/octo/shop/pulls/7 "]);
+        var session = new SessionId(Guid.CreateVersion7());
+        reported.Started(job, session);
+        reported.Saw(new ItemStarted(session, new TurnId(Guid.CreateVersion7()), new ItemId("long"), ItemKind.Command, "dotnet test"));
+
+        reported.Forget(job);
+
+        Assert.Equal((0, 0), (reported.Open, reported.Of(job).Count));
+    }
+
+    private static (ReportedLinks Reported, JobId Job, Action<string[]> Say) Reporting()
+    {
+        var reported = new ReportedLinks();
+        var job = JobId.New();
+        var session = new SessionId(Guid.CreateVersion7());
+        var turn = new TurnId(Guid.CreateVersion7());
+        reported.Started(job, session);
+
+        return (reported, job, chunks =>
+        {
+            var item = new ItemId(Guid.NewGuid().ToString("N"));
+            reported.Saw(new ItemStarted(session, turn, item, ItemKind.Message, "Reply"));
+
+            foreach (var chunk in chunks)
+            {
+                reported.Saw(new ItemProgressed(session, turn, item, chunk));
+            }
+
+            reported.Saw(new ItemCompleted(session, turn, item, ItemOutcome.Succeeded));
+        });
+    }
+
+    [Fact]
     public async Task APullRequestTheAgentLinkedManyTimesIsReadFromTheForgeOnceAsync()
     {
         var forge = new CountingForge();
@@ -125,6 +175,6 @@ public sealed class ReportedPullRequestsTests
 
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
 
-        public ValueTask<bool> HasBranchAsync(string worktree, string branch, CancellationToken cancellationToken) => ValueTask.FromResult(true);
+        public ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(true);
     }
 }

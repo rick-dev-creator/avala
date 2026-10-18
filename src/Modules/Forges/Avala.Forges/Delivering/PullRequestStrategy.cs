@@ -22,7 +22,7 @@ internal interface IGitRemote
 
     ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken);
 
-    ValueTask<bool> HasBranchAsync(string worktree, string branch, CancellationToken cancellationToken);
+    ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken);
 }
 
 internal sealed class PullRequestStrategy(EffectiveRules rules, ForgeConnections connections, IGitRemote git, WatchAdoption watches) : IApprovalStrategy
