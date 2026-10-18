@@ -14,16 +14,18 @@ internal sealed class InMemoryDelegations : IDelegationStore
 
     public Func<DelegationRecord, bool> Fails { get; set; } = _ => false;
 
-    public Task RecordAsync(DelegationRecord record, CancellationToken cancellationToken)
+    public Func<DelegationRecord, Task> BeforeWrite { get; set; } = _ => Task.CompletedTask;
+
+    public async Task RecordAsync(DelegationRecord record, CancellationToken cancellationToken)
     {
+        await BeforeWrite(record);
+
         if (Fails(record))
         {
             throw new IOException("The delegation database is locked");
         }
 
         recorded.Enqueue(record);
-
-        return Task.CompletedTask;
     }
 
     public Task<IReadOnlyList<DelegationRecord>> EarlierRunsAsync(CancellationToken cancellationToken) => Task.FromResult(Earlier);

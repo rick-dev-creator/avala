@@ -30,9 +30,10 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         var answer = new CallAnswer(AnswerRoute.ToolResult, Now);
         var answered = reported with { Answered = answer };
 
-        if (await book.AnswerAsync(reported, answer, cancellationToken))
+        if (book.Answer(reported, answer))
         {
             await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
+            await book.PersistAsync(answered, cancellationToken);
         }
 
         return answered;
@@ -57,7 +58,7 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         var call = reported.Child.Bind(Calls.Take).Match(open => open, () => new CallRef(reported.Session, reported.Item));
         var returned = await agents.ReturnAsync(call.Session, ToolAnswers.Reported(call.Item, reported, report), cancellationToken);
         var answer = new CallAnswer(AnswerRoute.ToolResult, Now);
-        var delivered = returned.IsSuccess && await book.AnswerAsync(reported, answer, cancellationToken);
+        var delivered = returned.IsSuccess && book.Answer(reported, answer);
         var answered = returned.IsSuccess ? reported with { Answered = answer } : reported;
 
         await bus.PublishAsync(new ChildReported(answered), cancellationToken);
@@ -65,6 +66,7 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         if (delivered)
         {
             await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
+            await book.PersistAsync(answered, cancellationToken);
         }
 
         return answered;
@@ -85,9 +87,10 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
     {
         var answer = new CallAnswer(AnswerRoute.Message, Now);
 
-        if (await book.AnswerAsync(reported, answer, cancellationToken))
+        if (book.Answer(reported, answer))
         {
             await bus.PublishAsync(new ReportDelivered(reported with { Answered = answer }), cancellationToken);
+            await book.PersistAsync(reported, cancellationToken);
         }
     }
 

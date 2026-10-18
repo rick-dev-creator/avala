@@ -35,7 +35,7 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
 
             try
             {
-                await store.RecordAsync(claim, cancellationToken);
+                await PersistAsync(claim, cancellationToken);
             }
             catch
             {
@@ -69,7 +69,7 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
 
             try
             {
-                await store.RecordAsync(released, cancellationToken);
+                await PersistAsync(released, cancellationToken);
             }
             catch (Exception exception)
             {
@@ -83,18 +83,18 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
         }
     }
 
-    public async Task<bool> AnswerAsync(DelegationRecord record, CallAnswer answer, CancellationToken cancellationToken)
+    public bool Answer(DelegationRecord record, CallAnswer answer) =>
+        Change(record, (current, claims) => current.Answered.IsNone || claims.Contains(Key(record)), record with { Answered = answer }, claims => claims.Remove(Key(record)));
+
+    public async Task PersistAsync(DelegationRecord record, CancellationToken cancellationToken)
     {
-        var answered = record with { Answered = answer };
+        var written = Option<DelegationRecord>.None;
 
-        if (!Change(record, (current, claims) => current.Answered.IsNone || claims.Contains(Key(record)), answered, claims => claims.Remove(Key(record))))
+        while (Current(record) is { } current && !ReferenceEquals(current, written.Match<DelegationRecord?>(found => found, () => null)))
         {
-            return false;
+            await store.RecordAsync(current, cancellationToken);
+            written = current;
         }
-
-        await store.RecordAsync(answered, cancellationToken);
-
-        return true;
     }
 
     public bool Unanswered(DelegationRecord record)
@@ -149,6 +149,8 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
 
         return changed;
     }
+
+    private DelegationRecord? Current(DelegationRecord record) => Volatile.Read(ref ledger).Records.Find(kept => Same(kept, record));
 
     private static (SessionId, ItemId) Key(DelegationRecord record) => (record.Session, record.Item);
 
