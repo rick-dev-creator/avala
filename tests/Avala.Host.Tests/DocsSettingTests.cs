@@ -27,7 +27,7 @@ public sealed class DocsSettingTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task CommittingTheJobFileFromSettingsCommitsItAloneOnTheBranchAndTheNextJobIsDocumentedAsync()
+    public async Task CommittingTheJobFileFromSettingsCommitsItAloneOnTheBranchAndTheNextJobIsAskedForItsPlanAndDocumentedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", Approval));
         await run.Repository.GitAsync(Cancellation, "config", "user.name", "Ada");
@@ -49,7 +49,7 @@ public sealed class DocsSettingTests(PublishedPlugins plugins)
         Assert.Matches("^Committed \\.avala/jobs\\.json as [0-9a-f]{7} on main\\. New jobs follow it\\.$", shown.Item3);
 
         var written = run.Watch<VersionWritten>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-across-turns] Add the changelog")));
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-when-asked] Add the changelog")));
         Assert.Equal(VersionKind.Proposed, (await written.UntilAsync(version => version.Job == job)).Version.Kind);
     }
 
