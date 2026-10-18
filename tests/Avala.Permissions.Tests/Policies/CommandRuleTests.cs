@@ -177,6 +177,10 @@ public sealed class CommandRuleTests
     [InlineData("sort --outp=.avala/permissions.json notes.txt")]
     [InlineData("node --test; sort --outp=notes.txt notes.txt")]
     [InlineData("sort --compress-prog=./compress.sh -S 1K notes.txt")]
+    [InlineData("git diff --outp=.avala/permissions.json")]
+    [InlineData("git diff --ext-d")]
+    [InlineData("rg --pr=./run.sh needle")]
+    [InlineData("file --comp notes.txt")]
     public void ARuleThatRunsTheTestsDoesNotAllowAReadOnlyCommandThatWritesOrRunsAProgramThroughAnAbbreviatedOption(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.With([Rule("run the tests", "node --test*", PolicyAnswer.Allow)]).Decide(Command(line)).Answer);
 

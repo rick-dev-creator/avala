@@ -113,6 +113,13 @@ internal static class ReadOnlyCommands
         public bool Forbids(string word) =>
             Forbidden.Any(option => word == option
                 || word.StartsWith(option + "=", StringComparison.Ordinal)
-                || (option.Length == 2 && Short(word) && word.AsSpan(1).Contains(option[1])));
+                || (option.Length == 2 && Short(word) && word.AsSpan(1).Contains(option[1]))
+                || Abbreviates(word, option));
+
+        private static bool Abbreviates(string word, string option) =>
+            option.StartsWith("--", StringComparison.Ordinal)
+            && word.StartsWith("--", StringComparison.Ordinal)
+            && word.Split('=', 2)[0] is { Length: > 2 } name
+            && option.StartsWith(name, StringComparison.Ordinal);
     }
 }
