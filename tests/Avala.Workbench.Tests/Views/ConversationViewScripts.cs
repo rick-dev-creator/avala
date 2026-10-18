@@ -514,6 +514,25 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             Assert.InRange(placeholder.TextLayout.TextLines.Count, 1, 2);
         }, Cancellation);
 
+    [Fact]
+    public Task BesideAnOpenInspectorAtTheNarrowestWindowSendAndTheHarnessChipStayInsideTheComposerAsync() =>
+        ui.RunAsync(() =>
+        {
+            var jobs = new FakeJobs { Status = JobStatus.AwaitingReview };
+            var connections = new FakeConnections("claude-work", "claude-personal");
+            connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.None.With(new Avala.Agents.Contracts.Capabilities.Resumable(), new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "medium", "high"]) { DefaultModel = "opus", DefaultEffort = "high" });
+            var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Summary with { Connection = new Avala.Agents.Contracts.Connections.ConnectionName("claude-work") };
+            var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
+            var conversation = new Conversations(composers, new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
+            conversation.Show(new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, []).Apply(new ModelReported(SessionId.New(), TurnId.New(), "claude-opus-5-5") { Effort = "medium" }, DateTimeOffset.UnixEpoch)));
+            var view = Screen.Show(conversation, Avalonia.Styling.ThemeVariant.Dark, 400, 480);
+            view.Type("Draft", "Keep the alias");
+            var field = view.Find("Field");
+            double Right(string name) => view.Find(name).TranslatePoint(new Point(view.Find(name).Bounds.Width, 0), field)!.Value.X;
+
+            Assert.True(Right("Send") <= field.Bounds.Width && Right("ComposerHarness") <= field.Bounds.Width, $"Send ends at {Right("Send"):0}, the harness chip at {Right("ComposerHarness"):0}, the composer at {field.Bounds.Width:0}");
+        }, Cancellation);
+
 
     private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status, OnPullRequest? watched = null, SendKeys? keys = null)
     {

@@ -49,6 +49,70 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ANarrowHeaderWithEveryChipOfARunningJobKeepsTheJobTitleAndEveryButtonInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 2, new Avala.Workbench.Remoting.DesignRemoteControlViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 6, new Avala.Workbench.Inspector.DesignChecksRunningViewModel()),
+                ],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 520, 480);
+            var header = view.Find("Header");
+            double Right(string name) => Avalonia.VisualExtensions.TranslatePoint(view.Find(name), new Avalonia.Point(view.Find(name).Bounds.Width, 0), header)!.Value.X;
+
+            Assert.True(view.Find("JobTitle").Bounds.Width >= 120, $"the title has {view.Find("JobTitle").Bounds.Width:0}");
+            Assert.True(Right("More") <= header.Bounds.Width && Right("ToggleInspector") <= header.Bounds.Width, $"More ends at {Right("More"):0}, the inspector toggle at {Right("ToggleInspector"):0}, the header at {header.Bounds.Width:0}");
+        }, Cancellation);
+
+    [Fact]
+    public Task AHeaderTooNarrowForItsChipsStillOffersTheDocsToggleAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()), new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel())],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 400, 480);
+
+            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "DocsToggleView" && control.IsEffectivelyVisible && control.Bounds.Width > 0);
+        }, Cancellation);
+
+    [Fact]
+    public Task AHighlightedItemInTheJobsMoreMenuTurnsItsIconToTheAccentsForegroundAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Avalonia.Controls.Primitives.Popup>()) { Setters = { new Setter(Avalonia.Controls.Primitives.Popup.ShouldUseOverlayLayerProperty, true) } });
+            view.Click("More");
+            var copy = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().Single(item => item.Name == "CopyMarkdown");
+
+            copy.IsSelected = true;
+            view.Settle();
+
+            Assert.Equal(Brush(view, "OnAccentBrush"), (Assert.IsType<Avalonia.Controls.Shapes.Path>(copy.Icon).Stroke as Avalonia.Media.ISolidColorBrush)?.Color);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheJobsMoreMenuDrawsItsIconsLikeEveryOtherMenuAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Avalonia.Controls.Primitives.Popup>()) { Setters = { new Setter(Avalonia.Controls.Primitives.Popup.ShouldUseOverlayLayerProperty, true) } });
+            view.Click("More");
+            var export = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().Single(item => item.Name == "Export");
+
+            Assert.Equal(Brush(view, "TextSecondaryBrush"), (Assert.IsType<Avalonia.Controls.Shapes.Path>(export.Icon).Stroke as Avalonia.Media.ISolidColorBrush)?.Color);
+        }, Cancellation);
+
+    private static Avalonia.Media.Color? Brush(ViewScript view, string key) =>
+        view.Window.TryFindResource(key, ThemeVariant.Dark, out var found) ? (found as Avalonia.Media.ISolidColorBrush)?.Color : null;
+
+    [Fact]
     public Task StoppingTheSessionLivesInTheJobsMoreMenuAsync() =>
         ui.RunAsync(async () =>
         {
