@@ -175,7 +175,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         if (job.Retry(feedback).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);
-            _ = await agents.TellAsync(job, feedback.Text, cancellationToken);
+            _ = await messenger.TellAsync(job, feedback.Text, cancellationToken);
         }
     }
 

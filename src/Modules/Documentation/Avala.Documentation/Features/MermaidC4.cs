@@ -84,7 +84,7 @@ internal static partial class MermaidC4
 
             if (name.EndsWith("Boundary", StringComparison.Ordinal) && arguments.Count >= 1)
             {
-                boundaries.Add(new C4Boundary(arguments[0], At(arguments, 1, arguments[0])) { Parent = inside });
+                Keep(boundaries, new C4Boundary(arguments[0], At(arguments, 1, arguments[0])) { Parent = inside }, boundary => boundary.Alias);
 
                 if (opens)
                 {
@@ -96,7 +96,21 @@ internal static partial class MermaidC4
 
             Relation(name, arguments).Match(
                 found => { relations.Add(found); return true; },
-                () => Element(name, arguments, inside).Match(found => { elements.Add(found); return true; }, () => false));
+                () => Element(name, arguments, inside).Match(found => { Keep(elements, found, element => element.Alias); return true; }, () => false));
+        }
+
+        private static void Keep<T>(List<T> declared, T declaration, Func<T, string> alias)
+        {
+            var earlier = declared.FindIndex(found => alias(found) == alias(declaration));
+
+            if (earlier >= 0)
+            {
+                declared[earlier] = declaration;
+            }
+            else
+            {
+                declared.Add(declaration);
+            }
         }
 
         private Option<C4Relation> Relation(string name, List<string> arguments)

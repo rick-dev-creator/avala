@@ -19,6 +19,8 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
 
     private const string PlanBrief = "Avala documents this job's feature from your task list. Before you change anything, record your plan as a task list with your task tools, then keep it updated as you work: mark each task in progress when you start it and completed when it is done, and add or remove tasks when the plan changes.";
 
+    private const string KeptPlanBrief = "Avala documents this job's feature from your task list. Before you act on this message, bring your task list up to date with it: record it again with your task tools if you no longer have it, add, remove or reword the tasks this message changes, and keep marking each task in progress when you start it and completed when it is done.";
+
     private const string NoPlan = "No plan yet: the agent has not recorded a task list, so there is nothing to document.";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -134,7 +136,7 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task OnceItsPlanIsDocumentedTheAgentIsNoLongerAskedForATaskListAsync()
+    public async Task OnceItsPlanIsDocumentedTheAgentIsAskedToBringItsTaskListUpToDateWithEveryNewMessageAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
         var activity = run.Watch<AgentActivity>();
@@ -145,7 +147,25 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
 
         var told = await activity.UntilAsync(update => update.Event is ItemProgressed { Item.Value: "told" } progressed && progressed.Text.StartsWith(Feedback, StringComparison.Ordinal));
-        Assert.Equal(Feedback, ((ItemProgressed)told.Event).Text);
+        Assert.Equal($"{Feedback}\n\n{KeptPlanBrief}", ((ItemProgressed)told.Event).Text);
+    }
+
+    [Fact]
+    public async Task ATaskListTheAgentRevisesAfterASendBackWritesTheFeaturesNextVersionAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+        var first = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
+        var then = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        Assert.Equal(
+            [(1, VersionKind.Proposed), (2, VersionKind.AsBuilt), (3, VersionKind.Deviation), (4, VersionKind.AsBuilt)],
+            first.Concat(then).Where(version => version.Job == job).Select(version => (version.Version.Number, version.Version.Kind)));
+        var folder = Path.Combine(await WorktreeAsync(run, job), "docs", "features", Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Feature.Slug);
+        Assert.Equal("# Plan v3\n\n1. Write the changelog\n2. Link it from the README\n3. Date each entry\n", await File.ReadAllTextAsync(Path.Combine(folder, "plans", "v3.md"), Cancellation));
     }
 
     [Fact]

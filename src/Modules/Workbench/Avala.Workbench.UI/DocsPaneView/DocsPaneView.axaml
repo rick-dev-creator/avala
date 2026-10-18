@@ -56,6 +56,7 @@
                 </StackPanel>
                 <TextBlock x:Name="Feature" Classes="strong" Text="{Binding Feature}" TextTrimming="CharacterEllipsis" />
               </DockPanel>
+              <TextBlock x:Name="Problem" Classes="caption" Margin="14,0,14,4" TextWrapping="Wrap" Text="{Binding Problem}" IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <ContentControl x:Name="Player" Height="440" Content="{Binding Player}" />
             </StackPanel>
           </Border>

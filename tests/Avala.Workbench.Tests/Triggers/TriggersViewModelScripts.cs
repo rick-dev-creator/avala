@@ -7,6 +7,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Following;
 using Avala.Workbench.Triggers;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Triggers;
 
@@ -156,7 +157,7 @@ public sealed class TriggersViewModelScripts : IDisposable
 
         var loops = new LoopControls(autopilot);
 
-        return new TriggersViewModel(new TriggerControls(triggers, loops, clock, [forges]), new LiveFeed(new Pulse(new JobBoard()), ui), new LoopsViewModel(loops));
+        return new TriggersViewModel(new TriggerControls(triggers, loops, clock, [forges]), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new LoopsViewModel(loops));
     }
 }
 

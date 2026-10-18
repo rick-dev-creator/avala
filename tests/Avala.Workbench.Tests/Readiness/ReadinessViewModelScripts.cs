@@ -120,7 +120,7 @@ public sealed class AgentPullRequestNoteViewModelScripts
         var links = new FakeReadinessLinks();
         var board = new Avala.Workbench.Board.JobBoard();
         using var ui = new TestUiDispatcher();
-        using var note = new AgentPullRequestNoteViewModel(new AgentPullRequests(board, new FakeMentions()), new Avala.Workbench.Following.LiveFeed(new Avala.Workbench.Following.Pulse(board), ui), links);
+        using var note = new AgentPullRequestNoteViewModel(new AgentPullRequests(board, new FakeMentions()), new Avala.Workbench.Following.LiveFeed(new Avala.Workbench.Following.Pulse(board), ui, Microsoft.Extensions.Logging.Abstractions.NullLogger<Avala.Workbench.Following.LiveFeed>.Instance), links);
 
         note.OpenSettingsCommand.Execute(null);
 

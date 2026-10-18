@@ -5,6 +5,7 @@ using Avala.Workbench.Docs;
 using Avala.Workbench.Documenting;
 using Avala.Workbench.Following;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Docs;
 
@@ -19,7 +20,7 @@ public sealed class DocsToggleViewModelScripts
         messenger.Register<DocsPaneRequested>(asked, (list, message) => ((List<DocsPaneRequested>)list).Add(message));
         var board = new JobBoard();
         using var ui = new TestUiDispatcher();
-        using var toggle = new DocsToggleViewModel(new DocsReader(board, new FakeDocumentation(), new FakeSitePreviews()), new LiveFeed(new Pulse(board), ui), messenger);
+        using var toggle = new DocsToggleViewModel(new DocsReader(board, new FakeDocumentation(), new FakeSitePreviews()), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), messenger);
         toggle.OnRegionContextChanged(job);
 
         toggle.ToggleCommand.Execute(null);

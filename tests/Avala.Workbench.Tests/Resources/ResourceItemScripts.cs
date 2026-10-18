@@ -11,6 +11,7 @@ using Avala.Workbench.Upkeep;
 using Avala.Workspaces.Contracts;
 using Avala.Sdk.Presentation;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Resources;
 
@@ -108,8 +109,8 @@ public sealed class ResourceIndicatorViewModelScripts : IDisposable
     private ResourceIndicatorViewModel Indicator(FakeOrphans orphans, Leftovers leftovers)
     {
         var reader = new ResourceReader(new FakeResources(), orphans, leftovers, new JobBoard());
-        var resources = new ResourcesViewModel(reader, new Housekeeping(orphans, new FakeHousekeeping()), new LiveFeed(new Pulse(new JobBoard()), ui));
+        var resources = new ResourcesViewModel(reader, new Housekeeping(orphans, new FakeHousekeeping()), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance));
 
-        return new ResourceIndicatorViewModel(reader, new LiveFeed(new Pulse(new JobBoard()), ui), new JobFocus(new TestRegions(), messenger), resources);
+        return new ResourceIndicatorViewModel(reader, new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger), resources);
     }
 }

@@ -139,6 +139,13 @@ public sealed record JobDocs(JobDocumentation Documentation, string Repository, 
     public DocsSite Site { get; init; } = new(false, "docs", false);
 
     public bool Unplanned { get; init; }
+
+    public IReadOnlyList<UnplayedVersion> Unplayed { get; init; } = [];
+}
+
+public sealed record UnplayedVersion(string File)
+{
+    public Option<string> After { get; init; }
 }
 
 public sealed record FeatureChosen(JobId Job, FeatureChoice Choice) : IIntegrationEvent;

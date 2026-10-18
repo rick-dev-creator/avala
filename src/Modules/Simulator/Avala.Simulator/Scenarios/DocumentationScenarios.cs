@@ -110,6 +110,8 @@ internal static class DocumentationScenarios
             new Finish(),
         ],
         [
+            new IfTold("task list", Told: true, new UpdatePlan([new PlanStep("Write the changelog", PlanStepStatus.Done), new PlanStep("Link it from the README", PlanStepStatus.Done), new PlanStep("Date each entry", PlanStepStatus.Done)])),
+            new WriteFile(new ItemId("dates"), "CHANGELOG.md", "# Changelog\n\n## 2026-10-18\n"),
             new Recall(new ItemId("told")),
             .. Bill(1_200, 90, 0.0060m, 0.13),
             new Finish(),

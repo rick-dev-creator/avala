@@ -64,10 +64,10 @@ internal sealed class SiteDesk(DocumentationReads reads, IWorkingFiles files, Do
 
 internal sealed class SiteSkeleton(JobPlaces places, DocumentationReads reads, IWorkingFiles files, Docfx docfx) : IJobBriefing
 {
-    public async ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
-        await (await places.OfAsync(job, cancellationToken)).Match(
+    public async ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+        (await (await places.OfAsync(job, cancellationToken)).Match(
             place => LayOutAsync(place, cancellationToken),
-            () => Task.FromResult(Option<string>.None));
+            () => Task.FromResult(Option<string>.None))).Map(text => new JobBrief(text));
 
     private async Task<Option<string>> LayOutAsync(JobPlace place, CancellationToken cancellationToken)
     {

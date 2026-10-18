@@ -11,6 +11,7 @@ using Avala.Workbench.Following;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Remoting;
 using Avala.Workbench.Timeline;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Remoting;
 
@@ -134,7 +135,7 @@ public sealed class RemoteControlViewModelScripts : IDisposable
 
     private RemoteControlViewModel Remote(JobSummary shown)
     {
-        var remote = new RemoteControlViewModel(board, new LiveFeed(new Pulse(board), ui), jobs, new LinkTools(clipboard, new Links(opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger())));
+        var remote = new RemoteControlViewModel(board, new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), jobs, new LinkTools(clipboard, new Links(opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger())));
         remote.Activate();
         remote.OnRegionContextChanged(shown.Job);
 

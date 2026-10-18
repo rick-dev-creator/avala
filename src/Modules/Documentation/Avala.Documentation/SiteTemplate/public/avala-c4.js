@@ -41,6 +41,15 @@ function argumentsOf(text) {
   return values.filter(value => !value.startsWith("$"));
 }
 
+function keep(declared, declaration) {
+  const earlier = declared.findIndex(found => found.alias === declaration.alias);
+  if (earlier >= 0) {
+    declared[earlier] = { ...declaration, order: declared[earlier].order };
+  } else {
+    declared.push(declaration);
+  }
+}
+
 function read(source) {
   const model = { level: "", title: "", elements: [], boundaries: [], relations: [] };
   const open = [];
@@ -67,14 +76,14 @@ function read(source) {
     const values = argumentsOf(body);
     if (name.endsWith("Boundary")) {
       const boundary = { alias: values[0], label: values[1] || values[0], parent: open.at(-1) || null };
-      model.boundaries.push(boundary);
+      keep(model.boundaries, boundary);
       if (opens) {
         open.push(boundary.alias);
       }
     } else if (kinds[name]) {
       const [kind, shape, external] = kinds[name];
       const hasTechnology = technical.test(name);
-      model.elements.push({
+      keep(model.elements, {
         alias: values[0], label: values[1] || values[0], kind, shape, external,
         technology: hasTechnology ? values[2] || "" : "",
         description: (hasTechnology ? values[3] : values[2]) || "",

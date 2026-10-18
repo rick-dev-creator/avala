@@ -35,6 +35,7 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
     private readonly ObservableCollection<HistoryStepViewModel> steps = [];
     private JobDocs? shown;
     private Option<JobId> writer;
+    private bool chosenByPerson;
 
     public event EventHandler<int>? VersionChosen;
 
@@ -43,6 +44,8 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
     public IReadOnlyList<IHistoryStepViewModel> Steps => steps;
 
     public IReadOnlyList<HistoryStepViewModel> Listed => steps;
+
+    public int Chosen { get; private set; }
 
     [ObservableProperty]
     public partial bool HasSteps { get; private set; }
@@ -68,9 +71,12 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
 
     public void Show(JobDocs docs)
     {
+        chosenByPerson &= shown?.Documentation.Job == docs.Documentation.Job;
         shown = docs;
         var versions = docs.Documentation.Versions;
-        var chosen = steps.FirstOrDefault(step => step.IsChosen)?.Number ?? (versions.Count > 0 ? versions[^1].Number : 0);
+        var kept = chosenByPerson ? steps.FirstOrDefault(step => step.IsChosen)?.Number : null;
+        var played = docs.Story.Match(story => story.Versions.Select(version => version.Number).LastOrDefault(), () => 0);
+        var chosen = kept ?? (played > 0 ? played : versions.Count > 0 ? versions[^1].Number : 0);
         steps.Clear();
 
         foreach (var version in docs.Documentation.Versions)
@@ -101,14 +107,33 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
         }
     }
 
+    public void Clear()
+    {
+        shown = null;
+        chosenByPerson = false;
+        Chosen = 0;
+        steps.Clear();
+        HasSteps = false;
+        Heading = string.Empty;
+        Happened = string.Empty;
+        Why = string.Empty;
+        Changed = [];
+        Records = string.Empty;
+        writer = Option<JobId>.None;
+        HasWriter = false;
+    }
+
     private void Choose(int number)
     {
+        chosenByPerson = true;
         Summarize(number);
         VersionChosen?.Invoke(this, number);
     }
 
     private void Summarize(int number)
     {
+        Chosen = number;
+
         foreach (var step in steps)
         {
             step.Mark(step.IsVersion && step.Number == number);

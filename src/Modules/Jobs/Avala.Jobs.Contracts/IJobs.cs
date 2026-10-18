@@ -60,7 +60,14 @@ public interface IRecoveryDeferral
 
 public interface IJobBriefing
 {
-    ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken);
+    ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken);
+}
+
+public sealed record JobBrief(string Text)
+{
+    public Func<CancellationToken, Task> Delivered { get; init; } = _ => Task.CompletedTask;
+
+    public Func<CancellationToken, Task> Undelivered { get; init; } = _ => Task.CompletedTask;
 }
 
 public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)

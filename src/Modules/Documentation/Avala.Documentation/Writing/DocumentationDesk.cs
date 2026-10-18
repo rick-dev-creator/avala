@@ -15,7 +15,6 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed, JobStatus.Discarded, JobStatus.Approved];
 
     private readonly Dictionary<SessionId, JobId> sessions = [];
-    private readonly Dictionary<JobId, IReadOnlyList<string>> plans = [];
 
     public ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
@@ -29,13 +28,9 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         switch (integrationEvent.Event)
         {
             case PlanUpdated { Steps.Count: > 0 } updated when sessions.TryGetValue(updated.Session, out var job):
-                plans[job] = [.. updated.Steps.Select(step => step.Title)];
-
-                if (updated.Steps.Any(step => step.Status != PlanStepStatus.Pending))
-                {
-                    await WriteAsync(job, cancellationToken);
-                }
-
+                await (await subjects.OfAsync(job, cancellationToken)).Match(
+                    subject => PlannedAsync(subject, updated, cancellationToken),
+                    () => Task.CompletedTask);
                 break;
             case TurnCompleted completed when sessions.TryGetValue(completed.Session, out var job):
                 await WriteAsync(job, cancellationToken);
@@ -96,19 +91,25 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         _ => Option<RequestKind>.None,
     };
 
-    private async Task WriteAsync(JobId job, CancellationToken cancellationToken)
+    private async Task PlannedAsync(Subject subject, PlanUpdated updated, CancellationToken cancellationToken)
     {
-        if (plans.TryGetValue(job, out var plan))
+        var documented = await book.PlannedAsync(subject.Documented, [.. updated.Steps.Select(step => step.Title)], cancellationToken);
+
+        if (updated.Steps.Any(step => step.Status != PlanStepStatus.Pending))
         {
-            await (await subjects.OfAsync(job, cancellationToken)).Match(subject => LaunchAsync(subject, plan, cancellationToken), () => Task.CompletedTask);
+            await LaunchAsync(subject with { Documented = documented }, cancellationToken);
         }
     }
 
-    private async Task LaunchAsync(Subject subject, IReadOnlyList<string> plan, CancellationToken cancellationToken)
+    private async Task WriteAsync(JobId job, CancellationToken cancellationToken) =>
+        await (await subjects.OfAsync(job, cancellationToken)).Match(subject => LaunchAsync(subject, cancellationToken), () => Task.CompletedTask);
+
+    private async Task LaunchAsync(Subject subject, CancellationToken cancellationToken)
     {
+        var plan = subject.Documented.Plan;
         var signature = string.Join('\n', plan);
 
-        if (subject.Documented.Writer.IsSome || signature == subject.Documented.LastPlan)
+        if (plan.Count == 0 || subject.Documented.Writer.IsSome || signature == subject.Documented.LastPlan)
         {
             return;
         }
@@ -163,10 +164,15 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         await book.WrittenAsync(subject.Place.Job, subject.Folder.Feature, version, plan, cancellationToken);
     }
 
-    private async Task NextAsync(JobId job, CancellationToken cancellationToken) =>
-        await ((await subjects.PlaceAsync(job, cancellationToken)).Match(place => place.Status == JobStatus.AwaitingReview, () => false)
-            ? AsBuiltAsync(job, cancellationToken)
-            : WriteAsync(job, cancellationToken));
+    private async Task NextAsync(JobId job, CancellationToken cancellationToken)
+    {
+        await WriteAsync(job, cancellationToken);
+
+        if ((await subjects.PlaceAsync(job, cancellationToken)).Match(place => place.Status == JobStatus.AwaitingReview, () => false))
+        {
+            await AsBuiltAsync(job, cancellationToken);
+        }
+    }
 
     private async Task AsBuiltAsync(JobId job, CancellationToken cancellationToken) =>
         await (await subjects.OfAsync(job, cancellationToken)).Match(
