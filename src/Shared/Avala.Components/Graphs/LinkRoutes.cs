@@ -7,7 +7,7 @@ public sealed record LinkRoute(IReadOnlyList<GraphPoint> Points)
 
 public static class LinkRoutes
 {
-    public const double LaneGap = 22;
+    public const double LaneGap = 34;
 
     private const double Clearance = 4;
 
@@ -22,13 +22,15 @@ public static class LinkRoutes
 
         return Clear(straight, blocking)
             ? straight
-            : Detours(from, to, blocking).Where(route => Clear(route, blocking)).OrderBy(route => route.Length).DefaultIfEmpty(straight).First();
+            : Detours(from, to, blocking).Select(route => new LinkRoute([.. route.Points.Select(point => point.Offset(shift.X, shift.Y))])).Where(route => Clear(route, blocking)).OrderBy(route => route.Length).DefaultIfEmpty(straight).First();
     }
 
     public static GraphRect Label(LinkRoute route, GraphSize label, IReadOnlyList<GraphRect> taken)
     {
         var (a, b) = route.Points.Zip(route.Points.Skip(1)).MaxBy(segment => Distance(segment.First, segment.Second));
-        var spots = Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t), a.Y + ((b.Y - a.Y) * t)), label)).ToList();
+        var beside = (label.Width / 2) + Clearance + 2;
+        double[] sides = Math.Abs(a.X - b.X) < 0.5 ? [0, beside, -beside] : [0];
+        var spots = sides.SelectMany(side => Along.Select(t => GraphRect.Around(new GraphPoint(a.X + ((b.X - a.X) * t) + side, a.Y + ((b.Y - a.Y) * t)), label))).ToList();
 
         return spots.FirstOrDefault(spot => !taken.Any(other => other.Overlaps(spot, Clearance)), spots[0]);
     }

@@ -20,6 +20,12 @@ public sealed class LinkRoutesTests
             LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom, Aside], default).Points);
 
     [Fact]
+    public void TwoLinksBetweenTheSamePairThatGoAroundANodeKeepTheirOwnLanes() =>
+        Assert.NotEqual(
+            LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom], new GraphPoint(-9, 0)).Points,
+            LinkRoutes.Route(Bottom, Top, [Top, Middle, Bottom], new GraphPoint(9, 0)).Points);
+
+    [Fact]
     public void ALabelSitsOnItsLinkWhereItCoversNoNodeAndNoOtherLabel()
     {
         var route = new LinkRoute([new GraphPoint(80, 0), new GraphPoint(80, 400)]);

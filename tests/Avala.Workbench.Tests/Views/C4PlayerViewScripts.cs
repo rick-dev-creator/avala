@@ -207,6 +207,19 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task NoLabelSitsOnTheBorderOfAFrameAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var player = Player();
+            var view = Screen.Show(player, ThemeVariant.Dark, 1240, 720);
+            var graph = view.All<C4GraphPanel>().Single();
+            var origin = graph.Children[0].Bounds.Position - new Point(graph.Layout.Nodes[0].X, graph.Layout.Nodes[0].Y);
+            var frame = new Rect(graph.Layout.Groups[0].X, graph.Layout.Groups[0].Y, graph.Layout.Groups[0].Width, graph.Layout.Groups[0].Height).Translate(origin);
+
+            Assert.All(graph.Labels, label => Assert.True(frame.Contains(label) || !frame.Intersects(label), $"{label} sits on the frame {frame}"));
+        }, Cancellation);
+
+    [Fact]
     public Task ASmallDiagramIsEnlargedToFitItsAreaButNoMoreThanHalfAgainItsSizeAsync() =>
         ui.RunAsync(() =>
         {
