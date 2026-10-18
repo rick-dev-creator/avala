@@ -57,6 +57,7 @@ public sealed class ProjectDocsTests(PublishedPlugins plugins)
         var page = run.Page("Docs");
         await run.Ui.RunAsync(() => page["Loading"].Value<Task>());
         Assert.True(await run.Ui.ReadAsync(() => page["Player"]["IsDrawn"].Value<bool>()));
+        Assert.Matches("^repository · [a-z0-9-]+ · not merged, on avala/[0-9a-f]{8}$", await run.Ui.ReadAsync(() => page["Where"].Text));
     }
 
     [Fact]

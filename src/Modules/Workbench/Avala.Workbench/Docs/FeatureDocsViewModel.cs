@@ -52,11 +52,12 @@ internal sealed partial class FeatureDocsViewModel : IFeatureDocsViewModel, IPag
     public void Receive(FeatureDocsRequested message)
     {
         Feature = message.Feature.Title;
-        Where = $"{Path.GetFileName(message.Repository.TrimEnd('/', '\\'))} · {message.Feature.Slug}";
+        Where = $"{Path.GetFileName(message.Repository.TrimEnd('/', '\\'))} · {message.Feature.Slug}"
+            + message.Branch.Match(branch => $" · not merged, on {Review.ReviewPhrases.Short(branch)}", () => string.Empty);
         Loading = LoadAsync(message, CancellationToken.None);
         focus.Show(this);
     }
 
     private async Task LoadAsync(FeatureDocsRequested message, CancellationToken cancellationToken) =>
-        player.Show(await documentation.StoryAsync(message.Repository, message.Feature, cancellationToken));
+        player.Show(await documentation.StoryAsync(message.Folder.Match(folder => folder, () => message.Repository), message.Feature, cancellationToken));
 }

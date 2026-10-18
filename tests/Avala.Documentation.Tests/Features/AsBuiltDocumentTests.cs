@@ -32,4 +32,10 @@ public sealed class AsBuiltDocumentTests
     [Fact]
     public void WithoutChecksAsBuiltSaysNoneWereDeclared() =>
         Assert.Contains("- Checks: none declared\n", AsBuiltDocument.Compose(Refunds, 1, Option<string>.None, new BuildEvidence(1, [], [])));
+
+    [Fact]
+    public void AsBuiltFromAVersionThatCarriesEvidenceAlreadyReplacesItInsteadOfAddingASecond() =>
+        Assert.Equal(
+            "# Refund webhooks\n\nAs built: what attempt 2 of the job delivered for review, from version 3. Written by Avala from the job's evidence.\n\nThe C4.\n\n## Webhooks\n\nVerifies.\n\n## Evidence\n\n- Checks: none declared\n- Files changed: 0, +0 −0\n",
+            AsBuiltDocument.Compose(Refunds, 3, "# Refund webhooks\n\nThe C4.\n\n## Evidence\n\n- Checks: tests passed\n\n## Webhooks\n\nVerifies.\n", new BuildEvidence(2, [], [])));
 }

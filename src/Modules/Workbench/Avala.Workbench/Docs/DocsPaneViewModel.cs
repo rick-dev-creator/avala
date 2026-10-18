@@ -164,7 +164,7 @@ internal sealed partial class DocsPaneViewModel
 
             foreach (var listed in docs.Docs.Features.Where(listed => listed.Feature.Slug != documented.Feature.Slug))
             {
-                others.Add(new FeatureRowViewModel(listed, () => messenger.Send(new FeatureDocsRequested(docs.Repository, listed.Feature))));
+                others.Add(new FeatureRowViewModel(listed, () => messenger.Send(FeatureDocsRequested.Of(docs.Repository, listed))));
             }
         }
     }
