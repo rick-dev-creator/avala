@@ -95,6 +95,7 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
     {
         if (job.State is not (JobState.AwaitingReview or JobState.NeedsHelp)
             || job.RemoteControlled
+            || job.Held == Option<HoldReason>.Some(HoldReason.LimitNearlyReached)
             || job.Resume.IsNone
             || job.Session != Option<SessionId>.Some(session)
             || job.Attempts.Count != rounds
