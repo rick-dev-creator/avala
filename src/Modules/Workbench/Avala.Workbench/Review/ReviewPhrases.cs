@@ -94,7 +94,7 @@ internal static class ReviewPhrases
 
     public static string Ran(ReportedRun run) => $"{CommandPhrases.OneLine(run.Command)} · {Outcome(run)}";
 
-    private static string Outcome(ReportedRun run) => run.Passed ? "passed" : "failed";
+    private static string Outcome(ReportedRun run) => run.Masked ? "ran, its result hidden by what followed it" : run.Passed ? "passed" : "failed";
 
     public static string Heading(JobStatus status) => status switch
     {

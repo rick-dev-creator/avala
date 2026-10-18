@@ -46,8 +46,22 @@ public sealed class ReportedRunsTests
         ];
 
         Assert.Equal(
-            [new ReportedRun("dotnet test 2>&1 | tee test.log", Passed: true), new ReportedRun("node --test; echo done", Passed: true)],
+            [new ReportedRun("dotnet test 2>&1 | tee test.log", Passed: true) { Masked = true }, new ReportedRun("node --test; echo done", Passed: true) { Masked = true }],
             ReportedRuns.AfterLastEdit(entries));
+    }
+
+    [Fact]
+    public void AVerificationChainedOnlyWithAndKeepsItsResultAndOneAPipeHidesIsSaidToHaveRun()
+    {
+        var reported = ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.Command, "dotnet build && dotnet test", ItemOutcome.Failed),
+            Tool(ItemKind.Command, "npm test 2>&1 | tail -20", ItemOutcome.Succeeded),
+        ]);
+
+        Assert.Equal(
+            ["dotnet build && dotnet test · failed", "npm test 2>&1 | tail -20 · ran, its result hidden by what followed it"],
+            reported.Select(Avala.Workbench.Review.ReviewPhrases.Ran));
     }
 
     [Fact]

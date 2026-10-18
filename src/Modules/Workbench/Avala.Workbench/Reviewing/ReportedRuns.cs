@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Text.RegularExpressions;
 using Avala.Agents.Contracts.Events;
 using Avala.CommandLines;
 using Avala.Delegation.Contracts;
@@ -6,9 +7,12 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Reviewing;
 
-internal sealed record ReportedRun(string Command, bool Passed);
+internal sealed record ReportedRun(string Command, bool Passed)
+{
+    public bool Masked { get; init; }
+}
 
-internal static class ReportedRuns
+internal static partial class ReportedRuns
 {
     private const string RunPrefix = "Run ";
 
@@ -71,13 +75,28 @@ internal static class ReportedRuns
 
         return [.. tools.Skip(lastEdit + 1)
             .Where(tool => tool.Kind == ItemKind.Command && tool.Outcome.Match(outcome => outcome is ItemOutcome.Succeeded or ItemOutcome.Failed, () => false))
-            .Select(tool => new ReportedRun(Command(tool), tool.Outcome == ItemOutcome.Succeeded))
+            .Select(tool => new ReportedRun(Command(tool), tool.Outcome == ItemOutcome.Succeeded) { Masked = Masked(Command(tool)) })
             .Where(run => CommandLine.Parse(run.Command).Commands.Any(Verifies))
             .GroupBy(run => run.Command, StringComparer.Ordinal)
             .Select(runs => runs.Last())];
     }
 
     public static bool Edited(IEnumerable<ITimelineEntry> entries) => Done(entries).Exists(Edits);
+
+    private static bool Masked(string command)
+    {
+        var line = CommandLine.Parse(command);
+        var last = line.Commands.LastOrDefault(simple => !simple.Restated);
+
+        return last is not null && !Verifies(last) && Sequenced(command);
+    }
+
+    private static bool Sequenced(string command)
+    {
+        var bare = Quoted().Replace(command, string.Empty).Replace("&&", " ", StringComparison.Ordinal).Replace(">&", ">", StringComparison.Ordinal).Replace("&>", ">", StringComparison.Ordinal);
+
+        return !bare.Contains("pipefail", StringComparison.Ordinal) && bare.IndexOfAny([';', '|', '&', '\n']) >= 0;
+    }
 
     private static List<ToolEntry> Done(IEnumerable<ITimelineEntry> entries) => [.. entries.OfType<ToolEntry>().Where(tool => !tool.Denied)];
 
@@ -205,4 +224,7 @@ internal static class ReportedRuns
         word.IndexOf('=', StringComparison.Ordinal) is var equals and > 0 && word[..equals].All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
 
     private static string Program(string word) => Path.GetFileName(word);
+
+    [GeneratedRegex(@"'[^']*'|""(?:\\.|[^""\\])*""")]
+    private static partial Regex Quoted();
 }
