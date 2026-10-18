@@ -30,6 +30,36 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <TextBlock x:Name="ReportedTitle"
+                 Classes="caption"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
+                 Text="{Binding ReportedTitle}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding ReportedTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl x:Name="Reported" ItemsSource="{Binding Reported}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption secondary" FontFamily="{DynamicResource MonoFont}" Text="{Binding}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock x:Name="Lacks"
+                 Classes="caption secondary"
+                 Text="{Binding Lacks}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Lacks, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Button x:Name="DeclareChecks"
+              Classes="ghost"
+              HorizontalAlignment="Left"
+              FontSize="{DynamicResource FontSizeCaption}"
+              Content="Declare checks"
+              Command="{Binding DeclareChecksCommand}"
+              IsVisible="{Binding Lacks, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
   </ui:Fold>
 </UserControl>

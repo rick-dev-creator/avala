@@ -10,6 +10,7 @@ using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
@@ -58,10 +59,35 @@ internal static class ReviewPhrases
 
     private static string Steps(int count) => count == 1 ? "step" : "steps";
 
+    public const string ReportedTitle = "Reported by the agent after its last edit";
+
+    public const string NoChecksFile =
+        "This repository has no .avala/checks.json, so Avala ran nothing to verify the work. Checks declared and committed verify the jobs that start after them.";
+
     public static string Proof(RunEvidence evidence) =>
         evidence.Verifications.Count == 0
             ? "No checks ran in the worktree."
             : Proof(evidence.Verifications[^1]);
+
+    public static string Proof(RunEvidence evidence, Option<BoardJob> job) =>
+        Proof(evidence, job.Match(found => ReportedRuns.AfterLastEdit(found.Transcript.Entries), () => []));
+
+    public static string Proof(RunEvidence evidence, IReadOnlyList<ReportedRun> reported) =>
+        reported.Count > 0 && evidence.Verifications is [.., { Outcome: VerificationOutcome.NoChecksDeclared }]
+            ? $"The repository declares no checks. After its last edit the agent reported {Names(reported.Select(run => $"{CommandPhrases.OneLine(run.Command)} {Outcome(run)}"))}."
+            : Proof(evidence);
+
+    private static string Proof(VerificationReport last) => last.Outcome switch
+    {
+        VerificationOutcome.Passed => $"{Names(last.Checks.Select(check => check.Name))} {(last.Checks.Count > 1 ? "all passed" : "passed")} in the worktree after the last turn.",
+        VerificationOutcome.Failed => $"{Names(last.Checks.Where(check => check.Status != CheckStatus.Passed && check.Status != CheckStatus.Skipped).Select(check => check.Name))} failed on the last attempt.",
+        VerificationOutcome.NoChecksDeclared => "The repository declares no checks, so nothing ran.",
+        _ => "The repository's check declaration could not be read.",
+    };
+
+    public static string Ran(ReportedRun run) => $"{CommandPhrases.OneLine(run.Command)} · {Outcome(run)}";
+
+    private static string Outcome(ReportedRun run) => run.Passed ? "passed" : "failed";
 
     public static string Heading(JobStatus status) => status switch
     {
@@ -186,13 +212,6 @@ internal static class ReviewPhrases
         _ => ConversationPhrases.Rejection(rejection),
     };
 
-    private static string Proof(VerificationReport last) => last.Outcome switch
-    {
-        VerificationOutcome.Passed => $"{Names(last.Checks.Select(check => check.Name))} {(last.Checks.Count > 1 ? "all passed" : "passed")} in the worktree after the last turn.",
-        VerificationOutcome.Failed => $"{Names(last.Checks.Where(check => check.Status != CheckStatus.Passed && check.Status != CheckStatus.Skipped).Select(check => check.Name))} failed on the last attempt.",
-        VerificationOutcome.NoChecksDeclared => "The repository declares no checks, so nothing ran.",
-        _ => "The repository's check declaration could not be read.",
-    };
 
     private static string Names(IEnumerable<string> names) =>
         names.ToList() switch

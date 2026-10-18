@@ -258,6 +258,28 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         return run;
     }
 
+    [Fact]
+    public async Task AJobWithoutChecksShowsWhatTheAgentRanAfterItsLastEditAndItsEvidenceOpensTheChecksEditorAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("edit"), [], [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var (workbench, review) = await ReviewAsync(run);
+        var proof = await run.Ui.ReadAsync(() => review["Proof"].Text);
+        await run.Ui.InvokeAsync(() => review.Execute("CloseCommand"), Cancellation);
+        var evidence = (await workbench.InspectAsync(run.Job, "EvidenceSectionViewModel"))[0];
+
+        Assert.Equal("The repository declares no checks. After its last edit the agent reported dotnet test passed.", proof);
+        Assert.Equal("Reported by the agent after its last edit", await run.Ui.ReadAsync(() => evidence["ReportedTitle"].Text));
+        Assert.Equal(["dotnet test · passed"], await run.Ui.ReadAsync(() => evidence["Reported"].Value<IReadOnlyList<string>>()));
+
+        await run.Ui.RunAsync(() => evidence.ExecuteAsync("DeclareChecksCommand"));
+
+        var settings = run.Page("Settings")["Repository"];
+        Assert.Equal(
+            ("Settings", run.Repository.Path, true, ".avala/checks.json"),
+            await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, settings["Shown"].Text, settings["Editor"]["IsOpen"].Value<bool>(), settings["Editor"]["Path"].Text)));
+    }
+
     private static Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run) => ReviewAsync(run, run.Job);
 
     private static async Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run, JobId job)

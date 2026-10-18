@@ -310,7 +310,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         var verdict = facts.Evidence.Map(ReviewExceptions.VerdictOf);
         Verdict = verdict.Match(ReviewPhrases.Verdict, () => "No evidence for this job");
         IsVerified = verdict.Match(found => found.Kind == VerdictKind.Verified, () => false);
-        Proof = facts.Evidence.Match(ReviewPhrases.Proof, () => string.Empty);
+        Proof = facts.Evidence.Match(evidence => ReviewPhrases.Proof(evidence, held), () => string.Empty);
         Quiet = facts.Evidence.Match(evidence => ReviewPhrases.Quiet(evidence, facts.Usage), () => string.Empty);
         ShowExceptions(facts.Evidence.Match(ReviewExceptions.Of, () => []));
         Queued = desk.Queued(Job).Match(message => message, () => string.Empty);
