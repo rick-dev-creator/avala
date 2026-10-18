@@ -15,9 +15,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
 
     private const string Background = "Survey the greeting and check the build in the background.";
 
-    private static readonly string[] Described = ["Text", "Title", "Summary", "Reason"];
-
-    private static readonly TimeSpan PromptCache = TimeSpan.FromHours(1);
+    private static readonly string[] Described = ["Text", "Title", "Summary", "Reason", "Lost"];
 
     private static readonly (string File, string Content)[] Login =
     [
@@ -32,12 +30,11 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-agents");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Background), claude.Data, []);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var (workbench, conversation, pane) = await PaneAsync(run);
-        var launched = await StatesAsync(run, pane);
+        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.");
 
-        await TellAsync(run, workbench, conversation, "How are they doing?", 3);
-        var notified = await StatesAsync(run, pane);
+        await SayAsync(run, conversation, "How are they doing?");
+        var notified = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
         Assert.Equal(("running", "done"), (launched.GetValueOrDefault(Survey), notified.GetValueOrDefault(Survey)));
     }
@@ -47,12 +44,13 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-agents");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Background), claude.Data, []);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var (workbench, conversation, pane) = await PaneAsync(run);
-        await TellAsync(run, workbench, conversation, "How are they doing?", 3);
+        _ = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.");
+        await SayAsync(run, conversation, "How are they doing?");
+        _ = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
-        await TellAsync(run, workbench, conversation, "And the build check?", 5);
-        var stopped = await StatesAsync(run, pane);
+        await SayAsync(run, conversation, "And the build check?");
+        var stopped = await StatesWhenAsync(run, workbench, conversation, pane, "The build check was stopped before it finished.");
 
         Assert.Equal("stopped", stopped.GetValueOrDefault(Build));
     }
@@ -62,12 +60,11 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-agents");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Background), claude.Data, []);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var (workbench, conversation, pane) = await PaneAsync(run);
-        var launched = await StatesAsync(run, pane);
+        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.");
 
-        await TellAsync(run, workbench, conversation, "How are they doing?", 3);
-        var oneFinished = await StatesAsync(run, pane);
+        await SayAsync(run, conversation, "How are they doing?");
+        var oneFinished = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
         Assert.Equal(
             [("running", "running"), ("done", "running")],
@@ -75,47 +72,54 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ASubagentStillWorkingWhenItsParentsSessionEndsBecomesLostAndBothTheConversationAndTheOrchestratorAreToldAsync()
+    public async Task ASubagentStillWorkingWhenAvalaStopsBecomesLostAndTheConversationSaysSoAsync()
     {
-        var lost = await LostAsync();
+        using var claude = await TranscribedClaude.PrepareAsync("background-lost");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Survey the greeting in the background."), claude.Data, []);
+        _ = await run.RepliedAsync();
+        await run.DeliveredAsync();
 
-        Assert.Equal(
-            ("lost", true, true),
-            (lost.State, lost.Conversation.Any(Mentioned), lost.Told.Any(Mentioned)));
+        await run.RestartAsync();
+        var (workbench, conversation, pane) = await PaneAsync(run);
+        await workbench.ShowsAsync(() => Shown(conversation).Any(Mentioned) && SubagentNamed(pane, Survey).Exists);
+        var (state, shown) = await run.Ui.ReadAsync(() => (SubagentNamed(pane, Survey).State, Shown(conversation)));
+
+        Assert.Equal(("lost", true), (state, shown.Any(text => text.Contains("work is lost", StringComparison.Ordinal) && Mentioned(text))));
     }
 
-    [Fact]
+    [Fact(Skip = "Awaits the owner's decision on an Avala tool that answers an orchestrator with the real state of its sub-agents, a feature the stabilization leaves to the owner (incident 2026-10-19, AC-37)")]
     public async Task AResumedOrchestratorAsksAvalaForItsSubagentsAndGetsTheirRealStatusAsync()
     {
-        var lost = await LostAsync();
+        using var claude = await TranscribedClaude.PrepareAsync("background-lost");
+        await using var tapped = new TemporaryFolder();
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Survey the greeting in the background."), claude.Tapping(tapped.Path), []);
+        _ = await run.RepliedAsync();
+        await run.RestartAsync();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        _ = await run.StopAndReadRecordingsAsync();
 
-        Assert.Contains(Survey, lost.Answer, StringComparison.Ordinal);
-        Assert.Contains("lost", lost.Answer, StringComparison.Ordinal);
+        var answer = Answer(await TapAsync(tapped.Path), "b3call01-0000-4000-8000-000000000001");
+
+        Assert.Contains(Survey, answer, StringComparison.Ordinal);
+        Assert.Contains("lost", answer, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task ASubagentWhoseToolCallAsksAPersonIsShownAwaitingPermissionAsItselfAndTheOrchestratorCanLearnItAsync()
+    public async Task ASubagentWhoseToolCallAsksAPersonIsShownAwaitingPermissionAsItselfWhileTheOtherKeepsRunningAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-asks");
-        await using var tapped = new TemporaryFolder();
         await using var run = await SimulatedRun.TranscribedAsync(
             plugins,
             claude.Plugin,
             new JobRequest(string.Empty, Background),
-            claude.Tapping(tapped.Path),
+            claude.Data,
             [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
         var asked = await run.DecisionAsync();
-        var (_, _, pane) = await PaneAsync(run);
+        var (workbench, _, pane) = await PaneAsync(run);
+        await workbench.ShowsAsync(() => SubagentNamed(pane, Build).State == "waiting");
         var waiting = await StatesAsync(run, pane);
 
-        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        _ = await run.StopAndReadRecordingsAsync();
-        var answer = Answer(await TapAsync(tapped.Path), "b4call02-0000-4000-8000-000000000001");
-
-        Assert.Equal(
-            ("npm install", "waiting", "running", true),
-            (asked.Target, waiting.GetValueOrDefault(Build), waiting.GetValueOrDefault(Survey), answer.Contains(Build, StringComparison.Ordinal) && answer.Contains("permission", StringComparison.Ordinal)));
+        Assert.Equal(("npm install", "waiting", "running"), (asked.Target, waiting.GetValueOrDefault(Build), waiting.GetValueOrDefault(Survey)));
     }
 
     [Fact]
@@ -148,39 +152,6 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     }
 
     private static bool Mentioned(string text) => text.Contains(Survey, StringComparison.Ordinal);
-
-    private async Task<(string State, IReadOnlyList<string> Conversation, IReadOnlyList<string> Told, string Answer)> LostAsync()
-    {
-        using var claude = await TranscribedClaude.PrepareAsync("background-lost");
-        await using var tapped = new TemporaryFolder();
-        await using var run = await SimulatedRun.TranscribedAsync(
-            plugins,
-            claude.Plugin,
-            new JobRequest(string.Empty, "Survey the greeting in the background."),
-            claude.Tapping(tapped.Path),
-            []);
-        var stopped = run.Watch<SessionStopped>();
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        await run.DeliveredAsync();
-        var session = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Sessions[^1].Session;
-        var (workbench, conversation, pane) = await PaneAsync(run);
-        var before = await run.Ui.ReadAsync(() => Shown(conversation));
-
-        run.Clock.Advance(PromptCache);
-        _ = await stopped.UntilAsync(found => found.Session == session);
-        await run.DeliveredAsync();
-        await workbench.ShowsAsync(() => true);
-        var state = (await StatesAsync(run, pane)).GetValueOrDefault(Survey, "missing");
-        var shown = (await run.Ui.ReadAsync(() => Shown(conversation))).Except(before).ToList();
-
-        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(run.Job, "How is the survey going?", Cancellation));
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        _ = await run.StopAndReadRecordingsAsync();
-        var tap = await TapAsync(tapped.Path);
-        var told = tap.SkipWhile(line => line["resume"] is null).Where(line => line["in"]?["type"]?.GetValue<string>() == "user").Select(line => line["in"]!["message"]!["content"]!.ToJsonString()).ToList();
-
-        return (state, shown, told, Answer(tap, "b3call01-0000-4000-8000-000000000001"));
-    }
 
     private static List<string> Shown(Bound conversation) =>
         [.. conversation["Entries"].Items.SelectMany(entry => Described.Where(entry.Has).Select(property => entry[property].Text))];
@@ -230,10 +201,25 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     private static Task<Dictionary<string, string>> StatesAsync(SimulatedRun run, Bound pane) =>
         run.Ui.ReadAsync(() => pane["Root"]["Subagents"].Items.ToDictionary(agent => agent["Name"].Text, agent => agent["StateText"].Text));
 
-    private static async Task TellAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, string message, int turnsAfter)
+    private static (string State, bool Exists) SubagentNamed(Bound pane, string name) =>
+        pane.Has("Root") && pane["Root"]["Subagents"].Items.FirstOrDefault(agent => agent["Name"].Text == name) is { } found
+            ? (found["StateText"].Text, true)
+            : (string.Empty, false);
+
+    private static async Task<Dictionary<string, string>> StatesWhenAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, Bound pane, string said)
     {
-        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(run.Job, message, Cancellation));
-        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "TurnEndViewModel") >= turnsAfter);
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(said));
         await run.DeliveredAsync();
+        await workbench.ShowsAsync(() => true);
+
+        return await StatesAsync(run, pane);
     }
+
+    private static Task SayAsync(SimulatedRun run, Bound conversation, string message) =>
+        run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", message);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
 }

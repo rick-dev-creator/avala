@@ -193,6 +193,8 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
 
     public string State => OverviewPhrases.State(Kind);
 
+    public string StateText => "running";
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
     public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Read internal/payments/refund.go", SubagentState.Running) { Meter = "6 tool uses · 18,240 tokens" }];

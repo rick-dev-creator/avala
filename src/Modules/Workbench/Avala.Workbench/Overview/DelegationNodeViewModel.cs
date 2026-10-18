@@ -24,6 +24,8 @@ internal interface IDelegationNodeViewModel
 
     JobStatus Status { get; }
 
+    string StateText { get; }
+
     string Connection { get; }
 
     string Harness { get; }
@@ -107,6 +109,9 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 
     [ObservableProperty]
     public partial JobStatus Status { get; private set; }
+
+    [ObservableProperty]
+    public partial string StateText { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial string Connection { get; private set; } = string.Empty;
@@ -215,6 +220,7 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         Title = FactPhrases.Title(node.Job.Instruction);
         Depth = node.Depth;
         Status = node.Job.Status;
+        StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold));
         Connection = node.Job.Connection
             .Match(name => name.Value, () => node.Delegation.Bind(record => record.Connection).Match(name => name.Value, () => "not started"));
         Harness = node.Spend.Session.Match(seen => seen.Provider.Name, () => string.Empty);

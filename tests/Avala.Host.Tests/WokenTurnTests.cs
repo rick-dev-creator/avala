@@ -17,15 +17,14 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
     private const string Farewells = "Also list the farewells.";
 
     [Fact]
-    public async Task AllowingADenialFromItsCardWhileATurnWokenByABackgroundAgentIsLiveTellsTheAgentInThatTurnAndTheJobGoesOnAsync()
+    public async Task AllowingADenialFromItsCardWhileABackgroundAgentStillWorksTellsTheAgentInItsTurnAndTheJobGoesOnAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-denial");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Survey), claude.Data, [(".avala/permissions.json", Autonomous)]);
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() =>
-            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Running
             && OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
 
         await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
@@ -39,15 +38,14 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AMessageSentWhileATurnWokenByABackgroundAgentIsLiveJoinsThatTurnOrWaitsAndTheJobGoesOnAsync()
+    public async Task AMessageSentWhileABackgroundAgentStillWorksJoinsTheAgentsTurnAndTheJobGoesOnAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-send-back");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Survey), claude.Data, []);
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() =>
-            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Running
             && OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(Notified));
 
         await run.Ui.RunAsync(() =>

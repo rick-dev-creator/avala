@@ -119,7 +119,7 @@ internal sealed class Conversation
 
     private Reaction Continued(string type, JsonNode message)
     {
-        var opening = type is "assistant" or "stream_event" ? Woken() : Reaction.None;
+        var opening = type is "assistant" or "stream_event" || Notifies(type, message) ? Woken() : Reaction.None;
 
         return opening.Then(live.Match(stamp => During(type, message, stamp), () => Reaction.None));
     }
@@ -129,8 +129,9 @@ internal sealed class Conversation
         "assistant" when stale == 0 => Said(message, stamp),
         "stream_event" or "user" when stale == 0 => translator.Receive(message, stamp),
         "system" when message.TextOr("subtype", string.Empty) == "compact_boundary" => Compacted(),
+        "system" => translator.Tasked(message, stamp),
         "rate_limit_event" => Limited(message, stamp),
-        "result" => commands.Pending && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
+        "result" => !interrupting && (commands.Pending || (translator.WorkingInBackground && Outcome(message) == TurnOutcome.Finished)) ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
 
@@ -240,11 +241,17 @@ internal sealed class Conversation
             () => Reaction.None));
     }
 
+    private static bool Notifies(string type, JsonNode message) =>
+        type == "system" && message.TextOr("subtype", string.Empty) == "task_notification";
+
     private Reaction Carried(JsonNode result, Stamp stamp)
     {
-        commands.Answered();
+        if (commands.Pending)
+        {
+            commands.Answered();
+        }
 
-        return translator.Close(stamp, interrupted: false)
+        return translator.Carry(stamp)
             .Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))))
             .Then(context.Report(session, stamp.Turn, result));
     }

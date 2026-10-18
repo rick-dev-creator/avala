@@ -23,6 +23,10 @@ internal interface ITurnEndViewModel
 
     string Breakdown { get; }
 
+    string Lost { get; }
+
+    bool HasLost { get; }
+
     bool HasCheckpoint { get; }
 
     string Checkpoint { get; }
@@ -41,7 +45,7 @@ internal interface ITurnEndViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, ITimelineItem
+internal sealed partial class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, ITimelineItem, ISearchable
 {
     private static readonly IAsyncRelayCommand<int> Unbound = new AsyncRelayCommand<int>(_ => Task.CompletedTask, _ => false);
 
@@ -58,6 +62,17 @@ internal sealed partial class TurnEndViewModel(TurnEndEntry entry) : ITurnEndVie
     public bool HasUsage { get; } = ConversationPhrases.Reported(entry.Tokens) || entry.Costs.Count > 0;
 
     public string Breakdown { get; } = ConversationPhrases.Breakdown(entry.Tokens, entry.Model, entry.Costs);
+
+    public string Lost { get; } = ConversationPhrases.Lost(entry.Lost);
+
+    public bool HasLost => Lost.Length > 0;
+
+    public string SearchText => HasLost ? $"{Summary}\n{Lost}" : Summary;
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public bool Unfold() => false;
 
     public bool IsShown => true;
 

@@ -458,6 +458,10 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
 
     public string Breakdown => "Input: 1,204 tokens\nOutput: 6,882 tokens\nCache read: 38,410 tokens\nCache write: 1,714 tokens\nModel: claude-opus-5-5\nCost of the whole turn: 0.4120 USD";
 
+    public string Lost { get; init; } = string.Empty;
+
+    public bool HasLost => Lost.Length > 0;
+
     public bool HasCheckpoint { get; init; } = true;
 
     public string Checkpoint => "Checkpoint · 2 files changed";

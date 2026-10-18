@@ -28,14 +28,29 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             {
                 "stream_event" => Streamed(received.Members("event"), stamp),
                 "assistant" => Said(received.Members("message"), received.Flag("is_api_error_message"), stamp),
-                "user" => Returned(received.Members("message"), stamp, nested: false),
+                "user" => Returned(received.Members("message"), stamp, nested: false, received.Members("tool_use_result")),
                 _ => Reaction.None,
             });
 
-    public Reaction Close(Stamp stamp, bool interrupted)
+    public bool WorkingInBackground => tools.WorkingInBackground;
+
+    public Reaction Close(Stamp stamp, bool interrupted) => Close(stamp, interrupted, ending: true);
+
+    public Reaction Carry(Stamp stamp) => Close(stamp, interrupted: false, ending: false);
+
+    public Reaction Tasked(JsonNode system, Stamp stamp) => system.TextOr("subtype", string.Empty) switch
+    {
+        "task_started" when system.Flag("is_backgrounded") => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(tool => Backgrounded(tool, stamp), () => Reaction.None),
+        "task_notification" => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(
+            tool => tool.Backgrounded && !tool.Closed ? Notified(tool, system, stamp) : Reaction.None,
+            () => Orphaned(system, stamp)),
+        _ => Reaction.None,
+    };
+
+    private Reaction Close(Stamp stamp, bool interrupted, bool ending)
     {
         var closing = open.Select(item => new ItemCompleted(stamp.Session, stamp.Turn, item, interrupted ? ItemOutcome.Cancelled : ItemOutcome.Succeeded))
-            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed).Select(tool =>
+            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed && !tool.Backgrounded).Select(tool =>
             {
                 tool.Closed = true;
 
@@ -47,10 +62,59 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         drafts.Clear();
         sketches.Clear();
         streamed.Clear();
-        tools.Forget();
+
+        if (ending)
+        {
+            tools.ForgetAll();
+        }
+        else
+        {
+            tools.Forget();
+        }
 
         return Reaction.Of(closing);
     }
+
+    private static Reaction Backgrounded(TrackedTool tool, Stamp stamp)
+    {
+        if (!tool.Opened || tool.Closed || tool.Backgrounded)
+        {
+            return Reaction.None;
+        }
+
+        tool.Backgrounded = true;
+
+        return Reaction.Of(new ItemBackgrounded(stamp.Session, stamp.Turn, tool.Item));
+    }
+
+    private static Reaction Notified(TrackedTool tool, JsonNode notification, Stamp stamp)
+    {
+        tool.Closed = true;
+        var summary = notification.TextOr("summary", string.Empty);
+
+        return Reaction.Of(
+        [
+            .. summary.Length == 0 ? Array.Empty<IAgentEvent>() : [new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, summary)],
+            new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, Ended(notification)),
+        ]);
+    }
+
+    private static Reaction Orphaned(JsonNode notification, Stamp stamp)
+    {
+        var summary = notification.TextOr("summary", string.Empty);
+        var task = notification.TextOr("task_id", string.Empty);
+
+        return task.Length == 0
+            ? Reaction.None
+            : Whole(new ItemId($"task:{task}"), ItemKind.Subagent, "Background task", summary.Length == 0 ? $"Background task {task} ended" : summary, stamp, Ended(notification));
+    }
+
+    private static ItemOutcome Ended(JsonNode notification) => notification.TextOr("status", string.Empty) switch
+    {
+        "completed" => ItemOutcome.Succeeded,
+        "failed" => ItemOutcome.Failed,
+        _ => ItemOutcome.Cancelled,
+    };
 
     public void Recall(JsonNode earlier)
     {
@@ -91,7 +155,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             })
             .Aggregate(Reaction.None, (all, next) => all.Then(next))
             .Then(Metered(parent, received.Members("message").Members("usage"), stamp)),
-        "user" => Returned(received.Members("message"), stamp, nested: true),
+        "user" => Returned(received.Members("message"), stamp, nested: true, received.Members("tool_use_result")),
         _ => Reaction.None,
     };
 
@@ -352,21 +416,29 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
     private Reaction Planned(bool changed, Stamp stamp) =>
         changed ? Reaction.Of(plan.Current(stamp)) : Reaction.None;
 
-    private Reaction Returned(JsonObject returned, Stamp stamp, bool nested) =>
+    private Reaction Returned(JsonObject returned, Stamp stamp, bool nested, JsonObject reported) =>
         returned.Items("content")
             .Where(block => block.TextOr("type", string.Empty) == "tool_result")
             .Select(block => tools.Find(block.TextOr("tool_use_id", string.Empty)).Match(
                 tool => tool.Role == ToolRole.Plan
                     ? nested ? Reaction.None : Planned(plan.Return(tool.Use.Id, block.Flag("is_error"), Text(block)), stamp)
-                    : Finished(tool, block, stamp),
+                    : Finished(tool, block, stamp, reported),
                 () => Reaction.None))
             .Aggregate(Reaction.None, (all, next) => all.Then(next));
 
-    private static Reaction Finished(TrackedTool tool, JsonNode result, Stamp stamp)
+    private static bool Launched(JsonObject outcome) =>
+        outcome.TextOr("status", string.Empty) == "async_launched" || outcome.Text("backgroundTaskId").IsSome;
+
+    private static Reaction Finished(TrackedTool tool, JsonNode result, Stamp stamp, JsonObject reported)
     {
-        if (!tool.Opened || tool.Closed)
+        if (!tool.Opened || tool.Closed || tool.Backgrounded)
         {
             return Reaction.None;
+        }
+
+        if (tool.Role == ToolRole.Work && Launched(reported))
+        {
+            return Backgrounded(tool, stamp);
         }
 
         tool.Closed = true;

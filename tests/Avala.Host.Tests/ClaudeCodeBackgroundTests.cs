@@ -20,18 +20,19 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task ATurnWokenByABackgroundSubAgentWhileTheJobAwaitsReviewAppearsInItsConversationAsync()
+    public async Task ABackgroundSubAgentsReportAndTheAgentsAnswerToItBelongToTheTurnThatLaunchedItAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-woken");
         await using var run = await StartAsync(claude);
-        _ = await run.TurnAsync();
-        var woken = await run.TurnAsync();
+        var turn = await run.TurnAsync();
         await EvaluatedAsync(run);
         var conversation = await ShownAsync(run);
 
         var messages = await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text"));
 
-        Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(woken[^1]).Outcome);
+        Assert.Equal(
+            (1, TurnOutcome.Finished, ItemOutcome.Succeeded),
+            (turn.OfType<TurnStarted>().Count(), Assert.IsType<TurnCompleted>(turn[^1]).Outcome, turn.OfType<ItemCompleted>().Single(completed => turn.OfType<ItemBackgrounded>().Any(backgrounded => backgrounded.Item == completed.Item)).Outcome));
         Assert.Contains("The billing survey came back: three entry points, no blockers.", messages);
     }
 
@@ -41,7 +42,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background");
         await using var run = await StartAsync(claude);
         var session = (await run.OpenedAsync()).Session;
-        _ = await run.TurnAsync();
+        _ = await run.RepliedAsync();
         await EvaluatedAsync(run);
 
         run.Clock.Advance(PromptCache + PromptCache);
@@ -55,7 +56,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");
         await using var run = await StartAsync(claude);
-        _ = await run.TurnAsync();
+        _ = await run.RepliedAsync();
         await EvaluatedAsync(run);
 
         var status = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary.Status;
@@ -69,7 +70,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background");
         await using var run = await StartAsync(claude);
         var session = (await run.OpenedAsync()).Session;
-        _ = await run.TurnAsync();
+        _ = await run.RepliedAsync();
         await EvaluatedAsync(run);
         var conversation = await ShownAsync(run);
         var stopped = run.Watch<SessionStopped>();
@@ -88,7 +89,6 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background-woken-open");
         await using var run = await StartAsync(claude);
         var session = (await run.OpenedAsync()).Session;
-        _ = await run.TurnAsync();
         await run.ProgressedAsync("The billing survey came back: ");
 
         Outcomes.Succeeds(await run.Get<IAgents>().StopAsync(session, Cancellation));
@@ -102,22 +102,19 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AfterAResumeTheBackgroundAgentsThatDiedWithThePreviousSessionAreReportedInTheConversationAsync()
+    public async Task AfterAvalaRestartsTheBackgroundAgentsThatDiedWithThePreviousSessionAreReportedInTheConversationAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-resumed");
         await using var run = await StartAsync(claude);
-        _ = await run.TurnAsync();
+        _ = await run.RepliedAsync();
         await EvaluatedAsync(run);
-        Outcomes.Succeeds(await run.Get<IJobSessions>().RestAsync(run.Job, Cancellation));
-        await run.DeliveredAsync();
 
-        var continued = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(run.Job, "Go on.", Cancellation));
+        await run.RestartAsync();
         _ = await run.TurnAsync();
         await EvaluatedAsync(run);
         var conversation = await ShownAsync(run, "Going on with the billing module.");
 
         var (told, said) = await run.Ui.ReadAsync(() => (Telling(conversation), string.Join(" | ", Said(conversation))));
-        Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
         Assert.True(told.Count > 0, $"Nothing told the person that \"{Background}\" died with the previous session; the conversation said: {said}");
     }
 

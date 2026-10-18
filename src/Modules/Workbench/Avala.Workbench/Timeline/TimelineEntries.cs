@@ -73,6 +73,14 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public Option<DateTimeOffset> Started { get; init; }
 
     public ImmutableList<string> Trail { get; init; } = [];
+
+    public bool Backgrounded { get; init; }
+
+    public string Named => Title.StartsWith(SubagentPrefix, StringComparison.Ordinal) ? Title[SubagentPrefix.Length..] : Title;
+
+    private const string SubagentPrefix = "Subagent: ";
+
+    public ImmutableHashSet<ItemId> Children { get; init; } = [];
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry
@@ -162,4 +170,6 @@ internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId It
 internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry
 {
     public Option<string> Model { get; init; }
+
+    public IReadOnlyList<string> Lost { get; init; } = [];
 }

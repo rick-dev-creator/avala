@@ -30,6 +30,8 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public bool Narrated { get; set; }
 
+    public bool Backgrounded { get; set; }
+
     public long Tokens { get; set; }
 
     public string Drawn { get; set; } = string.Empty;
@@ -76,7 +78,17 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
     public Option<HarnessTool> Harness(string qualifiedName) =>
         CommandLine.Unqualified(qualifiedName).Bind(name => Offered.FirstOrDefault(tool => tool.Name == name).ToOption());
 
-    public void Forget() => tools.Clear();
+    public bool WorkingInBackground => tools.Values.Any(tool => tool.Backgrounded && !tool.Closed);
+
+    public void Forget()
+    {
+        foreach (var id in tools.Where(tool => !tool.Value.Backgrounded || tool.Value.Closed).Select(tool => tool.Key).ToList())
+        {
+            tools.Remove(id);
+        }
+    }
+
+    public void ForgetAll() => tools.Clear();
 
     private ToolRole RoleOf(string name) =>
         Harness(name).Match(

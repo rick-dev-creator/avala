@@ -158,6 +158,8 @@ internal sealed partial class AgentSessions(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            await CloseStoppedAsync(turn, running);
+
             return;
         }
         catch (Exception exception)
@@ -168,6 +170,8 @@ internal sealed partial class AgentSessions(
 
         if (cancellationToken.IsCancellationRequested)
         {
+            await CloseStoppedAsync(turn, running);
+
             return;
         }
 
@@ -177,6 +181,25 @@ internal sealed partial class AgentSessions(
         {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
             await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), running, Option<UsageLimit>.None, CancellationToken.None);
+        }
+    }
+
+    private async Task CloseStoppedAsync(Turn? turn, LiveSession running)
+    {
+        if (turn is not { IsLive: true })
+        {
+            return;
+        }
+
+        var stopped = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Interrupted);
+
+        if (turn.Apply(stopped, clock.GetUtcNow()).TryGetValue(out var progress, out _))
+        {
+            foreach (var forwarded in progress.Events)
+            {
+                running.Track(forwarded);
+                await bus.PublishAsync(new AgentActivity(forwarded), CancellationToken.None);
+            }
         }
     }
 

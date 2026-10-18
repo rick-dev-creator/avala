@@ -543,6 +543,8 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
 
         public JobStatus Status => design.Status;
 
+        public string StateText => design.StateText;
+
         public string Connection => design.Connection;
 
         public string Harness => design.Harness;

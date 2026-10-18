@@ -135,7 +135,8 @@ internal sealed record Transcript
         ItemTokensReported reported => Change(EntryKeys.Item(reported.Turn, reported.Item), entry => entry is ToolEntry tool ? tool with { Tokens = reported.Tokens } : entry),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
-        ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
+        ItemBackgrounded backgrounded => Change(EntryKeys.Item(backgrounded.Turn, backgrounded.Item), entry => entry is ToolEntry tool ? tool with { Backgrounded = true } : entry),
+        ItemCompleted completed => LostWith(completed).Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
         RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
@@ -237,7 +238,12 @@ internal sealed record Transcript
     }
 
     private Transcript Stepped(ItemStarted started, ItemId parent) =>
-        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title) } : entry);
+        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title), Children = tool.Children.Add(started.Item) } : entry);
+
+    private Transcript LostWith(ItemCompleted completed) =>
+        completed.Outcome == ItemOutcome.Abandoned && Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(entry => entry is ToolEntry { Backgrounded: true, Outcome.IsNone: true }, () => false)
+            ? Tally(completed.Turn, tally => tally with { Lost = tally.Lost.Add(Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(entry => ((ToolEntry)entry).Named, () => string.Empty)) })
+            : this;
 
     private static ImmutableList<string> Trailed(ImmutableList<string> trail, string title) =>
         trail.Count < TrailKept ? trail.Add(title) : trail.RemoveAt(0).Add(title);
@@ -288,6 +294,7 @@ internal sealed record Transcript
         return (closed with { LiveSince = Option<DateTimeOffset>.None, QuietSince = now }).Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs)
         {
             Model = Ran.Map(reported => reported.Model),
+            Lost = tally.Lost,
         });
     }
 
@@ -318,6 +325,8 @@ internal sealed record Transcript
 
     private sealed record TurnTally(DateTimeOffset Started, TokenUsage Tokens, ImmutableList<Cost> Costs)
     {
+        public ImmutableList<string> Lost { get; init; } = [];
+
         public TurnTally Add(TokenUsage tokens, Option<Cost> cost) =>
             this with
             {

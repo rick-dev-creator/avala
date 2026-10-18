@@ -21,6 +21,8 @@ public sealed record ItemProgressed(SessionId Session, TurnId Turn, ItemId Item,
 
 public sealed record ItemTokensReported(SessionId Session, TurnId Turn, ItemId Item, long Tokens) : IAgentEvent;
 
+public sealed record ItemBackgrounded(SessionId Session, TurnId Turn, ItemId Item) : IAgentEvent;
+
 public sealed record ItemCompleted(SessionId Session, TurnId Turn, ItemId Item, ItemOutcome Outcome) : IAgentEvent;
 
 public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId Item, string Title, ItemKind Kind, string Target) : IAgentEvent

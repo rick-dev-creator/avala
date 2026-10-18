@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Presenting;
@@ -14,6 +15,31 @@ internal enum SubagentState
     Waiting,
     Done,
     Failed,
+    Stopped,
+    Lost,
+}
+
+internal static class SubagentStates
+{
+    public static string Text(SubagentState state) => state switch
+    {
+        SubagentState.Running => "running",
+        SubagentState.Waiting => "waiting",
+        SubagentState.Done => "done",
+        SubagentState.Stopped => "stopped",
+        SubagentState.Lost => "lost",
+        _ => "failed",
+    };
+
+    public static SubagentState Of(JobStatus status, Option<HoldReason> hold) => status switch
+    {
+        JobStatus.AwaitingReview or JobStatus.Approved => SubagentState.Done,
+        JobStatus.Failed => SubagentState.Failed,
+        JobStatus.Discarded => SubagentState.Stopped,
+        JobStatus.NeedsHelp when hold == Option<HoldReason>.Some(HoldReason.SessionLost) => SubagentState.Lost,
+        JobStatus.NeedsHelp => SubagentState.Waiting,
+        _ => SubagentState.Running,
+    };
 }
 
 internal interface ISubagentViewModel
@@ -42,12 +68,16 @@ internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) :
 {
     public const int Shown = 5;
 
-    private const string Prefix = "Subagent: ";
-
-    public string Name { get; } = entry.Title.StartsWith(Prefix, StringComparison.Ordinal) ? entry.Title[Prefix.Length..] : entry.Title;
+    public string Name { get; } = entry.Named;
 
     public SubagentState State { get; } = entry.Outcome.Match(
-        outcome => outcome == ItemOutcome.Succeeded ? SubagentState.Done : SubagentState.Failed,
+        outcome => outcome switch
+        {
+            ItemOutcome.Succeeded => SubagentState.Done,
+            ItemOutcome.Cancelled => SubagentState.Stopped,
+            ItemOutcome.Abandoned => SubagentState.Lost,
+            _ => SubagentState.Failed,
+        },
         () => waiting ? SubagentState.Waiting : SubagentState.Running);
 
     public string Activity { get; } = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
@@ -64,27 +94,21 @@ internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) :
     [RelayCommand(CanExecute = nameof(HasTrail))]
     private void Toggle() => IsOpen = !IsOpen;
 
-    public string StateText => State switch
-    {
-        SubagentState.Running => "running",
-        SubagentState.Waiting => "waiting",
-        SubagentState.Done => "done",
-        _ => "failed",
-    };
+    public string StateText => SubagentStates.Text(State);
 
     public static IReadOnlyList<ISubagentViewModel> Of(Option<BoardJob> job) =>
         job.Match<IReadOnlyList<ISubagentViewModel>>(
             found =>
             {
-                var asking = found.PendingDecisions > 0;
+                var asking = found.Transcript.Entries.OfType<PermissionEntry>().Where(permission => permission.AwaitsHuman).Select(permission => permission.Item).ToHashSet();
 
                 return
                 [
                     .. found.Transcript.Entries.OfType<ToolEntry>()
                         .Where(tool => tool.Kind == ItemKind.Subagent)
                         .TakeLast(Shown)
-                        .Select(tool => new SubagentViewModel(tool, asking))
-                        .OrderBy(subagent => subagent.State is SubagentState.Done or SubagentState.Failed),
+                        .Select(tool => new SubagentViewModel(tool, tool.Children.Overlaps(asking)))
+                        .OrderBy(subagent => subagent.State is not (SubagentState.Running or SubagentState.Waiting)),
                 ];
             },
             () => []);

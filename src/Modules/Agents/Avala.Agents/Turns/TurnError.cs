@@ -8,6 +8,7 @@ internal enum TurnError
     ItemAlreadyStarted,
     ItemAlreadyCompleted,
     UnknownItem,
+    ItemAlreadyBackgrounded,
     PermissionAlreadyPending,
     NoPendingPermission,
     MalformedForm,
