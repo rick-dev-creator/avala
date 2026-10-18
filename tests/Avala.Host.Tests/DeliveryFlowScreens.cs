@@ -100,19 +100,19 @@ public sealed class DeliveryFlowScreens(HeadlessUi ui, PublishedPlugins plugins)
         var section = (await workbench.InspectAsync(job, "PullRequestSectionViewModel"))[0];
         await run.Ui.PresentedAsync(section.Presentation, () => section["Fact"].Text.Contains($"#{number}", StringComparison.Ordinal), () => $"the inspector reads {section["Fact"].Text}");
 
-        await Camera.ShootAsync(run, "stabilize-agent-pull-request-inspector");
+        await Camera.ShootAsync(run, "stabilize-agent-pull-request-inspector", FeatureCamera.Unfold("Pull request"));
     }
 
     [Fact]
     public async Task AJobWithoutChecksShowsWhatTheAgentRanAfterItsLastEditAndOffersToDeclareChecksAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("edit"), [], []);
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("edit"), [], [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.InspectAsync(run.Job, "EvidenceSectionViewModel");
 
-        await Camera.ShootAsync(run, "stabilize-no-checks-evidence");
+        await Camera.ShootAsync(run, "stabilize-no-checks-evidence", FeatureCamera.Unfold("Evidence"));
 
         await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
         await Camera.ShootAsync(run, "stabilize-no-checks-review");
