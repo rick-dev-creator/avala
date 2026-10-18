@@ -7,7 +7,7 @@ public sealed record LayeredNodeSpec(GraphSize Size)
 
 public sealed record LayeredLink(int From, int To);
 
-public sealed record LayeredSpacing(double ColumnGap = 56, double RowGap = 72, double GroupPadding = 22, double GroupLabel = 22);
+public sealed record LayeredSpacing(double ColumnGap = 56, double RowGap = 60, double GroupPadding = 22, double GroupLabel = 22);
 
 public sealed record LayeredGraphLayout(IReadOnlyList<GraphRect> Nodes, IReadOnlyList<GraphRect> Groups, GraphSize Size)
 {
@@ -111,6 +111,7 @@ public static class LayeredLayout
         var count = groups + 2;
         var widths = Enumerable.Range(0, count).Select(region => regions.Max(row => Width(nodes, row[region], spacing))).ToList();
         var lefts = Lefts(widths, groups, spacing);
+        var closing = Enumerable.Range(0, groups).Select(group => rows.FindLastIndex(row => row.Any(node => nodes[node].Group == group))).ToHashSet();
 
         var y = 0.0;
 
@@ -131,7 +132,7 @@ public static class LayeredLayout
                 }
             }
 
-            y += height + spacing.RowGap + (groups > 0 ? spacing.GroupLabel : 0);
+            y += height + spacing.RowGap + (closing.Contains(index) ? spacing.GroupLabel : 0);
         }
 
         return placed;

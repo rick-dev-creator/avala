@@ -31,11 +31,26 @@ public sealed class C4PlayerViewModelScripts
             Steps = [],
             Document = last.Document with { Sections = [new("webhooks", "Webhooks", "Checks the signature."), new("payments", "Payments", "Applies the refund.")] },
         };
-        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher());
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
 
         player.Show(story with { Versions = [.. story.Versions, built] });
 
         Assert.Equal([("Webhooks", "Checks the signature.", ""), ("Payments", "Applies the refund.", "")], player.Sections.Select(section => (section.Title, section.Text, section.Mark)));
+    }
+
+    [Theory]
+    [InlineData(0, "No change to the diagram")]
+    [InlineData(1, "1 step")]
+    public void AtTheStartAVersionSaysHowManyStepsItPlaysOrThatItChangesNothing(int count, string position)
+    {
+        var story = DesignStories.Ledger();
+        var last = story.Versions[^1];
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
+        player.Show(story with { Versions = [.. story.Versions, last with { Number = 3, Kind = Documentation.Contracts.VersionKind.AsBuilt, Steps = [.. last.Steps.Take(count)] }] });
+
+        player.StopCommand.Execute(null);
+
+        Assert.Equal(position, player.Position);
     }
 
     [Fact]
@@ -114,7 +129,7 @@ public sealed class C4PlayerViewModelScripts
     [Fact]
     public void AVersionWhoseMermaidThePlayerCannotReadShowsItAsMermaidDrawsItWithoutPlaying()
     {
-        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher());
+        using var player = new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
         var document = new Documentation.Contracts.VersionDocument("Refund webhooks", string.Empty, [], []) { Unread = ["flowchart LR\n  a --> b\n"] };
         var empty = new Documentation.Contracts.C4Diagram(Documentation.Contracts.C4Level.Container, string.Empty, [], [], []);
 
@@ -124,9 +139,22 @@ public sealed class C4PlayerViewModelScripts
         Assert.Equal(("text/vnd.mermaid", "flowchart LR\n  a --> b\n", false), (canvas.MediaType, canvas.Content, player.IsDrawn));
     }
 
+    [Fact]
+    public void AnotherVersionIsFittedAgainWhileAStepKeepsTheZoom()
+    {
+        using var player = Player(new FakeTimeProvider());
+        player.Zoom.ZoomInCommand.Execute(null);
+
+        player.BackCommand.Execute(null);
+        var stepped = player.Zoom.IsFitted;
+        player.Version = 0;
+
+        Assert.Equal((false, true), (stepped, player.Zoom.IsFitted));
+    }
+
     private static C4PlayerViewModel Player(FakeTimeProvider time)
     {
-        var player = new C4PlayerViewModel(time, new InlineUiDispatcher());
+        var player = new C4PlayerViewModel(time, new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
         player.Show(DesignStories.Ledger());
 
         return player;

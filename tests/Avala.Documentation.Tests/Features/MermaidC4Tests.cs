@@ -72,6 +72,16 @@ public sealed class MermaidC4Tests
         Assert.Equal([new C4Boundary("ledger", "Ledger API")], diagram.Boundaries);
     }
 
+    [Fact]
+    public void ABoundaryDeclaredAgainInsideItselfKeepsThePlaceOfItsFirstDeclarationSoNoFrameEnclosesItself()
+    {
+        var itself = Outcomes.Present(MermaidC4.Read("C4Container\n  System_Boundary(ledger, \"Ledger\") {\n    System_Boundary(ledger, \"Ledger API\") {\n      Container(payments, \"Payments\", \"Go\")\n    }\n  }"));
+        var around = Outcomes.Present(MermaidC4.Read("C4Container\n  System_Boundary(b, \"B\") {\n    System_Boundary(a, \"A\") {\n      System_Boundary(b, \"B again\") {\n        Container(x, \"X\", \"Go\")\n      }\n    }\n  }"));
+
+        Assert.Equal([new C4Boundary("ledger", "Ledger API")], itself.Boundaries);
+        Assert.Equal([new C4Boundary("b", "B again"), new C4Boundary("a", "A") { Parent = "b" }], around.Boundaries);
+    }
+
     [Theory]
     [InlineData("flowchart LR\n  a --> b")]
     [InlineData("")]

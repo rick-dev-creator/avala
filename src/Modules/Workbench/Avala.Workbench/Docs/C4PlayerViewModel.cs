@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avala.Components.Graphs;
+using Avala.Components.Zooming;
 using Avala.Documentation.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Documenting;
@@ -32,6 +33,8 @@ internal interface IC4PlayerViewModel
 
     IReadOnlyList<GraphLink> Structure { get; }
 
+    IReadOnlyList<GraphLink> Flows { get; }
+
     IReadOnlyList<IDocSectionViewModel> Sections { get; }
 
     IReadOnlyList<Conversation.ICanvasViewModel> Unread { get; }
@@ -55,10 +58,12 @@ internal interface IC4PlayerViewModel
     IRelayCommand NextCommand { get; }
 
     IRelayCommand SpeedCommand { get; }
+
+    IZoomViewModel Zoom { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher dispatcher) : IC4PlayerViewModel, IDisposable
+internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher dispatcher, IZoomViewModel zoom) : IC4PlayerViewModel, IDisposable
 {
     private static readonly double[] Speeds = [1, 1.5, 2, 0.5];
     private static readonly TimeSpan StepPause = TimeSpan.FromSeconds(1.9);
@@ -76,6 +81,8 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
     public IReadOnlyList<IC4NodeViewModel> Nodes => nodes;
 
     public IReadOnlyList<IDocSectionViewModel> Sections => sections;
+
+    public IZoomViewModel Zoom => zoom;
 
     public IReadOnlyList<DocSectionViewModel> Shown => sections;
 
@@ -108,6 +115,9 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
 
     [ObservableProperty]
     public partial IReadOnlyList<GraphLink> Structure { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<GraphLink> Flows { get; private set; } = [];
 
     [ObservableProperty]
     public partial IReadOnlyList<Conversation.ICanvasViewModel> Unread { get; private set; } = [];
@@ -294,6 +304,7 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
         Lead = played.Match(found => found.Document.Lead, () => string.Empty);
         Path = played.Match(found => found.File, () => string.Empty);
         IsDrawn = played.Match(found => found.Structure.Elements.Count > 0, () => false);
+        zoom.IsFitted = true;
         Unread = IsDrawn ? [] : played.Match(
             found => (IReadOnlyList<Conversation.ICanvasViewModel>)[.. found.Document.Unread.Select((source, index) => new Conversation.CanvasViewModel(new Timeline.CanvasEntry($"unread-{index}", found.Document.Title, "text/vnd.mermaid", source, Canvas.Contracts.CanvasStatus.Completed)))],
             () => []);
@@ -329,6 +340,7 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
         Links = scene.Links;
         Frames = scene.Frames;
         Structure = Structure.SequenceEqual(scene.Structure) ? Structure : scene.Structure;
+        Flows = Flows.SequenceEqual(scene.Flows) ? Flows : scene.Flows;
         Caption = scene.Caption;
         var steps = Steps;
         Position = DocsPhrases.Step(step, steps.Count, step >= 0 && step < steps.Count ? steps[step].Title : string.Empty);

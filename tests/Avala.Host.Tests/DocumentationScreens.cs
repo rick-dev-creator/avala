@@ -4,6 +4,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk.Regions;
 using Avala.Testing;
 using Avala.Testing.UI;
+using Avalonia.Controls;
 using Avalonia.Styling;
 
 namespace Avala.Host.Tests;
@@ -54,6 +55,9 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
 
         await Camera.ShootAsync(run, "docs-app-03-docs-pane-dark");
         await Camera.ShootAsync(run, "docs-app-03-docs-pane-light", ThemeVariant.Light);
+        await Camera.ShootAsync(run, "docs-app-03-docs-pane-narrow-dark", Narrow);
+        await Camera.ShootAsync(run, "docs-app-03-docs-pane-narrow-light", ThemeVariant.Light, Narrow);
+        await Camera.ShootAsync(run, "docs-app-03-docs-pane-wide-dark", Wide);
 
         Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
         _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
@@ -103,10 +107,19 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
 
         await Camera.ShootAsync(run, "docs-feature-page-dark");
         await Camera.ShootAsync(run, "docs-feature-page-light", ThemeVariant.Light);
+        await Camera.ShootAsync(run, "docs-feature-page-narrow-dark", Narrow);
+        await Camera.ShootAsync(run, "docs-feature-page-narrow-light", ThemeVariant.Light, Narrow);
+        await Camera.ShootAsync(run, "docs-feature-page-wide-dark", Wide);
+        await Camera.ShootAsync(run, "docs-feature-page-wide-light", ThemeVariant.Light, Wide);
 
         await run.Ui.InvokeAsync(() => page["Player"].Execute("NextCommand"), Cancellation);
         await run.Ui.InvokeAsync(() => page["Player"].Execute("NextCommand"), Cancellation);
         await Camera.ShootAsync(run, "docs-feature-page-step-dark");
+
+        await run.Ui.InvokeAsync(() => page["Player"]["Zoom"].Execute("ZoomInCommand"), Cancellation);
+        await run.Ui.InvokeAsync(() => page["Player"]["Zoom"].Execute("ZoomInCommand"), Cancellation);
+        await Camera.ShootAsync(run, "docs-feature-page-zoomed-dark", Narrow);
+        await Camera.ShootAsync(run, "docs-feature-page-zoomed-light", ThemeVariant.Light, Narrow);
 
         var site = Outcomes.Succeeds(await run.Get<IDocumentation>().CreateSiteAsync(run.Repository.Path, Cancellation));
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(site.Job));
@@ -143,6 +156,14 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
         Assert.Contains("Changelog again", shown.Item2);
         await Camera.ShootAsync(run, "docs-pane-repeated-name-dark");
         await Camera.ShootAsync(run, "docs-pane-repeated-name-light", ThemeVariant.Light);
+    }
+
+    private static void Narrow(Window window) => window.Width = 960;
+
+    private static void Wide(Window window)
+    {
+        window.Width = 1920;
+        window.Height = 1080;
     }
 
     private static void Copy(string from, string to)

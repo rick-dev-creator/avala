@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
 using Avala.Components.Pictures;
 using Avala.Components.Privacy;
+using Avala.Components.Zooming;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Components.UI.Pictures;
@@ -499,6 +500,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
+            .AddTransient<IZoomViewModel, ZoomViewModel>()
             .AddTransient<C4PlayerViewModel>()
             .AddSingleton<DocsReader>()
             .AddSingleton<DocsToggleViewModel>()

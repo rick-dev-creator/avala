@@ -47,7 +47,7 @@ public sealed class DocsFeatureScreens(HeadlessUi ui)
     public Task TheC4PlayerAtRestAndMidFlowAsync(string variant) =>
         ShootAsync(() =>
         {
-            using var player = new Avala.Workbench.Docs.C4PlayerViewModel(TimeProvider.System, new InlineUiDispatcher());
+            using var player = new Avala.Workbench.Docs.C4PlayerViewModel(TimeProvider.System, new InlineUiDispatcher(), new Avala.Components.Zooming.ZoomViewModel());
             player.Show(Avala.Workbench.Docs.DesignStories.Ledger());
             var view = Show(player, variant, 1240, 720);
             Save(view, $"docs-player-{variant}");
