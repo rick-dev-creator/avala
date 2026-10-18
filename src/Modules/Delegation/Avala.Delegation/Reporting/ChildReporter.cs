@@ -70,16 +70,10 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
     {
         foreach (var parent in reported.Parent.Match<JobId[]>(found => [found], () => []))
         {
-            var claimed = await journal.ClaimedAsync([reported], cancellationToken);
-
-            if (claimed.Count == 0)
+            if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
             {
-                continue;
+                await journal.ConfirmedAsync(await journal.ClaimedAsync([reported], cancellationToken), cancellationToken);
             }
-
-            await ((await jobs.SteerAsync(parent, ToolAnswers.Briefing(claimed), cancellationToken)).IsSuccess
-                ? journal.ConfirmedAsync(claimed, cancellationToken)
-                : journal.ReleasedAsync(claimed, cancellationToken));
         }
     }
 
