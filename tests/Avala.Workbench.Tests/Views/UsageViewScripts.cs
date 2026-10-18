@@ -29,6 +29,32 @@ public sealed class UsageViewScripts(HeadlessUi ui)
             Assert.Equal((true, true, false), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup")));
         }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task ADaysCostAtApiPricesReadsWholeOnItsRowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PricedDay(), Avalonia.Styling.ThemeVariant.Dark, 1200, 200);
+            var cost = view.Find<TextBlock>("Cost");
+            cost.Measure(Size.Infinity);
+
+            Assert.True(cost.DesiredSize.Width <= cost.Bounds.Width, $"the cost needs {cost.DesiredSize.Width} and is given {cost.Bounds.Width}");
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class PricedDay : IUsageDayViewModel
+    {
+        public string Day => "Sun 18 Oct · today";
+
+        public string Tokens => "15,275 tokens";
+
+        public string Cost => "0.06 USD at API prices";
+
+        public string Types => "15,275 input";
+
+        public double Share => 1;
+
+        public bool IsToday => true;
+    }
+
     private sealed class EmptyUsage : IUsageViewModel
     {
         public string Title => "Usage";
