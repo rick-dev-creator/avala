@@ -374,7 +374,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
     public Task ARowsMenuOffersMoveToWithItsProjectsAndASubAgentsRowHidesItAsync() =>
         ui.RunAsync(() =>
         {
-            MenuItem MoveTo(object row)
+            (ViewScript View, MenuItem Item) MoveTo(object row)
             {
                 var view = Screen.Show(row);
                 var control = view.All<UserControl>().First(found => found.GetType().Name == "JobRowView");
@@ -382,14 +382,20 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
                 flyout.ShowAt(control);
                 view.Settle();
 
-                return flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo");
+                return (view, flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo"));
             }
 
-            var movable = MoveTo(new DesignJobRowViewModel());
-            var child = MoveTo(new DesignJobRowViewModel() { IsChild = true });
+            var (shown, movable) = MoveTo(new DesignJobRowViewModel());
+            var child = MoveTo(new DesignJobRowViewModel() { IsChild = true }).Item;
+            movable.IsSubMenuOpen = true;
+            shown.Settle();
+            var glyphs = movable.GetRealizedContainers().OfType<MenuItem>()
+                .Select(target => target.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(path => path.Classes.Contains("icon") && path.IsEffectivelyVisible).Data)
+                .ToList();
 
             Assert.Equal(("Move to", true), (movable.Header, movable.IsVisible));
             Assert.Equal(["payments-api", "Side projects", "New project…"], movable.Items.OfType<MoveTarget>().Select(target => target.Name));
+            Assert.Equal([shown.Window.FindResource("IconFolder"), shown.Window.FindResource("IconFolder"), shown.Window.FindResource("IconPlus")], glyphs);
             Assert.False(child.IsVisible);
         }, TestContext.Current.CancellationToken);
 

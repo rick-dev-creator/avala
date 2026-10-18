@@ -88,14 +88,26 @@
                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                   <MenuItem x:Name="CopyMarkdown"
                             Header="Copy as Markdown"
-                            Command="{Binding Conversation.CopyMarkdownCommand}" />
+                            Command="{Binding Conversation.CopyMarkdownCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconCopy}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                   <MenuItem x:Name="Export"
                             Header="Export…"
-                            Command="{Binding Conversation.ExportCommand}" />
+                            Command="{Binding Conversation.ExportCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconSave}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                   <Separator />
                   <MenuItem x:Name="StopSession"
                             Header="Stop Session"
-                            Command="{Binding Conversation.Composer.StopCommand}" />
+                            Command="{Binding Conversation.Composer.StopCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconStop}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                 </MenuFlyout>
               </Button.Flyout>
             </Button>

@@ -28,7 +28,7 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
     [
         MoveTarget.To("payments-api", _ => Task.CompletedTask),
         MoveTarget.To("Side projects", _ => Task.CompletedTask),
-        MoveTarget.To(ProjectPhrases.NewProject, _ => Task.CompletedTask),
+        MoveTarget.ToNew(_ => Task.CompletedTask),
     ];
 
     public bool ShowsElapsed { get; init; }

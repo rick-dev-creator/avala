@@ -436,7 +436,7 @@ public sealed class SidebarViewModelScripts : IDisposable
 
         var parent = Assert.IsType<JobRowViewModel>(Assert.Single(Group(sidebar, "ledger").Open));
         var sub = Assert.IsType<JobRowViewModel>(Assert.Single(parent.Children));
-        Assert.Equal(["Side projects", "website", "New project…"], parent.MoveTargets.Select(target => target.Name));
+        Assert.Equal([("Side projects", false), ("website", false), ("New project…", true)], parent.MoveTargets.Select(target => (target.Name, target.IsNew)));
         Assert.Equal((true, false), (parent.CanMove, sub.CanMove));
     }
 

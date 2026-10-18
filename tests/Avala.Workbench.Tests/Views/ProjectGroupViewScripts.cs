@@ -138,6 +138,23 @@ public sealed class ProjectGroupViewScripts(HeadlessUi ui)
             Assert.Equal("It needs you before it can be archived", view.TextOf("Refusal"));
         }, Cancellation);
 
+    [Fact]
+    public Task AProjectsMenuSetsDeletingApartAtItsEndAndMarksItDestructiveAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignProjectGroupViewModel { Done = [Row("Paginate the export", JobGroup.Done)] });
+            var header = view.Find<Button>("Header");
+            var menu = Assert.IsType<MenuFlyout>(header.ContextFlyout);
+
+            menu.ShowAt(header);
+            view.Settle();
+            var shown = menu.Items.OfType<Control>().Where(item => item.IsVisible).ToList();
+
+            Assert.Equal(["Rename", "DocumentFeatures", "ArchiveDoneItem", "Separator", "Delete"], shown.Select(item => item is Separator ? "Separator" : item.Name));
+            Assert.Contains("destructive", shown[^1].Classes);
+            Assert.All(shown.OfType<MenuItem>(), item => Assert.NotNull(item.Icon));
+        }, Cancellation);
+
     private static List<Button> Archives(ViewScript view) =>
         [.. view.All<Button>().Where(button => AutomationProperties.GetName(button) == "Archive")];
 

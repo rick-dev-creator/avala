@@ -16,14 +16,30 @@
   <UserControl.ContextFlyout>
     <MenuFlyout>
       <MenuItem x:Name="MoveTo" Header="Move to" ItemsSource="{Binding MoveTargets}" IsVisible="{Binding CanMove}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconFolder}" />
+        </MenuItem.Icon>
         <MenuItem.ItemContainerTheme>
           <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="sidebar:MoveTarget">
             <Setter Property="Header" Value="{Binding Name}" />
             <Setter Property="Command" Value="{Binding Move}" />
+            <Setter Property="ToolTip.Tip" Value="{Binding Name}" />
+            <Setter Property="Icon">
+              <Template>
+                <Panel>
+                  <Path Classes="icon" Data="{StaticResource IconFolder}" IsVisible="{Binding !IsNew}" />
+                  <Path Classes="icon" Data="{StaticResource IconPlus}" IsVisible="{Binding IsNew}" />
+                </Panel>
+              </Template>
+            </Setter>
           </ControlTheme>
         </MenuItem.ItemContainerTheme>
       </MenuItem>
-      <MenuItem x:Name="Archive" Header="Archive" Command="{Binding ArchiveCommand}" IsVisible="{Binding CanArchive}" />
+      <MenuItem x:Name="Archive" Header="Archive" Command="{Binding ArchiveCommand}" IsVisible="{Binding CanArchive}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconArchive}" />
+        </MenuItem.Icon>
+      </MenuItem>
     </MenuFlyout>
   </UserControl.ContextFlyout>
   <UserControl.Styles>
