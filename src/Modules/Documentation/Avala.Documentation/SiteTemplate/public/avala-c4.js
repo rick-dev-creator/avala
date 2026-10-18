@@ -11,6 +11,7 @@ const hopPause = 1400;
 const laneGap = 34;
 const laneShift = 18;
 const clearance = 4;
+const farAway = 40;
 const along = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9];
 const zoomStep = 1.25;
 const wheelStep = 1.2;
@@ -271,11 +272,11 @@ function middle(box) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-function cuts(from, to, box) {
-  const left = box.x - clearance;
-  const top = box.y - clearance;
-  const right = box.x + box.width + clearance;
-  const bottom = box.y + box.height + clearance;
+function cuts(from, to, box, margin) {
+  const left = box.x - margin;
+  const top = box.y - margin;
+  const right = box.x + box.width + margin;
+  const bottom = box.y + box.height + margin;
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   let enter = 0;
@@ -297,8 +298,12 @@ function cuts(from, to, box) {
   return enter < leave;
 }
 
-function clear(points, blocking) {
-  return points.slice(1).every((point, at) => blocking.every(box => !cuts(points[at], point, box)));
+function clear(points, blocking, margin = clearance) {
+  return points.slice(1).every((point, at) => blocking.every(box => !cuts(points[at], point, box, margin)));
+}
+
+function apart(points, from, to) {
+  return points.slice(1).every((point, at) => (at === 0 || !cuts(points[at], point, from, -1)) && (at === points.length - 2 || !cuts(points[at], point, to, -1)));
 }
 
 function length(points) {
@@ -324,17 +329,15 @@ function exit(box, origin, toward) {
   return { x: origin.x + dx * t, y: origin.y + dy * t };
 }
 
-function route(from, to, boxes, { lane, order }) {
-  const blocking = boxes.filter(box => box !== from && box !== to);
+function spread(size, outward) {
+  return (size / 2 - 4) * outward / (outward + size / 2);
+}
+
+function shapes(from, to, blocking, order, count) {
   const [a, b] = [middle(from), middle(to)];
-  const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-  const origin = inside(from, { x: a.x - (b.y - a.y) / span * lane, y: a.y + (b.x - a.x) / span * lane });
-  const target = inside(to, { x: b.x - (b.y - a.y) / span * lane, y: b.y + (b.x - a.x) / span * lane });
-  const straight = [exit(from, origin, target), exit(to, target, origin)];
-  if (clear(straight, blocking)) {
-    return straight;
-  }
   const outward = order * laneShift;
+  const jog = (order - (count - 1) / 2) * laneShift;
+  const band = (count - 1) / 2 * laneShift;
   const downward = b.y >= a.y ? 1 : -1;
   const rightward = b.x >= a.x ? 1 : -1;
   const column = [...blocking.filter(box => box.y < Math.max(a.y, b.y) && box.y + box.height > Math.min(a.y, b.y)), from, to];
@@ -343,58 +346,93 @@ function route(from, to, boxes, { lane, order }) {
   const west = Math.min(...column.map(box => box.x)) - laneGap - outward;
   const north = Math.min(...row.map(box => box.y)) - laneGap - outward;
   const south = Math.max(...row.map(box => box.y + box.height)) + laneGap + outward;
-  const [ay, by] = [inside(from, { x: a.x, y: a.y - downward * outward / 2 }).y, inside(to, { x: b.x, y: b.y + downward * outward / 2 }).y];
-  const [ax, bx] = [inside(from, { x: a.x - rightward * outward / 2, y: a.y }).x, inside(to, { x: b.x + rightward * outward / 2, y: b.y }).x];
-  const bends = [];
+  const [ay, by] = [a.y - downward * spread(from.height, outward), b.y + downward * spread(to.height, outward)];
+  const [ax, bx] = [a.x - rightward * spread(from.width, outward), b.x + rightward * spread(to.width, outward)];
+  const options = [];
   if (to.y > from.y + from.height || from.y > to.y + to.height) {
-    const down = to.y > from.y;
-    const [leave, arrive] = down ? [from.y + from.height, to.y] : [from.y, to.y + to.height];
-    const [start, end] = [inside(from, { x: a.x + rightward * outward, y: a.y }).x, inside(to, { x: b.x + rightward * outward, y: b.y }).x];
-    for (const y of [(leave + arrive) / 2, arrive + (down ? -laneGap / 2 : laneGap / 2), leave + (down ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: start, y: leave }, { x: start, y: y - downward * outward }, { x: end, y: y - downward * outward }, { x: end, y: arrive }]);
+    const [leave, arrive] = downward > 0 ? [from.y + from.height, to.y] : [from.y, to.y + to.height];
+    const [start, end] = [a.x + rightward * jog, b.x + rightward * jog];
+    for (const y of [(leave + arrive) / 2, arrive - downward * laneGap / 2, leave + downward * laneGap / 2]) {
+      const roomy = Math.abs(y - leave) > band + 6 && Math.abs(arrive - y) > band + 6
+        && Math.abs(start - a.x) < from.width / 2 - 2 && Math.abs(end - b.x) < to.width / 2 - 2;
+      options.push(roomy ? [{ x: start, y: leave }, { x: start, y: y - downward * jog }, { x: end, y: y - downward * jog }, { x: end, y: arrive }] : null);
     }
+  } else {
+    options.push(null, null, null);
   }
   if (to.x > from.x + from.width || from.x > to.x + to.width) {
-    const right = to.x > from.x;
-    const [leave, arrive] = right ? [from.x + from.width, to.x] : [from.x, to.x + to.width];
-    const [start, end] = [inside(from, { x: a.x, y: a.y + downward * outward }).y, inside(to, { x: b.x, y: b.y + downward * outward }).y];
-    for (const x of [(leave + arrive) / 2, arrive + (right ? -laneGap / 2 : laneGap / 2), leave + (right ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: leave, y: start }, { x: x - rightward * outward, y: start }, { x: x - rightward * outward, y: end }, { x: arrive, y: end }]);
+    const [leave, arrive] = rightward > 0 ? [from.x + from.width, to.x] : [from.x, to.x + to.width];
+    const [start, end] = [a.y + downward * jog, b.y + downward * jog];
+    for (const x of [(leave + arrive) / 2, arrive - rightward * laneGap / 2, leave + rightward * laneGap / 2]) {
+      const roomy = Math.abs(x - leave) > band + 6 && Math.abs(arrive - x) > band + 6
+        && Math.abs(start - a.y) < from.height / 2 - 2 && Math.abs(end - b.y) < to.height / 2 - 2;
+      options.push(roomy ? [{ x: leave, y: start }, { x: x - rightward * jog, y: start }, { x: x - rightward * jog, y: end }, { x: arrive, y: end }] : null);
     }
+  } else {
+    options.push(null, null, null);
   }
-  const detours = [
-    ...bends,
+  return [
+    ...options,
     [{ x: from.x + from.width, y: ay }, { x: east, y: ay }, { x: east, y: by }, { x: to.x + to.width, y: by }],
     [{ x: from.x, y: ay }, { x: west, y: ay }, { x: west, y: by }, { x: to.x, y: by }],
     [{ x: ax, y: from.y }, { x: ax, y: north }, { x: bx, y: north }, { x: bx, y: to.y }],
     [{ x: ax, y: from.y + from.height }, { x: ax, y: south }, { x: bx, y: south }, { x: bx, y: to.y + to.height }],
-  ].filter(points => clear(points, blocking));
-  return detours.length ? detours.reduce((best, points) => length(points) < length(best) ? points : best) : straight;
+  ];
 }
 
-function spot(points, width, height, taken) {
+function route(from, to, boxes, { lane, order, count }) {
+  const blocking = boxes.filter(box => box !== from && box !== to);
+  const [a, b] = [middle(from), middle(to)];
+  const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const origin = inside(from, { x: a.x - (b.y - a.y) / span * lane, y: a.y + (b.x - a.x) / span * lane });
+  const target = inside(to, { x: b.x - (b.y - a.y) / span * lane, y: b.y + (b.x - a.x) / span * lane });
+  const straight = [exit(from, origin, target), exit(to, target, origin)];
+  if (clear([exit(from, a, b), exit(to, b, a)], blocking, clearance + 1.5 * laneShift)) {
+    return straight;
+  }
+  const band = (count - 1) / 2 * laneShift;
+  const roomy = shapes(from, to, blocking, 0, count);
+  const base = shapes(from, to, blocking, 0, 1).map((points, index) => ({ points, index }))
+    .filter(({ points, index }) => points && apart(points, from, to) && (index < 6 ? roomy[index] && clear(points, blocking, clearance + band) : clear(points, blocking)));
+  if (!base.length) {
+    return straight;
+  }
+  const chosen = base.reduce((best, option) => length(option.points) < length(best.points) ? option : best);
+  return shapes(from, to, blocking, order, count)[chosen.index];
+}
+
+function spot(points, width, height, taken, reach) {
   const [a, b] = points.slice(1).map((point, at) => [points[at], point])
     .reduce((best, segment) => Math.hypot(segment[1].x - segment[0].x, segment[1].y - segment[0].y) > Math.hypot(best[1].x - best[0].x, best[1].y - best[0].y) ? segment : best);
   const span = Math.hypot(b.x - a.x, b.y - a.y);
   const [nx, ny] = span > 0 ? [-(b.y - a.y) / span, (b.x - a.x) / span] : [1, 0];
   const beside = Math.abs(nx) * width / 2 + Math.abs(ny) * height / 2 + clearance + 2;
-  const spots = [0, 1, -1, 2, -2, 3, -3, 4, -4].flatMap(side => along.map(t => ({
-    x: a.x + (b.x - a.x) * t + nx * side * beside - width / 2, y: a.y + (b.y - a.y) * t + ny * side * beside - height / 2, width, height,
+  const sides = [0];
+  for (let side = 1; side <= reach; side++) {
+    sides.push(side, -side);
+  }
+  const spots = sides.flatMap(side => along.map(t => ({
+    side, x: a.x + (b.x - a.x) * t + nx * side * beside - width / 2, y: a.y + (b.y - a.y) * t + ny * side * beside - height / 2, width, height,
   })));
   const covered = (one, other) => {
     const across = Math.min(one.x + one.width, other.x + other.width) - Math.max(one.x, other.x) + 2 * clearance;
     const down = Math.min(one.y + one.height, other.y + other.height) - Math.max(one.y, other.y) + 2 * clearance;
     return across > 0 && down > 0 ? across * down : 0;
   };
-  const crowding = candidate => taken.reduce((sum, other) => sum + covered(candidate, other), 0);
-  return spots.reduce((best, candidate) => crowding(candidate) < crowding(best) ? candidate : best);
+  const crowding = candidate => taken.reduce((sum, other) => sum + covered(candidate, other), 0) + farAway * Math.abs(candidate.side);
+  const { x, y } = spots.reduce((best, candidate) => crowding(candidate) < crowding(best) ? candidate : best);
+  return { x, y, width, height };
+}
+
+function pairOf(relation) {
+  return relation.from <= relation.to ? `${relation.from}\u0000${relation.to}` : `${relation.to}\u0000${relation.from}`;
 }
 
 function lanes(relations) {
   return relations.map(relation => {
-    const pair = relations.filter(other => (other.from === relation.from && other.to === relation.to) || (other.from === relation.to && other.to === relation.from));
+    const pair = relations.filter(other => pairOf(other) === pairOf(relation));
     const order = pair.indexOf(relation);
-    return { lane: (order - (pair.length - 1) / 2) * laneShift * (relation.from <= relation.to ? 1 : -1), order };
+    return { lane: (order - (pair.length - 1) / 2) * laneShift * (relation.from <= relation.to ? 1 : -1), order, count: pair.length };
   });
 }
 
@@ -533,10 +571,11 @@ class AvalaC4 extends HTMLElement {
         release(event);
         return;
       }
+      const at = this.pointOf(event);
       if (event.pointerType !== "mouse" && this.fitted && this.pointers.size < 2) {
+        this.pointers.set(event.pointerId, at);
         return;
       }
-      const at = this.pointOf(event);
       this.pointers.set(event.pointerId, at);
       if (this.pinch && this.pointers.size === 2) {
         const [one, other] = [...this.pointers.values()];
@@ -705,11 +744,12 @@ class AvalaC4 extends HTMLElement {
       const caption = element("text", { x: frame.x + 14, y: frame.y + frame.height - 11 }, group);
       caption.textContent = frame.boundary.label;
       if (measure(caption, "600 11.5px") > frame.width - 28) {
+        const characters = Array.from(frame.boundary.label.slice(0, 1000));
         const fits = kept => {
-          caption.textContent = `${frame.boundary.label.slice(0, kept).trimEnd()}…`;
+          caption.textContent = `${characters.slice(0, kept).join("").trimEnd()}…`;
           return measure(caption, "600 11.5px") <= frame.width - 28;
         };
-        let [low, high] = [0, Math.min(frame.boundary.label.length - 1, 400)];
+        let [low, high] = [0, Math.min(characters.length - 1, 400)];
         while (low < high) {
           const half = Math.ceil((low + high) / 2);
           [low, high] = fits(half) ? [half, high] : [low, half - 1];
@@ -728,7 +768,8 @@ class AvalaC4 extends HTMLElement {
     ]), ...this.frames.map(frame => frame.label)];
     const drawn = [...boxes.values(), ...frames];
     const shifts = lanes(this.model.relations);
-    this.relations = this.model.relations.map((relation, index) => {
+    const badged = this.model.level === "Dynamic";
+    const entries = this.model.relations.map((relation, index) => {
       const from = boxes.get(relation.from);
       const to = boxes.get(relation.to);
       const points = route(from, to, [...boxes.values()], shifts[index]);
@@ -740,30 +781,39 @@ class AvalaC4 extends HTMLElement {
       const tag = element("g", { class: "relation" }, labelLayer);
       drawn.push(...points.map(point => ({ ...point, width: 0, height: 0 })));
       const label = relation.technology ? `${relation.label} [${relation.technology}]` : relation.label;
-      const badged = this.model.level === "Dynamic";
       if (!label && !badged) {
-        return { group, tag, path, relation };
+        return { group, tag, path, relation, width: 0 };
       }
       const plate = element("rect", { class: "plate", rx: 9 }, tag);
       const text = element("text", { "text-anchor": "start" }, tag);
       text.textContent = label;
-      const textWidth = label ? measure(text, "11.5px") : 0;
-      const width = textWidth + (badged ? 22 + (label ? 4 : 0) : 0) + 12;
-      const place = spot(points, width, 20, taken);
+      const width = (label ? measure(text, "11.5px") : 0) + (badged ? 22 + (label ? 4 : 0) : 0) + 12;
+      return { group, tag, path, relation, plate, text, width, points, index };
+    });
+    const bundles = new Map();
+    for (const entry of entries.filter(entry => entry.width)) {
+      bundles.set(pairOf(entry.relation), [...bundles.get(pairOf(entry.relation)) ?? [], entry]);
+    }
+    for (const rows of bundles.values()) {
+      const width = Math.max(...rows.map(row => row.width));
+      const place = spot(rows[Math.floor(rows.length / 2)].points, width, rows.length * 22 - 2, taken, rows.length > 1 ? 3 : 2);
       taken.push(place);
       drawn.push(place);
-      plate.setAttribute("x", place.x);
-      plate.setAttribute("y", place.y);
-      plate.setAttribute("width", place.width);
-      plate.setAttribute("height", place.height);
-      text.setAttribute("x", place.x + 6 + (badged ? 26 : 0));
-      text.setAttribute("y", place.y + 14);
-      if (badged) {
-        element("circle", { class: "badge", cx: place.x + 15, cy: place.y + 10, r: 9 }, tag);
-        element("text", { class: "index", x: place.x + 15, y: place.y + 13.6, "text-anchor": "middle" }, tag).textContent = index + 1;
-      }
-      return { group, tag, path, relation };
-    });
+      rows.forEach(({ tag, plate, text, index }, at) => {
+        const y = place.y + at * 22;
+        plate.setAttribute("x", place.x);
+        plate.setAttribute("y", y);
+        plate.setAttribute("width", width);
+        plate.setAttribute("height", 20);
+        text.setAttribute("x", place.x + 6 + (badged ? 26 : 0));
+        text.setAttribute("y", y + 14);
+        if (badged) {
+          element("circle", { class: "badge", cx: place.x + 15, cy: y + 10, r: 9 }, tag);
+          element("text", { class: "index", x: place.x + 15, y: y + 13.6, "text-anchor": "middle" }, tag).textContent = index + 1;
+        }
+      });
+    }
+    this.relations = entries.map(({ group, tag, path, relation }) => ({ group, tag, path, relation }));
     if (!drawn.length) {
       drawn.push({ x: 0, y: 0, width: nodeWidth, height: nodeHeight });
     }
