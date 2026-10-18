@@ -324,7 +324,7 @@ function exit(box, origin, toward) {
   return { x: origin.x + dx * t, y: origin.y + dy * t };
 }
 
-function route(from, to, boxes, lane) {
+function route(from, to, boxes, { lane, order }) {
   const blocking = boxes.filter(box => box !== from && box !== to);
   const [a, b] = [middle(from), middle(to)];
   const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
@@ -334,28 +334,32 @@ function route(from, to, boxes, lane) {
   if (clear(straight, blocking)) {
     return straight;
   }
-  const outward = lane >= 0 ? 2 * lane : -2 * lane - laneShift;
+  const outward = order * laneShift;
+  const downward = b.y >= a.y ? 1 : -1;
+  const rightward = b.x >= a.x ? 1 : -1;
   const column = [...blocking.filter(box => box.y < Math.max(a.y, b.y) && box.y + box.height > Math.min(a.y, b.y)), from, to];
   const row = [...blocking.filter(box => box.x < Math.max(a.x, b.x) && box.x + box.width > Math.min(a.x, b.x)), from, to];
   const east = Math.max(...column.map(box => box.x + box.width)) + laneGap + outward;
   const west = Math.min(...column.map(box => box.x)) - laneGap - outward;
   const north = Math.min(...row.map(box => box.y)) - laneGap - outward;
   const south = Math.max(...row.map(box => box.y + box.height)) + laneGap + outward;
-  const [ay, by] = [inside(from, { x: a.x, y: a.y + lane }).y, inside(to, { x: b.x, y: b.y + lane }).y];
-  const [ax, bx] = [inside(from, { x: a.x + lane, y: a.y }).x, inside(to, { x: b.x + lane, y: b.y }).x];
+  const [ay, by] = [inside(from, { x: a.x, y: a.y - downward * outward / 2 }).y, inside(to, { x: b.x, y: b.y + downward * outward / 2 }).y];
+  const [ax, bx] = [inside(from, { x: a.x - rightward * outward / 2, y: a.y }).x, inside(to, { x: b.x + rightward * outward / 2, y: b.y }).x];
   const bends = [];
   if (to.y > from.y + from.height || from.y > to.y + to.height) {
     const down = to.y > from.y;
     const [leave, arrive] = down ? [from.y + from.height, to.y] : [from.y, to.y + to.height];
+    const [start, end] = [inside(from, { x: a.x + rightward * outward, y: a.y }).x, inside(to, { x: b.x + rightward * outward, y: b.y }).x];
     for (const y of [(leave + arrive) / 2, arrive + (down ? -laneGap / 2 : laneGap / 2), leave + (down ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: ax, y: leave }, { x: ax, y: y + lane / 2 }, { x: bx, y: y + lane / 2 }, { x: bx, y: arrive }]);
+      bends.push([{ x: start, y: leave }, { x: start, y: y - downward * outward }, { x: end, y: y - downward * outward }, { x: end, y: arrive }]);
     }
   }
   if (to.x > from.x + from.width || from.x > to.x + to.width) {
     const right = to.x > from.x;
     const [leave, arrive] = right ? [from.x + from.width, to.x] : [from.x, to.x + to.width];
+    const [start, end] = [inside(from, { x: a.x, y: a.y + downward * outward }).y, inside(to, { x: b.x, y: b.y + downward * outward }).y];
     for (const x of [(leave + arrive) / 2, arrive + (right ? -laneGap / 2 : laneGap / 2), leave + (right ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: leave, y: ay }, { x: x + lane / 2, y: ay }, { x: x + lane / 2, y: by }, { x: arrive, y: by }]);
+      bends.push([{ x: leave, y: start }, { x: x - rightward * outward, y: start }, { x: x - rightward * outward, y: end }, { x: arrive, y: end }]);
     }
   }
   const detours = [
@@ -368,28 +372,29 @@ function route(from, to, boxes, lane) {
   return detours.length ? detours.reduce((best, points) => length(points) < length(best) ? points : best) : straight;
 }
 
-function overlaps(one, other) {
-  return one.x < other.x + other.width + clearance && other.x < one.x + one.width + clearance
-    && one.y < other.y + other.height + clearance && other.y < one.y + one.height + clearance;
-}
-
 function spot(points, width, height, taken) {
   const [a, b] = points.slice(1).map((point, at) => [points[at], point])
     .reduce((best, segment) => Math.hypot(segment[1].x - segment[0].x, segment[1].y - segment[0].y) > Math.hypot(best[1].x - best[0].x, best[1].y - best[0].y) ? segment : best);
   const span = Math.hypot(b.x - a.x, b.y - a.y);
   const [nx, ny] = span > 0 ? [-(b.y - a.y) / span, (b.x - a.x) / span] : [1, 0];
   const beside = Math.abs(nx) * width / 2 + Math.abs(ny) * height / 2 + clearance + 2;
-  const spots = [0, beside, -beside, 2 * beside, -2 * beside].flatMap(side => along.map(t => ({
-    x: a.x + (b.x - a.x) * t + nx * side - width / 2, y: a.y + (b.y - a.y) * t + ny * side - height / 2, width, height,
+  const spots = [0, 1, -1, 2, -2, 3, -3, 4, -4].flatMap(side => along.map(t => ({
+    x: a.x + (b.x - a.x) * t + nx * side * beside - width / 2, y: a.y + (b.y - a.y) * t + ny * side * beside - height / 2, width, height,
   })));
-  const crowding = candidate => taken.filter(other => overlaps(candidate, other)).length;
+  const covered = (one, other) => {
+    const across = Math.min(one.x + one.width, other.x + other.width) - Math.max(one.x, other.x) + 2 * clearance;
+    const down = Math.min(one.y + one.height, other.y + other.height) - Math.max(one.y, other.y) + 2 * clearance;
+    return across > 0 && down > 0 ? across * down : 0;
+  };
+  const crowding = candidate => taken.reduce((sum, other) => sum + covered(candidate, other), 0);
   return spots.reduce((best, candidate) => crowding(candidate) < crowding(best) ? candidate : best);
 }
 
 function lanes(relations) {
   return relations.map(relation => {
     const pair = relations.filter(other => (other.from === relation.from && other.to === relation.to) || (other.from === relation.to && other.to === relation.from));
-    return (pair.indexOf(relation) - (pair.length - 1) / 2) * laneShift * (relation.from <= relation.to ? 1 : -1);
+    const order = pair.indexOf(relation);
+    return { lane: (order - (pair.length - 1) / 2) * laneShift * (relation.from <= relation.to ? 1 : -1), order };
   });
 }
 
@@ -526,6 +531,9 @@ class AvalaC4 extends HTMLElement {
       }
       if (event.pointerType === "mouse" && !event.buttons) {
         release(event);
+        return;
+      }
+      if (event.pointerType !== "mouse" && this.fitted && this.pointers.size < 2) {
         return;
       }
       const at = this.pointOf(event);
@@ -696,8 +704,17 @@ class AvalaC4 extends HTMLElement {
       element("rect", { x: frame.x, y: frame.y, width: frame.width, height: frame.height, rx: 14 }, group);
       const caption = element("text", { x: frame.x + 14, y: frame.y + frame.height - 11 }, group);
       caption.textContent = frame.boundary.label;
-      for (let kept = frame.boundary.label.length; kept > 1 && measure(caption, "600 11.5px") > frame.width - 28; kept--) {
-        caption.textContent = `${frame.boundary.label.slice(0, kept - 1).trimEnd()}…`;
+      if (measure(caption, "600 11.5px") > frame.width - 28) {
+        const fits = kept => {
+          caption.textContent = `${frame.boundary.label.slice(0, kept).trimEnd()}…`;
+          return measure(caption, "600 11.5px") <= frame.width - 28;
+        };
+        let [low, high] = [0, Math.min(frame.boundary.label.length - 1, 400)];
+        while (low < high) {
+          const half = Math.ceil((low + high) / 2);
+          [low, high] = fits(half) ? [half, high] : [low, half - 1];
+        }
+        fits(low);
       }
       return { group, frame, label: { x: frame.x + 14, y: frame.y + frame.height - 24, width: measure(caption, "600 11.5px"), height: 16 } };
     });
