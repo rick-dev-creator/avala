@@ -417,7 +417,7 @@ public sealed class ProviderTests
             + "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
             + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
             + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
-            + "Never open a browser or take screenshots.",
+            + "Never open a browser for the person.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 
@@ -433,7 +433,24 @@ public sealed class ProviderTests
             "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
             + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
             + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
-            + "Never open a browser or take screenshots.",
+            + "Never open a browser for the person.",
+            After(cli.Launches.Single().Arguments, "--append-system-prompt"));
+    }
+
+    [Fact]
+    public async Task ASessionOfferedShowMediaIsAskedToShowVisualEvidenceSavedOutsideTheRepositoryAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var showMedia = new HarnessTool("show_media", "Show an image.", """{ "type": "object" }""", ToolSurface.Executed);
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Tools = [showMedia] }, Cancellation));
+
+        Assert.Equal(
+            "When you build or change something visual, such as a screen, a page or an app, show the person how it looks: "
+            + "save a screenshot or a rendered image of it outside the repository, such as in a temporary folder, so it does not land in the branch, "
+            + "and call the mcp__avala__show_media tool with its path and a short caption. "
+            + "Take it headless, without opening a browser in front of the person.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 
