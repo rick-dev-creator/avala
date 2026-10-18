@@ -30,6 +30,17 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AMenuJustOpenedHighlightsNoItemUntilThePointerOrTheKeyboardReachesOneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var view = Opened(rename, archive);
+
+            Assert.DoesNotContain(Brush(view, "AccentBrush"), new[] { rename, archive }.Select(item => Color(Part<Border>(item, "PART_LayoutRoot").Background)));
+        }, Cancellation);
+
+    [Fact]
     public Task ACheckedItemKeepsTheIconColumnWhereEveryOtherItemHasItAsync() =>
         ui.RunAsync(() =>
         {
