@@ -154,6 +154,16 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public string PullRequestOffer { get; init; } = "Open pull request on github (GitHub, origin)";
 
+    public string ApproveLabel { get; init; } = "Keep branch avala/fix-the-test";
+
+    public string PullRequestAction { get; init; } = "Open pull request on github";
+
+    public bool PullRequestFirst { get; init; } = true;
+
+    public string ForgeGap { get; init; } = string.Empty;
+
+    public IRelayCommand OpenSettingsCommand { get; } = new RelayCommand(() => { });
+
     public IAsyncRelayCommand ApproveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand OpenPullRequestCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);

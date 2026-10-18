@@ -31,6 +31,7 @@ public enum WatchStatus
     WaitingForJob,
     NeedsPerson,
     Ended,
+    Green,
 }
 
 public enum WatchEnd

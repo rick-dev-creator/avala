@@ -109,8 +109,10 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
         await Camera.ShootAsync(run, "docs-feature-page-step-dark");
 
         var site = Outcomes.Succeeds(await run.Get<IDocumentation>().CreateSiteAsync(run.Repository.Path, Cancellation));
-        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(Outcomes.Present(site.Filler)));
-        Copy(Path.Combine(run.Repository.Path, site.Root), Path.Combine(FeatureCamera.Folder, "site"));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(site.Job));
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(site.Job, Cancellation)).Summary.Workspace);
+        var worktree = Outcomes.Succeeds(await run.Get<Avala.Workspaces.Contracts.IWorkspaces>().FindAsync(workspace, Cancellation)).Path;
+        Copy(Path.Combine(worktree, site.Root), Path.Combine(FeatureCamera.Folder, "site"));
     }
 
     private static void Copy(string from, string to)

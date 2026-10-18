@@ -27,12 +27,12 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         var opened = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         var redelivered = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal((WakeReason.ChecksFailed, WakeOutcome.Woken, Option<ContinuedIn>.Some(ContinuedIn.ResumedConversation)), (wakeUp.Reason, wakeUp.Outcome, wakeUp.Conversation));
         Assert.Contains($"- build: {FailingTest}", wakeUp.Feedback, StringComparison.Ordinal);
         Assert.Equal(opened.PullRequest.Number, redelivered.PullRequest.Number);
-        Assert.Equal((Option<WatchEnd>.Some(WatchEnd.Green), 1), (ended.Ended, ended.WakeUps));
+        Assert.Equal((Option<WatchEnd>.None, 1), (green.Ended, green.WakeUps));
         Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
         var history = Outcomes.Present(await forge.Run.Get<IJobCatalog>().HistoryAsync(forge.Job, Cancellation));
         Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.Reopen], history.Attempts.Select(attempt => attempt.Origin));
@@ -48,11 +48,11 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         _ = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal(WakeReason.ChangesRequested, wakeUp.Reason);
         Assert.Contains("reviewer: Please greet the team by name.\n- GREETING.md:1: Name the team here.", wakeUp.Feedback, StringComparison.Ordinal);
-        Assert.Equal(Option<WatchEnd>.Some(WatchEnd.Green), ended.Ended);
+        Assert.Equal(Option<WatchEnd>.None, green.Ended);
     }
 
     [Fact]
@@ -63,11 +63,11 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         _ = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal(WakeReason.Conflict, wakeUp.Reason);
         Assert.Contains("Avala fetched origin/main: merge it into your branch and resolve the conflicts.", wakeUp.Feedback, StringComparison.Ordinal);
-        Assert.Equal(Option<WatchEnd>.Some(WatchEnd.Green), ended.Ended);
+        Assert.Equal(Option<WatchEnd>.None, green.Ended);
     }
 
     [Fact]
@@ -98,10 +98,10 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ProgressedAsync(JobStatus.AwaitingReview);
         var approval = Outcomes.Succeeds(await forge.Run.Get<IOpenDeliveries>().ApproveThroughAsync(forge.Job, PullRequestDelivery.Strategy, Cancellation));
         var redelivered = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal((PullRequestDelivery.Strategy, opened.PullRequest.Number), (approval.Delivery.Strategy, redelivered.PullRequest.Number));
-        Assert.Equal((Redelivery.Review, Option<WatchEnd>.Some(WatchEnd.Green)), (ended.Redelivery, ended.Ended));
+        Assert.Equal((Redelivery.Review, Option<WatchEnd>.None), (green.Redelivery, green.Ended));
     }
 
     [Fact]
@@ -194,6 +194,71 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal((number, worktree.Branch), (adopted.PullRequest.Number, adopted.PullRequest.Head));
         var watch = Outcomes.Present(run.Get<IPullRequests>().Of(job));
         Assert.Equal((new ForgeName("local"), OnPullRequest.WatchOnly), (watch.Forge, watch.Policy));
+    }
+
+    [Fact]
+    public async Task APullRequestTheAgentOpenedFromABranchItSwitchedToInItsWorktreeIsAdoptedAndWatchedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var (job, worktree) = await ReviewedEditAsync(run);
+
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "checkout", "--quiet", "-b", "fix/greeting");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", "fix/greeting");
+        var number = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("fix/greeting", "main", "Edit the greeting", Cancellation);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Push your branch and open a pull request.", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
+
+        Assert.Equal((number, "fix/greeting"), (adopted.PullRequest.Number, adopted.PullRequest.Head));
+        Assert.True(run.Get<IPullRequests>().Of(job).IsSome);
+    }
+
+    [Fact]
+    public async Task APullRequestFromABranchTheWorktreeNeverCheckedOutIsNotAdoptedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, _) = await ReviewedEditAsync(run);
+
+        await run.Repository.CommitToRemoteAsync("elsewhere", "OTHER.md", "Another clone's work.\n", Cancellation);
+        _ = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("elsewhere", "main", "Another change", Cancellation);
+        var progressed = run.Watch<JobProgressed>();
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Push your branch and open a pull request.", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
+    }
+
+    [Fact]
+    public async Task WithoutAUsableConnectionAPullRequestTheAgentReportsIsNamedOnceAboveItsConversationWithConnectAndNothingIsWatchedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/permissions.json", Autonomous));
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("mentions"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        const string link = "https://forge.invalid/octo/shop/pulls/1";
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        var note = workbench.Page["Regions"]["Conversation"].Items.Single(item => item.Kind == "AgentPullRequestNoteViewModel");
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {link}", Cancellation));
+
+        await run.Ui.PresentedAsync(note.Presentation, () => note["IsShown"].Value<bool>(), () => "no note of the agent's pull request");
+        Assert.Equal(
+            "Pull request #1 was opened by the agent. Connect forge.invalid in Settings to follow its checks.",
+            await run.Ui.ReadAsync(() => note["Text"].Text));
+        Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
+    }
+
+    private static async Task<(JobId Job, WorkspaceInfo Worktree)> ReviewedEditAsync(SimulatedRun run)
+    {
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("edit"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
+
+        return (job, Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(workspace, Cancellation)));
     }
 
     [Fact]

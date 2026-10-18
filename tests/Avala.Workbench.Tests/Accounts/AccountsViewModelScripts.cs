@@ -21,8 +21,11 @@ public sealed class AccountRowViewModelScripts
         var accounts = await LoadedAsync();
 
         Assert.Equal(
-            [("oc•••••", "api.hub.example", "hub", Kinds.Hub.Logo, AccountState.SignedIn, false), ("hub-2", "api.hub.example", AccountPhrases.Token, Kinds.Hub.Logo, AccountState.Detected, true)],
-            accounts.Accounts.Select(row => (row.Login.ToString(), row.Host, row.SignIn, row.Logo, row.State, row.IsDetected)));
+            [
+                ("oc•••••", "api.hub.example", "hub", Kinds.Hub.Logo, AccountState.SignedIn, false, "Opens pull requests and follows their checks"),
+                ("hub-2", "api.hub.example", AccountPhrases.Token, Kinds.Hub.Logo, AccountState.Detected, true, "Needed to open pull requests and follow their checks"),
+            ],
+            accounts.Accounts.Select(row => (row.Login.ToString(), row.Host, row.SignIn, row.Logo, row.State, row.IsDetected, row.Purpose)));
         Assert.Equal((false, true), (accounts.Accounts[0].AddCommand.CanExecute(null), accounts.Accounts[0].RemoveCommand.CanExecute(null)));
     }
 

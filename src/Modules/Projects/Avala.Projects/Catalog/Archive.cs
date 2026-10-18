@@ -23,11 +23,10 @@ internal static class Archive
     public static Result<JobRestored, ProjectError> Restore(JobId job, IReadOnlySet<JobId> archived) =>
         archived.Contains(job) ? new JobRestored(job) : ProjectError.NotArchived;
 
-    public static bool Returns(JobStatus status) => status is JobStatus.Preparing or JobStatus.Running or JobStatus.Checking or JobStatus.NeedsHelp;
+    public static bool Returns(JobStatus status) => status is JobStatus.Preparing or JobStatus.Running or JobStatus.Checking;
 
     private static Option<ProjectError> Refusal(Shelved job) =>
         job.Parent.IsSome ? ProjectError.FollowsItsParent
-        : job.Status == JobStatus.NeedsHelp ? ProjectError.NeedsYou
         : job.Status is JobStatus.Draft || Returns(job.Status) ? ProjectError.StillWorking
         : Option<ProjectError>.None;
 }

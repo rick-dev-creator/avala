@@ -19,9 +19,11 @@ internal interface IGitRemote
     ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken);
 
     ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken);
+
+    ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken);
 }
 
-internal sealed class PullRequestStrategy(IPullRequestRules rules, ForgeConnections connections, IGitRemote git, WatchAdoption watches) : IApprovalStrategy
+internal sealed class PullRequestStrategy(EffectiveRules rules, ForgeConnections connections, IGitRemote git, WatchAdoption watches) : IApprovalStrategy
 {
     public const int LongestTitle = 72;
 
@@ -40,7 +42,7 @@ internal sealed class PullRequestStrategy(IPullRequestRules rules, ForgeConnecti
 
     private async Task<Result<ApprovalDelivery, JobRejection>> DeliverNowAsync(ApprovalRequest request, CancellationToken cancellationToken)
     {
-        if (!(await rules.OfWorktreeAsync(request.Workspace.Path, cancellationToken)).Bind(found => found.ToResult(ForgeError.MissingForge)).TryGetValue(out var declared, out var invalid))
+        if (!(await rules.OfWorktreeAsync(request.Workspace.Path, cancellationToken)).TryGetValue(out var declared, out var invalid))
         {
             await watches.RefusedAsync(request.Job, invalid, cancellationToken);
 

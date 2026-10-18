@@ -10,6 +10,5 @@ internal enum ProjectError
     NotEmpty,
     FollowsItsParent,
     StillWorking,
-    NeedsYou,
     NotArchived,
 }

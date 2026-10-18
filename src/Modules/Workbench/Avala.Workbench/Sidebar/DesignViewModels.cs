@@ -266,10 +266,22 @@ internal sealed class DesignProjectDocsViewModel : IProjectDocsViewModel
     public IReadOnlyList<IFeatureRowViewModel> Features { get; init; } =
     [
         new DesignFeatureRowViewModel("Payments on stripe-go v79", "3 versions"),
-        new DesignFeatureRowViewModel("Refund webhooks", "2 versions"),
+        new DesignFeatureRowViewModel("Refund webhooks", "2 versions · not merged"),
     ];
 
+    public bool IsOn { get; init; } = true;
+
+    public bool IsUncommitted { get; init; }
+
+    public string Note { get; init; } = string.Empty;
+
+    public string Error { get; init; } = string.Empty;
+
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand SwitchCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CommitCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed record DesignFeatureRowViewModel(string Title, string Fact) : IFeatureRowViewModel
@@ -278,6 +290,8 @@ internal sealed record DesignFeatureRowViewModel(string Title, string Fact) : IF
         : this("Payments on stripe-go v79", "3 versions")
     {
     }
+
+    public string Tip { get; init; } = string.Empty;
 
     public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
 }

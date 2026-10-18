@@ -43,6 +43,9 @@ internal static class AccountPhrases
         _ => string.Empty,
     };
 
+    public static string Purpose(AccountState state) =>
+        state == AccountState.Detected ? "Needed to open pull requests and follow their checks" : "Opens pull requests and follows their checks";
+
     public static string Problem(ForgeError error) => Problems.GetValueOrDefault(error, "Not usable");
 
     public static PersonalPhrase Cli(CliState state, string cli, string login) => state switch

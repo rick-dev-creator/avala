@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:readiness="using:Avala.Workbench.Readiness"
+             x:Class="Avala.Workbench.UI.AgentPullRequestNoteView"
+             x:ClassModifier="internal"
+             x:DataType="readiness:IAgentPullRequestNoteViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <readiness:DesignAgentPullRequestNoteViewModel />
+  </Design.DataContext>
+  <DockPanel x:Name="Note" Margin="0,12,0,0" MaxWidth="{StaticResource ReadingWidth}">
+    <Button x:Name="OpenSettings" DockPanel.Dock="Right" Margin="12,0,0,0" Classes="link" Content="Open Settings" Command="{Binding OpenSettingsCommand}" />
+    <TextBlock x:Name="Text" Classes="caption" Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+  </DockPanel>
+</UserControl>

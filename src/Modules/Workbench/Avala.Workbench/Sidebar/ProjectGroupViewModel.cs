@@ -168,6 +168,8 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
 
     public void Expand(bool expanded) => IsExpanded = expanded;
 
+    public void RefreshDocs() => DocsRead = ReadAsync(Project);
+
     private Task ReadAsync(Option<ProjectRecord> project) =>
         project.Bind(found => found.Repository).Match(repository => Documents.ReadAsync(repository, CancellationToken.None), () => Task.CompletedTask);
 

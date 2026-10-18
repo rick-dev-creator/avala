@@ -55,6 +55,5 @@ public enum ProjectRejection
     NotEmpty,
     FollowsItsParent,
     StillWorking,
-    NeedsYou,
     NotArchived,
 }

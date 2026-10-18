@@ -123,6 +123,12 @@
           <MenuItem x:Name="Rename" Header="Rename" Command="{Binding StartRenameCommand}" IsVisible="{Binding IsProject}" />
           <MenuItem x:Name="Delete" Header="Delete Project" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}" IsVisible="{Binding IsProject}" />
           <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}" />
+          <MenuItem x:Name="DocumentFeatures"
+                    Header="Document Features"
+                    ToggleType="CheckBox"
+                    IsChecked="{Binding Docs.IsOn, Mode=OneWay}"
+                    Command="{Binding Docs.SwitchCommand}"
+                    IsVisible="{Binding IsProject}" />
         </MenuFlyout>
       </Button.ContextFlyout>
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">

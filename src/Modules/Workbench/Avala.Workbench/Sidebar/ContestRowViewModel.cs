@@ -108,7 +108,7 @@ internal sealed partial class ContestRowViewModel : IContestRowViewModel
         PendingDecisions = shown.Sum(job => job.PendingDecisions);
         Group = GroupOf(contest, PendingDecisions);
         Shelved = [.. contest.Candidates.Select(candidate => candidate.Job)];
-        CanArchive = Group != JobGroup.NeedsYou && shown.Length == contest.Candidates.Count && shown.All(job => Shelving.Archivable(job.Status));
+        CanArchive = shown.Length == contest.Candidates.Count && shown.All(job => Shelving.Archivable(job.Status));
         Fact = ContestPhrases.Row(contest, contest.Verdict.Match(verdict => verdict.Ranking.Count(standing => standing.Facts.Passed), () => shown.Count(Passed)));
         dot.Kind = Group switch
         {

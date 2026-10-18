@@ -40,7 +40,8 @@ public sealed class DocumentationPlugin : IPlugin
             .AddSingleton<DocumentationReads>()
             .AddSingleton<ISiteTemplate, EmbeddedSiteTemplate>()
             .AddSingleton<Docfx>()
-            .AddSingleton<SiteFiller>()
+            .AddSingleton<SiteJobs>()
+            .AddSingleton<IJobBriefing, SiteSkeleton>()
             .AddSingleton<SiteDesk>()
             .AddSingleton<DocumentationEntry>()
             .AddForwarded<IDocumentation, DocumentationEntry>();

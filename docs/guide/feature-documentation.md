@@ -24,9 +24,9 @@ Let each job document the feature it builds: the plan it proposed, every change 
 
 ## How to use it
 
-1. **Turn it on** in Settings, Repositories, **Feature documentation**, or add the `docs` section to `.avala/jobs.json`, then commit it. New jobs pick it up from their base commit.
+1. **Turn it on for a repository**: choose **Document Features** in its project's menu in the sidebar, or use Settings, Repositories, **Feature documentation**, or add the `docs` section to `.avala/jobs.json`. It is a setting of each repository, never of the whole machine. Jobs read the file from the commit they start from, so the switch shows what your working copy says and, until it is committed, an amber dot and **Commit .avala/jobs.json**, which commits that file alone on the checked-out branch and leaves anything else you staged as it was.
 2. **Start a job** from New job. The feature chip under the instruction holds the feature Avala suggests from it; open it to choose another of the repository's features, a new one, or **Don't document this job**.
-3. **Follow it** in the job's Docs pane, and read the feature later from the project's **Docs** in the sidebar.
+3. **Follow it** in the job's Docs pane, and read the feature later from the project's **Docs** in the sidebar. A job writes its docs in its own branch, so they reach your `docs/` folder only once you merge that branch; until then the project's Docs lists the feature as "not merged", with its branch on hover, and opens it from the job's worktree. Approving under `keep` says "Its docs stay on that branch until you merge it."
 
 ## The docs site
 
@@ -48,7 +48,7 @@ docs/
   template/public/            Avala's C4 player for the site
 ```
 
-It writes only the files that are missing, inside the docs folder, and starts a job that fills the overview, quickstart, architecture and configuration from the repository, records the decisions of features already documented and lists their As built versions in `whats-new.md`. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
+It writes nothing in your working copy: it starts a job, whose worktree Avala lays out before its first turn, adding only the files the repository lacks, and the job fills the overview, quickstart, architecture and configuration from the repository, records the decisions of features already documented and lists their As built versions in `whats-new.md`. The site is delivered like any job, so it reaches your docs folder once you merge it. Until then Settings reads "Being prepared by its job", with **Open its job**; a discarded site job offers Create site again. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
 
 On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid out the way Avala lays it out, in the site's light or dark theme, with **Previous**, **Play**, **Next** and the speed. Playing it reveals the elements level by level, then walks each relation, a flow hop by hop with its number. Choosing an element scrolls to its section. Other Mermaid diagrams show as DocFX's Mermaid draws them.
 

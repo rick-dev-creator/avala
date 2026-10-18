@@ -181,20 +181,65 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task CreatingTheSiteWritesItIntoTheRepositoryWithAvalasPlayerAndAJobFillsItAsync()
+    public async Task CreatingTheSiteFromSettingsWritesNothingInTheWorkingCopyAndShowsTheJobThatPreparesItLinkedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var workbench = await run.WorkbenchAsync();
+        var docs = await DocsSettingAsync(run);
+
+        await run.Ui.RunAsync(() => docs.ExecuteAsync("CreateSiteCommand"));
+
+        Assert.False(Directory.Exists(Path.Combine(run.Repository.Path, "docs")));
+        Assert.Equal(string.Empty, (await run.Repository.GitAsync(Cancellation, "status", "--porcelain")).Trim());
+        var job = Outcomes.Present((await run.Get<IDocumentation>().SiteAsync(run.Repository.Path, Cancellation)).Preparing);
+        Assert.Contains("docs/get-started/quickstart.md", Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Instruction);
+        Assert.Equal(
+            (true, false, "Being prepared by its job. Review it like any job: the site is here once it is merged."),
+            await run.Ui.ReadAsync(() => (docs["IsSitePreparing"].Value<bool>(), docs["CanCreateSite"].Value<bool>(), docs["Site"].Text)));
+        await run.Ui.InvokeAsync(() => docs.Execute("OpenSiteJobCommand"), Cancellation);
+        await workbench.ShowsAsync(() => workbench.Page.Has("Conversation") && workbench.Page["Conversation"]["Job"].Value<JobId>() == job);
+    }
+
+    [Fact]
+    public async Task TheSiteJobDeliveredByMergeBringsTheSiteWithAvalasPlayerIntoTheBaseBranchAndSettingsShowsItAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "docs": { "enabled": true }, "approval": "merge" }"""));
+        var documentation = run.Get<IDocumentation>();
+        var job = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation)).Job;
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(job, Cancellation));
+
+        Assert.Contains("\"template\": [ \"default\", \"modern\", \"template\" ]", await run.Repository.GitAsync(Cancellation, "show", "main:docs/docfx.json"));
+        Assert.Contains("customElements.define(\"avala-c4\"", await run.Repository.GitAsync(Cancellation, "show", "main:docs/template/public/avala-c4.js"));
+        var site = await documentation.SiteAsync(run.Repository.Path, Cancellation);
+        Assert.Equal((true, Option<JobId>.None), (site.Exists, site.Preparing));
+        var docs = await DocsSettingAsync(run);
+        Assert.Equal((false, false), await run.Ui.ReadAsync(() => (docs["IsSitePreparing"].Value<bool>(), docs["CanCreateSite"].Value<bool>())));
+    }
+
+    [Fact]
+    public async Task ADiscardedSiteJobLeavesNoSiteAndSettingsOffersCreateSiteAgainAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
         var documentation = run.Get<IDocumentation>();
+        var job = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation)).Job;
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
 
-        var created = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation));
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(job, Cancellation));
 
-        var filler = Outcomes.Present(created.Filler);
-        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(filler));
-        Assert.Contains("\"template\": [ \"default\", \"modern\", \"template\" ]", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "docfx.json"), Cancellation));
-        Assert.Contains("customElements.define(\"avala-c4\"", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "template", "public", "avala-c4.js"), Cancellation));
-        Assert.True((await documentation.SiteAsync(run.Repository.Path, Cancellation)).Exists);
-        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(filler, Cancellation));
-        Assert.Contains("docs/get-started/quickstart.md", history.Summary.Instruction);
+        var site = await documentation.SiteAsync(run.Repository.Path, Cancellation);
+        Assert.Equal((false, Option<JobId>.None), (site.Exists, site.Preparing));
+        var docs = await DocsSettingAsync(run);
+        Assert.Equal((false, true), await run.Ui.ReadAsync(() => (docs["IsSitePreparing"].Value<bool>(), docs["CanCreateSite"].Value<bool>())));
+    }
+
+    private static async Task<Bound> DocsSettingAsync(SimulatedRun run)
+    {
+        var settings = (await Pages.ActivatedAsync(run, "Settings"))["Repository"];
+        await run.Ui.RunAsync(() => settings.ExecuteAsync("OpenCommand", run.Repository.Path));
+
+        return await run.Ui.ReadAsync(() => settings["Docs"]);
     }
 
     private static async Task<(JobId Job, IReadOnlyList<FeatureVersion> Versions)> SentBackAsync(SimulatedRun run)

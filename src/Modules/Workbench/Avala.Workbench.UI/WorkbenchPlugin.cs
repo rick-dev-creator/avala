@@ -57,6 +57,8 @@ using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Review;
+using Avala.Workbench.Readiness;
+using Avala.Workbench.Readying;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Settings;
 using Avala.Workbench.Sidebar;
@@ -148,12 +150,12 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IDecisionsViewModel, DecisionsViewModel>()
             .AddSingleton<SidebarViewModel>()
             .AddSingleton<ToolbarViewModel>()
-            .AddSingleton<SettingsLink>()
             .AddSingleton<IWelcomeLinks, WelcomeLinks>()
             .AddSingleton<WelcomeHarness>()
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
+        RegisterReadiness(registrar.Services);
         RegisterReplies(registrar.Services);
         RegisterRemoteControl(registrar.Services);
         RegisterRegions(registrar);
@@ -202,7 +204,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
-            .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20);
+            .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
+            .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
+            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -309,6 +313,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
         RegisterDocumentationViews(views);
+        RegisterReadinessViews(views);
         RegisterFollowingViews(views);
     }
 
@@ -524,6 +529,27 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentViewModel, SubagentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
+    }
+
+    private static void RegisterReadiness(IServiceCollection services) =>
+        services
+            .AddSingleton<ForgeGaps>()
+            .AddSingleton<DeliveryOffers>()
+            .AddSingleton<SettingsLink>()
+            .AddSingleton<IReadinessLinks>(provider => new ReadinessLinks(provider.GetRequiredService<SettingsLink>))
+            .AddSingleton<FirstJobs>()
+            .AddSingleton<RepositoryReadiness>()
+            .AddSingleton<ReadinessActions>()
+            .AddSingleton<ReadinessCardViewModel>()
+            .AddSingleton<AgentPullRequests>()
+            .AddSingleton<AgentPullRequestNoteViewModel>();
+
+    private static void RegisterReadinessViews(IViewRegistrar views)
+    {
+        views.Register<IReadinessCardViewModel, ReadinessCardView>();
+        views.Register<IReadinessItemViewModel, ReadinessItemView>();
+        views.Register<IReadinessAccountViewModel, ReadinessAccountView>();
+        views.Register<IAgentPullRequestNoteViewModel, AgentPullRequestNoteView>();
     }
 
     private static void RegisterDocumentationViews(IViewRegistrar views)

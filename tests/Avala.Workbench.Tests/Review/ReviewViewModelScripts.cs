@@ -153,7 +153,7 @@ public sealed class ReviewViewModelScripts : IDisposable
 
         script.ThenNotified(nameof(ReviewViewModel.Outcome), nameof(ReviewViewModel.IsClosed), nameof(ReviewViewModel.Heading));
 
-        Assert.Equal(("Approved: the branch avala/fix-the-test is ready", true, "Approved"), (review.Outcome, review.IsClosed, review.Heading));
+        Assert.Equal(("Branch avala/fix-the-test kept. Merge it when you are ready.", true, "Approved"), (review.Outcome, review.IsClosed, review.Heading));
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class ReviewViewModelScripts : IDisposable
 
         Assert.False(again);
         Assert.Equal(["approve"], bench.Jobs.Calls);
-        Assert.Equal("Approved: the branch avala/fix-the-test is ready", review.Outcome);
+        Assert.Equal("Branch avala/fix-the-test kept. Merge it when you are ready.", review.Outcome);
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public sealed class ReviewViewModelScripts : IDisposable
         gate.SetResult();
         await approving;
 
-        Assert.Equal(("1 file changed", "Approved: the branch avala/fix-the-test is ready", true), (review.Changes, review.Outcome, review.IsClosed));
+        Assert.Equal(("1 file changed", "Branch avala/fix-the-test kept. Merge it when you are ready.", true), (review.Changes, review.Outcome, review.IsClosed));
         Assert.Empty(review.Refusal);
     }
 

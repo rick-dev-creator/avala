@@ -80,7 +80,7 @@ internal static class Storyboard
 
     private static List<PlayStep> Ordered(IReadOnlyList<PlayStep> steps, IReadOnlyList<DocSection> sections)
     {
-        var order = sections.Select((section, index) => (section.Anchor, index)).ToDictionary(pair => pair.Anchor, pair => pair.index, StringComparer.Ordinal);
+        var order = sections.Select((section, index) => (section.Anchor, index)).DistinctBy(pair => pair.Anchor, StringComparer.Ordinal).ToDictionary(pair => pair.Anchor, pair => pair.index, StringComparer.Ordinal);
 
         return [.. steps.Select((step, index) => (step, index)).OrderBy(pair => order.TryGetValue(pair.step.Anchor, out var at) ? at : sections.Count + pair.index).Select(pair => pair.step)];
     }

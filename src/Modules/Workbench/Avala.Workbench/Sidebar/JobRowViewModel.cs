@@ -158,7 +158,7 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
         dot.Kind = FactPhrases.Dot(job);
         ShowsElapsed = job.Status == JobStatus.Running && job.Transcript.LiveSince.IsSome;
         Since = job.Transcript.LiveSince.Match(since => since, () => Since);
-        CanArchive = !IsChild && job.Group != JobGroup.NeedsYou && Shelving.Archivable(job.Status);
+        CanArchive = !IsChild && Shelving.Archivable(job.Status);
         Refusal = CanArchive ? string.Empty : Refusal;
     }
 }

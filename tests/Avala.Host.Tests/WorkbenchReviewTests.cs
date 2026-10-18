@@ -27,9 +27,63 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         await run.Ui.RunAsync(() => review["Files"].Items[0].ExecuteAsync("ShowHunksCommand"));
         Assert.Contains("+add(2, 2) = 4", await run.Ui.ReadAsync(() => Assert.Single(review["Files"].Items[0]["Hunks"].Items)["Lines"].Items.Select(line => line["Text"].Text).ToList()));
 
+        Assert.Matches("^Keep branch avala/[0-9a-f]{8}$", await run.Ui.ReadAsync(() => review["ApproveLabel"].Text));
+
         await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
         await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
-        Assert.StartsWith("Approved: the branch avala/", await run.Ui.ReadAsync(() => review["Outcome"].Text), StringComparison.Ordinal);
+        Assert.Matches("^Branch avala/[0-9a-f]+ kept\\. Merge it when you are ready\\.$", await run.Ui.ReadAsync(() => review["Outcome"].Text));
+    }
+
+    [Fact]
+    public async Task UnderMergeTheReviewOffersToMergeIntoTheBaseAndSaysWhereTheCommitLandedAsync()
+    {
+        await using var run = await VerifiedAsync((".avala/jobs.json", ReviewTests.MergeFile));
+        var (workbench, review) = await ReviewAsync(run);
+        Assert.Equal("Merge into main", await run.Ui.ReadAsync(() => review["ApproveLabel"].Text));
+
+        await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
+
+        await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
+        var landed = (await run.Repository.GitAsync(Cancellation, "rev-parse", "--short=7", "main")).Trim();
+        Assert.Equal($"Merged into main as {landed}.", await run.Ui.ReadAsync(() => review["Outcome"].Text));
+    }
+
+    [Fact]
+    public async Task AUsableForgeHostingOriginMakesOpenPullRequestTheReviewsFirstActionWithoutAPullRequestSectionAsync()
+    {
+        await using var run = await SettledAsync(SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("forges.json", """{ "pollSeconds": 60, "forges": [{ "name": "local", "forge": "simulated" }] }""")], []));
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (workbench, review) = await ReviewAsync(run);
+        Assert.Equal(
+            ("Open pull request on local", true, string.Empty),
+            await run.Ui.ReadAsync(() => (review["PullRequestAction"].Text, review["PullRequestFirst"].Value<bool>(), review["ForgeGap"].Text)));
+
+        await run.Ui.RunAsync(() => review.ExecuteAsync("OpenPullRequestCommand"));
+
+        await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
+        var watched = Outcomes.Present(run.Get<Avala.Forges.Contracts.IPullRequests>().Of(run.Job));
+        Assert.Equal("WatchOnly", watched.Policy.ToString());
+    }
+
+    [Fact]
+    public async Task AnOriginOnAForgeWithoutAConnectionIsToldWithTheSettingsCommandAndNoPullRequestIsOfferedAsync()
+    {
+        var signedIn = new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>(StringComparer.Ordinal)
+        {
+            ["gh"] = new(0, "github.com\n  ✓ Logged in to github.com account octocat (keyring)\n", string.Empty),
+        };
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [], [], signIns: signedIn);
+        await run.Repository.GitAsync(Cancellation, "remote", "add", "origin", "https://github.com/ada/shop.git");
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var (_, review) = await ReviewAsync(run, job);
+        Assert.Equal(
+            ("Connect github.com in Settings to open and follow pull requests", string.Empty, false),
+            await run.Ui.ReadAsync(() => (review["ForgeGap"].Text, review["PullRequestAction"].Text, review.CanExecute("OpenPullRequestCommand"))));
+
+        await run.Ui.InvokeAsync(() => review.Execute("OpenSettingsCommand"), Cancellation);
+
+        Assert.Equal("Settings", await run.Ui.ReadAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title));
     }
 
     [Fact]
@@ -174,7 +228,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.NeedsHelp, (await run.JourneyAsync())[^1]);
         await run.Repository.CommitAsync(".avala/checks.json", """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""", Cancellation);
         var workbench = await run.WorkbenchAsync();
-        Assert.Equal(("NeedsYou", "held: invalid checks"), await workbench.RowAsync(run.Job, "NeedsYou"));
+        await workbench.ShowsInGroupAsync(run.Job, "NeedsYou", "held: invalid checks");
         var (_, review) = await ReviewAsync(run);
         Assert.StartsWith("Fix .avala/checks.json and commit it", await run.Ui.ReadAsync(() => review["Advice"].Text), StringComparison.Ordinal);
 
@@ -204,10 +258,12 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         return run;
     }
 
-    private static async Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run)
+    private static Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run) => ReviewAsync(run, run.Job);
+
+    private static async Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run, JobId job)
     {
         var workbench = await run.WorkbenchAsync();
-        _ = await workbench.SelectAsync(run.Job);
+        _ = await workbench.SelectAsync(job);
         await workbench.ShowsAsync(() => ((System.Windows.Input.ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
 
         await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));

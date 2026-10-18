@@ -15,6 +15,11 @@ internal sealed class DocumentationEntry(IDocsRules rules, DocumentationBook boo
     public Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
         rules.SwitchAsync(repository, enabled, cancellationToken);
 
+    public Task<DocsRulesState> RulesAsync(string repository, CancellationToken cancellationToken) => rules.StateAsync(repository, cancellationToken);
+
+    public Task<Result<DocsCommit, DocumentationError>> CommitRulesAsync(string repository, CancellationToken cancellationToken) =>
+        rules.CommitAsync(repository, cancellationToken);
+
     public Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken) => reads.StoryAsync(folder, feature, cancellationToken);
 
     public async Task<Option<JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) =>

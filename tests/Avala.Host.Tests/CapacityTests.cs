@@ -137,7 +137,7 @@ public sealed class CapacityTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", HoldNearTheLimit)]);
         await NearTheLimitAsync(run, One);
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
 
         var route = await run.Ui.RunAsync(async () =>
         {
@@ -175,7 +175,7 @@ public sealed class CapacityTests(PublishedPlugins plugins)
     public async Task ADefaultFixedInSettingsRunsJobsThatNameNoConnectionThereWithoutChoosingByCapacityAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
-        var settings = await ActivatedAsync(run, "Settings");
+        var settings = await Pages.ActivatedAsync(run, "Settings");
         var chosen = await run.Ui.ReadAsync(() => settings["Machine"]["DefaultConnection"]);
         var offered = await run.Ui.ReadAsync(() => (chosen["Saved"].Text, chosen["Choices"].Items.Count));
 
@@ -185,7 +185,7 @@ public sealed class CapacityTests(PublishedPlugins plugins)
 
             return chosen.ExecuteAsync("SaveCommand");
         });
-        var page = await ActivatedAsync(run, "New job");
+        var page = await Pages.ActivatedAsync(run, "New job");
         var route = await run.Ui.RunAsync(async () =>
         {
             page.Set("Repository", run.Repository.Path);
@@ -206,19 +206,6 @@ public sealed class CapacityTests(PublishedPlugins plugins)
         await workbench.ShowsInGroupAsync(job, "ReadyForReview");
         var section = await InspectedAsync(run, workbench, "AutonomySectionViewModel");
         Assert.Equal(("simulator-two", string.Empty), await run.Ui.ReadAsync(() => (section["Connection"].Text, section["Reason"].Text)));
-    }
-
-    private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
-    {
-        var page = run.Page(title);
-        await run.Ui.RunAsync(() =>
-        {
-            ((IActivatable)page.Target).Activate();
-
-            return page["Loading"].Value<Task>();
-        });
-
-        return page;
     }
 
     private static async Task<Bound> InspectedAsync(SimulatedRun run, OpenWorkbench workbench, string kind)

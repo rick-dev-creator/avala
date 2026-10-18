@@ -39,9 +39,9 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobStatus.Checking, true, "The checks are running · queue a message for when they end…", "Queue for when the agent stops")]
     [InlineData(JobStatus.Preparing, true, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops")]
     [InlineData(JobStatus.Draft, false, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops")]
-    [InlineData(JobStatus.Approved, true, "This job has ended", "Send")]
-    [InlineData(JobStatus.Discarded, false, "This job has ended", "Send")]
-    [InlineData(JobStatus.Failed, true, "This job has ended", "Send")]
+    [InlineData(JobStatus.Approved, true, "This job is done", "Send")]
+    [InlineData(JobStatus.Discarded, false, "This job was discarded", "Send")]
+    [InlineData(JobStatus.Failed, true, "This job failed", "Send")]
     public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, bool takesMessagesMidTurn, string phrase, string hint) =>
         Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn, Option<PullRequestWatchState>.None, Option<HoldReason>.None), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
 
@@ -58,7 +58,7 @@ public sealed class ConversationPhrasesTests
     [InlineData(OnPullRequest.WakeOnCi, WatchStatus.BackingOff, "Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts")]
     [InlineData(OnPullRequest.WakeOnCiAndReviews, WatchStatus.WaitingForJob, "Approved · Avala watches pull request #7 and wakes the agent if CI fails, it conflicts or a review asks for changes")]
     [InlineData(OnPullRequest.WakeOnCi, WatchStatus.NeedsPerson, "Approved · Avala stopped waking the agent: pull request #7 needs you")]
-    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.Ended, "This job has ended")]
+    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.Ended, "This job is done")]
     public void AnApprovedJobSaysWhatTheWatchOfItsPullRequestStillDoes(OnPullRequest policy, WatchStatus status, string phrase)
     {
         var watch = new PullRequestWatchState(JobId.New(), new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3) { Status = status };

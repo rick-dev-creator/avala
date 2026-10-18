@@ -21,13 +21,11 @@ public sealed class DocsSitePreviewTests(PublishedPlugins plugins)
             plugins,
             [("resources.json", $$"""{ {{LeasedPorts.Settings(test: 8)}}, "sampleSeconds": 0.2, "diskSeconds": 60 }""")],
             [(".avala/jobs.json", """{ "docs": { "enabled": true } }""")]);
-        var written = run.Watch<VersionWritten>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-revised] Handle Stripe refund webhooks")));
-        _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+        var documentation = run.Get<IDocumentation>();
+        var job = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation)).Job;
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
         var worktree = Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(Outcomes.Present(history.Summary.Workspace), Cancellation)).Path;
-        var documentation = run.Get<IDocumentation>();
-        _ = Outcomes.Succeeds(await documentation.CreateSiteAsync(worktree, Cancellation));
         var site = await documentation.SiteAsync(worktree, Cancellation);
         var available = run.Watch<PreviewAvailable>();
         var sampled = run.Watch<ResourcesSampled>();

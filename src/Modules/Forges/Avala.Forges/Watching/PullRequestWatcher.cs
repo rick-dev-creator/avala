@@ -182,6 +182,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
             default:
                 var waiting = decision.Verdict == Verdict.WaitForJob ? WatchStatus.WaitingForJob
                     : kept.State.Status == WatchStatus.NeedsPerson ? WatchStatus.NeedsPerson
+                    : decision.Verdict == Verdict.Green ? WatchStatus.Green
                     : WatchStatus.Watching;
                 Arm(job, next);
                 await book.SaveAsync(kept with { State = kept.State with { Status = waiting, NextPoll = next } }, token);

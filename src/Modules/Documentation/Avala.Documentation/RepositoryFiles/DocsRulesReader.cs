@@ -9,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.RepositoryFiles;
 
-internal sealed class DocsRulesReader(IBaseFiles files, IWorkingFiles working) : IDocsRules
+internal sealed class DocsRulesReader(IBaseFiles files, IWorkingFiles working, IWorkingCommits commits) : IDocsRules
 {
     public const string JobFile = ".avala/jobs.json";
 
@@ -32,6 +32,32 @@ internal sealed class DocsRulesReader(IBaseFiles files, IWorkingFiles working) :
         (await files.ReadCurrentAsync(repository, JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => DocsRules.Off),
             _ => DocumentationError.Unreadable);
+
+    public async Task<DocsRulesState> StateAsync(string repository, CancellationToken cancellationToken)
+    {
+        var committed = (await OfRepositoryAsync(repository, cancellationToken)).Match(found => found, _ => DocsRules.Off);
+        var current = (await working.ReadAsync(repository, JobFile, cancellationToken)).Match(
+            content => content.Match(text => Parse(text).Match(found => found, _ => committed), () => DocsRules.Off),
+            _ => committed);
+
+        return new DocsRulesState(current, committed);
+    }
+
+    public async Task<Result<DocsCommit, DocumentationError>> CommitAsync(string repository, CancellationToken cancellationToken)
+    {
+        var state = await StateAsync(repository, cancellationToken);
+        var message = state.Working.Enabled ? "Turn on feature documentation" : "Turn off feature documentation";
+
+        return (await commits.CommitAsync(repository, JobFile, message, cancellationToken)).Match(
+            done => Result<DocsCommit, DocumentationError>.Success(new DocsCommit(done.Commit, done.Branch)),
+            failure => failure switch
+            {
+                WorkspaceFailure.NoBaseBranch => DocumentationError.NotOnABranch,
+                WorkspaceFailure.NoGitIdentity => DocumentationError.NoGitIdentity,
+                WorkspaceFailure.FileUnchanged => DocumentationError.NothingToCommit,
+                _ => DocumentationError.NotCommitted,
+            });
+    }
 
     public async Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken)
     {

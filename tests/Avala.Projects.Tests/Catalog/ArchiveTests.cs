@@ -9,21 +9,21 @@ public sealed class ArchiveTests
     private static readonly JobId Job = new(Guid.NewGuid());
 
     [Theory]
+    [InlineData(JobStatus.NeedsHelp)]
     [InlineData(JobStatus.AwaitingReview)]
     [InlineData(JobStatus.Approved)]
     [InlineData(JobStatus.Discarded)]
     [InlineData(JobStatus.Failed)]
-    public void AConversationThatNeitherWorksNorNeedsAPersonIsArchived(JobStatus status) =>
+    public void AConversationThatDoesNotWorkIsArchived(JobStatus status) =>
         Assert.Equal([Job], Archive.Of([new Shelved(Job, status, Option<JobId>.None)]).Match(archived => archived.Jobs.ToArray(), _ => []));
 
     [Theory]
-    [InlineData(JobStatus.Draft, "StillWorking")]
-    [InlineData(JobStatus.Preparing, "StillWorking")]
-    [InlineData(JobStatus.Running, "StillWorking")]
-    [InlineData(JobStatus.Checking, "StillWorking")]
-    [InlineData(JobStatus.NeedsHelp, "NeedsYou")]
-    public void AConversationThatWorksOrNeedsAPersonIsRefusedWithWhy(JobStatus status, string expected) =>
-        Assert.Equal(Enum.Parse<ProjectError>(expected), Archive.Of([new Shelved(new JobId(Guid.NewGuid()), JobStatus.Approved, Option<JobId>.None), new Shelved(Job, status, Option<JobId>.None)]).Match(_ => default(ProjectError?), error => error));
+    [InlineData(JobStatus.Draft)]
+    [InlineData(JobStatus.Preparing)]
+    [InlineData(JobStatus.Running)]
+    [InlineData(JobStatus.Checking)]
+    public void AConversationThatWorksIsRefusedSinceItIsStillWorking(JobStatus status) =>
+        Assert.Equal(ProjectError.StillWorking, Archive.Of([new Shelved(new JobId(Guid.NewGuid()), JobStatus.Approved, Option<JobId>.None), new Shelved(Job, status, Option<JobId>.None)]).Match(_ => default(ProjectError?), error => error));
 
     [Fact]
     public void ADelegatedChildIsRefusedSinceItFollowsItsParent() =>
@@ -40,11 +40,11 @@ public sealed class ArchiveTests
     [InlineData(JobStatus.Preparing, true)]
     [InlineData(JobStatus.Running, true)]
     [InlineData(JobStatus.Checking, true)]
-    [InlineData(JobStatus.NeedsHelp, true)]
+    [InlineData(JobStatus.NeedsHelp, false)]
     [InlineData(JobStatus.AwaitingReview, false)]
     [InlineData(JobStatus.Approved, false)]
     [InlineData(JobStatus.Discarded, false)]
     [InlineData(JobStatus.Failed, false)]
-    public void AConversationReturnsFromTheArchiveOnceItWorksOrNeedsAPerson(JobStatus status, bool returns) =>
+    public void AConversationReturnsFromTheArchiveOnceItWorks(JobStatus status, bool returns) =>
         Assert.Equal(returns, Archive.Returns(status));
 }

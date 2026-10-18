@@ -27,4 +27,16 @@ public sealed class ProjectDocsViewScripts(HeadlessUi ui)
     [Fact]
     public Task TheProjectGroupShowsItsDocsUnderItsJobsAsync() =>
         ui.RunAsync(() => Assert.True(Screen.Show(new DesignProjectGroupViewModel()).Shows("DocsToggle")), Cancellation);
+
+    [Fact]
+    public Task DocsOnInTheWorkingCopyOnlySayWhyWithCommitAndAnUnmergedFeatureSaysItsBranchAsync() =>
+        ui.RunAsync(() =>
+        {
+            var uncommitted = Screen.Show(new DesignProjectDocsViewModel { IsUncommitted = true, Note = "On in your working copy only: new jobs run without docs until .avala/jobs.json is committed." });
+            var committed = Screen.Show(new DesignProjectDocsViewModel());
+
+            Assert.Equal((true, true), (uncommitted.Shows("CommitDocs"), uncommitted.TextOf("DocsNote").StartsWith("On in your working copy only", StringComparison.Ordinal)));
+            Assert.False(committed.Shows("Uncommitted"));
+            Assert.Contains("2 versions · not merged", committed.VisibleTexts);
+        }, Cancellation);
 }

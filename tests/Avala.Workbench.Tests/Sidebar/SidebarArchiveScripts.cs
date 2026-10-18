@@ -27,7 +27,7 @@ public sealed class SidebarArchiveScripts : IDisposable
     }
 
     [Fact]
-    public void OnlyARowThatNeitherWorksNorNeedsYouOffersArchive()
+    public void OnlyARowThatDoesNotWorkOffersArchive()
     {
         var running = Job("Fix the failing test", JobStatus.Running);
         var review = Job("Update the dependency", JobStatus.AwaitingReview);
@@ -42,7 +42,7 @@ public sealed class SidebarArchiveScripts : IDisposable
                 var ledger = Ledgers(sidebar);
                 var rows = ledger.Open.Concat(ledger.Done).Concat(sidebar.NeedsYou).ToDictionary(row => row.Title);
                 Assert.Equal(
-                    [false, true, true, false],
+                    [false, true, true, true],
                     Titles.Select(title => rows[title].CanArchive));
                 Assert.False(Assert.Single(rows["Update the dependency"].Children).CanArchive);
             });

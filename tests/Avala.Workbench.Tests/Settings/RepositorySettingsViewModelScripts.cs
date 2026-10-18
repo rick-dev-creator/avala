@@ -228,7 +228,7 @@ public sealed class RepositorySettingsViewModelScripts
             Reader(new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
             Choosing.Field(Pages.Board(jobs)),
-            new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles())));
+            new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles(), SiteJobs.Focus())));
 
     private static RulesReader Reader(CommittedFiles files)
     {

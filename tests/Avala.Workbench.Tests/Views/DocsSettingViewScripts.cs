@@ -28,6 +28,18 @@ public sealed class DocsSettingViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task RulesLeftUncommittedShowTheirNoteWithAnAttentionDotAndTheCommitButtonOnlyThenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var uncommitted = Screen.Show(new DesignDocsSettingViewModel(), ThemeVariant.Dark, 800, 500);
+            var shown = (uncommitted.Shows("CommitRules"), uncommitted.All<Avalonia.Controls.Shapes.Ellipse>().Single(dot => dot.Classes.Contains("dot")).Classes.Contains("attention"), uncommitted.TextOf("DocsNote"));
+            var committed = Screen.Show(new DesignDocsSettingViewModel { IsUncommitted = false }, ThemeVariant.Dark, 800, 500);
+
+            Assert.Equal((true, true, DocsPhrases.Uncommitted(on: true)), shown);
+            Assert.False(committed.Shows("CommitRules"));
+        }, Cancellation);
+
+    [Fact]
     public Task RepositorySettingsShowsFeatureDocumentationAsync() =>
         ui.RunAsync(() =>
         {

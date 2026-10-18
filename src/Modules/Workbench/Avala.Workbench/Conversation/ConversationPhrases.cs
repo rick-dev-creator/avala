@@ -220,7 +220,9 @@ internal static class ConversationPhrases
         JobStatus.AwaitingReview => "Send the agent more to do before you review…",
         JobStatus.Checking => "The checks are running · queue a message for when they end…",
         JobStatus.Draft or JobStatus.Preparing => "The agent is starting · queue a message for when it stops…",
-        _ => "This job has ended",
+        JobStatus.Discarded => "This job was discarded",
+        JobStatus.Failed => "This job failed",
+        _ => "This job is done",
     };
 
     public static string QueuedCaption(JobStatus status) =>
@@ -241,6 +243,7 @@ internal static class ConversationPhrases
             reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Until, () => Held(reason))}" : "Needs you",
             () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Until(wait)}", () => "Needs you")),
         JobGroup.ReadyForReview => "Ready for review",
+        JobGroup.Delivered => "Delivered",
         JobGroup.Done => job.Status switch
         {
             JobStatus.Approved => "Approved",

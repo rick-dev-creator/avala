@@ -54,16 +54,14 @@ internal sealed class Waker(IOpenDeliveries deliveries, JobPlaces places, IGitRe
         await deliveries.ApproveThroughAsync(job, PullRequestDelivery.Strategy, cancellationToken);
 }
 
-internal sealed class PullRequestOffers(JobPlaces places, IPullRequestRules rules, ForgeConnections connections)
+internal sealed class PullRequestOffers(JobPlaces places, EffectiveRules rules, ForgeConnections connections)
 {
     public async ValueTask<Option<PullRequestOffer>> OfferAsync(JobId job, CancellationToken cancellationToken) =>
         await (await places.WorktreeAsync(job, cancellationToken)).Match(
             async worktree => await (await rules.OfWorktreeAsync(worktree.Path, cancellationToken)).Match(
-                async declared => await declared.Match(
-                    async found => (await connections.UsableAsync(found.Forge, cancellationToken)).Match(
-                        forge => Option<PullRequestOffer>.Some(new PullRequestOffer(found.Forge, forge.Info.Name, found.Remote)),
-                        _ => Option<PullRequestOffer>.None),
-                    () => Task.FromResult(Option<PullRequestOffer>.None)),
+                async found => (await connections.UsableAsync(found.Forge, cancellationToken)).Match(
+                    forge => Option<PullRequestOffer>.Some(new PullRequestOffer(found.Forge, forge.Info.Name, found.Remote)),
+                    _ => Option<PullRequestOffer>.None),
                 _ => Task.FromResult(Option<PullRequestOffer>.None)),
             () => Task.FromResult(Option<PullRequestOffer>.None));
 }

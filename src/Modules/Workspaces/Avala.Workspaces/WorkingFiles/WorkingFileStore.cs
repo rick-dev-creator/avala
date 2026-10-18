@@ -29,12 +29,7 @@ internal sealed class WorkingFileStore(IGit git) : IWorkingFiles
             return failure;
         }
 
-        var full = Path.GetFullPath(Path.Combine(root, path));
-        var inside = Path.GetRelativePath(root, full);
-
-        return Path.IsPathRooted(path) || inside.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(inside)
-            ? WorkspaceFailure.OutsideRepository
-            : full;
+        return RepositoryPaths.Contained(root, path);
     }
 
     private static async Task<Result<Option<string>, WorkspaceFailure>> ReadTextAsync(string file, CancellationToken cancellationToken)
