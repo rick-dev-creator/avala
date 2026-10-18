@@ -28,7 +28,7 @@ internal sealed class DocumentedJobs(JobPlaces places, IDocsRules rules, Feature
     {
         var declared = (await rules.OfWorktreeAsync(place.Worktree, cancellationToken)).Match(found => found, _ => DocsRules.Off);
 
-        if (!declared.Enabled)
+        if (!declared.Enabled || place.Instruction == SiteBrief.Fill(SiteLayout.RootOf(declared.Folder)))
         {
             return Option<Subject>.None;
         }

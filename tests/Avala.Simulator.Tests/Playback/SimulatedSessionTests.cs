@@ -492,6 +492,17 @@ public sealed class SimulatedSessionTests
     }
 
     [Theory]
+    [InlineData("[simulate: plan-when-asked] Add the changelog", 0)]
+    [InlineData("[simulate: plan-when-asked] Add the changelog\n\nRecord your plan as a task list.", 1)]
+    public async Task ThePlanWhenAskedScenarioRecordsAPlanOnlyWhenToldToKeepATaskListAsync(string message, int plans)
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync(message, Cancellation);
+
+        Assert.Equal(plans, (await stage.ReadTurnAsync(Cancellation)).OfType<PlanUpdated>().Count());
+    }
+
+    [Theory]
     [InlineData("[simulate: account-exhausted] Write the calculator", TurnOutcome.LimitReached, 0)]
     [InlineData("[simulate: account-exhausted] Write the calculator, it was handed off to you", TurnOutcome.Finished, 1)]
     public async Task TheAccountExhaustedScenarioRunsOutOfItsWindowBeforeAnyWorkUnlessToldItWasHandedOffAsync(string message, TurnOutcome outcome, int billed)

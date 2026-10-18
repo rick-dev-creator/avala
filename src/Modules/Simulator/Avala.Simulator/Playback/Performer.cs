@@ -61,8 +61,8 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         AwaitMessage when !declared.Has<AcceptsMessagesMidTurn>() => AsyncEnumerable.Empty<IAgentEvent>(),
         AwaitMessage => HearAsync(cues, cancellationToken),
         Finish => Heard(cues).Append(cues.Ended(TurnOutcome.Finished)).ToAsyncEnumerable(),
-        UnlessTold unless when cues.Told.Contains(unless.Fragment, StringComparison.Ordinal) => AsyncEnumerable.Empty<IAgentEvent>(),
-        UnlessTold unless => PlayAsync(cues, unless.Step, cancellationToken),
+        IfTold told when cues.Told.Contains(told.Fragment, StringComparison.Ordinal) == told.Told => PlayAsync(cues, told.Step, cancellationToken),
+        IfTold => AsyncEnumerable.Empty<IAgentEvent>(),
         Crash crash => throw new InvalidOperationException(crash.Reason),
         _ => OutputAsync(cues, step, cancellationToken),
     };

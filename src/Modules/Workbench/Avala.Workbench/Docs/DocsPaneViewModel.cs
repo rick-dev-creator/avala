@@ -145,7 +145,7 @@ internal sealed partial class DocsPaneViewModel
             var documented = docs.Documentation;
             Feature = documented.Feature.Title;
             IsWriting = documented.Writing.IsSome;
-            State = DocsPanePhrases.State(documented);
+            State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
             var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
 
             if (story != played)
@@ -200,6 +200,8 @@ internal sealed partial class DocsPaneViewModel
 internal static class DocsPanePhrases
 {
     public const string Install = "Install DocFX to open the docs site: " + DocsSite.Install;
+
+    public const string NoPlan = "No plan yet: the agent has not recorded a task list, so there is nothing to document.";
 
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"

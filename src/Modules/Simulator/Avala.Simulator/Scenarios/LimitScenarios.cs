@@ -51,7 +51,7 @@ internal static class LimitScenarios
     public static Scenario AccountExhausted { get; } = new("account-exhausted",
     [
         [
-            new UnlessTold("handed off", new RunOutOfWindow("7d", TimeSpan.FromDays(3))),
+            new IfTold("handed off", Told: false, new RunOutOfWindow("7d", TimeSpan.FromDays(3))),
             new Recall(new ItemId("told")),
             new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 4\n"),
             Message("Picked up the handed-off work: ", "the calculator is ready."),

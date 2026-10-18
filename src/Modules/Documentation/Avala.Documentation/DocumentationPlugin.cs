@@ -42,6 +42,7 @@ public sealed class DocumentationPlugin : IPlugin
             .AddSingleton<Docfx>()
             .AddSingleton<SiteJobs>()
             .AddSingleton<IJobBriefing, SiteSkeleton>()
+            .AddSingleton<IJobBriefing, PlanBrief>()
             .AddSingleton<SiteDesk>()
             .AddSingleton<DocumentationEntry>()
             .AddForwarded<IDocumentation, DocumentationEntry>();

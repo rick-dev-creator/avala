@@ -490,7 +490,7 @@ internal static class ScenarioCatalog
         [
             new Recall(new ItemId("told")),
             new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
-            new UnlessTold("handed off", new ReportLimitResetting("5h", 0.95, TimeSpan.FromHours(1))),
+            new IfTold("handed off", Told: false, new ReportLimitResetting("5h", 0.95, TimeSpan.FromHours(1))),
             Message("The calculator is ready, ", "though the usage window is nearly spent."),
             new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
             new Finish(),

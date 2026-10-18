@@ -100,5 +100,21 @@ internal static class DocumentationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentDecision, PlanRevised];
+    public static Scenario PlanWhenAsked { get; } = new("plan-when-asked",
+    [
+        [
+            new IfTold("task list", Told: true, new UpdatePlan([new PlanStep("Write the changelog", PlanStepStatus.Done), new PlanStep("Link it from the README", PlanStepStatus.Done)])),
+            new WriteFile(new ItemId("edit"), "CHANGELOG.md", "# Changelog\n"),
+            new Recall(new ItemId("told")),
+            .. Bill(1_800, 150, 0.0090m, 0.12),
+            new Finish(),
+        ],
+        [
+            new Recall(new ItemId("told")),
+            .. Bill(1_200, 90, 0.0060m, 0.13),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentDecision, PlanRevised, PlanWhenAsked];
 }

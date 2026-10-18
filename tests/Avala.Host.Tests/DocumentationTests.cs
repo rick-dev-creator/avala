@@ -1,6 +1,9 @@
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
 using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Regions;
 using Avala.Testing;
 using Avala.Workspaces.Contracts;
 
@@ -11,6 +14,12 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     private const string Feedback = "Stripe sends a refund twice; apply it once.";
 
     private const string DocsOn = """{ "docs": { "enabled": true } }""";
+
+    private const string PlainInstruction = "[simulate: plan-when-asked] Add the changelog";
+
+    private const string PlanBrief = "Avala documents this job's feature from your task list. Before you change anything, record your plan as a task list with your task tools, then keep it updated as you work: mark each task in progress when you start it and completed when it is done, and add or remove tasks when the plan changes.";
+
+    private const string NoPlan = "No plan yet: the agent has not recorded a task list, so there is nothing to document.";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -115,6 +124,72 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ADocumentedJobsAgentIsAskedToRecordItsPlanAsATaskListBeforeItsFirstTurnAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+
+        Assert.Equal($"{PlainInstruction}\n\n{PlanBrief}", await run.ToldAsync());
+    }
+
+    [Fact]
+    public async Task OnceItsPlanIsDocumentedTheAgentIsNoLongerAskedForATaskListAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var activity = run.Watch<AgentActivity>();
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+        _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
+
+        var told = await activity.UntilAsync(update => update.Event is ItemProgressed { Item.Value: "told" } progressed && progressed.Text.StartsWith(Feedback, StringComparison.Ordinal));
+        Assert.Equal(Feedback, ((ItemProgressed)told.Event).Text);
+    }
+
+    [Fact]
+    public async Task AJobWithoutDocsIsNotAskedForATaskListAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins);
+
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+
+        Assert.Equal(PlainInstruction, await run.ToldAsync());
+    }
+
+    [Fact]
+    public async Task APlainInstructionThatNamesNoPlanStillGetsAProposedAndAnAsBuiltVersionAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var written = run.Watch<VersionWritten>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+        var versions = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        Assert.Equal([VersionKind.Proposed, VersionKind.AsBuilt], versions.Where(version => version.Job == job).Select(version => version.Version.Kind));
+    }
+
+    [Fact]
+    public async Task ATurnThatEndsWithoutAPlanMakesTheDocsPaneSayWhyItIsEmptyAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("mentions"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        var contributions = run.Get<IEnumerable<RegionContribution>>().ToList();
+        var toggle = new Bound(contributions.Single(contribution => contribution.Region == WorkbenchRegions.JobHeader && contribution.ViewModel.GetType().Name == "DocsToggleViewModel").ViewModel);
+        var pane = new Bound(contributions.Single(contribution => contribution.Region == WorkbenchRegions.Preview && contribution.ViewModel.GetType().Name == "DocsPaneViewModel").ViewModel);
+        await run.Ui.PresentedAsync(toggle.Presentation, () => toggle["IsShown"].Value<bool>(), () => "the docs glyph is not shown");
+
+        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
+
+        await run.Ui.PresentedAsync(pane.Presentation, () => pane["IsOpen"].Value<bool>() && pane["State"].Text == NoPlan, () => $"the pane says {pane["State"].Text}");
+        Assert.Empty(await run.Get<IJobCatalog>().ChildrenAsync(job, Cancellation));
+    }
+
+    [Fact]
     public async Task WithoutTheDocsSectionAJobsPlanStartsNoDocumentationChildAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns");
@@ -216,6 +291,17 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         Assert.Equal((true, Option<JobId>.None), (site.Exists, site.Preparing));
         var docs = await DocsSettingAsync(run);
         Assert.Equal((false, false), await run.Ui.ReadAsync(() => (docs["IsSitePreparing"].Value<bool>(), docs["CanCreateSite"].Value<bool>())));
+    }
+
+    [Fact]
+    public async Task TheSiteJobIsNotDocumentedAsAFeatureAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+
+        var job = Outcomes.Succeeds(await run.Get<IDocumentation>().CreateSiteAsync(run.Repository.Path, Cancellation)).Job;
+
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        Assert.Equal(Option<JobDocumentation>.None, run.Get<IDocumentation>().OfJob(job));
     }
 
     [Fact]

@@ -67,6 +67,7 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
                 Others(await RepositoryAsync(place.Repository, cancellationToken), documentation.Feature))
             {
                 Site = await site(place.Worktree, cancellationToken),
+                Unplanned = !documentation.Planned && place.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp or JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed,
             }),
             () => Task.FromResult(Option<JobDocs>.None));
 
