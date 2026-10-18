@@ -126,7 +126,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         foreach (var prompt in Entries.OfType<PromptViewModel>())
         {
             prompt.CanEdit = prompt.IsFromPerson && composer.AcceptsMessages;
-            prompt.CanResend = prompt.IsFromPerson && job.Status.AcceptsMessages;
+            prompt.CanResend = prompt.IsFromPerson && job.TakesMessages;
         }
 
         Checkpoints(job);

@@ -111,6 +111,17 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void AnIntegratedChildsComposerTakesNoMessage()
+    {
+        var conversation = Open();
+        var child = Board(Job(), JobStatus.Approved);
+
+        conversation.Show(child with { Summary = child.Summary with { Parent = JobId.New() } });
+
+        Assert.Equal((JobStatus.Approved, false, false), (conversation.Composer.Status, conversation.Composer.AcceptsMessages, conversation.Composer.ShowsSend));
+    }
+
+    [Fact]
     public void TheComposerFollowsTheStatusOfTheJob()
     {
         var conversation = Open();

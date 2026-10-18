@@ -145,6 +145,11 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial bool TakesMessagesMidTurn { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(ShowsSend))]
+    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    public partial bool TakesMessages { get; private set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Placeholder))]
     public partial Option<PullRequestWatchState> Watch { get; private set; }
 
@@ -159,7 +164,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [NotifyCanExecuteChangedFor(nameof(WithdrawCommand))]
     public partial string Queued { get; private set; }
 
-    public bool AcceptsMessages => Status.AcceptsMessages || Status.IsWorking;
+    public bool AcceptsMessages => TakesMessages || Status.IsWorking;
 
     public bool CanHalt => Status.CanBeInterrupted;
 
@@ -182,6 +187,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public void Track(BoardJob shown)
     {
         Status = shown.Status;
+        TakesMessages = shown.TakesMessages;
         TakesMessagesMidTurn = shown.TakesMessagesMidTurn;
         Watch = shown.PullRequest;
         Hold = shown.Hold;
@@ -258,7 +264,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     private void ShowCold()
     {
-        var cold = Status.AcceptsMessages && !Status.IsWorking ? harness.Cold() : Option<ColdConversation>.None;
+        var cold = TakesMessages && !Status.IsWorking ? harness.Cold() : Option<ColdConversation>.None;
         ColdNote = cold.Match(ConversationPhrases.Cold, () => string.Empty);
         CanCompact = cold.Match(found => found.Compact.IsSome, () => false);
     }
