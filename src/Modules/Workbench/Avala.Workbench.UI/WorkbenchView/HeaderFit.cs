@@ -51,7 +51,11 @@ internal sealed class HeaderFit
 
     private void Forget()
     {
-        var now = string.Join(',', parts.Chips.GetRealizedContainers().Select((chip, index) => chip.DesiredSize.Width > 0 ? index : -1).Where(index => index >= 0));
+        var chips = string.Join(',', parts.Chips.GetRealizedContainers().Select((chip, index) => chip.DesiredSize.Width > 0 ? index : -1).Where(index => index >= 0));
+        var words = parts.Chips.GetVisualDescendants().OfType<TextBlock>()
+            .Where(text => !text.Classes.Contains("chip-label") && text.IsEffectivelyVisible)
+            .Sum(text => text.Text?.Length ?? 0);
+        var now = $"{chips}|{words}";
 
         if (now != shown)
         {
