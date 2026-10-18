@@ -194,6 +194,35 @@ public sealed class JobFlowTests
         Assert.Equal(JobState.Running, job.State);
     }
 
+    [Fact]
+    public async Task AReportOwedToAJobWhoseRetryCannotReachItsAgentIsDeliveredWhenTheJobContinuesAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var owed = new OwedOnce();
+        flow.Briefings.Add(owed);
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+        owed.Owe("The child finished: refunds are idempotent.");
+        _ = await flow.Agents.StopAsync(session, Cancellation);
+
+        await flow.FinishTurnAsync(job);
+        await flow.EndSessionAsync(job, session);
+        _ = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage("Go on"), Cancellation));
+        await flow.SettledAsync(job);
+
+        Assert.Contains(flow.Agents.Sent, sent => sent.Message.Contains("The child finished", StringComparison.Ordinal));
+    }
+
+    private sealed class OwedOnce : IJobBriefing
+    {
+        private string? report;
+
+        public void Owe(string owed) => report = owed;
+
+        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Interlocked.Exchange(ref report, null) is { } briefed ? Option<string>.Some(briefed) : Option<string>.None);
+    }
+
     private sealed class NoteBriefing(string note) : IJobBriefing
     {
         public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.Some(note));

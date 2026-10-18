@@ -10,7 +10,7 @@ internal sealed class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> bri
 {
     public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, CancellationToken cancellationToken)
     {
-        if (job.State != JobState.Running || job.Session.IsNone)
+        if (job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
             return await agents.TellAsync(job, message, cancellationToken);
         }
