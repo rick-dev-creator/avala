@@ -29,10 +29,10 @@ internal static class Connected
         IEnumerable<HarnessTool> tools,
         IEnumerable<IAgentProviderDecorator> decorators,
         IProcessTrees trees) =>
-        new(registry, new ProviderChain(tools, [], decorators), trees, NullLogger<SessionStarter>.Instance);
+        new(registry, new ProviderChain(tools, [], decorators, []), trees, NullLogger<SessionStarter>.Instance);
 
     public static SessionStarter Offering(IEnumerable<IAgentProvider> providers, PreviewOffer preview) =>
-        new(Registry(providers), new ProviderChain([], [preview], []), new RecordingProcessTrees(), NullLogger<SessionStarter>.Instance);
+        new(Registry(providers), new ProviderChain([], [preview], [], []), new RecordingProcessTrees(), NullLogger<SessionStarter>.Instance);
 
     public static ConnectionRegistry Registry(IEnumerable<IAgentProvider> providers, params ICredentialSource[] sources) =>
         new(new DeclaredFile(Option<ConnectionDeclarations>.None), providers, sources, []);

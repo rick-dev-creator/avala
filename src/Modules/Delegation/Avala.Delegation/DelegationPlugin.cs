@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
 using Avala.Delegation.Escalating;
@@ -31,6 +32,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<IMachineDelegation, MachineDelegation>()
             .AddSingleton<DelegationRulesReader>()
             .AddForwarded<IDelegationRules, DelegationRulesReader>()
+            .AddSingleton<IHarnessToolGate, DelegationOffer>()
             .AddForwarded<IRoleSettings, DelegationRulesReader>()
             .AddSingleton<SqliteDelegationStore>()
             .AddForwarded<IDelegationStore, SqliteDelegationStore>()

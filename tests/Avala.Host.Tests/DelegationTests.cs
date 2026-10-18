@@ -323,27 +323,6 @@ public sealed class DelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ADelegateCallInARepositoryWhoseCommittedJobFileDeclaresNoDelegationIsRefusedAsNotDeclaredWithItsReasonAsync()
-    {
-        await using var run = await SimulatedRun.PreparedAsync(
-            plugins,
-            [],
-            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", "{}")]);
-        var refused = run.Watch<DelegationRefused>();
-        var activity = run.Watch<AgentActivity>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
-
-        var refusal = (await refused.UntilAsync(_ => true)).Delegation;
-        var answer = await ReturnedAsync(activity, refusal.Item.Value);
-
-        Assert.Equal(Option<DelegationError>.Some(DelegationError.NotDeclared), refusal.Refusal);
-        Assert.True(answer.IsError, answer.Content);
-        Assert.Equal("notDeclared", Field(answer, "refused"));
-        Assert.Contains("declares no delegation section", Field(answer, "reason"), StringComparison.Ordinal);
-        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
-    }
-
-    [Fact]
     public async Task AJobInARepositoryThatDeclaresNoDelegationKnowsFromItsFirstTurnThatItCannotDelegateAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [("recording.json", """{ "enabled": true }""")], [(".avala/checks.json", PassingChecks)]);

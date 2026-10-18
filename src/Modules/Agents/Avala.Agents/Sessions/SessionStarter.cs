@@ -50,7 +50,7 @@ internal sealed partial class SessionStarter(
 
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {
-            Tools = chain.ToolsFor(capabilities),
+            Tools = await chain.ToolsForAsync(capabilities, request.WorkingDirectory, cancellationToken),
             Preview = chain.PreviewFor(capabilities),
             Model = request.Model,
             Connection = connection.Environment,
@@ -97,13 +97,39 @@ internal sealed partial class SessionStarter(
     private partial void LogUnavailable(string connection, ConnectionError error);
 }
 
-internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<PreviewOffer> previews, IEnumerable<IAgentProviderDecorator> decorators)
+internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<PreviewOffer> previews, IEnumerable<IAgentProviderDecorator> decorators, IEnumerable<IHarnessToolGate> gates)
 {
     public IAgentProvider Decorate(IAgentProvider provider) =>
         decorators.Aggregate(provider, (inner, decorator) => decorator.Decorate(inner));
 
-    public IReadOnlyList<HarnessTool> ToolsFor(CapabilitySet capabilities) =>
-        capabilities.Get<AcceptsTools>().Match<IReadOnlyList<HarnessTool>>(accepted => [.. tools.Where(tool => accepted.Accepts(tool.Surface))], () => []);
+    public async Task<IReadOnlyList<HarnessTool>> ToolsForAsync(CapabilitySet capabilities, string workingDirectory, CancellationToken cancellationToken)
+    {
+        var accepted = capabilities.Get<AcceptsTools>().Match<IReadOnlyList<HarnessTool>>(surfaces => [.. tools.Where(tool => surfaces.Accepts(tool.Surface))], () => []);
+        var offered = new List<HarnessTool>();
+
+        foreach (var tool in accepted)
+        {
+            if (await OfferedAsync(tool, workingDirectory, cancellationToken))
+            {
+                offered.Add(tool);
+            }
+        }
+
+        return offered;
+    }
+
+    private async Task<bool> OfferedAsync(HarnessTool tool, string workingDirectory, CancellationToken cancellationToken)
+    {
+        foreach (var gate in gates)
+        {
+            if (!await gate.OffersAsync(tool, workingDirectory, cancellationToken))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     public Option<PreviewOffer> PreviewFor(CapabilitySet capabilities) =>
         capabilities.Has<AcceptsPreview>() ? previews.FirstOrDefault().ToOption() : Option<PreviewOffer>.None;
