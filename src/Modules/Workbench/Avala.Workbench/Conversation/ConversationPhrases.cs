@@ -195,6 +195,11 @@ internal static class ConversationPhrases
         _ => Placeholder(status, takesMessagesMidTurn),
     };
 
+    public static Option<string> Closed(BoardJob job) =>
+        job.Status != JobStatus.Approved || job.TakesMessages ? Option<string>.None
+        : job.Summary.Parent.IsSome ? "Approved · its work is in its parent"
+        : "Approved · its worktree was removed, so it takes no more messages";
+
     private static string HeldPlaceholder(HoldReason reason) =>
         reason == HoldReason.CouldNotStart
             ? "Could not start · retry it from the inspector's worktree section"
@@ -222,7 +227,7 @@ internal static class ConversationPhrases
         JobStatus.Draft or JobStatus.Preparing => "The agent is starting · queue a message for when it stops…",
         JobStatus.Discarded => "This job was discarded",
         JobStatus.Failed => "This job failed",
-        _ => "This job is done",
+        _ => "Approved · send a message to continue the job…",
     };
 
     public static string QueuedCaption(JobStatus status) =>
@@ -302,7 +307,7 @@ internal static class ConversationPhrases
 
     public static string Rejection(JobRejection rejection) => rejection switch
     {
-        JobRejection.NotHeld => "The job takes a message only when it needs you or awaits review.",
+        JobRejection.NotHeld => "The job takes a message only when it needs you, awaits review or was approved.",
         JobRejection.NotRunning => "The job is not running.",
         JobRejection.NotDiscardable => "The job already ended.",
         JobRejection.EmptyMessage => "Write a message first.",
@@ -313,6 +318,7 @@ internal static class ConversationPhrases
         JobRejection.NotAwaitingReview => "The job no longer awaits review.",
         JobRejection.NotSteerable => "This agent takes no message while it works.",
         JobRejection.NotApproved => "The job is not approved, so it cannot be reopened.",
+        JobRejection.NotRoot => "This sub-agent's work is already in its parent, so it takes no more messages.",
         JobRejection.NeverStarted => "The job never started, so it takes no message: retry it from the inspector's worktree section.",
         _ => "The job refused the command.",
     };

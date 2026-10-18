@@ -108,6 +108,21 @@ public sealed class ChildJobTests
     }
 
     [Fact]
+    public async Task AnIntegratedChildTakesNoMessageSinceItsWorkBelongsToItsParentAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Strategies.Add(new ScriptedStrategy("merge", new ApprovalDelivery("merge", "avala/parent", "abc123")));
+        var parent = await flow.RunningAsync();
+        var child = await ReviewedChildAsync(flow, parent);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(child.Id, Cancellation));
+        var sent = flow.Agents.Sent.Count;
+
+        Assert.Equal(JobRejection.NotRoot, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(child.Id, "Add one more line", Cancellation)));
+
+        Assert.Equal((JobState.Approved, sent), (child.State, flow.Agents.Sent.Count));
+    }
+
+    [Fact]
     public async Task AChildWhoseParentNoLongerRunsIsNotIntegratedAndStaysAwaitingReviewAsync()
     {
         var flow = JobFlow.With();

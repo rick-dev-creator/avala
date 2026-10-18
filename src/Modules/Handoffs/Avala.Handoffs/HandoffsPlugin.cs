@@ -43,6 +43,7 @@ public sealed class HandoffsPlugin : IPlugin
             .AddForwarded<IHandle<JobHeld>, LimitWatch>()
             .AddForwarded<IHandle<JobProgressed>, LimitWatch>()
             .AddForwarded<IStartupTask, LimitWatch>()
-            .AddSingleton<IRoundRouter, RoundGuard>();
+            .AddSingleton<IRoundRouter, RoundGuard>()
+            .AddSingleton<IHandle<JobWaitsForReset>, ResetRest>();
     }
 }

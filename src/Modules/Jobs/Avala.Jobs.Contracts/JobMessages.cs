@@ -75,3 +75,5 @@ public sealed record JobResumable(JobId Job, SessionId Session) : IIntegrationEv
 public sealed record JobModelChosen(JobId Job, ModelChoice Model) : IIntegrationEvent;
 
 public sealed record JobRemoteControlChosen(JobId Job, bool On) : IIntegrationEvent;
+
+public sealed record JobSessionRested(JobId Job, SessionId Session) : IIntegrationEvent;

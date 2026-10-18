@@ -111,6 +111,29 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void AnIntegratedChildsComposerTakesNoMessage()
+    {
+        var conversation = Open();
+        var child = Board(Job(), JobStatus.Approved);
+
+        conversation.Show(child with { Summary = child.Summary with { Parent = JobId.New() } });
+
+        Assert.Equal((JobStatus.Approved, false, false), (conversation.Composer.Status, conversation.Composer.AcceptsMessages, conversation.Composer.ShowsSend));
+        Assert.Equal("Approved · its work is in its parent", conversation.Composer.Placeholder);
+    }
+
+    [Fact]
+    public void AnApprovedJobWhoseWorktreeWasRemovedSaysSoAndTakesNoMessage()
+    {
+        var conversation = Open();
+
+        conversation.Show(Board(Job(), JobStatus.Approved) with { Reclaimed = true });
+
+        Assert.Equal((false, false), (conversation.Composer.AcceptsMessages, conversation.Composer.ShowsSend));
+        Assert.Equal("Approved · its worktree was removed, so it takes no more messages", conversation.Composer.Placeholder);
+    }
+
+    [Fact]
     public void TheComposerFollowsTheStatusOfTheJob()
     {
         var conversation = Open();
@@ -252,7 +275,8 @@ public sealed class ConversationViewModelScripts
     [Theory]
     [InlineData(AttemptOrigin.Hint, JobStatus.NeedsHelp, true, true)]
     [InlineData(AttemptOrigin.Hint, JobStatus.Running, true, false)]
-    [InlineData(AttemptOrigin.Hint, JobStatus.Approved, false, false)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Approved, true, true)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Discarded, false, false)]
     [InlineData(AttemptOrigin.Retry, JobStatus.NeedsHelp, false, false)]
     public void OnlyYourPromptsCanBeEditedAndOnlyWhileTheJobTakesAMessageCanTheyBeSentAgain(AttemptOrigin origin, JobStatus status, bool edits, bool resends)
     {

@@ -3,6 +3,7 @@ using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Board;
@@ -12,6 +13,10 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
     public JobId Job => Summary.Job;
 
     public JobStatus Status => Summary.Status;
+
+    public bool TakesMessages => Status.AcceptsMessages && (Status != JobStatus.Approved || (Summary.Parent.IsNone && !Reclaimed));
+
+    public bool Reclaimed { get; init; }
 
     public int Attempts { get; init; }
 

@@ -20,6 +20,8 @@ internal sealed class WindowsContainment : IContainment
         }
     }
 
+    public IContainer Recover(ProcessTreeId tree) => new RootsContainer();
+
     public ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken) =>
         Containers.EachMemberIdsAsync(containers, cancellationToken);
 }

@@ -236,20 +236,24 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
-    public async Task TheChildrenStillRunningWhenTheirParentEndsAreDiscardedAsync()
+    public async Task EveryChildThatHasNotEndedWhenItsParentEndsIsDiscardedAsync()
     {
         await using var desk = new Desk();
         await desk.StartedAsync();
+        desk.Jobs.Approval = JobRejection.MergeConflict;
         var running = await desk.DelegateAsync("running");
         var done = await desk.DelegateAsync("done");
         await desk.ProgressAsync(done, JobStatus.Failed);
         _ = await desk.ReportedAsync(done);
+        var waiting = await desk.DelegateAsync("waiting");
+        await desk.ProgressAsync(waiting, JobStatus.AwaitingReview);
+        Assert.Equal(ChildOutcome.Conflict, Outcomes.Present((await desk.ReportedAsync(waiting)).Report).Outcome);
 
         await desk.ProgressAsync(desk.Parent, JobStatus.Discarded);
         await desk.ProgressAsync(running, JobStatus.Discarded);
 
         Assert.Equal(ChildOutcome.Discarded, Outcomes.Present((await desk.ReportedAsync(running)).Report).Outcome);
-        Assert.Equal([running], desk.Jobs.Discarded);
+        Assert.Equal([running, waiting], desk.Jobs.Discarded);
     }
 
     private static VerificationReport Verified(JobId child) =>

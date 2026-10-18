@@ -56,6 +56,9 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
         await bus.PublishAsync(new ApprovalAnnouncement(approval), cancellationToken);
     }
 
+    public ValueTask AnnounceRestAsync(JobId job, SessionId session, CancellationToken cancellationToken) =>
+        bus.PublishAsync(new JobSessionRested(job, session), cancellationToken);
+
     public async Task RecordResumeAsync(Job job, SessionId session, CancellationToken cancellationToken)
     {
         await SaveAsync(job, cancellationToken);

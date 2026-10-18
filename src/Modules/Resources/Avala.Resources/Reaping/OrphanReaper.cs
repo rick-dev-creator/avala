@@ -24,6 +24,21 @@ internal sealed class OrphanReaper(ProcessReadings readings, IResourceSettings s
             ? Task.CompletedTask
             : readings.Find(tree).Match(open => ReapOpenAsync(open, session, job, cancellationToken), () => Task.CompletedTask);
 
+    public async Task<bool> CloseIfEmptyAsync(ProcessTreeId tree, CancellationToken cancellationToken)
+    {
+        foreach (var open in readings.Find(tree).Match<IProcessTree[]>(found => [found], () => []))
+        {
+            if ((await readings.ReadAsync(open, cancellationToken)).Count > 0)
+            {
+                return false;
+            }
+
+            _ = await readings.CloseAsync(tree, cancellationToken);
+        }
+
+        return true;
+    }
+
     private async Task ReapOpenAsync(IProcessTree open, SessionId session, Option<JobId> job, CancellationToken cancellationToken)
     {
         var tree = open.Id;

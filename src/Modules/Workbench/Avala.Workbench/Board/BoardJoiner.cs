@@ -3,13 +3,28 @@ using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Board;
 
-internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall recall, IHandoffs handoffs, IPullRequests pullRequests)
+internal sealed class JobSurroundings(IHandoffs handoffs, IPullRequests pullRequests, IWorkspaces workspaces)
+{
+    public IHandoffs Handoffs => handoffs;
+
+    public IPullRequests PullRequests => pullRequests;
+
+    public async Task<bool> WorktreeGoneAsync(JobSummary summary, CancellationToken cancellationToken) =>
+        summary.Status == JobStatus.Approved
+        && await summary.Workspace.Match(
+            async workspace => (await workspaces.FindAsync(workspace, cancellationToken)).Match(_ => false, failure => failure == WorkspaceFailure.UnknownWorkspace),
+            () => Task.FromResult(false));
+}
+
+internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall recall, JobSurroundings surroundings)
 {
     public async Task<BoardJob> JoinedAsync(JobHistory history, bool restored, CancellationToken cancellationToken)
     {
+        var (handoffs, pullRequests) = (surroundings.Handoffs, surroundings.PullRequests);
         var verified = verifications.OfJob(history.Summary.Job);
         var watch = pullRequests.Of(history.Summary.Job);
         var wakeUps = pullRequests.WakeUpsOf(history.Summary.Job);
@@ -25,6 +40,7 @@ internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall
             Choice = history.Choice,
             PullRequest = watch,
             WakeUps = wakeUps,
+            Reclaimed = await surroundings.WorktreeGoneAsync(history.Summary, cancellationToken),
         };
     }
 }

@@ -124,7 +124,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
 
         await section.RetryCommand.ExecuteAsync(null);
 
-        Assert.Equal("The job did not start again. The job takes a message only when it needs you or awaits review.", section.RetryRefusal);
+        Assert.Equal("The job did not start again. The job takes a message only when it needs you, awaits review or was approved.", section.RetryRefusal);
     }
 
     [Fact]

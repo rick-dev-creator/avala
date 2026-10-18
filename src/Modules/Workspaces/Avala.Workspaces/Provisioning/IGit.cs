@@ -24,7 +24,7 @@ internal interface IGit
 
     Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken);
 
-    Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
 
     Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(string repository, CommitSha commit, string path, CancellationToken cancellationToken);
 

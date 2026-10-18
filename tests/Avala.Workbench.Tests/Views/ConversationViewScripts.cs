@@ -329,13 +329,13 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ADoneJobOffersNoButtonsAndSaysItIsDoneAsync() =>
+    public Task ADiscardedJobOffersNoButtonsAndSaysItWasDiscardedAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignComposerViewModel(JobStatus.Approved));
+            var view = Screen.Show(new DesignComposerViewModel(JobStatus.Discarded));
 
             Assert.Equal((false, false), (view.Shows("Send"), view.Shows("Interrupt")));
-            Assert.Equal("This job is done", view.Find<TextBox>("Draft").PlaceholderText);
+            Assert.Equal("This job was discarded", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 
     [Theory]
@@ -343,6 +343,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
     [InlineData(JobStatus.AwaitingReview)]
     [InlineData(JobStatus.Checking)]
     [InlineData(JobStatus.Preparing)]
+    [InlineData(JobStatus.Approved)]
     public Task AJobThatIsNotRunningOffersSendAndNoStopAsync(JobStatus status) =>
         ui.RunAsync(() =>
         {
@@ -358,7 +359,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var (composer, _) = Composer(JobStatus.Approved, OnPullRequest.WakeOnCi);
             var view = Screen.Show(composer);
 
-            Assert.Equal((false, false), (view.Shows("Send"), view.Shows("Interrupt")));
+            Assert.Equal((true, false), (view.Shows("Send"), view.Shows("Interrupt")));
             Assert.Equal("Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 

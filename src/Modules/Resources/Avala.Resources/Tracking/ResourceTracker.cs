@@ -7,12 +7,23 @@ using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Usage;
 using Avala.Sdk.Events;
+using Avala.Sdk.Processes;
 
 namespace Avala.Resources.Tracking;
 
 internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, PortLeases leases, WorktreeHousekeeper housekeeper)
-    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<SessionEnded>, IHandle<SessionStopped>, IHandle<JobProgressed>, IHandle<ResourcesSampled>
+    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<JobSessionRested>, IHandle<SessionEnded>, IHandle<SessionStopped>, IHandle<JobProgressed>, IHandle<ResourcesSampled>
 {
+    private readonly HashSet<SessionId> rested = [];
+    private readonly List<(JobId Job, SessionId Session, ProcessTreeId Tree)> kept = [];
+
+    public ValueTask HandleAsync(JobSessionRested integrationEvent, CancellationToken cancellationToken)
+    {
+        rested.Add(integrationEvent.Session);
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
         var facts = new SessionFacts(
@@ -45,7 +56,14 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
     {
         if (!integrationEvent.Status.Ended())
         {
+            await housekeeper.ReleaseAsync(integrationEvent.Job, cancellationToken);
             return;
+        }
+
+        foreach (var left in kept.Where(found => found.Job == integrationEvent.Job).ToList())
+        {
+            kept.Remove(left);
+            await reaper.ReapEndedAsync(left.Tree, left.Session, left.Job, cancellationToken);
         }
 
         var worktrees = book.Attribution.HomesOf(integrationEvent.Job);
@@ -64,6 +82,19 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
     private async Task EndedAsync(SessionId session, CancellationToken cancellationToken)
     {
         var attribution = book.Attribution;
+
+        if (rested.Remove(session))
+        {
+            foreach (var (tree, job) in attribution.Of(session).Bind(facts => facts.Tree).Bind(tree => attribution.JobOf(session).Map(job => (tree, job))).Match<(ProcessTreeId, JobId)[]>(found => [found], () => []))
+            {
+                if (!await reaper.CloseIfEmptyAsync(tree, cancellationToken))
+                {
+                    kept.Add((job, session, tree));
+                }
+            }
+
+            return;
+        }
 
         await attribution.Of(session)
             .Bind(facts => facts.Tree)

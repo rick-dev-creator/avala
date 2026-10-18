@@ -101,10 +101,12 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(
         WorkspaceLocation location,
         BranchName branch,
+        WorkspaceId workspace,
         CancellationToken cancellationToken) =>
         administration.RunAsync(
             token => AdministrationAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], token)
                 .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "branch", "-D", branch.Value], token))
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.MergedOf(workspace)], token))
                 .MapAsync(_ => location),
             cancellationToken);
 

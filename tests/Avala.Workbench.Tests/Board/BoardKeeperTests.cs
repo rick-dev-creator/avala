@@ -8,6 +8,7 @@ using Avala.Handoffs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Transcripts.Contracts;
@@ -32,7 +33,9 @@ public sealed class BoardKeeperTests
 
     private readonly FakeHandoffs handoffs = new();
 
-    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, new TranscriptRecall(transcripts, handoffs, new FakeDelegations()), handoffs, new FakePullRequests()), board, time);
+    private readonly FakeWorkspaces workspaces = new();
+
+    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, new TranscriptRecall(transcripts, handoffs, new FakeDelegations()), new JobSurroundings(handoffs, new FakePullRequests(), workspaces)), board, time);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -165,6 +168,33 @@ public sealed class BoardKeeperTests
         Assert.Equal(
             [Option<HandoffRecord>.None, Option<HandoffRecord>.Some(handoff)],
             joined.Transcript.Entries.OfType<PromptEntry>().Select(prompt => prompt.Handoff));
+    }
+
+    [Fact]
+    public async Task AnApprovedJobWhoseWorktreeWasReclaimedTakesNoMoreMessagesAsync()
+    {
+        var job = catalog.Add("Fix the failing test", JobStatus.Approved).Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        var before = Joined(job).TakesMessages;
+
+        await keeper.HandleAsync(new WorktreeReclaimed(new ReclaimedWorktree(job, "/worktrees/job", JobStatus.Approved, time.GetUtcNow())), Cancellation);
+
+        Assert.Equal((true, false), (before, Joined(job).TakesMessages));
+    }
+
+    [Fact]
+    public async Task AnApprovedJobOfAnEarlierRunWhoseWorktreeIsGoneJoinsTakingNoMessageAsync()
+    {
+        var kept = catalog.Add("Keep its worktree", JobStatus.Approved).Summary.Job;
+        var gone = catalog.Add("Lose its worktree", JobStatus.Approved).Summary.Job;
+        var worktree = new WorkspaceId(Guid.CreateVersion7());
+        workspaces.Known[worktree] = new WorkspaceInfo(worktree, "/worktrees/kept", "avala/kept", "abc123");
+        catalog.Change(kept, history => history with { Summary = history.Summary with { Workspace = worktree } });
+        catalog.Change(gone, history => history with { Summary = history.Summary with { Workspace = new WorkspaceId(Guid.CreateVersion7()) } });
+
+        await keeper.HandleAsync(new StartupCompleted(), Cancellation);
+
+        Assert.Equal((true, false), (Joined(kept).TakesMessages, Joined(gone).TakesMessages));
     }
 
     [Fact]

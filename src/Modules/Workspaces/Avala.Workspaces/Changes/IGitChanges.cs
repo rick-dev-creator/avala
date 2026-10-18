@@ -42,4 +42,8 @@ internal interface IGitChanges
     Task<bool> MoveBranchAsync(string repository, BranchName branch, CommitSha to, CommitSha from, CancellationToken cancellationToken);
 
     Task<bool> AdvanceCheckoutAsync(string checkout, CommitSha from, CommitSha to, CancellationToken cancellationToken);
+
+    Task<Result<Option<CommitSha>, WorkspaceFailure>> LastMergedAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<bool> RecordMergedAsync(string repository, WorkspaceId workspace, CommitSha work, CancellationToken cancellationToken);
 }

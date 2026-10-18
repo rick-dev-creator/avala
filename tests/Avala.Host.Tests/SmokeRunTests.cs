@@ -22,6 +22,18 @@ public sealed class SmokeRunTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task QuittingAvalaWaitsForItsRuntimeToStopBeforeTheProcessEndsAsync()
+    {
+        await using var data = new TemporaryFolder();
+
+        var (exitCode, _) = await RunAsync(plugins.Directory, data.Path, SmokeRun.Flag);
+
+        Assert.Equal(0, exitCode);
+        var log = await File.ReadAllLinesAsync(Assert.Single(Directory.GetFiles(Path.Combine(data.Path, "logs"))), Cancellation);
+        Assert.EndsWith($"Information {CrashLog.Category}: {CrashLog.StoppedMessage}", log[^1]);
+    }
+
+    [Fact]
     public async Task TheSmokeRunFailsWhenNoPluginIsLoadedAsync()
     {
         await using var data = new TemporaryFolder();
