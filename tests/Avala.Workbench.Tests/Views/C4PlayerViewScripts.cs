@@ -349,6 +349,20 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
             Assert.True(overlaps.Count == 0, string.Join("; ", overlaps));
         }, Cancellation);
 
+    [Fact]
+    public Task EveryLabelOfAFramedColumnStaysNextToTheColumnItsLinksRunInAndOffItsElementsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Column", [Element("a", "Alpha") with { Boundary = "core" }, Element("b", "Beta") with { Boundary = "core" }, Element("c", "Gamma") with { Boundary = "core" }], [new C4Boundary("core", "Core")], [new C4Relation("b", "a", "Notifies the customer about"), new C4Relation("a", "b", "Stores"), new C4Relation("b", "c", "Queries"), new C4Relation("b", "c", "Sends events"), new C4Relation("b", "c", "Writes orders to")]);
+            using var player = Player(structure, [new PlayStep(StepKind.Base, "relations", "Relations", string.Empty) { Relations = structure.Relations }]);
+            var graph = Screen.Show(player, ThemeVariant.Dark, 1240, 720).All<C4GraphPanel>().Single();
+            var column = graph.Children.Select(child => child.Bounds).Aggregate((all, bounds) => all.Union(bounds));
+
+            var away = graph.Labels.Where(label => label.Right < column.X - label.Width || label.X > column.Right + label.Width || graph.Children.Any(child => child.Bounds.Intersects(label))).Select(label => $"{label} lies away from the column {column.X}..{column.Right} or on an element").ToList();
+
+            Assert.True(away.Count == 0, string.Join("; ", away));
+        }, Cancellation);
+
     private static readonly IEqualityComparer<(double, double)> Close = EqualityComparer<(double, double)>.Create((one, other) => Math.Abs(one.Item1 - other.Item1) < 0.01 && Math.Abs(one.Item2 - other.Item2) < 0.01, pair => 0);
 
     private static C4PlayerViewModel Player()
