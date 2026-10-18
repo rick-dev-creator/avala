@@ -90,6 +90,8 @@ public sealed record JobDocumentation(JobId Job, Feature Feature)
     public Option<JobId> Writing { get; init; }
 
     public IReadOnlyList<ChangeRequest> Requests { get; init; } = [];
+
+    public bool Planned { get; init; }
 }
 
 public sealed record DocsRulesState(DocsRules Working, DocsRules Committed);
@@ -135,6 +137,8 @@ public sealed record SiteCreated(string Root, JobId Job);
 public sealed record JobDocs(JobDocumentation Documentation, string Repository, Option<FeatureStory> Story, RepositoryDocs Docs)
 {
     public DocsSite Site { get; init; } = new(false, "docs", false);
+
+    public bool Unplanned { get; init; }
 }
 
 public sealed record FeatureChosen(JobId Job, FeatureChoice Choice) : IIntegrationEvent;

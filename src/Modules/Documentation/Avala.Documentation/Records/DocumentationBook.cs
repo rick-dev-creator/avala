@@ -18,11 +18,13 @@ internal sealed record DocumentedJob(JobId Job, FeatureChoice Choice)
 
     public ImmutableList<ChangeRequest> Requests { get; init; } = [];
 
+    public bool Planned => Versions.Count > 0 || Writer.IsSome || LastPlan.Length > 0;
+
     public IReadOnlyList<ChangeRequest> Linked(FeatureVersion version) =>
         version.Kind == VersionKind.AsBuilt ? Requests : [.. Requests.Select(request => request.Version.IsSome ? request : request with { Version = version.Number })];
 
     public Option<JobDocumentation> Public => Choice.Feature.Map(
-        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer), Requests = Requests });
+        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer), Requests = Requests, Planned = Planned });
 }
 
 internal interface IDocumentationStore

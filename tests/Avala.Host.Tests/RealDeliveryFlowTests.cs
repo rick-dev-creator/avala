@@ -63,7 +63,7 @@ public sealed class RealDeliveryFlowTests(HeadlessUi ui, PublishedPlugins plugin
         await Camera.ShootAsync(run, "real-02-docs-switch-committed", ToDocs);
 
         var written = run.Watch<VersionWritten>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Plain("Create a tiny Python script greet.py that prints 'Hello, NAME!' for a name given as its first argument, and 'Hello, world!' without one. Before you change anything, record your plan as a task list of two steps with your task tools."))));
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Plain("Create a tiny Python script greet.py that prints 'Hello, NAME!' for a name given as its first argument, and 'Hello, world!' without one."))));
         _ = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(job);

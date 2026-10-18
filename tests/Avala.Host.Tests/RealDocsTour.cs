@@ -12,7 +12,7 @@ public sealed class RealDocsTour(HeadlessUi ui, PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";
 
-    private const string Planned = " Before you change anything, record your plan as a task list of two steps with your task tools, and keep it updated. Be brief.";
+    private const string Brief = " Be brief.";
 
     private FeatureCamera Camera { get; } = new(ui, FeatureCamera.Folder ?? Path.Combine(Path.GetTempPath(), "avala-docs-tour"));
 
@@ -54,12 +54,12 @@ public sealed class RealDocsTour(HeadlessUi ui, PublishedPlugins plugins)
         var written = run.Watch<VersionWritten>();
         var workbench = await run.WorkbenchAsync();
 
-        var greeter = await DocumentedAsync(run, written, "Greeter command line\n\nCreate greet.py that prints 'Hello, NAME!' for a name given as its first argument, and 'Hello, world!' without one." + Planned);
+        var greeter = await DocumentedAsync(run, written, "Greeter command line\n\nCreate greet.py that prints 'Hello, NAME!' for a name given as its first argument, and 'Hello, world!' without one." + Brief);
         var conversation = await workbench.SelectAsync(greeter);
         var pane = await OpenPaneAsync(run);
         await Camera.ShootAsync(run, "docs-tour-01-job-and-its-docs-pane");
 
-        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(greeter, "Add a --shout flag that prints the greeting in uppercase. Add it as a new step of your task list before you change anything.", Cancellation));
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(greeter, "Add a --shout flag that prints the greeting in uppercase.", Cancellation));
         _ = await written.UntilAsync(version => version.Job == greeter && version.Version.Kind == VersionKind.AsBuilt);
         await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("ChangeLineViewModel"));
         await Camera.ShootAsync(run, "docs-tour-02-change-request-and-new-version");
@@ -69,10 +69,10 @@ public sealed class RealDocsTour(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "docs-tour-04-first-plan-chosen-in-history", window => FeatureCamera.ScrollTo(window, "What happened"));
         _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(greeter, Cancellation));
 
-        var calculator = await DocumentedAsync(run, written, "Calculator module\n\nCreate calc.py with add(a, b) and sub(a, b), and test_calc.py that checks both with unittest." + Planned);
+        var calculator = await DocumentedAsync(run, written, "Calculator module\n\nCreate calc.py with add(a, b) and sub(a, b), and test_calc.py that checks both with unittest." + Brief);
         _ = Outcomes.Succeeds(await run.Get<IOpenDeliveries>().ApproveThroughAsync(calculator, "merge", Cancellation));
 
-        _ = await DocumentedAsync(run, written, "Changelog script\n\nCreate changelog.py that prints the last five git commit subjects as a Markdown list." + Planned);
+        _ = await DocumentedAsync(run, written, "Changelog script\n\nCreate changelog.py that prints the last five git commit subjects as a Markdown list." + Brief);
 
         var group = await run.Ui.ReadAsync(() => workbench.Sidebar["Projects"].Items.Single());
         var docs = await run.Ui.ReadAsync(() => group["Docs"]);
