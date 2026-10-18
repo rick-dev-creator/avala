@@ -80,6 +80,31 @@ public sealed class LiveFeedTests : IDisposable
         Assert.Equal(0, shown);
     }
 
+    [Fact]
+    public async Task AFeedStoppedWhileItsReadFailsEndsQuietlyAsync()
+    {
+        var reading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failing = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failed = new List<string>();
+        feed.Start(
+            async _ =>
+            {
+                reading.TrySetResult();
+
+                return await failing.Task;
+            },
+            _ => { },
+            exception => failed.Add(exception.Message));
+        await reading.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var following = feed.Following;
+
+        feed.Stop();
+        failing.SetException(new IOException("The docs folder went away"));
+
+        await following.WaitAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(failed);
+    }
+
     public void Dispose()
     {
         feed.Dispose();
