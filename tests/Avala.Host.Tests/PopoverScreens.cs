@@ -53,6 +53,10 @@ public sealed class PopoverScreens(HeadlessUi ui, PublishedPlugins plugins)
             await ShootBothAsync(run, $"91-job-row-move-to-{size}", frame, sidebar, RightClick(run.Job), MoveTo);
             await ShootBothAsync(run, $"92-project-menu-{size}", frame, sidebar, RightClickProject(LongProject));
             await ShootBothAsync(run, $"93-usage-popover-{size}", frame, HoverUsage);
+            await ShootBothAsync(run, $"94-job-row-menu-keyboard-{size}", frame, sidebar, RightClick(run.Job), Press(Key.Down), Press(Key.Down));
+            await ShootBothAsync(run, $"95-more-menu-{size}", frame, LeftClick("More"));
+            await ShootBothAsync(run, $"96-usage-page-{size}", frame, sidebar, Page("Usage"));
+            await ShootBothAsync(run, $"97-usage-by-day-{size}", frame, sidebar, Page("Usage"), ScrollToDays);
         }
     }
 
@@ -79,11 +83,32 @@ public sealed class PopoverScreens(HeadlessUi ui, PublishedPlugins plugins)
     private static Action<Window> RightClickProject(string name) =>
         window => Click(window, window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "ProjectName" && text.Text == name));
 
-    private static void Click(Window window, Control target)
+    private static Action<Window> LeftClick(string name) =>
+        window => Click(window, window.GetVisualDescendants().OfType<Control>().First(control => control.Name == name && control.IsEffectivelyVisible), MouseButton.Left);
+
+    private static Action<Window> Press(Key key) =>
+        window =>
+        {
+            window.KeyPress(key, RawInputModifiers.None, PhysicalKey.None, null);
+            window.KeyRelease(key, RawInputModifiers.None, PhysicalKey.None, null);
+        };
+
+    private static Action<Window> Page(string title) =>
+        window => ((ShellViewModel)window.DataContext!).SelectedPage = ((ShellViewModel)window.DataContext).Pages.Single(page => page.Title == title);
+
+    private static void ScrollToDays(Window window)
+    {
+        foreach (var days in window.GetVisualDescendants().OfType<ItemsControl>().Where(found => found.Name == "Days").Take(1))
+        {
+            days.GetVisualAncestors().OfType<ScrollViewer>().First().ScrollToEnd();
+        }
+    }
+
+    private static void Click(Window window, Control target, MouseButton button = MouseButton.Right)
     {
         var point = target.TranslatePoint(new Point(target.Bounds.Width * 0.6, target.Bounds.Height / 2), window) ?? default;
-        window.MouseDown(point, MouseButton.Right);
-        window.MouseUp(point, MouseButton.Right);
+        window.MouseDown(point, button);
+        window.MouseUp(point, button);
     }
 
     private static void MoveTo(Window window)
@@ -117,6 +142,7 @@ public sealed class PopoverScreens(HeadlessUi ui, PublishedPlugins plugins)
                 var shell = run.Get<ShellViewModel>();
                 shell.FitCommand.Execute(1440d);
                 shell.ResizeSidebarCommand.Execute(WindowLayout.DefaultSidebarWidth);
+                shell.SelectedPage = shell.Pages.Single(page => page.Title == "Jobs");
             },
             TestContext.Current.CancellationToken).AsTask();
 }
