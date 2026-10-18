@@ -97,9 +97,17 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public bool Companion { get; init; }
 }
 
+public enum MessageAuthor
+{
+    Person,
+    Avala,
+}
+
 public sealed record JobMessage(string Text)
 {
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
+    public MessageAuthor Author { get; init; } = MessageAuthor.Person;
 }
 
 public interface IJobMessages

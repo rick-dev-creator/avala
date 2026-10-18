@@ -24,6 +24,8 @@ internal sealed record BriefFacts(string Instruction, ConnectionName From, Conne
     public IReadOnlyList<string> Questions { get; init; } = [];
 
     public Option<string> LastMessage { get; init; }
+
+    public IReadOnlyList<string> Unanswered { get; init; } = [];
 }
 
 internal static class HandoffBrief
@@ -59,6 +61,9 @@ internal static class HandoffBrief
             .AppendLine()
             .AppendLine("## The last message of the previous agent")
             .AppendLine(facts.LastMessage.Match(Bounded, () => "None."))
+            .AppendLine()
+            .AppendLine("## What the person sent during its last turn, which it did not finish")
+            .AppendLine(Lines(facts.Unanswered.Select(message => $"- {Bounded(message)}"), "None."))
             .AppendLine()
             .AppendLine("## What remains")
             .Append(Lines(Remaining(facts), "- Complete the original instruction."))

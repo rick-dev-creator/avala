@@ -177,7 +177,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         if (job.Retry(feedback).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);
-            _ = await messenger.TellAsync(job, feedback.Text, cancellationToken);
+            _ = await messenger.TellAsync(job, feedback.Text, feedback.Author, cancellationToken);
         }
     }
 
@@ -270,7 +270,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         _ = round.InSameSession(job, guidance);
         await ledger.RecordAsync(job, cancellationToken);
-        await TellAsync(job, guidance.Text, cancellationToken);
+        await TellAsync(job, guidance.Text, guidance.Author, cancellationToken);
 
         return new JobContinuation(job.Id, session, ContinuedIn.SameSession);
     }
@@ -292,11 +292,8 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         }
 
         _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
-        await BeginAsync(
-            job,
-            opened.Session,
-            opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}",
-            cancellationToken);
+        await ledger.RecordSessionAsync(job, opened.Session, cancellationToken);
+        await TellAsync(job, opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author, cancellationToken);
 
         return new JobContinuation(job.Id, opened.Session, opened.Resumed ? ContinuedIn.ResumedConversation : ContinuedIn.NewConversation);
     }
@@ -345,9 +342,12 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         await TellAsync(job, message, cancellationToken);
     }
 
-    private async Task TellAsync(Job job, string message, CancellationToken cancellationToken)
+    private Task TellAsync(Job job, string message, CancellationToken cancellationToken) =>
+        TellAsync(job, message, MessageAuthor.Person, cancellationToken);
+
+    private async Task TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
     {
-        if ((await messenger.TellAsync(job, message, cancellationToken)).IsFailure)
+        if ((await messenger.TellAsync(job, message, author, cancellationToken)).IsFailure)
         {
             await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
         }

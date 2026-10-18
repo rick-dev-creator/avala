@@ -178,7 +178,7 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
         _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
 
-        Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Notice, Cancellation));
+        Outcomes.Succeeds(await run.Get<IJobMessages>().SendBackAsync(job, new JobMessage(Notice) { Author = MessageAuthor.Avala }, Cancellation));
 
         var told = await activity.UntilAsync(update => update.Event is ItemProgressed { Item.Value: "told" } progressed && progressed.Text.StartsWith(Notice, StringComparison.Ordinal));
         Assert.Equal(Notice, ((ItemProgressed)told.Event).Text);

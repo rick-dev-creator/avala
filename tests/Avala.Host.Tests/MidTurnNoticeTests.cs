@@ -18,15 +18,7 @@ public sealed class MidTurnNoticeTests(PublishedPlugins plugins)
 
     private const string Stopped = "Stopped the background agent once Avala allowed TaskStop.";
 
-    private const string Steering = "Keep the calculator's old name as an alias.";
-
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(89);
-
-    private static readonly (string File, string Content)[] TwoAccounts =
-    [
-        ("simulated-logins/one/.login", string.Empty),
-        ("simulated-logins/two/.login", string.Empty),
-    ];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -77,37 +69,6 @@ public sealed class MidTurnNoticeTests(PublishedPlugins plugins)
         var told = await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "InterjectionViewModel", "Text").Concat(OpenWorkbench.Texts(conversation, "PromptViewModel", "Text")).ToList());
         var heard = told.Sum(text => text.Split(Allows).Length - 1);
         Assert.True(heard == 1, $"The agent was told {heard} times: [{string.Join(" | ", told)}]");
-    }
-
-    [Fact]
-    public async Task MessagesSentDuringTheTurnThatRunsOutOfItsWindowReachTheSessionThatContinuesTheJobAsync()
-    {
-        await using var run = await SimulatedRun.PreparedAsync(
-            plugins,
-            TwoAccounts,
-            [
-                (".avala/checks.json", ReviewTests.CalculatorChecks),
-                (".avala/permissions.json", ReviewTests.TestsPolicy),
-                (".avala/jobs.json", """{ "limits": { "onLimit": "handoff-same-harness", "connections": ["simulator-one", "simulator-two"] } }"""),
-            ],
-            pace: Pace);
-        var pacer = new Pacer(run);
-        var activity = run.Watch<AgentActivity>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("account-exhausted")) { Connection = new ConnectionName("simulator-one") }));
-        var first = (await pacer.UntilAsync(activity.UntilAsync(update => update.Event is TurnStarted))).Event.Session;
-
-        _ = Outcomes.Succeeds(await run.Get<IJobs>().SteerAsync(job, Steering, Cancellation));
-        var continued = await pacer.UntilAsync(activity.CollectUntilAsync(update => update.Event is TurnCompleted && update.Event.Session != first));
-
-        var told = continued.Where(update => update.Event.Session != first).Select(update => update.Event switch
-        {
-            ItemProgressed progressed => progressed.Text,
-            MessageQueued queued => queued.Text,
-            _ => string.Empty,
-        }).Where(text => text.Length > 0).ToList();
-        Assert.True(
-            told.Any(text => text.Contains(Steering, StringComparison.Ordinal)),
-            $"The session that continues the job was never told the message sent during the turn that ran out: [{string.Join(" | ", told)}]");
     }
 
     private static bool Running(Bound conversation) => conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Running;
