@@ -118,6 +118,20 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal((true, "Payout scheduler", false, 0, 0, false), shown);
     }
 
+    [Fact]
+    public async Task VersionsTheStoryLeftOutAreNamedWithWhatIsWrongInPlainWordsAsync()
+    {
+        Document(writing: false);
+        documentation.Job = documentation.Job.Map(docs => docs with { Unplayed = [new UnplayedVersion("v3-deviation.md") { Repeated = "log" }, new UnplayedVersion("v4-as-built.md") { After = "v2-deviation.md" }] });
+        using var pane = Pane();
+
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Problem.Length > 0, () => "no problem");
+
+        var shown = await ui.ReadAsync(() => (pane.State, pane.Problem));
+        Assert.Equal(("2 versions", "v3-deviation.md names log twice in its diagram, so the story leaves it out. v4-as-built.md could not be played after v2-deviation.md, so the story leaves it out."), shown);
+    }
+
     public void Dispose() => ui.Dispose();
 
     [Fact]

@@ -7,6 +7,8 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.Writing;
 
+internal sealed record Played(Option<FeatureStory> Story, IReadOnlyList<UnplayedVersion> Unplayed);
+
 internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalog, IWorkingFiles files, JobPlaces places)
 {
     public async Task<RepositoryDocs> RepositoryAsync(string repository, CancellationToken cancellationToken)
@@ -39,37 +41,56 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
         return unmerged;
     }
 
-    public async Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken)
+    public async Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken) =>
+        (await PlayAsync(folder, feature, cancellationToken)).Story;
+
+    private async Task<Played> PlayAsync(string folder, Feature feature, CancellationToken cancellationToken)
     {
         var declared = (await rules.OfRepositoryAsync(folder, cancellationToken)).Match(found => found, _ => DocsRules.Off);
         var place = new FeatureFolder(declared.Folder, feature);
         var versions = await catalog.VersionsAsync(folder, place, cancellationToken);
         var played = new List<PlayedVersion>();
-        var previous = Option<C4Diagram>.None;
+        var unplayed = new List<UnplayedVersion>();
+        var previous = Option<(C4Diagram Structure, string File)>.None;
 
         foreach (var version in versions)
         {
-            var text = (await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).Match(content => content.Match(found => found, () => string.Empty), _ => string.Empty);
-            var shown = Storyboard.Play(version.Number, version.Kind, version.File, VersionReader.Read(text), previous);
-            played.Add(shown);
-            previous = shown.Structure.Elements.Count > 0 ? shown.Structure : previous;
+            try
+            {
+                var text = (await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).Match(content => content.Match(found => found, () => string.Empty), _ => string.Empty);
+                var shown = Storyboard.Play(version.Number, version.Kind, version.File, VersionReader.Read(text), previous.Map(before => before.Structure));
+
+                if (shown.Structure.Elements.GroupBy(element => element.Alias, StringComparer.Ordinal).FirstOrDefault(named => named.Skip(1).Any()) is { } repeated)
+                {
+                    unplayed.Add(new UnplayedVersion(version.File) { Repeated = repeated.Key });
+                    continue;
+                }
+
+                played.Add(shown);
+                previous = shown.Structure.Elements.Count > 0 ? (shown.Structure, version.File) : previous;
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                unplayed.Add(new UnplayedVersion(version.File) { After = previous.Map(before => before.File) });
+                previous = Option<(C4Diagram Structure, string File)>.None;
+            }
         }
 
-        return played.Count == 0 ? Option<FeatureStory>.None : new FeatureStory(feature, played);
+        return new Played(played.Count == 0 ? Option<FeatureStory>.None : new FeatureStory(feature, played), unplayed);
     }
 
     public async Task<Option<JobDocs>> JobAsync(JobDocumentation documentation, Func<string, CancellationToken, Task<DocsSite>> site, CancellationToken cancellationToken) =>
         await (await places.OfAsync(documentation.Job, cancellationToken)).Match(
-            async place => Option<JobDocs>.Some(new JobDocs(
-                documentation,
-                place.Repository,
-                await StoryAsync(place.Worktree, documentation.Feature, cancellationToken),
-                Others(await RepositoryAsync(place.Repository, cancellationToken), documentation.Feature))
-            {
-                Site = await site(place.Worktree, cancellationToken),
-                Unplanned = !documentation.Planned && place.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp or JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed,
-            }),
+            async place => Option<JobDocs>.Some(await JobAsync(documentation, place, await PlayAsync(place.Worktree, documentation.Feature, cancellationToken), site, cancellationToken)),
             () => Task.FromResult(Option<JobDocs>.None));
+
+    private async Task<JobDocs> JobAsync(JobDocumentation documentation, JobPlace place, Played played, Func<string, CancellationToken, Task<DocsSite>> site, CancellationToken cancellationToken) =>
+        new(documentation, place.Repository, played.Story, Others(await RepositoryAsync(place.Repository, cancellationToken), documentation.Feature))
+        {
+            Site = await site(place.Worktree, cancellationToken),
+            Unplayed = played.Unplayed,
+            Unplanned = !documentation.Planned && place.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp or JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed,
+        };
 
     private static RepositoryDocs Others(RepositoryDocs docs, Feature feature) =>
         docs with { Features = [.. docs.Features.Where(listed => listed.Feature.Slug != feature.Slug || listed.Branch.IsNone)] };

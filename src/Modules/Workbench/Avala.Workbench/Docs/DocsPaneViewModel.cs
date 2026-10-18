@@ -155,6 +155,7 @@ internal sealed partial class DocsPaneViewModel
             Feature = documented.Feature.Title;
             IsWriting = documented.Writing.IsSome;
             State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
+            Problem = DocsPanePhrases.Unplayed(docs.Unplayed);
             var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
 
             if (story != played)
@@ -240,6 +241,13 @@ internal static class DocsPanePhrases
     public const string Unreadable = "unreadable";
 
     public static string Problem(string reason) => $"Could not read this feature's docs: {reason}";
+
+    public static string Unplayed(IReadOnlyList<UnplayedVersion> unplayed) =>
+        string.Join(' ', unplayed.Select(version => version.Repeated.Match(
+            name => $"{version.File} names {name} twice in its diagram, so the story leaves it out.",
+            () => version.After.Match(
+                after => $"{version.File} could not be played after {after}, so the story leaves it out.",
+                () => $"{version.File} could not be played, so the story leaves it out."))));
 
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"

@@ -241,6 +241,7 @@ internal sealed class Documented
     {
         private readonly ConcurrentDictionary<(string Folder, string Path), string> files = new();
         private readonly ConcurrentQueue<(string Repository, string Path, string Message)> committed = new();
+        private readonly ConcurrentDictionary<(string Folder, string Path), string> broken = new();
 
         public IReadOnlyList<(string Repository, string Path, string Message)> Committed => [.. committed];
 
@@ -262,8 +263,10 @@ internal sealed class Documented
 
         public void Draft(string folder, string path, string content) => files[(folder, path)] = content;
 
+        public void Break(string folder, string path, string reason) => broken[(folder, path)] = reason;
+
         public ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(files.TryGetValue((repository, path), out var content) ? content : Option<string>.None));
+            broken.TryGetValue((repository, path), out var reason) ? throw new IOException(reason) : ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(files.TryGetValue((repository, path), out var content) ? content : Option<string>.None));
 
         public ValueTask<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken)
         {
