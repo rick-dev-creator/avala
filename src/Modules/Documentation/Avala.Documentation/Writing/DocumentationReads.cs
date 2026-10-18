@@ -1,6 +1,7 @@
 using Avala.Documentation.Catalog;
 using Avala.Documentation.Contracts;
 using Avala.Documentation.Features;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 
@@ -12,7 +13,30 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
     {
         var declared = (await rules.OfRepositoryAsync(repository, cancellationToken)).Match(found => found, _ => DocsRules.Off);
 
-        return declared.Enabled ? new RepositoryDocs(true, declared.Folder, await catalog.ListAsync(repository, declared.Folder, cancellationToken)) : RepositoryDocs.Off with { Folder = declared.Folder };
+        if (!declared.Enabled)
+        {
+            return RepositoryDocs.Off with { Folder = declared.Folder };
+        }
+
+        var merged = await catalog.ListAsync(repository, declared.Folder, cancellationToken);
+
+        return new RepositoryDocs(true, declared.Folder, [.. merged, .. await UnmergedAsync(repository, declared.Folder, merged, cancellationToken)]);
+    }
+
+    private async Task<IReadOnlyList<RepositoryFeature>> UnmergedAsync(string repository, string folder, IReadOnlyList<RepositoryFeature> merged, CancellationToken cancellationToken)
+    {
+        var listed = merged.Select(found => found.Feature.Slug).ToHashSet(StringComparer.Ordinal);
+        var unmerged = new List<RepositoryFeature>();
+
+        foreach (var place in (await places.OfRepositoryAsync(repository, cancellationToken)).Where(found => found.Status is not (JobStatus.Discarded or JobStatus.Failed)))
+        {
+            foreach (var feature in (await catalog.ListAsync(place.Worktree, folder, cancellationToken)).Where(found => listed.Add(found.Feature.Slug)))
+            {
+                unmerged.Add(feature with { Branch = place.Branch, Folder = place.Worktree });
+            }
+        }
+
+        return unmerged;
     }
 
     public async Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken)
@@ -40,9 +64,12 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
                 documentation,
                 place.Repository,
                 await StoryAsync(place.Worktree, documentation.Feature, cancellationToken),
-                await RepositoryAsync(place.Repository, cancellationToken))
+                Others(await RepositoryAsync(place.Repository, cancellationToken), documentation.Feature))
             {
                 Site = await site(place.Worktree, cancellationToken),
             }),
             () => Task.FromResult(Option<JobDocs>.None));
+
+    private static RepositoryDocs Others(RepositoryDocs docs, Feature feature) =>
+        docs with { Features = [.. docs.Features.Where(listed => listed.Feature.Slug != feature.Slug || listed.Branch.IsNone)] };
 }

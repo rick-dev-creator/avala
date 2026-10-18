@@ -71,6 +71,15 @@ public sealed class RealDeliveryFlowTests(HeadlessUi ui, PublishedPlugins plugin
         await run.Ui.PresentedAsync(toggle.Presentation, () => toggle["IsShown"].Value<bool>(), () => "no Docs glyph");
         await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
         await Camera.ShootAsync(run, "real-03-docs-written-by-the-next-job");
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(job, Cancellation));
+        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
+        var group = await run.Ui.ReadAsync(() => workbench.Sidebar["Projects"].Items.Single());
+        var projectDocs = await run.Ui.ReadAsync(() => group["Docs"]);
+        await workbench.ShowsAsync(() => projectDocs["Features"].Items.Count == 1);
+        Assert.Contains("not merged", await run.Ui.ReadAsync(() => projectDocs["Features"].Items[0]["Fact"].Text), StringComparison.Ordinal);
+        await run.Ui.InvokeAsync(() => projectDocs.Execute("ToggleCommand"), Cancellation);
+        await Camera.ShootAsync(run, "real-03b-unmerged-docs-listed-in-the-project");
     }
 
     [Fact]

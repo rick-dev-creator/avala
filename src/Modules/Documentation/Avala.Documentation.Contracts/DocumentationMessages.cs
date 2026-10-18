@@ -30,7 +30,12 @@ public sealed record Feature(string Slug, string Title);
 
 public sealed record FeatureSuggestion(Feature Feature, bool IsNew);
 
-public sealed record RepositoryFeature(Feature Feature, int Versions);
+public sealed record RepositoryFeature(Feature Feature, int Versions)
+{
+    public Option<string> Branch { get; init; }
+
+    public Option<string> Folder { get; init; }
+}
 
 public sealed record RepositoryDocs(bool Enabled, string Folder, IReadOnlyList<RepositoryFeature> Features)
 {

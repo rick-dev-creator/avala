@@ -7,6 +7,8 @@ namespace Avala.Documentation.Writing;
 internal sealed record JobPlace(JobId Job, string Repository, WorkspaceId Workspace, string Worktree, string Instruction, JobStatus Status, int Attempt)
 {
     public Option<JobId> Parent { get; init; }
+
+    public string Branch { get; init; } = string.Empty;
 }
 
 internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
@@ -32,8 +34,21 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
                     found => Option<JobPlace>.Some(new JobPlace(job, history.Summary.Repository, workspace, found.Path, history.Summary.Instruction, history.Summary.Status, Math.Max(1, history.Attempts.Count))
                     {
                         Parent = history.Summary.Parent,
+                        Branch = found.Branch,
                     }),
                     _ => Option<JobPlace>.None),
                 () => Task.FromResult(Option<JobPlace>.None)),
             () => Task.FromResult(Option<JobPlace>.None));
+
+    public async Task<IReadOnlyList<JobPlace>> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
+    {
+        var places = new List<JobPlace>();
+
+        foreach (var job in (await catalog.ListAsync(cancellationToken)).Where(found => found.Repository == repository && found.Parent.IsNone && !found.Companion).OrderByDescending(found => found.Submitted))
+        {
+            places.AddRange((await OfAsync(job.Job, cancellationToken)).Match<JobPlace[]>(found => [found], () => []));
+        }
+
+        return places;
+    }
 }

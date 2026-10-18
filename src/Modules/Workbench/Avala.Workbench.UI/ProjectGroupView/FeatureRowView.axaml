@@ -10,7 +10,7 @@
   <Button x:Name="Feature" Classes="row" Padding="40,5,10,5" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Title}">
     <StackPanel Spacing="1">
       <TextBlock x:Name="FeatureTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="FeatureFact" Classes="caption" Text="{Binding Fact}" />
+      <TextBlock x:Name="FeatureFact" Classes="caption" Text="{Binding Fact}" ToolTip.Tip="{Binding Tip}" />
     </StackPanel>
   </Button>
 </UserControl>

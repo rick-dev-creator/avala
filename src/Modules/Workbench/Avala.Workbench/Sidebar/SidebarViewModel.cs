@@ -41,6 +41,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> shownContests = ImmutableDictionary<JobId, BoardContest>.Empty;
     private ProjectMap? shownMap;
+    private ImmutableDictionary<JobId, Documentation.Contracts.JobDocumentation>? shownDocs;
     private ImmutableDictionary<JobId, BoardRemote> shownRemotes = ImmutableDictionary<JobId, BoardRemote>.Empty;
     private ImmutableHashSet<JobId> shownDrafts = [];
     private object? selected;
@@ -113,6 +114,11 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             Regroup();
         }
 
+        if ((!ReferenceEquals(feed.Docs, shownDocs) || changed.Any(job => job.Status is JobStatus.Approved or JobStatus.Discarded)))
+        {
+            shelves.RefreshDocs();
+        }
+
         Phones(jobs, added);
         Drafts(added);
         shelves.Prune();
@@ -121,6 +127,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         shown = jobs;
         shownContests = contested;
         shownMap = map;
+        shownDocs = feed.Docs;
         IsEmpty = shelves.IsEmpty;
 
         return [];
