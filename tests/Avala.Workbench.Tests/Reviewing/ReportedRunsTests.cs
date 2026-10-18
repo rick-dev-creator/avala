@@ -60,9 +60,9 @@ public sealed class ReportedRunsTests
     }
 
     [Fact]
-    public void AToolWithoutItsInputIsReportedByItsTitle() =>
+    public void AToolWithoutItsInputIsReportedByItsTitleWithoutTheWordRun() =>
         Assert.Equal(
-            [new ReportedRun("Run make check", Passed: false)],
+            [new ReportedRun("make check", Passed: false)],
             ReportedRuns.AfterLastEdit([Tool(ItemKind.Command, "make check", ItemOutcome.Failed) with { Input = Option<string>.None, Title = "Run make check" }]));
 
     [Fact]

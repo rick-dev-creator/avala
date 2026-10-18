@@ -10,10 +10,16 @@ internal sealed record ReportedRun(string Command, bool Passed);
 
 internal static class ReportedRuns
 {
-    private static readonly FrozenSet<string> Inspecting = FrozenSet.Create(
+    private const string RunPrefix = "Run ";
+
+    private static readonly FrozenSet<string> Checkers = FrozenSet.Create(
         StringComparer.Ordinal,
-        "ls", "cat", "head", "tail", "less", "more", "grep", "egrep", "fgrep", "rg", "find", "wc", "stat", "file", "tree", "sort", "uniq", "cut",
-        "tr", "awk", "sed", "diff", "echo", "printf", "pwd", "which", "type", "git", "gh", "tea", "cd", "true", "false", "test", "[");
+        "pytest", "jest", "vitest", "mocha", "rspec", "tsc", "ctest", "phpunit", "tox", "nox", "mypy", "pylint", "flake8", "eslint", "shellcheck", "golangci-lint");
+
+    private static readonly FrozenSet<string> Runners = FrozenSet.Create(
+        StringComparer.Ordinal,
+        "dotnet", "cargo", "go", "npm", "yarn", "pnpm", "bun", "deno", "make", "just", "gradle", "gradlew", "mvn", "mvnw", "mix", "swift", "zig", "python", "python3",
+        "npx", "bundle", "rake", "cmake", "node", "flutter", "poetry", "uv", "composer", "sbt", "lein", "stack", "cabal", "ruff", "nx", "turbo");
 
     private static readonly FrozenSet<string> Verifying = FrozenSet.Create(
         StringComparer.Ordinal,
@@ -49,7 +55,8 @@ internal static class ReportedRuns
 
     private static List<ToolEntry> Done(IEnumerable<ITimelineEntry> entries) => [.. entries.OfType<ToolEntry>().Where(tool => !tool.Denied)];
 
-    private static string Command(ToolEntry tool) => tool.Input.Match(input => input, () => tool.Title);
+    private static string Command(ToolEntry tool) =>
+        tool.Input.Match(input => input, () => tool.Title.StartsWith(RunPrefix, StringComparison.Ordinal) ? tool.Title[RunPrefix.Length..] : tool.Title);
 
     private static bool Edits(ToolEntry tool) => tool.Kind switch
     {
@@ -63,32 +70,45 @@ internal static class ReportedRuns
 
     private static bool Writes(CommandLine line) =>
         line.Opaque
-        || line.Commands.Any(Rewrites)
-        || ((line.Writes.Count > 0 || line.Commands.Any(Tees)) && !line.Commands.Any(Verifies));
+        || line.Commands.Any(simple => Rewrites(simple) || (simple.Writes.Count > 0 && !Verifies(simple)))
+        || (line.Commands.Any(Tees) && !line.Commands.Any(Verifies));
 
     private static bool Rewrites(ShellCommand simple) => simple.Words switch
     {
         [] => false,
         ["git", var verb, ..] => GitWriting.Contains(verb),
-        ["sed" or "perl", ..] => simple.Words.Skip(1).Any(word => word.StartsWith("-i", StringComparison.Ordinal) || word.StartsWith("--in-place", StringComparison.Ordinal)),
-        [var program, ..] => Writing.Contains(Path.GetFileName(program))
-            || (simple.Words.Count > 1 && Rewriting.Contains($"{Path.GetFileName(program)} {simple.Words[1]}"))
-            || (simple.Words.Contains("prettier") && simple.Words.Any(word => word is "--write" or "-w"))
-            || (simple.Words.Any(word => word.EndsWith("eslint", StringComparison.Ordinal)) && simple.Words.Contains("--fix")),
+        ["sed" or "perl", ..] => simple.Words.Skip(1).Any(InPlace),
+        [var program, ..] => Writing.Contains(Program(program))
+            || (simple.Words.Count > 1 && Rewriting.Contains($"{Program(program)} {simple.Words[1]}"))
+            || simple.Words.Any(word => word is "--fix" or "--write" or "--apply" || word.StartsWith("--fix=", StringComparison.Ordinal))
+            || (simple.Words.Contains("prettier") && simple.Words.Contains("-w")),
     };
 
-    private static bool Tees(ShellCommand simple) => simple.Words is [var program, ..] && Path.GetFileName(program) == "tee";
+    private static bool InPlace(string word) =>
+        word.StartsWith("--in-place", StringComparison.Ordinal)
+        || (word.Length > 1 && word[0] == '-' && word[1] != '-' && word.Contains('i', StringComparison.Ordinal));
+
+    private static bool Tees(ShellCommand simple) => simple.Words is [var program, ..] && Program(program) == "tee";
 
     private static bool Verifies(ShellCommand simple)
     {
-        if (simple.Words.Count == 0 || Rewrites(simple) || Tees(simple) || Inspecting.Contains(Path.GetFileName(simple.Words[0])))
+        if (simple.Words.Count == 0 || Rewrites(simple))
         {
             return false;
         }
 
-        var named = simple.Words.Take(3).Where(word => !word.StartsWith('-')).Select(word => Path.GetFileName(word));
+        var program = Program(simple.Words[0]);
+
+        if (Checkers.Contains(program))
+        {
+            return true;
+        }
+
+        var named = simple.Words.Skip(1).Take(3).Where(word => !word.StartsWith('-')).Select(Path.GetFileName);
         var flagged = simple.Words.Where(word => word.StartsWith("--", StringComparison.Ordinal)).Select(word => word.TrimStart('-'));
 
-        return named.Concat(flagged).Any(word => Verifying.Contains(word.Split(Separators)[0].ToLowerInvariant()));
+        return Runners.Contains(program) && named.Concat(flagged).Any(word => Verifying.Contains(word!.Split(Separators)[0].ToLowerInvariant()));
     }
+
+    private static string Program(string word) => Path.GetFileName(word);
 }
