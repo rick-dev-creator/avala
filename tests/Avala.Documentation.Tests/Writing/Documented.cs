@@ -242,6 +242,7 @@ internal sealed class Documented
         private readonly ConcurrentDictionary<(string Folder, string Path), string> files = new();
         private readonly ConcurrentQueue<(string Repository, string Path, string Message)> committed = new();
         private readonly ConcurrentDictionary<(string Folder, string Path), WorkspaceFailure> refused = new();
+        private readonly ConcurrentDictionary<(string Folder, string Path), bool> deleted = new();
 
         public IReadOnlyList<(string Repository, string Path, string Message)> Committed => [.. committed];
 
@@ -265,8 +266,12 @@ internal sealed class Documented
 
         public void Refuse(string folder, string path, WorkspaceFailure failure) => refused[(folder, path)] = failure;
 
+        public void DeleteKeepingItIndexed(string folder, string path) => deleted[(folder, path)] = true;
+
         public ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken) =>
-            refused.TryGetValue((repository, path), out var failure) ? ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Failure(failure)) : ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(files.TryGetValue((repository, path), out var content) ? content : Option<string>.None));
+            refused.TryGetValue((repository, path), out var failure) ? ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Failure(failure))
+            : deleted.ContainsKey((repository, path)) ? ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(Option<string>.None))
+            : ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(files.TryGetValue((repository, path), out var content) ? content : Option<string>.None));
 
         public ValueTask<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken)
         {

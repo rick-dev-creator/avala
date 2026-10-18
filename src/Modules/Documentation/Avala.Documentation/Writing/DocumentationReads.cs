@@ -55,7 +55,7 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
 
         foreach (var version in versions)
         {
-            if (!(await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).TryGetValue(out var content, out _))
+            if (!(await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).TryGetValue(out var content, out _) || content.IsNone)
             {
                 unplayed.Add(new UnplayedVersion(version.File) { After = previous.Map(before => before.File) });
                 continue;
@@ -63,8 +63,7 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
 
             try
             {
-                var text = content.Match(found => found, () => string.Empty);
-                var shown = Storyboard.Play(version.Number, version.Kind, version.File, VersionReader.Read(text), previous.Map(before => before.Structure));
+                var shown = Storyboard.Play(version.Number, version.Kind, version.File, VersionReader.Read(content.Match(found => found, () => string.Empty)), previous.Map(before => before.Structure));
 
                 played.Add(shown);
                 previous = shown.Structure.Elements.Count > 0 ? (shown.Structure, version.File) : previous;
