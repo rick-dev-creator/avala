@@ -2,45 +2,6 @@ using Avala.CommandLines;
 
 namespace Avala.Permissions.Policies;
 
-internal readonly record struct Argument(string Value, string Raw)
-{
-    public bool Expands
-    {
-        get
-        {
-            var (single, quoted, started, escaped) = (false, false, false, false);
-
-            foreach (var character in Raw)
-            {
-                if (escaped)
-                {
-                    (escaped, started) = (false, true);
-                }
-                else if (character == '\\' && !single)
-                {
-                    escaped = true;
-                }
-                else if ((character == '\'' && !quoted) || (character == '"' && !single))
-                {
-                    (single, quoted) = character == '\'' ? (!single, quoted) : (single, !quoted);
-                }
-                else if (single || quoted || !Expanding(character, started))
-                {
-                    started = true;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-    }
-
-    private static bool Expanding(char character, bool started) => character == '{' || (!started && character is '*' or '?' or '[');
-}
-
 internal static class ReadOnlyCommands
 {
     public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate)
@@ -68,7 +29,7 @@ internal static class ReadOnlyCommands
 
     private static bool Finds(Queue<Argument> pending, Func<string, PermissionRequest> locate)
     {
-        while (pending.TryPeek(out var first) && first.Value is "-H" or "-L" or "-P")
+        while (pending.TryPeek(out var first) && first.Value is "-H" or "-P")
         {
             _ = pending.Dequeue();
         }
@@ -159,8 +120,14 @@ internal static class ReadOnlyCommands
             var name = word[2..].Split('=', 2)[0];
             patternGiven |= options.PatternOptions.Contains(name);
 
-            return options.Long.Contains(name)
-                || (options.LongValued.Contains(name) && (word.Contains('=', StringComparison.Ordinal) || pending.TryDequeue(out _)));
+            if (options.Long.Contains(name))
+            {
+                return true;
+            }
+
+            var value = word.Contains('=', StringComparison.Ordinal) ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) ? next.Value : null;
+
+            return options.LongValued.Contains(name) && value is not null && !(name is "format" or "pretty" && value.Contains("%G", StringComparison.Ordinal));
         }
 
         private bool Short(string word)

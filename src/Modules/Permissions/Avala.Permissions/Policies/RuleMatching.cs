@@ -52,7 +52,7 @@ internal static class RuleMatching
     private static bool Targets(PolicyRule rule, string pattern, PermissionRequest request) =>
         rule.AnyArguments ? Subjects.Of(request.Kind, request.Target).Match(subject => Names(rule, pattern, subject), () => false)
         : rule.Answered ? pattern == request.Target
-        : Globs(pattern, request.Target);
+        : rule.Origin == RuleOrigin.BuiltIn ? Globs(pattern.ToUpperInvariant(), request.Target.ToUpperInvariant()) : Globs(pattern, request.Target);
 
     private static bool Names(PolicyRule rule, string pattern, string subject) =>
         rule.Kind == Option<ItemKind>.Some(ItemKind.Command) ? pattern.Split(' ').Contains(subject, StringComparer.Ordinal) : pattern == subject;

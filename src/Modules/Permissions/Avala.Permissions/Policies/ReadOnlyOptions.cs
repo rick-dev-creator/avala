@@ -43,10 +43,10 @@ internal static class ReadOnlyOptions
     public static FrozenDictionary<string, OptionSet> Programs { get; } = new Dictionary<string, OptionSet>
     {
         ["ls"] = OptionSet.Of(
-            "aAbBcCdfFgGhHiklLmnNopqQrRsStTuUvxXZ1",
+            "aAbBcCdfFgGhHiklmnNopqQrRsStTuUvxXZ1",
             "ITw",
             $"all almost-all author escape ignore-backups color directory dired classify file-type full-time group-directories-first no-group human-readable si "
-            + $"dereference-command-line dereference-command-line-symlink-to-dir hyperlink indicator-style inode kibibytes dereference literal numeric-uid-gid "
+            + $"dereference-command-line dereference-command-line-symlink-to-dir hyperlink indicator-style inode kibibytes literal numeric-uid-gid "
             + $"hide-control-chars show-control-chars quote-name reverse recursive size context zero {Help}",
             "block-size format hide ignore quoting-style sort time time-style tabsize width"),
         ["cat"] = OptionSet.Of("AbeEnstTuv", string.Empty, $"show-all number-nonblank show-ends number squeeze-blank show-tabs show-nonprinting {Help}", string.Empty),
@@ -59,17 +59,17 @@ internal static class ReadOnlyOptions
         ["egrep"] = Grep(),
         ["fgrep"] = Grep(),
         ["rg"] = OptionSet.Of(
-            "iSsFwxvcClnNHqoaLuU0",
+            "iSsFwxvcClnNHqoauU0",
             "egtTABCmMjr",
             "ignore-case smart-case case-sensitive fixed-strings word-regexp line-regexp invert-match count count-matches files files-with-matches files-without-match "
-            + "line-number no-line-number with-filename no-filename hidden no-ignore no-ignore-vcs no-ignore-parent no-ignore-dot follow json vimgrep heading no-heading "
+            + "line-number no-line-number with-filename no-filename hidden no-ignore no-ignore-vcs no-ignore-parent no-ignore-dot json vimgrep heading no-heading "
             + $"stats trim multiline multiline-dotall pcre2 only-matching type-list unrestricted text null column quiet no-messages passthru byte-offset crlf {Help}",
             "type type-not glob iglob max-count max-depth max-filesize context before-context after-context color colors sort sortr replace regexp threads max-columns "
             + "field-match-separator field-context-separator context-separator path-separator engine")
             with { TakesPattern = true, PatternOptions = OptionSet.Words("regexp files type-list") },
         ["file"] = OptionSet.Of("bEhiLNnrskv0", "eFP", $"brief mime mime-type mime-encoding dereference no-dereference no-pad raw special-files keep-going extension apple {Help}", "exclude separator parameter"),
         ["tree"] = OptionSet.Of(
-            "adlfxiqNQpugshDFvtcUrCnAJX",
+            "adfxiqNQpugshDFvtcUrCnAJX",
             "LPIH",
             $"noreport dirsfirst du si inodes device prune matchdirs ignore-case info metafirst gitignore {Help}",
             "charset filelimit timefmt sort"),
@@ -89,7 +89,7 @@ internal static class ReadOnlyOptions
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static FrozenSet<string> FindFlags { get; } = OptionSet.Words(
-        "-H -L -P -depth -follow -xdev -mount -not -and -or -a -o -print -print0 -prune -true -false -empty -readable -writable -executable -nouser -nogroup -ls -quit -daystart -noleaf ! ( ) ,");
+        "-H -P -depth -xdev -mount -not -and -or -a -o -print -print0 -prune -true -false -empty -readable -writable -executable -nouser -nogroup -ls -quit -daystart -noleaf ! ( ) ,");
 
     public static FrozenSet<string> FindValued { get; } = OptionSet.Words(
         "-name -iname -path -ipath -wholename -iwholename -regex -iregex -type -xtype -size -mtime -mmin -atime -amin -ctime -cmin -user -group -uid -gid -perm -maxdepth "
@@ -99,10 +99,10 @@ internal static class ReadOnlyOptions
 
     private static OptionSet Grep() =>
         OptionSet.Of(
-            "EFGPiyvwxcLlqsbHhnTZzrRUaI",
+            "EFGPiyvwxcLlqsbHhnTZzrUaI",
             "emABCdD",
             "extended-regexp fixed-strings basic-regexp perl-regexp ignore-case no-ignore-case word-regexp line-regexp null-data no-messages invert-match byte-offset line-number "
-            + $"line-buffered with-filename no-filename only-matching quiet silent text recursive dereference-recursive files-without-match files-with-matches count initial-tab null color colour binary {Help}",
+            + $"line-buffered with-filename no-filename only-matching quiet silent text recursive files-without-match files-with-matches count initial-tab null color colour binary {Help}",
             "regexp max-count label binary-files directories devices include exclude exclude-dir before-context after-context context")
             with { Digits = true, TakesPattern = true, PatternOptions = OptionSet.Words("regexp") };
 }
