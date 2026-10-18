@@ -93,6 +93,46 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             Assert.Equal((false, true), (content.Bounds.X < 0, content.Bounds.Width > 0 && content.TranslatePoint(new Point(content.Bounds.Width, 0), tip)!.Value.X <= tip.Bounds.Width));
         }, Cancellation);
 
+    [Fact]
+    public Task ADisabledDestructiveMenuItemIsDrawnDisabledIconIncludedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var icon = new Avalonia.Controls.Shapes.Path { Classes = { "icon" } };
+            var delete = new MenuItem { Header = "Delete Project", Classes = { "destructive" }, IsEnabled = false, Icon = icon };
+            var view = Opened(new MenuItem { Header = "Rename" }, delete);
+
+            Assert.Equal((Brush(view, "TextDisabledBrush"), Brush(view, "TextDisabledBrush")), (Color(Part<ContentPresenter>(delete, "PART_HeaderPresenter").Foreground), Color(icon.Stroke)));
+        }, Cancellation);
+
+    [Fact]
+    public Task AMenuItemReachedByTheKeyboardStandsOutFromTheMenuAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var view = Opened(rename, new MenuItem { Header = "Archive" });
+
+            rename.IsSelected = true;
+            view.Settle();
+            var surface = Color(Presenter(view).Background)!.Value;
+            var row = Color(Part<Border>(rename, "PART_LayoutRoot").Background)!.Value;
+
+            Assert.True(Contrast(Over(row, surface), surface) >= 3, $"the selected row is {Contrast(Over(row, surface), surface):0.00}:1 against the menu");
+        }, Cancellation);
+
+    [Fact]
+    public Task AShortcutKeepsAGapFromAHeaderTrimmedBesideItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var item = new MenuItem { Header = Long, InputGesture = new Avalonia.Input.KeyGesture(Avalonia.Input.Key.C, Avalonia.Input.KeyModifiers.Control) };
+            var view = Opened(item);
+            var header = Header(item);
+            var gesture = Part<TextBlock>(item, "PART_InputGestureText");
+            var end = header.TranslatePoint(new Point(header.Bounds.Width, 0), view.Window)!.Value.X;
+            var start = gesture.TranslatePoint(default, view.Window)!.Value.X;
+
+            Assert.True(gesture.Bounds.Width > 0 && start - end >= 12, $"the shortcut starts {start - end:0} after the header ends");
+        }, Cancellation);
+
     private static ViewScript Opened(params MenuItem[] items)
     {
         var owner = new Border { Width = 200, Height = 40 };
@@ -142,4 +182,29 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
         (double)view.Window.FindResource(key)!;
 
     private static Color? Color(IBrush? brush) => (brush as ISolidColorBrush)?.Color;
+
+    private static Color Over(Color top, Color bottom)
+    {
+        var alpha = top.A / 255d;
+
+        return Avalonia.Media.Color.FromRgb(Blend(top.R, bottom.R, alpha), Blend(top.G, bottom.G, alpha), Blend(top.B, bottom.B, alpha));
+    }
+
+    private static byte Blend(byte top, byte bottom, double alpha) => (byte)Math.Round((top * alpha) + (bottom * (1 - alpha)));
+
+    private static double Contrast(Color first, Color second)
+    {
+        var (lighter, darker) = (Math.Max(Luminance(first), Luminance(second)), Math.Min(Luminance(first), Luminance(second)));
+
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private static double Luminance(Color color) => (0.2126 * Channel(color.R)) + (0.7152 * Channel(color.G)) + (0.0722 * Channel(color.B));
+
+    private static double Channel(byte value)
+    {
+        var unit = value / 255d;
+
+        return unit <= 0.03928 ? unit / 12.92 : Math.Pow((unit + 0.055) / 1.055, 2.4);
+    }
 }
