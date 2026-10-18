@@ -132,7 +132,10 @@
                     Command="{Binding Docs.SwitchCommand}"
                     IsVisible="{Binding IsProject}">
             <MenuItem.Icon>
-              <Path Classes="icon" Data="{StaticResource IconDocument}" />
+              <Panel>
+                <Path x:Name="DocsOff" Classes="icon" Data="{StaticResource IconDocument}" IsVisible="{Binding !Docs.IsOn}" />
+                <Path x:Name="DocsOn" Classes="icon" Data="{StaticResource IconCheck}" IsVisible="{Binding Docs.IsOn}" />
+              </Panel>
             </MenuItem.Icon>
           </MenuItem>
           <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}">

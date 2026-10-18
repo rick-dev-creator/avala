@@ -155,6 +155,24 @@ public sealed class ProjectGroupViewScripts(HeadlessUi ui)
             Assert.All(shown.OfType<MenuItem>(), item => Assert.NotNull(item.Icon));
         }, Cancellation);
 
+    [Theory]
+    [InlineData(true, "IconCheck")]
+    [InlineData(false, "IconDocument")]
+    public Task DocumentFeaturesShowsACheckInPlaceOfItsIconWhileDocsAreOnAsync(bool on, string glyph) =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignProjectGroupViewModel { Docs = new DesignProjectDocsViewModel { IsOn = on } });
+            var header = view.Find<Button>("Header");
+            var menu = Assert.IsType<MenuFlyout>(header.ContextFlyout);
+
+            menu.ShowAt(header);
+            view.Settle();
+            var docs = menu.Items.OfType<MenuItem>().Single(item => item.Name == "DocumentFeatures");
+            var shown = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(Assert.IsAssignableFrom<Control>(docs.Icon)).OfType<Avalonia.Controls.Shapes.Path>().Single(path => path.IsVisible);
+
+            Assert.Same(view.Window.FindResource(glyph), shown.Data);
+        }, Cancellation);
+
     private static List<Button> Archives(ViewScript view) =>
         [.. view.All<Button>().Where(button => AutomationProperties.GetName(button) == "Archive")];
 

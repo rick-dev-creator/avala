@@ -23,7 +23,6 @@
           <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="sidebar:MoveTarget">
             <Setter Property="Header" Value="{Binding Name}" />
             <Setter Property="Command" Value="{Binding Move}" />
-            <Setter Property="ToolTip.Tip" Value="{Binding Name}" />
             <Setter Property="Icon">
               <Template>
                 <Panel>
