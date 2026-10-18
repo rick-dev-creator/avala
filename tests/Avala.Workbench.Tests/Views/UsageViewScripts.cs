@@ -40,13 +40,25 @@ public sealed class UsageViewScripts(HeadlessUi ui)
             Assert.True(cost.DesiredSize.Width <= cost.Bounds.Width, $"the cost needs {cost.DesiredSize.Width} and is given {cost.Bounds.Width}");
         }, TestContext.Current.CancellationToken);
 
-    private sealed class PricedDay : IUsageDayViewModel
+    [Fact]
+    public Task BesideTheDefaultSidebarAtTheNarrowestWindowABusyDaysCostReadsWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PricedDay("48,512,330 tokens", "142.87 USD at API prices"), Avalonia.Styling.ThemeVariant.Dark, 412, 200);
+            var cost = view.Find<TextBlock>("Cost");
+            var end = cost.TranslatePoint(new Point(cost.Bounds.Width, 0), view.Window)!.Value.X;
+            cost.Measure(Size.Infinity);
+
+            Assert.True(cost.DesiredSize.Width <= cost.Bounds.Width && end <= view.Window.Bounds.Width, $"the cost needs {cost.DesiredSize.Width:0}, is given {cost.Bounds.Width:0} and ends at {end:0} on a row {view.Window.Bounds.Width:0} wide");
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class PricedDay(string tokens = "15,275 tokens", string cost = "0.06 USD at API prices") : IUsageDayViewModel
     {
         public string Day => "Sun 18 Oct · today";
 
-        public string Tokens => "15,275 tokens";
+        public string Tokens => tokens;
 
-        public string Cost => "0.06 USD at API prices";
+        public string Cost => cost;
 
         public string Types => "15,275 input";
 
@@ -276,6 +288,19 @@ public sealed class JobMeterViewScripts(HeadlessUi ui)
             var title = view.Find<TextBlock>("Title");
 
             Assert.Equal((true, true), (title.TextLayout.TextLines[0].HasCollapsed, view.Shows("Interventions")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task BesideTheDefaultSidebarAtTheNarrowestWindowAHeldJobsRowReadsItsTitleAndHowOftenItWasHeldAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobMeterViewModel(Presenting.SampleJobs.SyncQueue, "Rewrite the importer for the new CSV export format of the bank", JobStatus.NeedsHelp, "claude-personal", "12.48 USD", 0.83, "15 USD", 2), Avalonia.Styling.ThemeVariant.Dark, 412, 200);
+            var held = view.Find<TextBlock>("Interventions");
+            var title = view.Find<TextBlock>("Title");
+            var given = (Held: held.Bounds.Width, Title: title.Bounds.Width);
+            held.Measure(Size.Infinity);
+
+            Assert.True(held.DesiredSize.Width <= given.Held && given.Title > 0, $"'held 2 times' needs {held.DesiredSize.Width:0} and is given {given.Held:0}, the title is given {given.Title:0}");
         }, TestContext.Current.CancellationToken);
 
     [Fact]

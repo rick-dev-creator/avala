@@ -184,7 +184,48 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             Assert.Equal((Brush(view, "AccentBrush"), false), (Color(Part<Border>(archive, "PART_LayoutRoot").Background), Color(Part<Border>(rename, "PART_LayoutRoot").Background) == Brush(view, "AccentBrush")));
         }, Cancellation);
 
-    private static ViewScript Opened(params MenuItem[] items)
+    [Fact]
+    public Task AMenuJustOpenedDrawsEveryItemOnTheMenusOwnSurfaceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            _ = Opened(rename, archive);
+
+            Assert.All(new[] { rename, archive }, item => Assert.True(Color(Part<Border>(item, "PART_LayoutRoot").Background) is not { A: > 0 }, $"{item.Header} is drawn on {Color(Part<Border>(item, "PART_LayoutRoot").Background)}"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ThePointerOnADisabledItemHighlightsNoOtherItemAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var delete = new MenuItem { Header = "Delete Project", Classes = { "destructive" }, IsEnabled = false };
+            var view = Opened(rename, new Separator(), delete);
+
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(view.Window, delete.TranslatePoint(new Point(20, delete.Bounds.Height / 2), view.Window)!.Value);
+            view.Settle();
+
+            Assert.NotEqual(Brush(view, "AccentBrush"), Color(Part<Border>(rename, "PART_LayoutRoot").Background));
+        }, Cancellation);
+
+    [Fact]
+    public Task EnterOnAMenuJustOpenedInvokesNoItemAsync() =>
+        ui.RunAsync(() =>
+        {
+            var invoked = new List<string>();
+            var copy = new MenuItem { Header = "Copy as Markdown" };
+            copy.Click += (_, _) => invoked.Add("Copy as Markdown");
+            var export = new MenuItem { Header = "Export…" };
+            export.Click += (_, _) => invoked.Add("Export…");
+            var view = Opened(copy, export);
+
+            view.Press(Avalonia.Input.Key.Enter);
+
+            Assert.Empty(invoked);
+        }, Cancellation);
+
+    private static ViewScript Opened(params Control[] items)
     {
         var owner = new Border { Width = 200, Height = 40 };
         var view = ViewScript.Show(new Panel { Children = { owner } }, new object());

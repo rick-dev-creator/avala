@@ -6,16 +6,18 @@ using Avala.Testing.UI;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Sidebar;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Views;
 
-public sealed class WorkbenchViewScripts(HeadlessUi ui)
+public sealed partial class WorkbenchViewScripts(HeadlessUi ui)
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -253,6 +255,78 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.False(content.Shows("NoJob"));
             Assert.Equal("Fix JPY rounding in invoice totals", content.TextOf("JobTitle"));
         }, Cancellation);
+
+    [Fact]
+    public Task AHeaderWhoseChipsGoAwayGivesTheChipsLeftTheirLabelsOnceTheyFitAsync() =>
+        ui.RunAsync(() =>
+        {
+            var leaving = new[] { new ChecksChip(), new ChecksChip(), new ChecksChip() };
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = ChipsThatLeave(leaving) }, ThemeVariant.Dark, 900, 480);
+
+            foreach (var chip in leaving)
+            {
+                chip.IsShown = false;
+            }
+
+            view.Settle();
+
+            Assert.True(view.Shows("Left"), "the usage chip left alone in a 900 wide header still hides its label");
+        }, Cancellation);
+
+    [Fact]
+    public Task AHeaderWhoseChipsGoAwayPutsTheChipsLeftBesideTheTitleOnceTheyFitAsync() =>
+        ui.RunAsync(() =>
+        {
+            var leaving = new[] { new ChecksChip(), new ChecksChip(), new ChecksChip() };
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = ChipsThatLeave(leaving) }, ThemeVariant.Dark, 480, 480);
+
+            foreach (var chip in leaving)
+            {
+                chip.IsShown = false;
+            }
+
+            view.Settle();
+
+            Assert.True(view.Find("JobHeaderRegion").TranslatePoint(default, view.Window)!.Value.Y < view.Find("Place").TranslatePoint(new Avalonia.Point(0, view.Find("Place").Bounds.Height), view.Window)!.Value.Y, "the one chip left still sits on a line of its own under the title");
+        }, Cancellation);
+
+    [Fact]
+    public Task ChipsMovedUnderTheTitleStartWhereTheTitleStartsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Inspector.DesignChecksRunningViewModel { IsShown = false }),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel { IsShown = false }),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 2, new Avala.Workbench.Remoting.DesignRemoteControlViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                ],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 400, 480);
+            var first = view.All<UserControl>().First(control => control.GetType().Name == "RemoteControlView");
+
+            Assert.Equal(view.Find("JobTitle").TranslatePoint(default, view.Window)!.Value.X, first.TranslatePoint(default, view.Window)!.Value.X, 1);
+        }, Cancellation);
+
+    private static JobRegions ChipsThatLeave(IEnumerable<ChecksChip> leaving) =>
+        new(
+            [
+                .. leaving.Select((chip, index) => new RegionContribution(WorkbenchRegions.JobHeader, index, chip)),
+                new RegionContribution(WorkbenchRegions.JobHeader, 9, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+            ],
+            new RememberedLayout());
+
+    [INotifyPropertyChanged]
+    private sealed partial class ChecksChip : Avala.Workbench.Inspector.IChecksRunningViewModel
+    {
+        [ObservableProperty]
+        public partial bool IsShown { get; set; } = true;
+
+        public string Text => "Checks running · 2 of 3";
+
+        public IReadOnlyList<string> Lines => ["pending · build (ubuntu-latest)"];
+    }
 }
 
 public sealed class SidebarViewScripts(HeadlessUi ui)
