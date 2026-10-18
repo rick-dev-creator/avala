@@ -23,3 +23,5 @@ public sealed record CanvasSnapshot(
     bool IsOffered);
 
 public sealed record CanvasUpdated(CanvasSnapshot Snapshot) : IIntegrationEvent;
+
+public sealed record MediaShown(SessionId Session, TurnId Turn, ItemId Item, Attachment Media, string Caption) : IIntegrationEvent;

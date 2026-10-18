@@ -25,6 +25,7 @@ internal static class LayerMap
             ["Canvases"] = Layer.Domain,
             ["Drawing"] = Layer.Application,
             ["Gallery"] = Layer.Application,
+            ["Showing"] = Layer.Application,
             ["Streaming"] = Layer.Application,
             ["Throttling"] = Layer.Application,
         }),
