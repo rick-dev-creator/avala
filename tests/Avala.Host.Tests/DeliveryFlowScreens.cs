@@ -86,6 +86,26 @@ public sealed class DeliveryFlowScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "beta11-agent-pull-request-note");
     }
 
+    [Fact]
+    public async Task AnApprovedJobsConversationStillTakesAMessageAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => ((System.Windows.Input.ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
+        await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
+        var review = await run.Ui.ReadAsync(() => workbench.Page["Review"]);
+        await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
+        await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
+        await run.Ui.InvokeAsync(() => review.Execute("CloseCommand"), Cancellation);
+        var conversation = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]);
+        await run.Ui.InvokeAsync(() => conversation["Composer"].Set("Draft", "Please greet the new hires too."), Cancellation);
+
+        await Camera.ShootAsync(run, "stabilization-approved-job-composer");
+    }
+
     private static void Gated() =>
         Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
 }

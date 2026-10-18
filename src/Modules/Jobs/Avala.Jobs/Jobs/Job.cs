@@ -261,23 +261,23 @@ internal sealed class Job : IAggregateRoot<JobId>
         return new RemoteControlChosen(Id, on);
     }
 
-    public Result<AttemptStarted, JobError> Reopen(Feedback feedback) =>
+    public Result<AttemptStarted, JobError> Reopen(Feedback feedback, AttemptOrigin origin = AttemptOrigin.Reopen) =>
         machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
             .Map(_ =>
             {
                 Ended = Option<DateTimeOffset>.None;
 
-                return Begin(AttemptOrigin.Reopen, feedback);
+                return Begin(origin, feedback);
             });
 
-    public Result<AttemptStarted, JobError> Reopen(Feedback feedback, SessionId session, bool resumed) =>
+    public Result<AttemptStarted, JobError> Reopen(Feedback feedback, SessionId session, bool resumed, AttemptOrigin origin = AttemptOrigin.Reopen) =>
         machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
             .Map(_ =>
             {
                 Ended = Option<DateTimeOffset>.None;
                 Join(session, resumed);
 
-                return Begin(AttemptOrigin.Reopen, feedback);
+                return Begin(origin, feedback);
             });
 
     public Result<JobApproved, JobError> Approve(DateTimeOffset at) =>

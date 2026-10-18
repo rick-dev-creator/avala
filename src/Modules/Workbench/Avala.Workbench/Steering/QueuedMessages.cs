@@ -35,7 +35,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         return shown switch
         {
-            _ when shown.IsOver => JobRejection.NotHeld,
+            JobStatus.Discarded or JobStatus.Failed => JobRejection.NotHeld,
             JobStatus.AwaitingReview => await AttemptAsync(jobs.SendBackAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotAwaitingReview], ContinuedAsync),
             JobStatus.Running => await SteeredAsync(),
             _ => await ContinuedAsync(),

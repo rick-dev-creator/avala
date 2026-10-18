@@ -22,7 +22,8 @@ public sealed class JobSteeringTests : IAsyncDisposable
     [Theory]
     [InlineData(JobStatus.NeedsHelp, "continue Use the staging database")]
     [InlineData(JobStatus.AwaitingReview, "send back Use the staging database")]
-    public async Task AMessageContinuesAJobThatNeedsYouAndSendsBackAJobAwaitingReview(JobStatus status, string call)
+    [InlineData(JobStatus.Approved, "continue Use the staging database")]
+    public async Task AMessageContinuesAJobThatNeedsYouOrWasApprovedAndSendsBackAJobAwaitingReview(JobStatus status, string call)
     {
         jobs.Status = status;
 
@@ -31,10 +32,12 @@ public sealed class JobSteeringTests : IAsyncDisposable
         Assert.Equal([call], jobs.Calls);
     }
 
-    [Fact]
-    public async Task AMessageToAJobThatEndedIsRefusedWithoutAskingTheJob()
+    [Theory]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task AMessageToADiscardedOrFailedJobIsRefusedWithoutAskingTheJob(JobStatus status)
     {
-        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await steering.SendAsync(job, JobStatus.Approved, "Hurry", Cancellation)));
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await steering.SendAsync(job, status, "Hurry", Cancellation)));
         Assert.Empty(jobs.Calls);
     }
 
@@ -97,7 +100,8 @@ public sealed class JobSteeringTests : IAsyncDisposable
     [InlineData("NeedsHelp", true, false, false, true, true)]
     [InlineData("AwaitingReview", true, false, false, true, true)]
     [InlineData("Checking", false, false, false, false, true)]
-    [InlineData("Approved", false, false, false, false, false)]
+    [InlineData("Approved", true, false, false, false, false)]
+    [InlineData("Discarded", false, false, false, false, false)]
     public void WhatAJobAcceptsDependsOnItsStatus(string status, bool messages, bool interrupt, bool stop, bool review, bool discard)
     {
         var parsed = Enum.Parse<JobStatus>(status);

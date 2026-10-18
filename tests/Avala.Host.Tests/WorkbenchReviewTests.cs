@@ -108,6 +108,32 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMessageWrittenToAJobApprovedFromTheReviewSheetReopensItAndBringsItBackForReviewAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var (workbench, review) = await ReviewAsync(run);
+        await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
+        await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
+        var conversation = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]);
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "Approved · send a message to continue the job…");
+        var progressed = run.Watch<JobProgressed>();
+
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", "Please greet the new hires too.");
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Running);
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
+        Assert.Equal(["Instruction", "You"], await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")));
+        Assert.Equal((string.Empty, string.Empty), await run.Ui.ReadAsync(() => (conversation["Composer"]["Error"].Text, conversation["Composer"]["Draft"].Text)));
+    }
+
+    [Fact]
     public async Task AnApprovalRefusedForAConflictShowsTheConflictingFilesOnTheSheetAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", ReviewTests.MergeFile));

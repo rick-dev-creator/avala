@@ -16,7 +16,7 @@ namespace Avala.Workbench.Tests.Conversation;
 public sealed class ConversationPhrasesTests
 {
     [Theory]
-    [InlineData(JobRejection.NotHeld, "The job takes a message only when it needs you or awaits review.")]
+    [InlineData(JobRejection.NotHeld, "The job takes a message only when it needs you, awaits review or was approved.")]
     [InlineData(JobRejection.NotRunning, "The job is not running.")]
     [InlineData(JobRejection.NotDiscardable, "The job already ended.")]
     [InlineData(JobRejection.EmptyMessage, "Write a message first.")]
@@ -39,7 +39,7 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobStatus.Checking, true, "The checks are running · queue a message for when they end…", "Queue for when the agent stops")]
     [InlineData(JobStatus.Preparing, true, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops")]
     [InlineData(JobStatus.Draft, false, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops")]
-    [InlineData(JobStatus.Approved, true, "This job is done", "Send")]
+    [InlineData(JobStatus.Approved, true, "Approved · send a message to continue the job…", "Send")]
     [InlineData(JobStatus.Discarded, false, "This job was discarded", "Send")]
     [InlineData(JobStatus.Failed, true, "This job failed", "Send")]
     public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, bool takesMessagesMidTurn, string phrase, string hint) =>
@@ -58,7 +58,7 @@ public sealed class ConversationPhrasesTests
     [InlineData(OnPullRequest.WakeOnCi, WatchStatus.BackingOff, "Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts")]
     [InlineData(OnPullRequest.WakeOnCiAndReviews, WatchStatus.WaitingForJob, "Approved · Avala watches pull request #7 and wakes the agent if CI fails, it conflicts or a review asks for changes")]
     [InlineData(OnPullRequest.WakeOnCi, WatchStatus.NeedsPerson, "Approved · Avala stopped waking the agent: pull request #7 needs you")]
-    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.Ended, "This job is done")]
+    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.Ended, "Approved · send a message to continue the job…")]
     public void AnApprovedJobSaysWhatTheWatchOfItsPullRequestStillDoes(OnPullRequest policy, WatchStatus status, string phrase)
     {
         var watch = new PullRequestWatchState(JobId.New(), new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3) { Status = status };

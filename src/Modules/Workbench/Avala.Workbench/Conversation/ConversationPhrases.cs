@@ -222,7 +222,7 @@ internal static class ConversationPhrases
         JobStatus.Draft or JobStatus.Preparing => "The agent is starting · queue a message for when it stops…",
         JobStatus.Discarded => "This job was discarded",
         JobStatus.Failed => "This job failed",
-        _ => "This job is done",
+        _ => "Approved · send a message to continue the job…",
     };
 
     public static string QueuedCaption(JobStatus status) =>
@@ -302,7 +302,7 @@ internal static class ConversationPhrases
 
     public static string Rejection(JobRejection rejection) => rejection switch
     {
-        JobRejection.NotHeld => "The job takes a message only when it needs you or awaits review.",
+        JobRejection.NotHeld => "The job takes a message only when it needs you, awaits review or was approved.",
         JobRejection.NotRunning => "The job is not running.",
         JobRejection.NotDiscardable => "The job already ended.",
         JobRejection.EmptyMessage => "Write a message first.",

@@ -74,7 +74,7 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
     }
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        Unless(JobStatus.NeedsHelp, JobRejection.NotHeld) is { } refused
+        (Unless(JobStatus.NeedsHelp, JobRejection.NotHeld) is null || Unless(JobStatus.Approved, JobRejection.NotHeld) is null ? (JobRejection?)null : JobRejection.NotHeld) is { } refused
             ? ValueTask.FromResult<Result<JobContinuation, JobRejection>>(refused)
             : AnswerAsync($"continue {message}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
 

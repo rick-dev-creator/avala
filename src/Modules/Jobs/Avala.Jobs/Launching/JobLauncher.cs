@@ -124,9 +124,11 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
-        await Unheld(job).Match(
-            rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
-            () => NextRoundAsync(job, guidance, Round.Hint, cancellationToken));
+        job.State == JobState.Approved
+            ? await NextRoundAsync(job, guidance, Round.Revisit, cancellationToken)
+            : await Unheld(job).Match(
+                rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
+                () => NextRoundAsync(job, guidance, Round.Hint, cancellationToken));
 
     public async Task<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         Job job,

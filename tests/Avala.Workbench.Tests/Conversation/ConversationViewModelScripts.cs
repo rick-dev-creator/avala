@@ -252,7 +252,8 @@ public sealed class ConversationViewModelScripts
     [Theory]
     [InlineData(AttemptOrigin.Hint, JobStatus.NeedsHelp, true, true)]
     [InlineData(AttemptOrigin.Hint, JobStatus.Running, true, false)]
-    [InlineData(AttemptOrigin.Hint, JobStatus.Approved, false, false)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Approved, true, true)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Discarded, false, false)]
     [InlineData(AttemptOrigin.Retry, JobStatus.NeedsHelp, false, false)]
     public void OnlyYourPromptsCanBeEditedAndOnlyWhileTheJobTakesAMessageCanTheyBeSentAgain(AttemptOrigin origin, JobStatus status, bool edits, bool resends)
     {

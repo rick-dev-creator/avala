@@ -6,7 +6,7 @@ internal static class Steerability
 {
     extension(JobStatus status)
     {
-        public bool AcceptsMessages => status is JobStatus.NeedsHelp or JobStatus.AwaitingReview;
+        public bool AcceptsMessages => status is JobStatus.NeedsHelp or JobStatus.AwaitingReview or JobStatus.Approved;
 
         public bool IsWorking => status is JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking;
 
