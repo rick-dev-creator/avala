@@ -208,10 +208,11 @@ public sealed class ReviewPhrasesTests
         Assert.Equal(
             [
                 "The repository declares no checks. After its last edit the agent reported dotnet build passed and dotnet test --solution Avala.slnx failed.",
+                "The repository declares no checks. The agent reported dotnet build passed and dotnet test --solution Avala.slnx failed.",
                 "The repository declares no checks, so nothing ran.",
                 "test passed in the worktree after the last turn.",
             ],
-            [ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), reported), ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), []), ReviewPhrases.Proof(Evidence(VerificationOutcome.Passed), reported)]);
+            [ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), reported, afterEdit: true), ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), reported, afterEdit: false), ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), [], afterEdit: true), ReviewPhrases.Proof(Evidence(VerificationOutcome.Passed), reported, afterEdit: true)]);
     }
 
     [Fact]

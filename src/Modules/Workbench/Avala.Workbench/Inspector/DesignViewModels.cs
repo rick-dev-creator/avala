@@ -37,11 +37,11 @@ internal sealed class DesignUndeclaredEvidenceSectionViewModel : IEvidenceSectio
 
     public IReadOnlyList<string> Attempts { get; } = ["Attempt 1: no checks declared"];
 
-    public string Lacks => Review.ReviewPhrases.NoChecksFile;
+    public string Lacks => Review.ReviewPhrases.MissingChecks;
 
     public IAsyncRelayCommand DeclareChecksCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
-    public string ReportedTitle => Review.ReviewPhrases.ReportedTitle;
+    public string ReportedTitle => Review.ReviewPhrases.ReportedTitle(afterEdit: true);
 
     public IReadOnlyList<string> Reported { get; } = ["dotnet build Avala.slnx · passed", "dotnet test --solution Avala.slnx · passed"];
 }

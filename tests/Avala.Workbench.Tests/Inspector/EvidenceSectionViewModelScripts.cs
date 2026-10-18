@@ -35,7 +35,7 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
     {
         using var section = new EvidenceSectionViewModel(bench.Inspected(), links);
         var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview);
-        bench.Audit.Reports.Add(new VerificationReport(job.Job, 1, VerificationOutcome.NoChecksDeclared, Option<Workspaces.Contracts.FileOrigin>.None, [], GateVerdict.Pass, DateTimeOffset.UnixEpoch));
+        bench.Audit.Reports.Add(new VerificationReport(job.Job, 1, VerificationOutcome.NoChecksDeclared, Option<Workspaces.Contracts.FileOrigin>.None, [], GateVerdict.Pass, DateTimeOffset.UnixEpoch) { Missing = true });
         bench.Publish(Bench.OnBoard(job) with
         {
             Transcript = Avala.Workbench.Timeline.Transcript.Empty
@@ -64,6 +64,7 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
         await section.FocusAsync(job.Job, bench);
 
         Assert.DoesNotContain("has no .avala/checks.json", section.Lacks, StringComparison.Ordinal);
+        Assert.StartsWith("This repository's .avala/checks.json declares no checks", section.Lacks, StringComparison.Ordinal);
     }
 
     private static Avala.Workbench.Timeline.ToolEntry Tool(string item, ItemKind kind, string input, ItemOutcome outcome) =>

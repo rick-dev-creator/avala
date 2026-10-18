@@ -33,6 +33,33 @@ public sealed class ReportedRunsTests
     }
 
     [Fact]
+    public void OnlyCommandsThatLookLikeVerificationAreReportedAndOneThatWritesItsLogIsNotAnEdit()
+    {
+        ITimelineEntry[] entries =
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "git status --short", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "grep -n test src/Rounding.cs", ItemOutcome.Failed),
+            Tool(ItemKind.Command, "cat src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test 2>&1 | tee test.log", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "node --test; echo done", ItemOutcome.Succeeded),
+        ];
+
+        Assert.Equal(
+            [new ReportedRun("dotnet test 2>&1 | tee test.log", Passed: true), new ReportedRun("node --test; echo done", Passed: true)],
+            ReportedRuns.AfterLastEdit(entries));
+    }
+
+    [Fact]
+    public void AnAgentThatNeverEditedHasEveryVerificationReportedAndIsNotSaidToHaveEdited()
+    {
+        ITimelineEntry[] entries = [Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded)];
+
+        Assert.Equal([new ReportedRun("dotnet test", Passed: true)], ReportedRuns.AfterLastEdit(entries));
+        Assert.False(ReportedRuns.Edited(entries));
+    }
+
+    [Fact]
     public void AToolWithoutItsInputIsReportedByItsTitle() =>
         Assert.Equal(
             [new ReportedRun("Run make check", Passed: false)],
