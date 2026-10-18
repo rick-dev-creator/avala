@@ -85,6 +85,8 @@ internal sealed class Documented
         return new DocumentationEntry(Rules, Book, reads, new SiteDesk(reads, Files, Site(), new SiteJobs(Jobs, new FixedRoles(), Jobs)));
     }
 
+    public PlanBrief Brief() => new(new DocumentedJobs(new JobPlaces(Jobs, Jobs), Rules, new FeatureCatalog(Files, Files), Book));
+
     public SiteSkeleton Skeleton() =>
         new(new JobPlaces(Jobs, Jobs), new DocumentationReads(Rules, new FeatureCatalog(Files, Files), Files, new JobPlaces(Jobs, Jobs)), Files, Site());
 
