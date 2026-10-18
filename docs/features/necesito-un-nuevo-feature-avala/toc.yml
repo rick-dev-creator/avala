@@ -18,5 +18,7 @@
   href: v8-as-built.md
 - name: v9 · As built
   href: v9-as-built.md
+- name: v10 · As built
+  href: v10-as-built.md
 - name: Change requests
   href: changes.md

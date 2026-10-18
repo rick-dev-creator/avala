@@ -161,4 +161,16 @@ Asked 2026-10-18 16:43 UTC. No version yet.
 
 Asked 2026-10-18 16:44 UTC. No version yet.
 
+### Change request 27 · sent back in review · attempt 22
+
+> como vas?
+
+Asked 2026-10-18 22:01 UTC. No version yet.
+
+### Change request 28 · steer · attempt 22
+
+> Avala now allows SendMessage in this job. You may retry it.
+
+Asked 2026-10-18 22:01 UTC. No version yet.
+
 <!-- /avala:job 01a14f58-18bb-7efc-a8fe-0e25f10c70a1 -->
