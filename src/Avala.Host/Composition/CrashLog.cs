@@ -9,6 +9,8 @@ internal sealed class CrashLog(LogFile log)
 {
     public const string Category = "Avala";
 
+    public const string StoppedMessage = "Avala stopped every agent session and closed its process trees";
+
     public void Watch()
     {
         AppDomain.CurrentDomain.UnhandledException += OnDomainException;
@@ -53,6 +55,8 @@ internal sealed class CrashLog(LogFile log)
     }
 
     public void Started(string message) => log.Write(LogLevel.Information, Category, message, Option<Exception>.None);
+
+    public void Stopped() => log.WriteNow(LogLevel.Information, Category, StoppedMessage, Option<Exception>.None);
 
     public void Failed(Exception failure) => log.WriteNow(LogLevel.Critical, Category, "Avala could not start", failure);
 

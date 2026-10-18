@@ -69,7 +69,7 @@ internal sealed partial class App : Application
         desktop.Exit += (_, _) =>
         {
             shell.Deactivate();
-            _ = StopAsync(composition, claim, log, crashes);
+            new OrderlyExit(composition, claim, log, crashes).Hold();
         };
         DataTemplates.Add(composition.Views);
         shell.Activate();
@@ -87,20 +87,6 @@ internal sealed partial class App : Application
         {
             crashes.Failed(failure);
             throw;
-        }
-    }
-
-    private static async Task StopAsync(CompositionRoot composition, DataFolderClaim claim, LogFile log, CrashLog crashes)
-    {
-        try
-        {
-            await composition.DisposeAsync();
-        }
-        finally
-        {
-            crashes.Unwatch();
-            await log.DisposeAsync();
-            claim.Dispose();
         }
     }
 
