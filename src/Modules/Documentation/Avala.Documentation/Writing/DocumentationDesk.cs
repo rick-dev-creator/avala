@@ -163,10 +163,15 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         await book.WrittenAsync(subject.Place.Job, subject.Folder.Feature, version, plan, cancellationToken);
     }
 
-    private async Task NextAsync(JobId job, CancellationToken cancellationToken) =>
-        await ((await subjects.PlaceAsync(job, cancellationToken)).Match(place => place.Status == JobStatus.AwaitingReview, () => false)
-            ? AsBuiltAsync(job, cancellationToken)
-            : WriteAsync(job, cancellationToken));
+    private async Task NextAsync(JobId job, CancellationToken cancellationToken)
+    {
+        await WriteAsync(job, cancellationToken);
+
+        if ((await subjects.PlaceAsync(job, cancellationToken)).Match(place => place.Status == JobStatus.AwaitingReview, () => false))
+        {
+            await AsBuiltAsync(job, cancellationToken);
+        }
+    }
 
     private async Task AsBuiltAsync(JobId job, CancellationToken cancellationToken) =>
         await (await subjects.OfAsync(job, cancellationToken)).Match(
