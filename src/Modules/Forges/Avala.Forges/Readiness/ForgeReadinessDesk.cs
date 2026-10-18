@@ -19,7 +19,7 @@ internal sealed class ForgeReadinessDesk(IRepositoryPublishing publishing, ISour
     private async Task<ForgeReadiness> UnconnectedAsync(string host, CancellationToken cancellationToken)
     {
         var known = await accounts.AccountsAsync(cancellationToken);
-        var candidates = known.Accounts.Where(account => account.Origin == AccountOrigin.Detected && Same(account.Host, host)).ToList();
+        var candidates = known.Accounts.Where(account => account.Origin == AccountOrigin.Detected && Hosts(account, host)).ToList();
 
         if (candidates.Count > 0)
         {
@@ -41,13 +41,15 @@ internal sealed class ForgeReadinessDesk(IRepositoryPublishing publishing, ISour
     }
 
     private bool Serves(string kind, string host, IReadOnlyList<AccountStatus> known) =>
-        known.Any(account => account.ForgeKind == kind && Same(account.Host, host))
+        known.Any(account => account.ForgeKind == kind && Hosts(account, host))
         || Info(kind).Bind(info => info.DefaultUrl).Match(url => Same(GitHost(kind, url), host), () => false);
 
     private Option<ForgeInfo> Info(string kind) => forges.FirstOrDefault(forge => forge.Info.Id == kind).ToOption().Map(forge => forge.Info);
 
     private string GitHost(string kind, Uri url) =>
         forges.FirstOrDefault(forge => forge.Info.Id == kind) is IForgeRepositories hosting ? hosting.GitHost(url) : url.Host;
+
+    private static bool Hosts(AccountStatus account, string host) => account.Url.IsSome && Same(account.Host, host);
 
     private static bool Same(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 }
