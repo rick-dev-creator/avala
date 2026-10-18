@@ -4,6 +4,8 @@ namespace Avala.Permissions.Policies;
 
 internal sealed record OptionSet(string Flags, string Valued, FrozenSet<string> Long, FrozenSet<string> LongValued)
 {
+    public string Attached { get; init; } = string.Empty;
+
     public bool Digits { get; init; }
 
     public bool TakesPattern { get; init; }
@@ -82,7 +84,7 @@ internal static class ReadOnlyOptions
 
     public static FrozenDictionary<string, OptionSet> Git { get; } = new Dictionary<string, OptionSet>
     {
-        ["status"] = OptionSet.Of("sbvuz", string.Empty, "short branch porcelain long verbose untracked-files ignored ignore-submodules column no-column ahead-behind no-ahead-behind renames no-renames", string.Empty),
+        ["status"] = OptionSet.Of("sbvz", string.Empty, "short branch porcelain long verbose untracked-files ignored ignore-submodules column no-column ahead-behind no-ahead-behind renames no-renames", string.Empty) with { Attached = "u" },
         ["diff"] = OptionSet.Of("pusMCRbwaz", "USG", GitDiffing, "unified diff-filter inter-hunk-context stat-width") with { Digits = true },
         ["log"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
         ["show"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },

@@ -8,7 +8,7 @@ internal static class ReadOnlyCommands
     {
         var arguments = command.Words.Select((word, index) => new Argument(word, index < command.Raws.Count ? command.Raws[index] : word)).ToList();
 
-        if (arguments.Count == 0 || arguments.Any(argument => argument.Value.Contains('$', StringComparison.Ordinal) || argument.Expands))
+        if (arguments.Count == 0 || arguments.Any(argument => argument.Expands))
         {
             return false;
         }
@@ -141,6 +141,11 @@ internal static class ReadOnlyCommands
 
             for (var position = 0; position < letters.Length; position++)
             {
+                if (options.Attached.Contains(letters[position], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
                 if (options.Valued.Contains(letters[position], StringComparison.Ordinal))
                 {
                     patternGiven |= options.TakesPattern && letters[position] == 'e';

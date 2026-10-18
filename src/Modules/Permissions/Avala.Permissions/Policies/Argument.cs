@@ -17,48 +17,42 @@ internal readonly record struct Argument(string Value, string Raw)
         private bool single;
         private bool quoted;
         private bool escaped;
-        private bool started;
-        private bool fresh = true;
-        private bool dotted;
+        private bool braced;
+        private char previous;
 
         public bool Expands(char character)
         {
             if (escaped)
             {
-                escaped = false;
-
-                return Literal(character, protectedCharacter: true);
-            }
-
-            if (single || quoted)
-            {
-                return Quoted(character);
-            }
-
-            (single, quoted, escaped) = (character == '\'', character == '"', character == '\\');
-
-            return !single && !quoted && !escaped && Literal(character, protectedCharacter: false);
-        }
-
-        private bool Quoted(char character)
-        {
-            if ((single && character == '\'') || (quoted && character == '"'))
-            {
-                (single, quoted) = (false, false);
+                (escaped, previous) = (false, '\0');
 
                 return false;
             }
 
-            escaped = quoted && character == '\\';
+            if (single)
+            {
+                single = character != '\'';
 
-            return !escaped && Literal(character, protectedCharacter: true);
+                return false;
+            }
+
+            if (quoted)
+            {
+                (quoted, escaped) = (character != '"', character == '\\');
+
+                return character == '$';
+            }
+
+            return Unquoted(character);
         }
 
-        private bool Literal(char character, bool protectedCharacter)
+        private bool Unquoted(char character)
         {
-            var expands = !protectedCharacter && (character == '{' || (character is '*' or '?' or '[' && (!started || dotted)));
-            dotted = fresh ? character == '.' : dotted && character != '/';
-            (started, fresh) = (true, character == '/');
+            (single, quoted, escaped) = (character == '\'', character == '"', character == '\\');
+            var expands = character is '$' or '*' or '?' or '['
+                || (braced && (character == ',' || (character == '.' && previous == '.')));
+            braced = character == '{' || (braced && character != '}');
+            previous = character;
 
             return expands;
         }
