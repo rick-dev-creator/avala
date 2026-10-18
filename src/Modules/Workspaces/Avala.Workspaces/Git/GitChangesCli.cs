@@ -11,8 +11,18 @@ internal sealed class GitChangesCli(IProcessRunner processes) : IGitChanges
     private const string Avala = "Avala";
 
 
-    public async Task<Result<Option<CommitSha>, WorkspaceFailure>> TipOfAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
-        (await RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", $"{GitRefs.Heads}{branch.Value}^{{commit}}"], cancellationToken))
+    public Task<Result<Option<CommitSha>, WorkspaceFailure>> TipOfAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
+        ResolveAsync(repository, $"{GitRefs.Heads}{branch.Value}", cancellationToken);
+
+    public Task<Result<Option<CommitSha>, WorkspaceFailure>> LastMergedAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ResolveAsync(repository, GitRefs.MergedOf(workspace), cancellationToken);
+
+    public async Task<bool> RecordMergedAsync(string repository, WorkspaceId workspace, CommitSha work, CancellationToken cancellationToken) =>
+        (await RunAsync(["-C", repository, "update-ref", "-m", "avala: merged", GitRefs.MergedOf(workspace), work.Value], cancellationToken))
+            .Match(outcome => outcome.Succeeded, _ => false);
+
+    private async Task<Result<Option<CommitSha>, WorkspaceFailure>> ResolveAsync(string repository, string reference, CancellationToken cancellationToken) =>
+        (await RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", $"{reference}^{{commit}}"], cancellationToken))
             .Bind<Option<CommitSha>>(outcome => outcome.ExitCode switch
             {
                 0 => CommitSha.Create(outcome.Output).Match(Option<CommitSha>.Some, _ => Option<CommitSha>.None),

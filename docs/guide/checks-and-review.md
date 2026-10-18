@@ -40,6 +40,7 @@ A job is done only when your repository's own checks pass in its worktree, and i
 
 - Checks come from the commit the job started from: an agent that edits `.avala/checks.json` is told its change does not apply to this job.
 - Without `.avala/checks.json`, a job passes with "no checks declared"; a file that cannot be read holds the job as "invalid checks".
+- Without checks, the review and the inspector's Evidence list the build, test and lint commands the agent ran after its last edit (a file edit, a command that wrote a file, a sub-agent or a merged child), each with whether it passed, as "Reported by the agent after its last edit", or "Reported by the agent" when it edited nothing: what the agent did, not what Avala verified. Evidence also says whether `.avala/checks.json` is missing or declares no checks, and offers **Declare checks**, which opens the file's editor in Settings; checks declared and committed verify the jobs that start after them.
 - A merge is refused while the base branch's checkout has uncommitted changes, or when the work conflicts with it.
 - A sub-agent's work always merges into its parent's worktree; its review reads "Merge into the parent job".
 - A denied request says why in your terms, for example "/tmp/pr-body.md is outside the job's worktree, and writing there needs you."

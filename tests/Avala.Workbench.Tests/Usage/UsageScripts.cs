@@ -13,6 +13,7 @@ using Avala.Workbench.Spending;
 using Avala.Workbench.Timeline;
 using Avala.Workbench.Usage;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Usage;
 
@@ -107,7 +108,7 @@ public sealed class UsageViewModelScripts : IDisposable
         new(
             new UsageReader(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board, new WindowWatch(board)),
             new UsageWindows(history ?? new FakeUsageHistory(), Clock),
-            new LiveFeed(new Pulse(board), ui));
+            new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance));
 
     private static FakeTimeProvider Clock
     {

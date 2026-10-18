@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Permissions.Answering;
+using Avala.Permissions.Contracts;
 using Avala.Permissions.Links;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
@@ -130,6 +131,23 @@ public sealed class RequestFactsTests
         Assert.Equal(
             [true, false, false],
             new[] { Path.Combine(projects.Path, "sibling", "README.md"), Path.Combine(projects.Path, "out", "secret.env"), Path.Combine(elsewhere.Path, "secret.env") }.Select(Reads));
+    }
+
+    [Theory]
+    [InlineData("grep -R secret docs")]
+    [InlineData("rg --follow secret docs")]
+    [InlineData("find -L docs -name secret.env")]
+    [InlineData("cat docs/*/secret.env")]
+    [InlineData("grep -rn secret docs/hom?")]
+    [InlineData("ls docs/h[o]me/")]
+    public void AReadThatFollowsALinkOutOfTheWorktreeRecursivelyOrThroughAGlobStillAsks(string line)
+    {
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", "home"), elsewhere.Path);
+
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Requested(ItemKind.Command, line).Facts(workspace.Path, Links)).Answer);
     }
 
     private static PermissionRequested Requested(ItemKind kind, string target) =>

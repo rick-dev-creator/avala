@@ -116,6 +116,20 @@ public sealed class PermissionPolicyTests
         Assert.Equal((PolicyAnswer.Ask, RuleOrigin.BuiltIn), (verdict.Answer, Outcomes.Present(verdict.Rule).Origin));
     }
 
+    [Theory]
+    [InlineData(".git")]
+    [InlineData(".git/config")]
+    public void EditingTheGitFilesThatNameWhatAReadOnlyGitCommandRunsGoesToAHuman(string path) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: true)).Answer);
+
+    [Theory]
+    [InlineData(".AVALA/permissions.json")]
+    [InlineData(".avala/Permissions.json")]
+    [InlineData(".GIT")]
+    [InlineData(".Git/config")]
+    public void EditingThePolicyFileOrTheGitFolderSpelledInAnotherCaseGoesToAHuman(string path) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: true)).Answer);
+
     [Fact]
     public void AnEditOutsideTheWorkspaceGoesToAHumanWhateverTheRepositoryRulesSay()
     {

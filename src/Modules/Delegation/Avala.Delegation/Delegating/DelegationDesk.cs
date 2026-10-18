@@ -61,9 +61,9 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
     {
         Hydrate();
 
-        if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        if (Ended(integrationEvent.Status))
         {
-            foreach (var orphan in pending.Where(waiting => waiting.Value.Parent == Option<JobId>.Some(integrationEvent.Job)).Select(waiting => waiting.Key).ToList())
+            foreach (var orphan in book.OfParent(integrationEvent.Job).Where(StillOpen).SelectMany(record => record.Child.Match<JobId[]>(child => [child], () => [])))
             {
                 reporter.Discard(orphan, cancellationToken);
             }
@@ -169,6 +169,10 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
 
     private async Task<bool> WasHeldAsync(JobId child, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(child, cancellationToken)).Match(Interrupted, () => false);
+
+    private static bool Ended(JobStatus status) => status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
+
+    private static bool StillOpen(DelegationRecord record) => record.Report.Match(report => !Ended(report.Status), () => true);
 
     private static bool Interrupted(JobHistory history) => history.Attempts is [.., { Outcome: AttemptOutcome.Interrupted }];
 }

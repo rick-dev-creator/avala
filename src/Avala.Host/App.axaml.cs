@@ -66,11 +66,7 @@ internal sealed partial class App : Application
         composition.Start();
         _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();
-        desktop.Exit += (_, _) =>
-        {
-            shell.Deactivate();
-            _ = StopAsync(composition, claim, log, crashes);
-        };
+        new OrderlyExit(composition, claim, log, crashes).Follow(desktop, shell.Deactivate);
         DataTemplates.Add(composition.Views);
         shell.Activate();
         var showing = ShowAsync(desktop, composition, appearance, shell);
@@ -87,20 +83,6 @@ internal sealed partial class App : Application
         {
             crashes.Failed(failure);
             throw;
-        }
-    }
-
-    private static async Task StopAsync(CompositionRoot composition, DataFolderClaim claim, LogFile log, CrashLog crashes)
-    {
-        try
-        {
-            await composition.DisposeAsync();
-        }
-        finally
-        {
-            crashes.Unwatch();
-            await log.DisposeAsync();
-            claim.Dispose();
         }
     }
 

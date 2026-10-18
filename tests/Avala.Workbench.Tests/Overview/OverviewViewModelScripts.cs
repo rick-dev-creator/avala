@@ -13,6 +13,7 @@ using Avala.Workbench.Spending;
 using Avala.Workbench.Timeline;
 using Avala.Components.Status;
 using Avala.Budgets.Contracts;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Overview;
 
@@ -75,10 +76,10 @@ public sealed class OverviewViewModelScripts : IDisposable
         var pulse = new Pulse(board);
 
         return new OverviewViewModel(
-            new ConnectionsViewModel(new FleetReader(new FakeConnections("work", "personal"), Pages.Readings(usage), sessions, board), new LiveFeed(pulse, ui), Focusing.Focus(), Focusing.Spending(usage, sessions)),
+            new ConnectionsViewModel(new FleetReader(new FakeConnections("work", "personal"), Pages.Readings(usage), sessions, board), new LiveFeed(pulse, ui, NullLogger<LiveFeed>.Instance), Focusing.Focus(), Focusing.Spending(usage, sessions)),
             new DelegationViewModel(
                 new DelegationReader(catalog, new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
-                new LiveFeed(pulse, ui),
+                new LiveFeed(pulse, ui, NullLogger<LiveFeed>.Instance),
                 Focusing.Actions()));
     }
 
@@ -163,7 +164,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         var connections = new FakeConnections("work") { Catalog = new FakeConnections("work").Catalog with { File = ConnectionFileStatus.Rejected, Error = ConnectionError.Malformed } };
-        using var page = new ConnectionsViewModel(new FleetReader(connections, Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
+        using var page = new ConnectionsViewModel(new FleetReader(connections, Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         page.Activate();
 
@@ -175,7 +176,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     public async Task WithoutDeclaredOrUsedConnectionsTheListIsEmptyAsync()
     {
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
 
@@ -265,7 +266,7 @@ public sealed class ConnectionsOpeningScripts
         var opened = new List<JobId>();
         CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<List<JobId>, Contracts.Presentation.JobSelected>(messenger, opened, (recipient, message) => recipient.Add(message.Job));
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), new TestUiDispatcher()), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), new TestUiDispatcher(), NullLogger<LiveFeed>.Instance), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
         var agent = new AgentViewModel(new BoardJob(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running), Transcript.Empty));
 
         page.OpenCommand.Execute(agent.Job);
@@ -338,7 +339,7 @@ public sealed class DelegationViewModelScripts : IDisposable
         using var ui = new TestUiDispatcher();
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
-            new LiveFeed(new Pulse(board), ui),
+            new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance),
             Focusing.Actions());
 
         await page.PresentsAfterAsync(page.Activate, () => "never presented", Cancellation);

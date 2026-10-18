@@ -140,8 +140,8 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
             await run.Ui.ReadAsync(() => (
                 settings["Shown"].Text,
                 settings["Autonomy"].Text,
-                settings["Rules"].Items[2]["Name"].Text,
-                settings["Rules"].Items[2]["Origin"].Text,
+                settings["Rules"].Items[4]["Name"].Text,
+                settings["Rules"].Items[4]["Origin"].Text,
                 Assert.Single(settings["Checks"].Items)["Command"].Text,
                 settings["JobSections"].Items[0]["Name"].Text,
                 settings["JobSections"].Items[0]["Value"].Text)));

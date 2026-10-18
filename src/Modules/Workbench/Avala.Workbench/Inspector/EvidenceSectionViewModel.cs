@@ -2,10 +2,13 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Inspection;
+using Avala.Workbench.Readying;
 using Avala.Workbench.Review;
 using Avala.Workbench.Reviewing;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Inspector;
 
@@ -18,16 +21,27 @@ internal interface IEvidenceSectionViewModel
     string Fact { get; }
 
     IReadOnlyList<string> Attempts { get; }
+
+    string Lacks { get; }
+
+    IAsyncRelayCommand DeclareChecksCommand { get; }
+
+    string ReportedTitle { get; }
+
+    IReadOnlyList<string> Reported { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
 {
     private readonly InspectedJob inspected;
+    private readonly IReadinessLinks links;
+    private string repository = string.Empty;
 
-    public EvidenceSectionViewModel(InspectedJob inspected)
+    public EvidenceSectionViewModel(InspectedJob inspected, IReadinessLinks links)
     {
         this.inspected = inspected;
+        this.links = links;
         inspected.Showing(Show);
     }
 
@@ -53,6 +67,16 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
     [ObservableProperty]
     public partial IReadOnlyList<string> Attempts { get; private set; } = [];
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeclareChecksCommand))]
+    public partial string Lacks { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ReportedTitle { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Reported { get; private set; } = [];
+
     public void OnRegionContextChanged(Option<JobId> context) => inspected.Focus(context);
 
     public void Activate() => inspected.Activate();
@@ -60,6 +84,11 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
     public void Deactivate() => inspected.Deactivate();
 
     public void Dispose() => inspected.Dispose();
+
+    [RelayCommand(CanExecute = nameof(CanDeclareChecks))]
+    private Task DeclareChecksAsync() => links.DeclareChecksAsync(repository);
+
+    private bool CanDeclareChecks() => Lacks.Length > 0;
 
     private void Show(Option<InspectorFacts> facts)
     {
@@ -69,5 +98,11 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
             found => ReviewPhrases.Verdict(ReviewExceptions.VerdictOf(found.Audit.Verifications, found.Record.History.Attempts.Count)),
             () => string.Empty);
         Attempts = facts.Match<IReadOnlyList<string>>(found => InspectorPhrases.Attempts(found.Record.History.Attempts, found.Audit.Verifications), () => []);
+        var undeclared = facts.Bind(found => found.Audit.Verifications is [.., { Outcome: VerificationOutcome.NoChecksDeclared } last] ? last : Option<VerificationReport>.None);
+        var reported = facts.Match<IReadOnlyList<ReportedRun>>(found => undeclared.IsSome ? found.Reported : [], () => []);
+        repository = facts.Match(found => found.Record.History.Summary.Repository, () => string.Empty);
+        Lacks = repository.Length > 0 ? undeclared.Match(ReviewPhrases.Lacks, () => string.Empty) : string.Empty;
+        ReportedTitle = reported.Count > 0 ? ReviewPhrases.ReportedTitle(facts.Match(found => found.Edited, () => false)) : string.Empty;
+        Reported = [.. reported.Select(ReviewPhrases.Ran)];
     }
 }

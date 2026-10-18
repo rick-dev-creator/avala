@@ -95,7 +95,7 @@ internal sealed class Bench : IDisposable
 
     public BoardFeed Feed() => Feed(Ui);
 
-    public BoardFeed Feed(IUiDispatcher ui) => new(Board, ui);
+    public BoardFeed Feed(IUiDispatcher ui) => new(Board, ui, Microsoft.Extensions.Logging.Abstractions.NullLogger<BoardFeed>.Instance);
 
     public DecisionsViewModel Decisions() => new(Replies, Time, Feed(), Focus);
 

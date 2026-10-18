@@ -108,6 +108,32 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMessageWrittenToAJobApprovedFromTheReviewSheetReopensItAndBringsItBackForReviewAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var (workbench, review) = await ReviewAsync(run);
+        await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
+        await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
+        var conversation = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]);
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "Approved · send a message to continue the job…");
+        var progressed = run.Watch<JobProgressed>();
+
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", "Please greet the new hires too.");
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Running);
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
+        Assert.Equal(["Instruction", "You"], await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")));
+        Assert.Equal((string.Empty, string.Empty), await run.Ui.ReadAsync(() => (conversation["Composer"]["Error"].Text, conversation["Composer"]["Draft"].Text)));
+    }
+
+    [Fact]
     public async Task AnApprovalRefusedForAConflictShowsTheConflictingFilesOnTheSheetAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", ReviewTests.MergeFile));
@@ -256,6 +282,28 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
 
         return run;
+    }
+
+    [Fact]
+    public async Task AJobWithoutChecksShowsWhatTheAgentRanAfterItsLastEditAndItsEvidenceOpensTheChecksEditorAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("edit"), [], [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var (workbench, review) = await ReviewAsync(run);
+        var proof = await run.Ui.ReadAsync(() => review["Proof"].Text);
+        await run.Ui.InvokeAsync(() => review.Execute("CloseCommand"), Cancellation);
+        var evidence = (await workbench.InspectAsync(run.Job, "EvidenceSectionViewModel"))[0];
+
+        Assert.Equal("The repository declares no checks. After its last edit the agent reported dotnet test passed.", proof);
+        Assert.Equal("Reported by the agent after its last edit", await run.Ui.ReadAsync(() => evidence["ReportedTitle"].Text));
+        Assert.Equal(["dotnet test · passed"], await run.Ui.ReadAsync(() => evidence["Reported"].Value<IReadOnlyList<string>>()));
+
+        await run.Ui.RunAsync(() => evidence.ExecuteAsync("DeclareChecksCommand"));
+
+        var settings = run.Page("Settings")["Repository"];
+        Assert.Equal(
+            ("Settings", run.Repository.Path, true, ".avala/checks.json"),
+            await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, settings["Shown"].Text, settings["Editor"]["IsOpen"].Value<bool>(), settings["Editor"]["Path"].Text)));
     }
 
     private static Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run) => ReviewAsync(run, run.Job);

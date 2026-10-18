@@ -1,4 +1,5 @@
 using Avala.Components.Graphs;
+using Avala.Components.Zooming;
 using Avala.Documentation.Contracts;
 using Avala.Sdk;
 using CommunityToolkit.Mvvm.Input;
@@ -49,7 +50,7 @@ internal static class DesignStories
 
 internal sealed class DesignC4PlayerViewModel : IC4PlayerViewModel, IDisposable
 {
-    private readonly C4PlayerViewModel player = new(TimeProvider.System, new DesignDispatcher());
+    private readonly C4PlayerViewModel player = new(TimeProvider.System, new DesignDispatcher(), new ZoomViewModel());
 
     public DesignC4PlayerViewModel() => player.Show(DesignStories.Ledger());
 
@@ -81,6 +82,8 @@ internal sealed class DesignC4PlayerViewModel : IC4PlayerViewModel, IDisposable
 
     public IReadOnlyList<GraphLink> Structure => player.Structure;
 
+    public IReadOnlyList<GraphLink> Flows => player.Flows;
+
     public IReadOnlyList<IDocSectionViewModel> Sections => player.Sections;
 
     public IReadOnlyList<Conversation.ICanvasViewModel> Unread => player.Unread;
@@ -104,6 +107,8 @@ internal sealed class DesignC4PlayerViewModel : IC4PlayerViewModel, IDisposable
     public IRelayCommand NextCommand => player.NextCommand;
 
     public IRelayCommand SpeedCommand => player.SpeedCommand;
+
+    public IZoomViewModel Zoom => player.Zoom;
 
     private sealed class DesignDispatcher : IUiDispatcher
     {
@@ -197,6 +202,8 @@ internal sealed class DesignDocsPaneViewModel : IDocsPaneViewModel, IDisposable
     public string Feature => "Payments on stripe-go v79";
 
     public string State => "writing";
+
+    public string Problem => string.Empty;
 
     public bool IsWriting => true;
 

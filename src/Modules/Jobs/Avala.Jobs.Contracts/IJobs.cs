@@ -38,6 +38,16 @@ public interface IOpenDeliveries
     ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 
+public interface IEndedJobs
+{
+    ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
+}
+
+public interface IJobSessions
+{
+    ValueTask<Result<JobId, JobRejection>> RestAsync(JobId job, CancellationToken cancellationToken);
+}
+
 public interface IRemoteJobs
 {
     ValueTask<Result<JobRemoteControlChosen, JobRejection>> ControlRemotelyAsync(JobId job, bool on, CancellationToken cancellationToken);
@@ -60,7 +70,14 @@ public interface IRecoveryDeferral
 
 public interface IJobBriefing
 {
-    ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken);
+    ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken);
+}
+
+public sealed record JobBrief(string Text)
+{
+    public Func<CancellationToken, Task> Delivered { get; init; } = _ => Task.CompletedTask;
+
+    public Func<CancellationToken, Task> Undelivered { get; init; } = _ => Task.CompletedTask;
 }
 
 public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)

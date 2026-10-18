@@ -139,8 +139,11 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
             : mergeable == JsonValueKind.True ? Mergeability.Mergeable
             : Mergeability.Unknown;
 
-        return new PullRequestState(known with { Link = new Uri(pull.GetProperty("html_url").GetString()!) }, lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
     }
+
+    private static PullRequestRef Known(PullRequestRef read, PullRequestRef known) =>
+        read with { Head = read.Head.Length > 0 ? read.Head : known.Head, Base = read.Base.Length > 0 ? read.Base : known.Base };
 
     public static IReadOnlyList<CheckRun> CheckRuns(JsonElement root) =>
         [

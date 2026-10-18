@@ -9,6 +9,8 @@ internal sealed class MacContainment : IContainment
     public ValueTask<IContainer> CreateAsync(ProcessTreeId tree, CancellationToken cancellationToken) =>
         ValueTask.FromResult<IContainer>(new MacContainer(tree));
 
+    public IContainer Recover(ProcessTreeId tree) => new MacContainer(tree);
+
     public ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken) =>
         Containers.EachMemberIdsAsync(containers, cancellationToken);
 }

@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
@@ -9,7 +7,7 @@ using Avala.Sdk;
 
 namespace Avala.Forges.Watching;
 
-internal sealed partial class MentionedPullRequests(JobPlaces places, IGitRemote git, ForgeConnections connections, IEnumerable<IForge> forges) : IMentionedPullRequests
+internal sealed class MentionedPullRequests(JobPlaces places, IGitRemote git, ForgeConnections connections, IEnumerable<IForge> forges) : IMentionedPullRequests
 {
     public async ValueTask<Option<MentionedPullRequest>> UnfollowedAsync(JobId job, string text, CancellationToken cancellationToken) =>
         await (await places.WorktreeAsync(job, cancellationToken)).Match(
@@ -31,23 +29,8 @@ internal sealed partial class MentionedPullRequests(JobPlaces places, IGitRemote
     {
         var segments = forges.Select(forge => forge.Info.PullRequestSegment).ToHashSet(StringComparer.Ordinal);
 
-        foreach (Match found in Link().Matches(text))
-        {
-            var parts = Uri.TryCreate(found.Value.TrimEnd('.', ',', ';', ':', '!', '?'), UriKind.Absolute, out var link) ? link.AbsolutePath.Trim('/').Split('/') : [];
-
-            if (parts.Length >= 4
-                && string.Equals(parts[^4], origin.Owner, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(parts[^3], origin.Name, StringComparison.OrdinalIgnoreCase)
-                && segments.Contains(parts[^2])
-                && int.TryParse(parts[^1], NumberStyles.None, CultureInfo.InvariantCulture, out var number))
-            {
-                return new MentionedPullRequest(number, link!);
-            }
-        }
-
-        return Option<MentionedPullRequest>.None;
+        return PullRequestLinks.In(text)
+            .Select(link => PullRequestLinks.NumberOf(link, origin, segments).Map(number => new MentionedPullRequest(number, link)))
+            .FirstOrDefault(found => found.IsSome);
     }
-
-    [GeneratedRegex(@"https?://[^\s<>""')\]]+")]
-    private static partial Regex Link();
 }

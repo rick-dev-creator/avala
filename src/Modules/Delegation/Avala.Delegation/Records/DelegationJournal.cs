@@ -27,9 +27,14 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
             return reported;
         }
 
-        var answered = reported with { Answered = new CallAnswer(AnswerRoute.ToolResult, Now) };
-        await book.KeepAsync(answered, cancellationToken);
-        await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
+        var answer = new CallAnswer(AnswerRoute.ToolResult, Now);
+        var answered = reported with { Answered = answer };
+
+        if (book.Answer(reported, answer))
+        {
+            await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
+            await book.PersistAsync(answered, cancellationToken);
+        }
 
         return answered;
     }
@@ -52,33 +57,44 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         await book.KeepAsync(reported, cancellationToken);
         var call = reported.Child.Bind(Calls.Take).Match(open => open, () => new CallRef(reported.Session, reported.Item));
         var returned = await agents.ReturnAsync(call.Session, ToolAnswers.Reported(call.Item, reported, report), cancellationToken);
-        var answered = returned.IsSuccess ? reported with { Answered = new CallAnswer(AnswerRoute.ToolResult, Now) } : reported;
-
-        if (returned.IsSuccess)
-        {
-            await book.KeepAsync(answered, cancellationToken);
-        }
+        var answer = new CallAnswer(AnswerRoute.ToolResult, Now);
+        var delivered = returned.IsSuccess && book.Answer(reported, answer);
+        var answered = returned.IsSuccess ? reported with { Answered = answer } : reported;
 
         await bus.PublishAsync(new ChildReported(answered), cancellationToken);
 
-        if (returned.IsSuccess)
+        if (delivered)
         {
             await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
+            await book.PersistAsync(answered, cancellationToken);
         }
 
         return answered;
     }
 
-    public async Task<IReadOnlyList<DelegationRecord>> BriefedAsync(IReadOnlyList<DelegationRecord> reported, CancellationToken cancellationToken)
-    {
-        var answered = reported.Select(record => record with { Answered = new CallAnswer(AnswerRoute.Message, Now) }).ToList();
+    public Task<IReadOnlyList<DelegationRecord>> ClaimedAsync(IReadOnlyList<DelegationRecord> reported, CancellationToken cancellationToken) =>
+        book.ClaimAsync(reported, new CallAnswer(AnswerRoute.Message, Now), cancellationToken);
 
-        foreach (var record in answered)
+    public async Task ConfirmedAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken)
+    {
+        foreach (var record in book.Confirm(claimed))
         {
-            await book.KeepAsync(record, cancellationToken);
             await bus.PublishAsync(new ReportDelivered(record), cancellationToken);
         }
-
-        return answered;
     }
+
+    public async Task SteeredAsync(DelegationRecord reported, CancellationToken cancellationToken)
+    {
+        var answer = new CallAnswer(AnswerRoute.Message, Now);
+
+        if (book.Answer(reported, answer))
+        {
+            await bus.PublishAsync(new ReportDelivered(reported with { Answered = answer }), cancellationToken);
+            await book.PersistAsync(reported, cancellationToken);
+        }
+    }
+
+    public bool Unanswered(DelegationRecord record) => book.Unanswered(record);
+
+    public Task ReleasedAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken) => book.ReleaseAsync(claimed, cancellationToken);
 }

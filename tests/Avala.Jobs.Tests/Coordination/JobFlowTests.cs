@@ -121,6 +121,18 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ARetryVerdictSendsItsFeedbackFollowedByEveryBriefingAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        flow.Briefings.Add(new NoteBriefing("Bring your task list up to date."));
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal("Two tests fail\n\nBring your task list up to date.", flow.Agents.Sent[^1].Message);
+    }
+
+    [Fact]
     public async Task WhenRetriesRunOutTheJobAsksForHelpAsync()
     {
         var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
@@ -180,6 +192,109 @@ public sealed class JobFlowTests
 
         Assert.Equal(job.Id, asked);
         Assert.Equal(JobState.Running, job.State);
+    }
+
+    [Fact]
+    public async Task AReportOwedToAJobWhoseRetryCannotReachItsAgentIsDeliveredWhenTheJobContinuesAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var owed = new OwedOnce();
+        flow.Briefings.Add(owed);
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+        owed.Owe("The child finished: refunds are idempotent.");
+        _ = await flow.Agents.StopAsync(session, Cancellation);
+
+        await flow.FinishTurnAsync(job);
+        await flow.EndSessionAsync(job, session);
+        _ = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage("Go on"), Cancellation));
+        await flow.SettledAsync(job);
+
+        Assert.Contains(flow.Agents.Sent, sent => sent.Message.Contains("The child finished", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AReportOwedToAJobWhoseSessionClosesWhileItIsBriefedIsDeliveredWhenTheJobContinuesAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var owed = new OwedOnce();
+        flow.Briefings.Add(owed);
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+        flow.Briefings.Add(new SessionClosing(flow.Agents, session));
+        owed.Owe("The child finished: refunds are idempotent.");
+
+        await flow.FinishTurnAsync(job);
+        await flow.EndSessionAsync(job, session);
+        _ = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage("Go on"), Cancellation));
+        await flow.SettledAsync(job);
+
+        Assert.Contains(flow.Agents.Sent, sent => sent.Message.Contains("The child finished", StringComparison.Ordinal));
+    }
+
+    private sealed class SessionClosing(FakeAgents agents, SessionId session) : IJobBriefing
+    {
+        public async ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken)
+        {
+            _ = await agents.StopAsync(session, cancellationToken);
+
+            return Option<JobBrief>.None;
+        }
+    }
+
+    [Fact]
+    public async Task ABriefingWhoseMessageThrowsOnTheWayToTheAgentIsReleasedAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var briefing = new SettledBriefing();
+        flow.Briefings.Add(briefing);
+        var job = await flow.RunningAsync();
+        briefing.Armed = true;
+        flow.Agents.SayFault = new OperationCanceledException("The send was cancelled");
+
+        _ = await Record.ExceptionAsync(async () => await flow.FinishTurnAsync(job));
+
+        Assert.Equal("undelivered", briefing.Settlement);
+    }
+
+    private sealed class SettledBriefing : IJobBriefing
+    {
+        public bool Armed { get; set; }
+
+        public string Settlement { get; private set; } = "unsettled";
+
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Armed
+                ? Option<JobBrief>.Some(new JobBrief("The child finished.")
+                {
+                    Delivered = _ => SettledAsync("delivered"),
+                    Undelivered = _ => SettledAsync("undelivered"),
+                })
+                : Option<JobBrief>.None);
+
+        private Task SettledAsync(string settlement)
+        {
+            Settlement = settlement;
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class OwedOnce : IJobBriefing
+    {
+        private string? report;
+
+        public void Owe(string owed) => report = owed;
+
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Volatile.Read(ref report) is { } briefed
+                ? Option<JobBrief>.Some(new JobBrief(briefed) { Delivered = _ => Task.FromResult(Interlocked.CompareExchange(ref report, null, briefed)) })
+                : Option<JobBrief>.None);
+    }
+
+    private sealed class NoteBriefing(string note) : IJobBriefing
+    {
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<JobBrief>.Some(new JobBrief(note)));
     }
 
     private sealed class GatedAdmission : IJobAdmission

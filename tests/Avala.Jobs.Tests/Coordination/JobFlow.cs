@@ -32,7 +32,7 @@ internal sealed class JobFlow
             ledger,
             agents,
             new WorkspacePlanner(workspaces, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
-            new JobMessenger(agents, Briefings));
+            new JobMessenger(agents, Briefings, Microsoft.Extensions.Logging.Abstractions.NullLogger<JobMessenger>.Instance));
         var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         var journal = new JobJournal(Journal);

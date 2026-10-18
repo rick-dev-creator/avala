@@ -1,9 +1,11 @@
 using System.Globalization;
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Transcripts.Contracts;
 
@@ -14,6 +16,48 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     private const string ServicesPolicy = """{ "rules": [ { "name": "services", "kind": "command", "target": "dotnet *", "answer": "allow" } ] }""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AProcessAnEarlierRunLeftInATreeItRecordedIsReapedAtStartupEvenIfItIgnoresBeingAskedToEndAndAProcessAvalaNeverStartedIsLeftAloneAsync()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "On Windows a tree is a job object that kills its processes when the run that held it ends.");
+        var earlier = ProcessTreeId.New();
+        using var left = await HoldingAsync("stubborn", Option<ProcessTreeId>.Some(earlier));
+        using var stranger = await HoldingAsync("hold", Option<ProcessTreeId>.None);
+
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [(TreeLedgerFile, $"[\"{earlier.Value}\"]")], []);
+        await run.StartedAsync();
+        await left.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.False(stranger.HasExited);
+        stranger.Kill();
+    }
+
+    private const string TreeLedgerFile = "process-trees.json";
+
+    private async Task<System.Diagnostics.Process> HoldingAsync(string mode, Option<ProcessTreeId> tree)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardInput = true,
+        };
+        start.ArgumentList.Add(Path.Combine(plugins.Directory, "Avala.Simulator", "Avala.Simulator.Workload.dll"));
+        start.ArgumentList.Add(mode);
+        start.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+        start.Environment.Remove(ProcessTreeId.Variable);
+
+        foreach (var id in tree.Match<ProcessTreeId[]>(found => [found], () => []))
+        {
+            start.Environment[ProcessTreeId.Variable] = id.Value.ToString();
+        }
+
+        var process = System.Diagnostics.Process.Start(start)!;
+        Assert.NotNull(await process.StandardOutput.ReadLineAsync(Cancellation));
+
+        return process;
+    }
 
     [Fact]
     public async Task AProcessLeftRunningByADiscardedJobIsReportedWithItsJobAndReapedAsync()
@@ -31,6 +75,28 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Empty(report.Survivors);
         Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its reaping");
         Assert.Equal([report], run.Get<IOrphans>().OfJob(run.Job));
+    }
+
+    [Fact]
+    public async Task AProcessOfAJobWhoseIdleAgentEndedKeepsRunningUntilTheJobEndsAndIsReapedThenAsync()
+    {
+        await using var run = await ProcessesAsync(test: 6);
+        var stopped = run.Watch<SessionStopped>();
+        var port = ServedPort(await run.TurnAsync());
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await run.DeliveredAsync();
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await stopped.UntilAsync(_ => true);
+        await run.DeliveredAsync();
+        Assert.Empty(run.Get<IOrphans>().OfJob(run.Job));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
+        var report = await run.OrphansFoundAsync();
+
+        var server = Assert.Single(report.Processes);
+        Assert.Equal((Option<JobId>.Some(run.Job), OrphanDisposal.Killed), (report.Job, report.Disposal));
+        Assert.Contains(port, server.Ports);
+        Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its reaping");
     }
 
     [Fact]
@@ -82,6 +148,28 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Equal((run.Job, JobStatus.Discarded), (reclaimed.Job, reclaimed.Status));
         Assert.False(Directory.Exists(worktree));
         Assert.Equal([reclaimed], run.Get<IWorktreeHousekeeping>().Reclaimed());
+    }
+
+    [Fact]
+    public async Task AnApprovedJobReopenedByAMessageKeepsItsWorktreeWhenItsApprovedRetentionComesDueAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepApprovedHours": 1 } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "One more thing.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        var due = run.Clock.GetUtcNow() + TimeSpan.FromHours(1);
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await run.SampledAsync(sample => sample.At >= due);
+        await run.DeliveredAsync();
+
+        Assert.True(Directory.Exists(worktree));
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
     }
 
     [Fact]

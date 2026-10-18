@@ -66,10 +66,21 @@ public sealed class ForgeReadinessTests
         Assert.Equal(Enum.Parse<ForgeReadinessKind>(kind), ready.Kind);
     }
 
+    [Fact]
+    public async Task ATokenLoginWithoutAnAddressHostsNoLocalPathAsync()
+    {
+        publishing.Origin = Remote("/srv/git/shop.git");
+        accounts.Add(new AccountStatus(new ForgeName("tea"), "cup", string.Empty, CredentialSource.Environment, Option<ForgeAccount>.None, Option<ForgeError>.None, AccountOrigin.Detected) { Reference = "CUP_TOKEN" });
+
+        var ready = await Readiness().OfAsync(Repository, Cancellation);
+
+        Assert.Equal((ForgeReadinessKind.Unknown, 0), (ready.Kind, ready.Accounts.Count));
+    }
+
     private static RepositoryRemote Remote(string url) => new("origin", url) { Address = RemoteAddresses.Parse(url) };
 
     private static AccountStatus Detected(string name, string host, string login) =>
-        new(new ForgeName(name), KnownHub.Id, host, CredentialSource.Cli, new ForgeAccount(login), Option<ForgeError>.None, AccountOrigin.Detected);
+        new(new ForgeName(name), KnownHub.Id, host, CredentialSource.Cli, new ForgeAccount(login), Option<ForgeError>.None, AccountOrigin.Detected) { Url = new Uri($"https://{host}") };
 
     private ForgeReadinessDesk Readiness() =>
         new(publishing, new FakeAccounts(accounts, tools), [new KnownHub(), new KindOnly("cup", new Uri("https://api.cup.example"))]);

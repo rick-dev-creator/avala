@@ -45,6 +45,63 @@ public sealed class FeatureStoryTests
     }
 
     [Fact]
+    public async Task AVersionFileTheWorkspaceCannotReadIsLeftOutOfItsJobsStoryAndNamedWithTheVersionBeforeItAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        documented.Files.Draft(Documented.FakeJobs.Worktree(documented.LastWriter), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
+        await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
+        var worktree = Documented.FakeJobs.Worktree(job);
+        documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", "# Handle Stripe refund webhooks\n");
+        documented.Files.Refuse(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", Workspaces.Contracts.WorkspaceFailure.FileUnreadable);
+        var entry = documented.Entry();
+
+        var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
+
+        Assert.Equal([1], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
+        Assert.Equal([new UnplayedVersion("v2-deviation.md") { After = "v1-proposed.md" }], docs.Unplayed);
+    }
+
+    [Fact]
+    public async Task AVersionWhoseDiagramNamesAnElementTwicePlaysInItsJobsStoryAndSoDoesTheNextAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        documented.Files.Draft(Documented.FakeJobs.Worktree(documented.LastWriter), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
+        await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
+        var worktree = Documented.FakeJobs.Worktree(job);
+        documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(log, \"Changelog\", \"Markdown\")\n  Container(log, \"Changelog again\", \"Markdown\")\n```\n");
+        documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v3-as-built.md", "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n  ContainerDb(keys, \"Idempotency\", \"Redis\")\n```\n");
+        var entry = documented.Entry();
+
+        var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
+
+        Assert.Equal([1, 2, 3], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
+        Assert.Empty(docs.Unplayed);
+    }
+
+    [Fact]
+    public async Task AVersionFileDeletedAfterTheCatalogListedItIsLeftOutOfItsJobsStoryAndTheNextIsPlayedAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        documented.Files.Draft(Documented.FakeJobs.Worktree(documented.LastWriter), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
+        await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
+        var worktree = Documented.FakeJobs.Worktree(job);
+        documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", "# Handle Stripe refund webhooks\n");
+        documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v3-as-built.md", "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n  ContainerDb(keys, \"Idempotency\", \"Redis\")\n```\n");
+        documented.Files.DeleteKeepingItIndexed(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md");
+
+        var docs = Outcomes.Present(await documented.Entry().JobDocsAsync(job, Documented.Cancellation));
+
+        Assert.Equal([1, 3], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
+        Assert.Equal([new UnplayedVersion("v2-deviation.md") { After = "v1-proposed.md" }], docs.Unplayed);
+    }
+
+    [Fact]
     public async Task AFeatureWithoutVersionsHasNoStoryAsync()
     {
         var documented = Documented.With();

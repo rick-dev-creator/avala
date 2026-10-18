@@ -64,6 +64,8 @@ public sealed class MentionedPullRequestsTests
         public ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class Worktrees : IWorkspaces

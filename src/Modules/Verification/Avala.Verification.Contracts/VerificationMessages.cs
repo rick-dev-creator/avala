@@ -60,6 +60,8 @@ public sealed record VerificationReport(
     DateTimeOffset VerifiedAt)
 {
     public Option<DeclarationProblem> Problem { get; init; }
+
+    public bool Missing { get; init; }
 }
 
 public sealed record AttemptVerified(VerificationReport Report) : IIntegrationEvent;

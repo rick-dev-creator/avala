@@ -8,6 +8,7 @@ using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Reviewing;
 
 namespace Avala.Workbench.Inspection;
 
@@ -68,6 +69,10 @@ internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
     public IReadOnlyList<WakeUpRecord> WakeUps { get; init; } = [];
 
     public Option<ContestRecord> Contest { get; init; }
+
+    public IReadOnlyList<ReportedRun> Reported { get; init; } = [];
+
+    public bool Edited { get; init; }
 }
 
 internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
@@ -83,6 +88,8 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
             PullRequest = board.Find(job).Bind(found => found.PullRequest),
             WakeUps = board.Find(job).Match(found => found.WakeUps, () => []),
             Contest = board.ContestOf(job).Map(found => found.Contest),
+            Reported = board.Find(job).Match(found => ReportedRuns.AfterLastEdit(found.Transcript.Entries), () => []),
+            Edited = board.Find(job).Match(found => ReportedRuns.Edited(found.Transcript.Entries), () => false),
         });
 
     public async Task<Option<InspectorFacts>> CompleteAsync(Task<Option<InspectorFacts>> essentials, CancellationToken cancellationToken) =>

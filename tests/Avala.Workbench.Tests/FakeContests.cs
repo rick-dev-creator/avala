@@ -111,7 +111,10 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
         return Task.FromResult(Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>.Success(new Documentation.Contracts.SiteCreated("docs", job)));
     }
 
-    public Task<Option<Documentation.Contracts.JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) => Task.FromResult(Job);
+    public Option<string> Unreadable { get; set; }
+
+    public Task<Option<Documentation.Contracts.JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) =>
+        Unreadable.Match(reason => throw new InvalidOperationException(reason), () => Task.FromResult(Job));
 
     public Task<Option<Documentation.Contracts.FeatureStory>> StoryAsync(string folder, Documentation.Contracts.Feature feature, CancellationToken cancellationToken) => Task.FromResult(Story);
 

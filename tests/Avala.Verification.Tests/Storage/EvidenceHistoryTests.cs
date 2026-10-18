@@ -52,6 +52,16 @@ public sealed class EvidenceHistoryTests
         Assert.Equal(invalid with { Checks = read[1].Checks }, read[1]);
     }
 
+    [Fact]
+    public void AReportStoredBeforeAMissingChecksFileWasToldApartFromAnEmptyOneStillSaysTheFileIsMissing()
+    {
+        var undeclared = new VerificationReport(JobId.New(), 1, VerificationOutcome.NoChecksDeclared, Option<FileOrigin>.None, [], GateVerdict.Pass, Nine);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(StoredReport.Of(undeclared with { Missing = true }).Report)!.AsObject();
+        _ = json.Remove(nameof(VerificationReport.Missing));
+
+        Assert.True(new StoredReport { Report = json.ToJsonString() }.Read().Missing);
+    }
+
     private static VerificationReport Invalid(JobId job, int attempt) =>
         new(
             job,

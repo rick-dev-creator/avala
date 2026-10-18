@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 
@@ -19,4 +20,8 @@ internal sealed record Round(
     public static Round Reopen { get; } = new(
         (job, feedback) => job.Reopen(feedback),
         (job, feedback, session, resumed) => job.Reopen(feedback, session, resumed));
+
+    public static Round Revisit { get; } = new(
+        (job, message) => job.Reopen(message, AttemptOrigin.Hint),
+        (job, message, session, resumed) => job.Reopen(message, session, resumed, AttemptOrigin.Hint));
 }

@@ -72,17 +72,38 @@ public sealed class ContinueJobTests
     }
 
     [Fact]
-    public async Task OnlyAHeldJobCanBeContinuedAndOnlyWithAMessageAsync()
+    public async Task ContinuingAnApprovedJobReopensItWithThePersonsMessageInANewSessionThatResumesItsConversationAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.RunningAsync();
+        await flow.OfferResumeAsync(job, Outcomes.Present(job.Session), Token);
+        await flow.FinishTurnAsync(job);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(job.Id, Cancellation));
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, Message, Cancellation));
+
+        Assert.Equal(new JobContinuation(job.Id, Outcomes.Present(job.Session), ContinuedIn.ResumedConversation), continued);
+        Assert.Equal((JobState.Running, AttemptOrigin.Hint, Option<DateTimeOffset>.None), (job.State, job.Attempts[^1].Origin, job.Ended));
+        Assert.Equal(Option<ResumeToken>.Some(Token), flow.Agents.Requests[^1].Resume);
+        Assert.Equal((continued.Session, Message), flow.Agents.Sent[^1]);
+        Assert.Equal(new JobProgressed(job.Id, JobStatus.Running), flow.Bus.Published.OfType<JobProgressed>().Last());
+    }
+
+    [Fact]
+    public async Task OnlyAHeldOrApprovedJobCanBeContinuedAndOnlyWithAMessageAsync()
     {
         var flow = JobFlow.With();
         var running = await flow.RunningAsync();
         var held = await flow.HeldAsync(HoldReason.Stalled);
+        var discarded = await flow.RunningAsync();
+        _ = Outcomes.Succeeds(await flow.Jobs.DiscardAsync(discarded.Id, Cancellation));
         var sent = flow.Agents.Sent.Count;
 
         Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(running.Id, Message, Cancellation)));
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(discarded.Id, Message, Cancellation)));
         Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(JobId.New(), Message, Cancellation)));
         Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(held.Id, " ", Cancellation)));
-        Assert.Equal((JobState.Running, JobState.NeedsHelp), (running.State, held.State));
+        Assert.Equal((JobState.Running, JobState.NeedsHelp, JobState.Discarded), (running.State, held.State, discarded.State));
         Assert.Equal(sent, flow.Agents.Sent.Count);
     }
 
@@ -123,4 +144,24 @@ public sealed class ContinueJobTests
     }
 
     private static ConnectionName Personal => new("personal");
+
+    [Fact]
+    public async Task MovingAHeldJobToAnotherConnectionStopsTheOldSessionEvenWhenABriefingCannotRecordItsDeliveryAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.LimitNearlyReached, Token);
+        var old = Outcomes.Present(job.Session);
+        flow.Briefings.Add(new UnrecordedBriefing());
+
+        var continued = await Record.ExceptionAsync(async () => await flow.Jobs.ContinueOnAsync(job.Id, Personal, Message, Cancellation));
+
+        Assert.Null(continued);
+        Assert.Contains(old, flow.Agents.Stopped);
+    }
+
+    private sealed class UnrecordedBriefing : IJobBriefing
+    {
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Option<JobBrief>.Some(new JobBrief("The child finished.") { Delivered = _ => throw new IOException("The delegation database is locked") }));
+    }
 }

@@ -7,6 +7,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Following;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.Timeline;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Inspector;
 
@@ -59,7 +60,7 @@ public sealed class ChecksRunningViewModelScripts : IDisposable
 
     private ChecksRunningViewModel Chip()
     {
-        var chip = new ChecksRunningViewModel(board, new LiveFeed(new Pulse(board), ui));
+        var chip = new ChecksRunningViewModel(board, new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance));
         chip.Activate();
         chip.OnRegionContextChanged(job.Job);
 

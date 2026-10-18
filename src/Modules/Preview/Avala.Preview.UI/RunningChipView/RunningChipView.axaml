@@ -25,7 +25,7 @@
                  theme:Motion.When="{Binding IsShown}" />
         <Ellipse x:Name="ChipDot" Classes="dot" />
       </Panel>
-      <TextBlock x:Name="ChipText" Text="{Binding Text}" VerticalAlignment="Center" />
+      <TextBlock x:Name="ChipText" Classes="chip-label" Text="{Binding Text}" VerticalAlignment="Center" />
       <Border x:Name="Unleased" Classes="tag" IsVisible="{Binding IsUnleased}" VerticalAlignment="Center">
         <TextBlock Text="{Binding Lease}" />
       </Border>

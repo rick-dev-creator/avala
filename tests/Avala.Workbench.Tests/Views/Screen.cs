@@ -27,6 +27,15 @@ internal static class Screen
         return ViewScript.Present(window, viewModel);
     }
 
+    public static ViewScript ShowScrolled(object viewModel, double width, double height)
+    {
+        Register();
+        var content = new StackPanel { Children = { new ContentControl { Name = "Scrolled", Height = height, Content = viewModel }, new Border { Height = height * 2 } } };
+        var window = new Window { Width = width, Height = height, Content = new ScrollViewer { Name = "Pane", Content = content } };
+
+        return ViewScript.Present(window, viewModel);
+    }
+
     public static ViewScript ShowStill(object viewModel, double height)
     {
         Register();

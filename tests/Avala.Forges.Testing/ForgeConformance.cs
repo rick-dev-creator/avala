@@ -53,6 +53,15 @@ public static class ForgeConformance
             problems.Add($"reading failed with {error}");
         }
 
+        if ((await plugin.ReadAsync(context, opened with { Head = string.Empty, Base = string.Empty }, cancellationToken)).TryGetValue(out var byNumber, out error))
+        {
+            Check(byNumber.PullRequest.Head == head && byNumber.PullRequest.Base == target, problems, $"reading a pull request by its number alone does not say its head and base: {byNumber.PullRequest}");
+        }
+        else
+        {
+            problems.Add($"reading by number failed with {error}");
+        }
+
         if ((await plugin.CommentAsync(context, opened, "Avala checks in.", cancellationToken)).TryGetValue(out var comment, out error))
         {
             Check(comment.Id.Length > 0, problems, "the comment has no id");

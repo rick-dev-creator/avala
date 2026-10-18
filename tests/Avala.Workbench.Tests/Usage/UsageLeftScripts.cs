@@ -12,6 +12,7 @@ using Avala.Workbench.Spending;
 using Avala.Workbench.Usage;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Usage;
 
@@ -43,17 +44,21 @@ public sealed class UsageLeftViewModelScripts : IDisposable
     }
 
     [Fact]
-    public async Task TheChipSaysTheWindowIsSharedWithEveryAppOnTheLoginAsync()
+    public async Task WithMoreWindowsThanThePopoverHoldsItShowsTheMostUsedInOrderAndCountsTheRestAsync()
     {
         var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");
-        Reports("claude-work", 0.72, 0.43);
+        usage.Connections.Add(new ConnectionUsage(
+            new ConnectionName("claude-work"),
+            Pages.Simulator,
+            Pages.Used(1m, new UsageLimit("5h", 0.2, FiveHourReset), new UsageLimit("7d", 0.9, SevenDayReset), new UsageLimit("7d-opus", 0.5, SevenDayReset), new UsageLimit("monthly", 0.7, SevenDayReset))));
         var (chip, _) = Chip(Pages.Board(job));
 
         chip.Activate();
         chip.OnRegionContextChanged(job.Job);
 
         await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
-        Assert.Equal("Shared with every app signed in to claude-work, not only Avala.", await ui.ReadAsync(() => chip.Shared));
+        Assert.Equal(["7d", "7d-opus", "monthly"], await ui.ReadAsync(() => chip.Windows.Select(window => window.Window).ToList()));
+        Assert.Equal("1 more window on the Usage page", await ui.ReadAsync(() => chip.More));
     }
 
     [Theory]
@@ -173,8 +178,8 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         var readings = Pages.Readings(usage);
         var spending = new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage()));
         var watch = new WindowWatch(board);
-        var page = new UsageViewModel(new UsageReader(readings, spending, board, watch), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui));
-        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board, watch), new LiveFeed(new Pulse(board), ui), new JobFocus(new TestRegions(), messenger), page);
+        var page = new UsageViewModel(new UsageReader(readings, spending, board, watch), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance));
+        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board, watch), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger), page);
 
         return (chip, page);
     }

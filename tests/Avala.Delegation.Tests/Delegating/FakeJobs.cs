@@ -60,16 +60,20 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public IReadOnlyList<(JobId Job, string Message)> Steered => [.. steered];
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken)
+    public Func<Task> BeforeSteer { get; set; } = () => Task.CompletedTask;
+
+    public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken)
     {
+        await BeforeSteer();
+
         if (!Steerable)
         {
-            return ValueTask.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotSteerable));
+            return Result<JobSteered, JobRejection>.Failure(JobRejection.NotSteerable);
         }
 
         steered.Enqueue((job, message));
 
-        return ValueTask.FromResult(Result<JobSteered, JobRejection>.Success(new JobSteered(job, Agents.Contracts.Sessions.SessionId.New(), Agents.Contracts.Sessions.TurnId.New())));
+        return Result<JobSteered, JobRejection>.Success(new JobSteered(job, Agents.Contracts.Sessions.SessionId.New(), Agents.Contracts.Sessions.TurnId.New()));
     }
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken)

@@ -56,6 +56,7 @@ public sealed class ResourcesPluginTests
         PluginComposition.Of(new ResourcesPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IWorkspaces>(new FakeWorkspaces())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
+            .AddSingleton<IEndedJobs>(new FakeEndedJobs())
             .AddSingleton<IProcessTrees>(new FakeTrees())
             .AddSingleton<IListeningPorts>(new FakeListening()));
 }

@@ -4,6 +4,7 @@ using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Following;
 using Avala.Workbench.Updates;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Updates;
 
@@ -79,5 +80,5 @@ public sealed class UpdateNoticeViewModelScripts : IDisposable
 
     public void Dispose() => ui.Dispose();
 
-    private UpdateNoticeViewModel Notice(FakeUpdates updates, FakeLinks links) => new(updates, new LiveFeed(pulse, ui), links);
+    private UpdateNoticeViewModel Notice(FakeUpdates updates, FakeLinks links) => new(updates, new LiveFeed(pulse, ui, NullLogger<LiveFeed>.Instance), links);
 }

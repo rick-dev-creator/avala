@@ -10,6 +10,8 @@ internal sealed class DocsReader(JobBoard board, IDocumentation documentation, I
 {
     public bool Offers(JobId job) => board.Docs.ContainsKey(job);
 
+    public string FeatureOf(JobId job) => board.Docs.TryGetValue(job, out var documented) ? documented.Feature.Title : string.Empty;
+
     public Task<Option<JobDocs>> JobAsync(JobId job, CancellationToken cancellationToken) => documentation.JobDocsAsync(job, cancellationToken);
 
     public async Task<Option<PreviewError>> OpenSiteAsync(JobId job, DocsSite site, CancellationToken cancellationToken) =>

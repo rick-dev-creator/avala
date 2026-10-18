@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:copying="using:Avala.Components.UI.Copying">
+        xmlns:copying="using:Avala.Components.UI.Copying"
+        xmlns:theme="using:Avala.Components.UI.Theme">
   <Style Selector="Border.qr-paper">
     <Setter Property="Background" Value="{DynamicResource QrPaperBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
@@ -408,37 +409,99 @@
     <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
-    <Setter Property="Padding" Value="0,5" />
-    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="{DynamicResource MenuMinWidth}" />
+    <Setter Property="MaxWidth" Value="{DynamicResource MenuMaxWidth}" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="theme:Menus.OpensUnhighlighted" Value="True" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:open /template/ Popup#PART_Popup > Border, MenuFlyoutPresenter MenuItem:open /template/ Popup#PART_Popup > Border">
+    <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+    <Setter Property="MinWidth" Value="{DynamicResource MenuMinWidth}" />
+    <Setter Property="MaxWidth" Value="{DynamicResource MenuMaxWidth}" />
   </Style>
   <Style Selector="ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
-    <Setter Property="Padding" Value="9,4" />
-    <Setter Property="Margin" Value="5,0" />
+    <Setter Property="Padding" Value="{DynamicResource PaddingMenuItem}" />
+    <Setter Property="Margin" Value="{DynamicResource MarginMenuItem}" />
     <Setter Property="MinHeight" Value="0" />
-    <Setter Property="MinWidth" Value="180" />
+    <Setter Property="MinWidth" Value="0" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="HeaderTemplate">
+      <DataTemplate x:DataType="x:String">
+        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Margin="{DynamicResource MarginMenuHeader}" />
+      </DataTemplate>
+    </Setter>
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot">
+  <Style Selector="ContextMenu MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter, MenuFlyoutPresenter MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter">
+    <Setter Property="MaxWidth" Value="0" />
+    <Setter Property="Margin" Value="0" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem /template/ TextBlock#PART_InputGestureText">
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem /template/ Path#PART_ChevronPath">
+    <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:empty /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:empty /template/ Path#PART_ChevronPath, ContextMenu MenuItem:empty /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:empty /template/ TextBlock#PART_InputGestureText">
+    <Setter Property="Margin" Value="0" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem Path.icon, MenuFlyoutPresenter MenuItem Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem.destructive /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem.destructive /template/ ContentPresenter#PART_HeaderPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem.destructive Path.icon, MenuFlyoutPresenter MenuItem.destructive Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:pressed /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, ContextMenu MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, ContextMenu MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected /template/ TextBlock#PART_InputGestureText">
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ TextBlock#PART_InputGestureText">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] /template/ Path#PART_ChevronPath">
+    <Setter Property="Fill" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Path.icon, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Path.icon, ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Panel > Path.icon, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=True] > Panel > Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected[(theme|Menus.IsHighlighting)=False] /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected[(theme|Menus.IsHighlighting)=False] /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="Transparent" />
   </Style>
   <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem /template/ TextBlock#PART_InputGestureText">
-    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  <Style Selector="ContextMenu MenuItem:disabled Path.icon, MenuFlyoutPresenter MenuItem:disabled Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
   </Style>
   <Style Selector="ContextMenu Separator, MenuFlyoutPresenter Separator">
-    <Setter Property="Margin" Value="9,4" />
+    <Setter Property="Margin" Value="{DynamicResource MarginMenuSeparator}" />
     <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+  </Style>
+
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="Padding" Value="{DynamicResource PaddingTip}" />
+    <Setter Property="MaxWidth" Value="{DynamicResource TipMaxWidth}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="ToolTip[(theme|Motion.IsReduced)=True]">
+    <Setter Property="Transitions" Value="{x:Null}" />
   </Style>
 
   <Style Selector="SelectableTextBlock">

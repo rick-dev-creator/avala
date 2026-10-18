@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Storage;
 using Avala.Verification.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,15 @@ internal sealed class StoredReport
         Report = StoredJson.Write(report),
     };
 
-    public VerificationReport Read() => StoredJson.Read<VerificationReport>(Report);
+    public VerificationReport Read()
+    {
+        var report = StoredJson.Read<VerificationReport>(Report);
+
+        return report.Outcome == VerificationOutcome.NoChecksDeclared && !Says(nameof(VerificationReport.Missing)) ? report with { Missing = true } : report;
+    }
+
+    private bool Says(string property) =>
+        JsonNode.Parse(Report) is JsonObject stored && stored.Any(pair => string.Equals(pair.Key, property, StringComparison.OrdinalIgnoreCase));
 }
 
 internal sealed class VerificationDbContext(string database) : DbContext

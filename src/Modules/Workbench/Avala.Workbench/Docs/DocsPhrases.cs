@@ -36,7 +36,13 @@ internal static class DocsPhrases
     };
 
     public static string Step(int step, int count, string title) =>
-        step < 0 ? string.Create(CultureInfo.InvariantCulture, $"{count} steps") : string.Create(CultureInfo.InvariantCulture, $"Step {step + 1} of {count} · {title}");
+        step >= 0 ? string.Create(CultureInfo.InvariantCulture, $"Step {step + 1} of {count} · {title}")
+        : count switch
+        {
+            0 => "No change to the diagram",
+            1 => "1 step",
+            _ => string.Create(CultureInfo.InvariantCulture, $"{count} steps"),
+        };
 
     public static string Speed(double speed) => string.Create(CultureInfo.InvariantCulture, $"{speed}×");
 }

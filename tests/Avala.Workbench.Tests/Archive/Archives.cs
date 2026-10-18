@@ -34,7 +34,7 @@ internal sealed class Archives : IDisposable
 
     public ArchivedReader Reader => new(Bench.Board, Bench.ScratchFolders, Bench.Time);
 
-    public LiveFeed Feed() => new(new Pulse(Bench.Board), Ui);
+    public LiveFeed Feed() => new(new Pulse(Bench.Board), Ui, Microsoft.Extensions.Logging.Abstractions.NullLogger<LiveFeed>.Instance);
 
     public BoardJob Job(string instruction, JobStatus status, string repository, TimeSpan endedAgo)
     {

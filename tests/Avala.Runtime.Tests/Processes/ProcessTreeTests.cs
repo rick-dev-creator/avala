@@ -31,6 +31,24 @@ public sealed class ProcessTreeTests
     }
 
     [Fact]
+    public async Task ATreeARunLeftOpenWhenItEndedIsReapedWhenTheNextRunStartsAsync()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "On Windows a tree is a job object that kills its processes when the run that held it ends.");
+        using var data = new TemporaryFolder();
+        using var home = new TemporaryFolder();
+        var crashed = new ServiceCollection().AddRuntime(new AvalaPaths(data.Path)).BuildServiceProvider();
+        var tree = await Trees(crashed).OpenAsync(home.Path, Cancellation);
+        var (held, _) = await Workloads.StartAsync(tree, Workloads.Holding("hold"), Cancellation);
+        using var _ = held;
+        await using var next = new ServiceCollection().AddLogging().AddRuntime(new AvalaPaths(data.Path)).BuildServiceProvider();
+
+        await next.GetServices<IStartupTask>().OfType<EarlierTrees>().Single().RunAsync(Cancellation);
+
+        await held.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+        await crashed.DisposeAsync();
+    }
+
+    [Fact]
     public async Task AProcessThatOutlivesItsParentStaysInTheTreeAsync()
     {
         using var home = new TemporaryFolder();

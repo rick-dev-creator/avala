@@ -32,7 +32,7 @@ public sealed class ForgeConformanceTests
             Info = new ForgeInfo(string.Empty, "Broken"),
             Finds = new Queue<Result<Option<PullRequestRef>, ForgeError>>([Option<PullRequestRef>.Some(Opened), Option<PullRequestRef>.None]),
             Opening = Opened with { Number = 0 },
-            Reading = new PullRequestState(Opened with { Number = 8 }, PullRequestLifecycle.Closed, string.Empty, Mergeability.Unknown)
+            Reading = new PullRequestState(Opened with { Number = 8, Head = string.Empty }, PullRequestLifecycle.Closed, string.Empty, Mergeability.Unknown)
             {
                 Checks = [new CheckRun(string.Empty, CheckStatus.Passed, Option<Uri>.None, string.Empty)],
                 Reviews = [new Review(string.Empty, "hubot", ReviewVerdict.Approved, string.Empty, string.Empty)],
@@ -51,6 +51,7 @@ public sealed class ForgeConformanceTests
                 "reading returned another pull request",
                 "a check has no name",
                 "a review has no id or author",
+                $"reading a pull request by its number alone does not say its head and base: {Opened with { Number = 8, Head = string.Empty }}",
                 "the comment has no id",
                 "an unknown pull request is not NotFound",
             ],
@@ -68,7 +69,7 @@ public sealed class ForgeConformanceTests
         };
 
         Assert.Equal(
-            ["finding after opening failed with RateLimited", "reading failed with Unauthorized", "commenting failed with Rejected", "an unknown pull request is not NotFound"],
+            ["finding after opening failed with RateLimited", "reading failed with Unauthorized", "reading by number failed with Unauthorized", "commenting failed with Rejected", "an unknown pull request is not NotFound"],
             await CheckAsync(forge));
     }
 

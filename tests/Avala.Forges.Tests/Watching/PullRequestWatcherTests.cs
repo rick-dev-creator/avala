@@ -171,6 +171,7 @@ public sealed class PullRequestWatcherTests
     public async Task AWokenFixAwaitingReviewIsRedeliveredToThePullRequestUnderAutomaticRedeliveryAsync()
     {
         await using var world = await new WatcherWorld().WatchingAsync(watch => watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1, Redelivery = Redelivery.Automatic });
+        world.Catalog.Rounds = [AttemptOrigin.Initial, AttemptOrigin.Reopen, AttemptOrigin.Retry];
 
         await world.Watcher.HandleAsync(new JobProgressed(world.Job, JobStatus.AwaitingReview), Cancellation);
 

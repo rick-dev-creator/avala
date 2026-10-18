@@ -17,6 +17,33 @@ internal sealed class DesignEvidenceSectionViewModel : IEvidenceSectionViewModel
         "Attempt 1: failed · tests failed (exit 1, 41.2 s), lint passed (exit 0, 3.1 s)",
         "Attempt 2: passed · tests passed (exit 0, 39.8 s), lint passed (exit 0, 2.9 s)",
     ];
+
+    public string Lacks => string.Empty;
+
+    public IAsyncRelayCommand DeclareChecksCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask, () => false);
+
+    public string ReportedTitle => string.Empty;
+
+    public IReadOnlyList<string> Reported { get; } = [];
+}
+
+internal sealed class DesignUndeclaredEvidenceSectionViewModel : IEvidenceSectionViewModel
+{
+    public bool IsLoaded => true;
+
+    public string Fact => "no checks declared";
+
+    public string Summary => "No checks declared: nothing proves the work";
+
+    public IReadOnlyList<string> Attempts { get; } = ["Attempt 1: no checks declared"];
+
+    public string Lacks => Review.ReviewPhrases.MissingChecks;
+
+    public IAsyncRelayCommand DeclareChecksCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public string ReportedTitle => Review.ReviewPhrases.ReportedTitle(afterEdit: true);
+
+    public IReadOnlyList<string> Reported { get; } = ["dotnet build Avala.slnx · passed", "dotnet test --solution Avala.slnx · passed"];
 }
 
 internal sealed class DesignAuditSectionViewModel : IAuditSectionViewModel

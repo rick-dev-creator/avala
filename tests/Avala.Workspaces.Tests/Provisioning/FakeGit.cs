@@ -100,6 +100,7 @@ internal sealed class FakeGit : IGit
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(
         WorkspaceLocation location,
         BranchName branch,
+        WorkspaceId workspace,
         CancellationToken cancellationToken)
     {
         worktrees.Remove(location);

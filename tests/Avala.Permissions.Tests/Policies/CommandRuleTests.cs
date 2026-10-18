@@ -160,6 +160,30 @@ public sealed class CommandRuleTests
         Assert.Equal(PolicyAnswer.Deny, policy.Decide(Command("cd /tmp && echo x > build.log")).Answer);
     }
 
+    [Fact]
+    public void ARuleThatRunsTheTestsAllowsAChainedLineOnlyWhenEachOtherPartIsAllowedByItsOwnRule()
+    {
+        var tests = PermissionPolicy.With([Rule("run the tests", "node --test*", PolicyAnswer.Allow)]);
+
+        Assert.Equal(
+            [(PolicyAnswer.Allow, "run the tests"), (PolicyAnswer.Allow, PermissionPolicy.ReadOnlyAllowed)],
+            new[] { tests.Decide(Command("node --test; echo done")), tests.Decide(Command("echo done")) }.Select(verdict => (verdict.Answer, Outcomes.Present(verdict.Rule).Name)));
+        Assert.Equal(PolicyAnswer.Ask, tests.Decide(Command("node --test; echo \"exit $?\"")).Answer);
+        Assert.Equal(PolicyAnswer.Ask, tests.Decide(Command("node --test; node -e 'require(\"fs\").rmSync(\"x\")'")).Answer);
+        Assert.Equal(PolicyAnswer.Ask, tests.Decide(Command("node --test; echo done > /tmp/out")).Answer);
+    }
+
+    [Theory]
+    [InlineData("sort --outp=.avala/permissions.json notes.txt")]
+    [InlineData("node --test; sort --outp=notes.txt notes.txt")]
+    [InlineData("sort --compress-prog=./compress.sh -S 1K notes.txt")]
+    [InlineData("git diff --outp=.avala/permissions.json")]
+    [InlineData("git diff --ext-d")]
+    [InlineData("rg --pr=./run.sh needle")]
+    [InlineData("file --comp notes.txt")]
+    public void ARuleThatRunsTheTestsDoesNotAllowAReadOnlyCommandThatWritesOrRunsAProgramThroughAnAbbreviatedOption(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.With([Rule("run the tests", "node --test*", PolicyAnswer.Allow)]).Decide(Command(line)).Answer);
+
     private static PermissionRequest Command(string line) =>
         new(ItemKind.Command, line, InsideWorkspace: false)
         {

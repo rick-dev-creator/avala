@@ -140,6 +140,48 @@ public sealed class ReadinessTests(PublishedPlugins plugins)
         Assert.Equal(["Checks"], await run.Ui.ReadAsync(() => Items(card).Select(item => item.Need).ToList()));
     }
 
+    [Fact]
+    public async Task ATokenInTheRunsEnvironmentIsOfferedToConnectTheForgeItSignsInToAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [], [(".avala/checks.json", Checks)], environment: new Dictionary<string, string>(StringComparer.Ordinal) { ["GITHUB_TOKEN"] = "ghp_simulated" });
+        await run.Repository.GitAsync(Cancellation, "remote", "add", "origin", GitHubOrigin);
+
+        var card = await CardOfFirstJobAsync(run);
+
+        Assert.Contains("through $GITHUB_TOKEN", await run.Ui.ReadAsync(() => Assert.Single(Items(card)).Text), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheProcessEnvironmentDoesNotReachASimulatedRunAsync()
+    {
+        string[] variables = ["GH_TOKEN", "GITHUB_TOKEN", "GITEA_TOKEN"];
+        var kept = variables.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+
+        try
+        {
+            foreach (var name in variables)
+            {
+                Environment.SetEnvironmentVariable(name, "from-the-machine");
+            }
+
+            await using var run = await SimulatedRun.PreparedAsync(plugins, [], [(".avala/checks.json", Checks)], signIns: SignedIn);
+            await run.Repository.GitAsync(Cancellation, "remote", "add", "origin", GitHubOrigin);
+
+            var card = await CardOfFirstJobAsync(run);
+
+            Assert.Equal(
+                [("Forge", "Connect github.com as oc••••• through gh to open pull requests and follow their checks", "Connect", false)],
+                await run.Ui.ReadAsync(() => Items(card)));
+        }
+        finally
+        {
+            foreach (var (name, value) in kept)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
+        }
+    }
+
     private static async Task<Bound> CardOfFirstJobAsync(SimulatedRun run, bool shown = true)
     {
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));

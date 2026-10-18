@@ -124,8 +124,12 @@ internal sealed class FakeAgents : IAgents
 
     public ConcurrentQueue<UserTurn> Said { get; } = new();
 
+    public Option<Exception> SayFault { get; set; }
+
     public ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken)
     {
+        SayFault.Match(fault => throw fault, () => true);
+
         Said.Enqueue(turn);
 
         return turn.MidTurn ? SteerAsync(session, turn.Text, cancellationToken) : SendAsync(session, turn.Text, cancellationToken);

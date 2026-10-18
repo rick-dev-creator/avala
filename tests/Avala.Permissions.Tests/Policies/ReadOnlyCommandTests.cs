@@ -18,7 +18,6 @@ public sealed class ReadOnlyCommandTests
         "egrep -c 'a|b' notes.txt",
         "rg --type cs Greeter",
         "find . -name '*.cs' -newer README.md",
-        "wc -l src/*.cs",
         "git status --short",
         "git log --oneline -5",
         "git diff HEAD~1 -- src",
@@ -35,6 +34,28 @@ public sealed class ReadOnlyCommandTests
         "ls 2>/dev/null",
         "ls -la src | head -5; grep -rn TODO . | wc -l",
         "git status && git diff --stat 2>&1 | tail -3",
+        "git log --oneline -n 20",
+        "git log --format='%h %s' -10",
+        "git diff --name-only HEAD~1",
+        "git diff --stat",
+        "rg -n --glob '*.cs' foo",
+        "rg -l TODO src",
+        "grep -rn --include='*.cs' TODO src",
+        "grep -e /api -rn src",
+        "head -n 50 README.md",
+        "cat -n src/app.cs",
+        "wc -l README.md",
+        "find . -name '*.cs' -type f",
+        "find src -maxdepth 2 -type d -newermt 2026-01-01",
+        "uniq -c -",
+        "git --no-pager log --oneline -5",
+        "grep -rIn TODO src",
+        "git log -S Rounding --oneline",
+        "grep -rn '[Tt]odo' src",
+        "grep -n 'Async$' src",
+        "git log --oneline @{u}..",
+        "git status -uno",
+        "grep -rno TODO src",
     ];
 
     public static TheoryData<string> NotReadOnly =>
@@ -51,18 +72,22 @@ public sealed class ReadOnlyCommandTests
         "cat /etc/passwd",
         "cat ../secret.txt",
         "ls ~",
+        "wc -l src/*.cs",
         "cat $HOME/.ssh/id_rsa",
         "grep -f /etc/patterns src",
         "grep --file=/etc/patterns src",
         "sort -o sorted.txt names.txt",
         "sort -uo sorted.txt names.txt",
         "uniq names.txt unique.txt",
+        "uniq - unique.txt",
         "rg --pre ./decode.sh secret",
+        "rg --hostname-bin=./host.sh --hyperlink-format=default TODO",
         "git diff --output=changes.diff",
         "git diff --ext-diff",
         "git push",
         "git -C /tmp status",
         "tree -o tree.txt",
+        "tree -R -H . -L 1",
         "file -C -m magic",
         "cd src && ls",
         "ls; npm install",
@@ -83,6 +108,77 @@ public sealed class ReadOnlyCommandTests
     [Theory]
     [MemberData(nameof(NotReadOnly))]
     public void ALineThatWritesRunsSomethingElseOrReadsOutsideTheWorktreeStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("ls --some-new-option")]
+    [InlineData("head --lin=5 README.md")]
+    [InlineData("sort --files0-from=list.txt")]
+    [InlineData("sort '-o' out.txt names.txt")]
+    [InlineData("sort \"-ofoo\" names.txt")]
+    [InlineData("sort *")]
+    [InlineData("cat [-]o")]
+    [InlineData("grep --exclude-from=patterns.txt TODO src")]
+    [InlineData("git log --output=log.txt")]
+    [InlineData("git diff --textconv")]
+    [InlineData("rg --search-zip TODO")]
+    [InlineData("file -zS archive.lz")]
+    [InlineData("tail -f build.log")]
+    [InlineData("find . -name x -newer /etc/passwd")]
+    [InlineData("find . -fls found.txt")]
+    public void AnOptionOutsideWhatAReadOnlyProgramIsKnownToReadWithIsNotAllowedWithoutAsking(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("find {.,-exec,touch,pwned,';'}")]
+    [InlineData("find . {-delete,}")]
+    [InlineData("sort {-o,sorted.txt} names.txt")]
+    [InlineData("git diff {--output=changes.diff,HEAD}")]
+    [InlineData("cat {/etc/passwd,README.md}")]
+    public void AWordWhoseBracesCouldExpandIntoAnOptionOrAPathOutsideStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("cat .?/.?/.?/.?/.?/.?/.?/.?/.?/.?/etc/passwd")]
+    [InlineData("grep -rn PRIVATE src/.*/.*/.*/.*/.*/.*/.*/.*/.*/home")]
+    [InlineData("ls .?")]
+    public void AWordWhoseDotGlobCanMatchTheParentFolderStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git log --format='%h %G?' -5")]
+    [InlineData("git show --pretty=%GS HEAD")]
+    public void AGitFormatThatVerifiesSignaturesRunsAnotherProgramAndStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git diff -U ~/.ssh/id_rsa README.md")]
+    [InlineData("git diff --unified /etc/passwd README.md")]
+    [InlineData("git diff -U --output=../outside.diff")]
+    [InlineData("git log -1 --pretty --output=.git/config")]
+    [InlineData("git show --dirstat-by-file --output=.avala/permissions.json")]
+    public void AGitOptionWhoseValueIsOptionalDoesNotHideTheWordAfterIt(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git log --format --output=.avala/permissions.json")]
+    [InlineData("git show --format --output=.git/config")]
+    [InlineData("git log --encoding --output=.git/config")]
+    [InlineData("git log --committer --output=.git/config")]
+    public void AGitFormatWithoutAnEqualsSignDoesNotHideTheWordAfterIt(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("cat < /etc/passwd")]
+    [InlineData("head -n 5 < ../secret.txt")]
+    [InlineData("wc -l 0</etc/shadow")]
+    public void AnInputRedirectedFromOutsideTheWorktreeStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("rg --files /etc")]
+    [InlineData("rg --files ../other")]
+    public void ListingTheFilesOfAFolderOutsideTheWorktreeWithRgStillAsks(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Fact]

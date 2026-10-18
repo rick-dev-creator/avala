@@ -13,6 +13,11 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
     public async Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(job, cancellationToken)).Map(history => history.Summary.Status);
 
+    public async Task<bool> WokenAsync(JobId job, CancellationToken cancellationToken) =>
+        (await catalog.HistoryAsync(job, cancellationToken)).Match(
+            history => history.Attempts.LastOrDefault(attempt => attempt.Origin is not (AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff))?.Origin == AttemptOrigin.Reopen,
+            () => false);
+
     public async Task<Option<WorkspaceInfo>> WorktreeAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Bind(history => history.Summary.Workspace).Match(
             async id => (await workspaces.FindAsync(id, cancellationToken)).Match(Option<WorkspaceInfo>.Some, _ => Option<WorkspaceInfo>.None),
@@ -50,8 +55,13 @@ internal sealed class Waker(IOpenDeliveries deliveries, JobPlaces places, IGitRe
         return await deliveries.ReopenAsync(kept.State.Job, feedback, cancellationToken);
     }
 
-    public async Task<Result<JobApproval, JobRejection>> RedeliverAsync(JobId job, CancellationToken cancellationToken) =>
-        await deliveries.ApproveThroughAsync(job, PullRequestDelivery.Strategy, cancellationToken);
+    public async Task RedeliverAsync(JobId job, CancellationToken cancellationToken)
+    {
+        if (await places.WokenAsync(job, cancellationToken))
+        {
+            _ = await deliveries.ApproveThroughAsync(job, PullRequestDelivery.Strategy, cancellationToken);
+        }
+    }
 }
 
 internal sealed class PullRequestOffers(JobPlaces places, EffectiveRules rules, ForgeConnections connections)

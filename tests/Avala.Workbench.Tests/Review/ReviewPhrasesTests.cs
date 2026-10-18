@@ -196,6 +196,26 @@ public sealed class ReviewPhrasesTests
     }
 
     [Fact]
+    public void WithoutChecksTheProofNamesWhatTheAgentReportedAfterItsLastEditAndWithChecksOnlyTheChecks()
+    {
+        var job = JobId.New();
+        ReportedRun[] reported = [new("dotnet build", Passed: true), new("dotnet test --solution Avala.slnx", Passed: false)];
+        RunEvidence Evidence(VerificationOutcome outcome) => new(job, new EvidenceSummary(1, Option<VerificationOutcome>.None, [], 0, 0, []), [])
+        {
+            Verifications = [new VerificationReport(job, 1, outcome, Option<FileOrigin>.None, [Check("test", CheckStatus.Passed, 0, string.Empty, string.Empty)], GateVerdict.Pass, DateTimeOffset.UnixEpoch)],
+        };
+
+        Assert.Equal(
+            [
+                "The repository declares no checks. After its last edit the agent reported dotnet build passed and dotnet test --solution Avala.slnx failed.",
+                "The repository declares no checks. The agent reported dotnet build passed and dotnet test --solution Avala.slnx failed.",
+                "The repository declares no checks, so nothing ran.",
+                "test passed in the worktree after the last turn.",
+            ],
+            [ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), reported, afterEdit: true), ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), reported, afterEdit: false), ReviewPhrases.Proof(Evidence(VerificationOutcome.NoChecksDeclared), [], afterEdit: true), ReviewPhrases.Proof(Evidence(VerificationOutcome.Passed), reported, afterEdit: true)]);
+    }
+
+    [Fact]
     public void TheFactsUnderTheTitleNameTheRepositoryConnectionAutonomyAndSessions()
     {
         var summary = new JobSummary(JobId.New(), "/home/dev/code/ledger-api/", "Rate-limit POST /login", DateTimeOffset.UnixEpoch, JobStatus.AwaitingReview, new ConnectionName("claude-work"), Autonomy.Autonomous, Option<WorkspaceId>.None);

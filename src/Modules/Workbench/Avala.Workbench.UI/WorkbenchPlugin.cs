@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
 using Avala.Components.Pictures;
 using Avala.Components.Privacy;
+using Avala.Components.Zooming;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Components.UI.Pictures;
@@ -86,39 +87,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     public void Register(IPluginRegistrar registrar)
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
+        AddBoard(registrar.Services);
         registrar.Services
-            .AddSingleton<JobBoard>()
-            .AddSingleton<TranscriptRecall>()
-            .AddSingleton<BoardJoiner>()
-            .AddSingleton<BoardKeeper>()
-            .AddForwarded<IHandle<StartupCompleted>, BoardKeeper>()
-            .AddForwarded<IHandle<JobSubmitted>, BoardKeeper>()
-            .AddForwarded<IHandle<JobProgressed>, BoardKeeper>()
-            .AddForwarded<IHandle<JobHeld>, BoardKeeper>()
-            .AddForwarded<IHandle<JobApproved>, BoardKeeper>()
-            .AddForwarded<IHandle<JobModelChosen>, BoardKeeper>()
-            .AddForwarded<IHandle<SessionOpened>, BoardKeeper>()
-            .AddForwarded<IHandle<JobSessionStarted>, BoardKeeper>()
-            .AddForwarded<IHandle<ConnectionChosen>, BoardKeeper>()
-            .AddForwarded<IHandle<AgentActivity>, BoardKeeper>()
-            .AddForwarded<IHandle<CanvasUpdated>, BoardKeeper>()
-            .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
-            .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
-            .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()
-            .AddForwarded<IHandle<PermissionAnswered>, BoardKeeper>()
-            .AddForwarded<IHandle<AutonomyApplied>, BoardKeeper>()
-            .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()
-            .AddForwarded<IHandle<BudgetIntervened>, BoardKeeper>()
-            .AddForwarded<IHandle<BudgetCarved>, BoardKeeper>()
-            .AddForwarded<IHandle<BudgetRaised>, BoardKeeper>()
-            .AddForwarded<IHandle<ChildDelegated>, BoardKeeper>()
-            .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
-            .AddForwarded<IHandle<DelegationRefused>, BoardKeeper>()
-            .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
-            .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
-            .AddForwarded<IHandle<ParentAsked>, BoardKeeper>()
-            .AddForwarded<IHandle<PullRequestWatchChanged>, BoardKeeper>()
-            .AddForwarded<IHandle<PullRequestWakeUp>, BoardKeeper>()
             .AddTransient<BoardFeed>()
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
@@ -499,6 +469,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
+            .AddTransient<IZoomViewModel, ZoomViewModel>()
             .AddTransient<C4PlayerViewModel>()
             .AddSingleton<DocsReader>()
             .AddSingleton<DocsToggleViewModel>()
@@ -653,4 +624,41 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ILoopsViewModel, LoopsView>();
         views.Register<ILoopItemViewModel, LoopItemView>();
     }
+
+    private static void AddBoard(IServiceCollection services) =>
+        services
+            .AddSingleton<JobBoard>()
+            .AddSingleton<TranscriptRecall>()
+            .AddSingleton<JobSurroundings>()
+            .AddSingleton<BoardJoiner>()
+            .AddSingleton<BoardKeeper>()
+            .AddForwarded<IHandle<StartupCompleted>, BoardKeeper>()
+            .AddForwarded<IHandle<JobSubmitted>, BoardKeeper>()
+            .AddForwarded<IHandle<JobProgressed>, BoardKeeper>()
+            .AddForwarded<IHandle<JobHeld>, BoardKeeper>()
+            .AddForwarded<IHandle<JobApproved>, BoardKeeper>()
+            .AddForwarded<IHandle<JobModelChosen>, BoardKeeper>()
+            .AddForwarded<IHandle<SessionOpened>, BoardKeeper>()
+            .AddForwarded<IHandle<JobSessionStarted>, BoardKeeper>()
+            .AddForwarded<IHandle<ConnectionChosen>, BoardKeeper>()
+            .AddForwarded<IHandle<AgentActivity>, BoardKeeper>()
+            .AddForwarded<IHandle<CanvasUpdated>, BoardKeeper>()
+            .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
+            .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
+            .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()
+            .AddForwarded<IHandle<PermissionAnswered>, BoardKeeper>()
+            .AddForwarded<IHandle<AutonomyApplied>, BoardKeeper>()
+            .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()
+            .AddForwarded<IHandle<BudgetIntervened>, BoardKeeper>()
+            .AddForwarded<IHandle<BudgetCarved>, BoardKeeper>()
+            .AddForwarded<IHandle<BudgetRaised>, BoardKeeper>()
+            .AddForwarded<IHandle<ChildDelegated>, BoardKeeper>()
+            .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
+            .AddForwarded<IHandle<DelegationRefused>, BoardKeeper>()
+            .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
+            .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
+            .AddForwarded<IHandle<ParentAsked>, BoardKeeper>()
+            .AddForwarded<IHandle<PullRequestWatchChanged>, BoardKeeper>()
+            .AddForwarded<IHandle<PullRequestWakeUp>, BoardKeeper>()
+            .AddForwarded<IHandle<WorktreeReclaimed>, BoardKeeper>();
 }

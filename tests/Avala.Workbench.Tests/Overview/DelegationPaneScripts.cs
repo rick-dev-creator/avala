@@ -12,6 +12,7 @@ using Avala.Workbench.Navigation;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Overview;
 
@@ -319,18 +320,18 @@ internal sealed class TreeBench : IDisposable
 
     public DelegationPaneViewModel Pane(JobId shown)
     {
-        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), Messenger);
+        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui, NullLogger<LiveFeed>.Instance), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), Messenger);
         pane.OnRegionContextChanged(shown);
         pane.Activate();
 
         return pane;
     }
 
-    public DelegationToggleViewModel Toggle() => new(Reader(), new LiveFeed(new Pulse(Board), Ui), Messenger);
+    public DelegationToggleViewModel Toggle() => new(Reader(), new LiveFeed(new Pulse(Board), Ui, NullLogger<LiveFeed>.Instance), Messenger);
 
     public DelegationViewModel Page()
     {
-        var page = new DelegationViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs));
+        var page = new DelegationViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui, NullLogger<LiveFeed>.Instance), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs));
         page.Activate();
 
         return page;

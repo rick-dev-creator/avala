@@ -7,6 +7,8 @@ internal interface IContainment
 {
     ValueTask<IContainer> CreateAsync(ProcessTreeId tree, CancellationToken cancellationToken);
 
+    IContainer Recover(ProcessTreeId tree);
+
     ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken);
 }
 

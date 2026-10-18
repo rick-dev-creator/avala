@@ -20,6 +20,8 @@ internal sealed class LinuxContainment : IContainment
         return new LinuxContainer(tree, (long)((seconds - 1) * TicksPerSecond), setsid);
     }
 
+    public IContainer Recover(ProcessTreeId tree) => new LinuxContainer(tree, 0, Option<string>.None);
+
     public async ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken)
     {
         if (containers.Count == 0)

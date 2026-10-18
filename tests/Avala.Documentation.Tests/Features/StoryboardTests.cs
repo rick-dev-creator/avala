@@ -118,4 +118,19 @@ public sealed class StoryboardTests
 
         Assert.NotEmpty(played.Steps);
     }
+
+    [Fact]
+    public void VersionsWhoseC4RepeatsAnAliasArePlayedWithOneStepForThatElement()
+    {
+        var repeated = Proposed.Replace("""  Rel(merchant, payments, "Charges")""", """
+              Container(payments, "Payments", "Go, stripe-go v79")
+              Rel(merchant, payments, "Charges")
+            """, StringComparison.Ordinal);
+        var first = Storyboard.Play(1, VersionKind.Proposed, "v1-proposed.md", VersionReader.Read(repeated), Option<C4Diagram>.None);
+
+        var later = Storyboard.Play(2, VersionKind.Deviation, "v2-deviation.md", VersionReader.Read(repeated.Replace("Ledger DB", "Ledger", StringComparison.Ordinal)), first.Structure);
+
+        Assert.Equal(["payments", "merchant", "postgres"], first.Steps.Where(step => step.Kind != StepKind.Flow).SelectMany(step => step.Elements));
+        Assert.Equal([(StepKind.Changed, "postgres")], later.Steps.Where(step => step.Kind != StepKind.Flow).Select(step => (step.Kind, string.Join(',', step.Elements))));
+    }
 }

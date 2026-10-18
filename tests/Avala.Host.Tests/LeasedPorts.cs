@@ -13,5 +13,8 @@ internal static class LeasedPorts
     public static string Settings(int test) =>
         $$""" "ports": { "first": {{FirstOf(test)}}, "last": {{FirstOf(test) + PerTest - 1}} } """;
 
+    public static string OneBlock(int test) =>
+        $$""" "ports": { "first": {{FirstOf(test)}}, "last": {{FirstOf(test) + PerTest - 1}}, "perWorktree": {{PerTest}} } """;
+
     private static int FirstOf(int test) => First + (Environment.ProcessId % Runs * Tests + test) * PerTest;
 }

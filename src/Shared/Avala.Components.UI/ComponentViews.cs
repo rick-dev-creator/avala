@@ -3,6 +3,7 @@ using Avala.Components.Keycaps;
 using Avala.Components.Meters;
 using Avala.Components.Privacy;
 using Avala.Components.Status;
+using Avala.Components.Zooming;
 using Avala.Sdk.UI;
 
 namespace Avala.Components.UI;
@@ -19,6 +20,7 @@ public static class ComponentViews
             views.Register<IKeycapHintViewModel, KeycapHintView>();
             views.Register<ICanvasSurfaceViewModel, CanvasSurfaceView>();
             views.Register<IPersonalDetailsViewModel, PersonalDetailsView>();
+            views.Register<IZoomViewModel, ZoomView>();
 
             return views;
         }

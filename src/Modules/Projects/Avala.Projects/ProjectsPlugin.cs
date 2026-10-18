@@ -24,6 +24,7 @@ public sealed class ProjectsPlugin : IPlugin
             .AddForwarded<IHandle<ConversationRestored>, RepositoryProjects>()
             .AddSingleton<ArchiveReturns>()
             .AddForwarded<IHandle<JobProgressed>, ArchiveReturns>()
+            .AddSingleton<IHandle<ConversationsArchived>, ArchivedAgents>()
             .AddSingleton<ProjectsEntry>()
             .AddForwarded<IProjects, ProjectsEntry>();
 }

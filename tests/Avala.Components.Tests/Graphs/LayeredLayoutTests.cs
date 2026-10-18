@@ -36,6 +36,12 @@ public sealed class LayeredLayoutTests
     }
 
     [Fact]
+    public void OnlyTheRowWhereAFrameEndsLeavesRoomBelowItForTheFramesLabel() =>
+        Assert.Equal(
+            [0d, 110d, 240d],
+            LayeredLayout.Arrange([Node(), Node(group: 0), Node()], [new(0, 1), new(1, 2)], 1, Spacing).Nodes.Select(node => node.Y));
+
+    [Fact]
     public void MembersOfAGroupStayNextToEachOtherInTheirRow()
     {
         var layout = LayeredLayout.Arrange([Node(), Node(group: 0), Node(), Node(group: 0)], [new(0, 1), new(0, 2), new(0, 3)], 1, Spacing);

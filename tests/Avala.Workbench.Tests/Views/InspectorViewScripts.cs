@@ -38,6 +38,20 @@ public sealed class EvidenceSectionViewScripts(HeadlessUi ui)
             Assert.Equal("Verified on attempt 2 of 2", view.TextOf("Summary"));
             Assert.Equal(2, view.Find<ItemsControl>("Attempts").ItemCount);
             Assert.False(view.Shows("Loading"));
+            Assert.Equal((false, false, false), (view.Shows("ReportedTitle"), view.Shows("Lacks"), view.Shows("DeclareChecks")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task WithoutChecksTheEvidenceListsWhatTheAgentReportedAndOffersDeclareChecksAsync() =>
+        ui.RunAsync(() =>
+        {
+            var section = new DesignUndeclaredEvidenceSectionViewModel();
+            var view = Sections.Open(Screen.Show(section));
+
+            Assert.Equal(("Reported by the agent after its last edit", 2), (view.TextOf("ReportedTitle"), view.Find<ItemsControl>("Reported").ItemCount));
+            Assert.StartsWith("This repository has no .avala/checks.json", view.TextOf("Lacks"), StringComparison.Ordinal);
+            Assert.Same(section.DeclareChecksCommand, view.Find<Button>("DeclareChecks").Command);
+            Assert.True(view.Shows("DeclareChecks"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -45,7 +59,7 @@ public sealed class EvidenceSectionViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
-            using var section = new EvidenceSectionViewModel(bench.Inspected());
+            using var section = new EvidenceSectionViewModel(bench.Inspected(), new Readiness.FakeReadinessLinks());
             var view = Sections.Open(Screen.Show(section));
 
             Assert.True(view.Shows("Loading"));

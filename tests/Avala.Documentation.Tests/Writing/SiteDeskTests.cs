@@ -34,7 +34,7 @@ public sealed class SiteDeskTests
         var briefed = await documented.Skeleton().BriefAsync(job, Documented.Cancellation);
         var again = await documented.Skeleton().BriefAsync(job, Documented.Cancellation);
 
-        Assert.StartsWith("Avala laid out the site in docs/:", Outcomes.Present(briefed), StringComparison.Ordinal);
+        Assert.StartsWith("Avala laid out the site in docs/:", Outcomes.Present(briefed).Text, StringComparison.Ordinal);
         Assert.True(again.IsNone);
         Assert.Equal("# Ledger API\n\nOurs.\n", documented.Files[worktree, "docs/index.md"]);
         Assert.Contains("\"template\": [ \"default\", \"modern\", \"template\" ]", documented.Files[worktree, "docs/docfx.json"], StringComparison.Ordinal);

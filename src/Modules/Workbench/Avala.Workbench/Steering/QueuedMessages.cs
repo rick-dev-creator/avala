@@ -35,7 +35,8 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         return shown switch
         {
-            _ when shown.IsOver => JobRejection.NotHeld,
+            JobStatus.Discarded or JobStatus.Failed => JobRejection.NotHeld,
+            JobStatus.Approved => await AttemptAsync(jobs.ContinueAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotHeld], SteeredAsync),
             JobStatus.AwaitingReview => await AttemptAsync(jobs.SendBackAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotAwaitingReview], ContinuedAsync),
             JobStatus.Running => await SteeredAsync(),
             _ => await ContinuedAsync(),
@@ -80,22 +81,25 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     {
         var job = integrationEvent.Job;
 
-        if (integrationEvent.Status.IsOver)
+        if (integrationEvent.Status is JobStatus.Discarded or JobStatus.Failed)
         {
             Withdraw(job);
             return;
         }
 
-        if (integrationEvent.Status != JobStatus.NeedsHelp || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
+        if (integrationEvent.Status is not (JobStatus.NeedsHelp or JobStatus.Approved) || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
         {
             return;
         }
 
-        if (!(await jobs.ContinueAsync(job, message, cancellationToken)).IsSuccess)
+        if ((await jobs.ContinueAsync(job, message, cancellationToken)).Match(_ => false, rejection => !Final(integrationEvent.Status, rejection)))
         {
             Queue(job, message);
         }
     }
+
+    private static bool Final(JobStatus status, JobRejection rejection) =>
+        rejection == JobRejection.NotRoot || (status == JobStatus.Approved && rejection == JobRejection.WorkspaceUnavailable);
 
     private void Queue(JobId job, JobMessage message) =>
         ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => new JobMessage($"{earlier.Text}\n\n{message.Text}") { Attachments = [.. earlier.Attachments, .. message.Attachments] });

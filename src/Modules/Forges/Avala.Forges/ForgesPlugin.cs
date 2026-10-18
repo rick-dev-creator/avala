@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Forges.Accounts;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
@@ -14,6 +15,7 @@ using Avala.Forges.Watching;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Sdk.Processes;
 using Avala.Triggers.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -38,7 +40,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IForgeFile, ForgeFile>()
             .AddForwarded<IForgeFileWriter, ForgeFile>()
             .AddSingleton<ForgeHttp>()
-            .AddSingleton<IForgeTransports, ForgeTransports>()
+            .AddSingleton<IForgeTransports>(provider => new ForgeTransports(provider.GetRequiredService<IProcessRunner>(), provider.GetRequiredService<ForgeHttp>()) { Environment = provider.GetRequiredService<IEnvironmentVariables>().Read })
             .AddSingleton<ForgeConnections>()
             .AddForwarded<IForgeCatalog, ForgeConnections>()
             .AddSingleton<IPullRequestRules, PullRequestRulesReader>()
@@ -55,6 +57,8 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<PullRequestFinder>()
             .AddSingleton<PullRequestDiscovery>()
             .AddForwarded<IHandle<JobProgressed>, PullRequestDiscovery>()
+            .AddForwarded<IHandle<JobSessionStarted>, PullRequestDiscovery>()
+            .AddForwarded<IHandle<AgentActivity>, PullRequestDiscovery>()
             .AddSingleton<PullRequestOffers>()
             .AddSingleton<IPullRequests, PullRequestDesk>()
             .AddSingleton<IMentionedPullRequests, MentionedPullRequests>()
@@ -72,7 +76,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<IRepositoryPublishing, RepositoryPublisher>()
             .AddSingleton<IForgeConnections, ConnectionDesk>()
             .AddSingleton<IForgeProbes, HttpForgeProbes>()
-            .AddSingleton<ILoginDetection, LoginDetection>()
+            .AddSingleton<ILoginDetection>(provider => new LoginDetection(provider.GetServices<IForgeLogins>(), provider.GetServices<IForge>(), provider.GetRequiredService<IProcessRunner>(), provider.GetRequiredService<IForgeProbes>()) { Environment = provider.GetRequiredService<IEnvironmentVariables>().Read })
             .AddSingleton<CloneUrls>()
             .AddSingleton<ISourceControlAccounts, SourceControlDesk>()
             .AddSingleton<IForgeReadiness, ForgeReadinessDesk>();

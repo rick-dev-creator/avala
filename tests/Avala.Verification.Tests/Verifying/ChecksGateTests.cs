@@ -28,10 +28,21 @@ public sealed class ChecksGateTests
 
         Assert.Equal(GateVerdict.Pass, verdict);
         var report = Assert.Single(verified.Published);
-        Assert.Equal((Job, 1, VerificationOutcome.NoChecksDeclared), (report.Job, report.Attempt, report.Outcome));
+        Assert.Equal((Job, 1, VerificationOutcome.NoChecksDeclared, true), (report.Job, report.Attempt, report.Outcome, report.Missing));
         Assert.Empty(report.Checks);
         Assert.Empty(verified.Processes.Requests);
         Assert.Equal([report], verified.Book.OfJob(Job));
+    }
+
+    [Fact]
+    public async Task AChecksFileWithAnEmptyListDeclaresNoChecksWithoutBeingMissingAsync()
+    {
+        var verified = new Verified("""{ "checks": [] }""");
+
+        _ = await verified.EvaluateAsync(Job, 1, Cancellation);
+
+        var report = Assert.Single(verified.Published);
+        Assert.Equal((VerificationOutcome.NoChecksDeclared, false), (report.Outcome, report.Missing));
     }
 
     [Fact]

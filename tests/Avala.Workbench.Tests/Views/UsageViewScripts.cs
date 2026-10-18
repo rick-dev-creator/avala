@@ -2,6 +2,7 @@ using Avala.Components.UI.Graphs;
 using Avala.Jobs.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Usage;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
@@ -28,6 +29,44 @@ public sealed class UsageViewScripts(HeadlessUi ui)
             Assert.Equal((true, true, false), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup")));
         }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task ADaysCostAtApiPricesReadsWholeOnItsRowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PricedDay(), Avalonia.Styling.ThemeVariant.Dark, 1200, 200);
+            var cost = view.Find<TextBlock>("Cost");
+            cost.Measure(Size.Infinity);
+
+            Assert.True(cost.DesiredSize.Width <= cost.Bounds.Width, $"the cost needs {cost.DesiredSize.Width} and is given {cost.Bounds.Width}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task BesideTheDefaultSidebarAtTheNarrowestWindowABusyDaysCostReadsWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PricedDay("48,512,330 tokens", "142.87 USD at API prices"), Avalonia.Styling.ThemeVariant.Dark, 412, 200);
+            var cost = view.Find<TextBlock>("Cost");
+            var end = cost.TranslatePoint(new Point(cost.Bounds.Width, 0), view.Window)!.Value.X;
+            cost.Measure(Size.Infinity);
+
+            Assert.True(cost.DesiredSize.Width <= cost.Bounds.Width && end <= view.Window.Bounds.Width, $"the cost needs {cost.DesiredSize.Width:0}, is given {cost.Bounds.Width:0} and ends at {end:0} on a row {view.Window.Bounds.Width:0} wide");
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class PricedDay(string tokens = "15,275 tokens", string cost = "0.06 USD at API prices") : IUsageDayViewModel
+    {
+        public string Day => "Sun 18 Oct · today";
+
+        public string Tokens => tokens;
+
+        public string Cost => cost;
+
+        public string Types => "15,275 input";
+
+        public double Share => 1;
+
+        public bool IsToday => true;
+    }
+
     private sealed class EmptyUsage : IUsageViewModel
     {
         public string Title => "Usage";
@@ -47,13 +86,33 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 public sealed class UsageRangeViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task ANarrowRangeCaptionBreaksAfterItsDotNotBeforeItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageRangeViewModel(), Avalonia.Styling.ThemeVariant.Dark, 640, 480);
+            var caption = view.Find<TextBlock>("Caption");
+            var starts = new List<string>();
+
+            for (var width = 260; width <= 640; width += 4)
+            {
+                view.Window.Width = width;
+                view.Settle();
+                var text = caption.Text ?? string.Empty;
+                starts.AddRange(caption.TextLayout.TextLines.Skip(1).Select(line => text[line.FirstTextSourceIndex..].TrimStart()));
+            }
+
+            Assert.NotEmpty(starts);
+            Assert.All(starts, start => Assert.False(start.StartsWith('·'), start));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheWindowIsChosenWithSegmentsAndItsDaysListUnderItsTotalAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignUsageRangeViewModel());
 
             Assert.Equal((false, true, false), (view.HasClass("ShowToday", "selected"), view.HasClass("ShowWeek", "selected"), view.HasClass("ShowMonth", "selected")));
-            Assert.Equal(("Since Sun 4 Oct, in this computer's time zone · newest first", 7), (view.TextOf("Caption"), view.Find<ItemsControl>("Days").ItemCount));
+            Assert.Equal((Components.UI.States.Texts.Typeset("Since Sun 4 Oct, in this computer's time zone · newest first"), 7), (view.TextOf("Caption"), view.Find<ItemsControl>("Days").ItemCount));
             Assert.Contains("Tokens by type · Last 7 days", view.VisibleTexts);
         }, TestContext.Current.CancellationToken);
 
@@ -109,15 +168,34 @@ public sealed class ConnectionMeterViewScripts(HeadlessUi ui)
 public sealed class LimitViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ALimitNearItsHoldTurnsAmberMarksTheThresholdAndExplainsItAsync() =>
+    public Task ALimitNearItsHoldTurnsAmberAndMarksTheThresholdAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignLimitViewModel());
 
-            Assert.Equal(("5-hour window", "88%", " · resets 2026-10-09 16:20"), (view.TextOf("Window"), view.TextOf("UsedText"), view.TextOf("Resets")));
+            Assert.Equal(("5-hour window", "88%", " used"), (view.TextOf("Window"), view.TextOf("UsedText"), view.TextOf("UsedWord")));
             Assert.Equal((0.88, 0.9), (view.Find<ProgressBar>("Used").Value, view.Find<ProgressBar>("Hold").Value));
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
-            Assert.Equal((true, true, "Jobs on this connection hold at the 90% threshold."), (view.HasClass("UsedText", "attention"), view.Shows("HoldAt"), view.TextOf("HoldAt")));
+            Assert.Equal((true, true), (view.HasClass("UsedText", "attention"), view.HasClass("UsedWord", "attention")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnExpiredLimitSaysResetWithoutCallingItUsedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignLimitViewModel("7d", "7-day window", 0, "reset", "reset 2026-10-13 09:00, no reading since", 0.9, false));
+
+            Assert.Equal(("reset", false), (view.TextOf("UsedText"), view.Shows("UsedWord")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ALimitSaysWhenItResetsAsASentenceUnderItsBarAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignLimitViewModel());
+
+            Assert.Equal("Resets 2026-10-09 16:20", view.TextOf("Resets"));
+            Assert.True(view.Find("Resets").TranslatePoint(default, view.Window)!.Value.Y >= view.Find("Used").TranslatePoint(new Point(0, view.Find("Used").Bounds.Height), view.Window)!.Value.Y);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -126,7 +204,7 @@ public sealed class LimitViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false));
 
-            Assert.Equal((false, false), (view.HasClass("UsedText", "attention"), view.Shows("HoldAt")));
+            Assert.False(view.HasClass("UsedText", "attention"));
             Assert.Equal(Color.Parse("#A3A3AD"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
@@ -200,6 +278,29 @@ public sealed class JobMeterViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, "held 2 times"), (view.HasClass("Used", "attention"), view.TextOf("Interventions")));
             Assert.True(view.HasClass("Interventions", "attention"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AJobsLongTitleIsTrimmedWithAnEllipsisAndKeepsHowOftenItWasHeldInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobMeterViewModel(Presenting.SampleJobs.SyncQueue, "[simulate: two-windows-spent] Rewrite the importer for the new CSV export format of the bank and keep the old one working", JobStatus.NeedsHelp, "claude-personal", "3.04 USD", 1, "3 USD", 2), Avalonia.Styling.ThemeVariant.Dark, 640, 200);
+            var title = view.Find<TextBlock>("Title");
+
+            Assert.Equal((true, true), (title.TextLayout.TextLines[0].HasCollapsed, view.Shows("Interventions")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task BesideTheDefaultSidebarAtTheNarrowestWindowAHeldJobsRowReadsItsTitleAndHowOftenItWasHeldAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobMeterViewModel(Presenting.SampleJobs.SyncQueue, "Rewrite the importer for the new CSV export format of the bank", JobStatus.NeedsHelp, "claude-personal", "12.48 USD", 0.83, "15 USD", 2), Avalonia.Styling.ThemeVariant.Dark, 412, 200);
+            var held = view.Find<TextBlock>("Interventions");
+            var title = view.Find<TextBlock>("Title");
+            var given = (Held: held.Bounds.Width, Title: title.Bounds.Width);
+            held.Measure(Size.Infinity);
+
+            Assert.True(held.DesiredSize.Width <= given.Held && given.Title > 0, $"'held 2 times' needs {held.DesiredSize.Width:0} and is given {given.Held:0}, the title is given {given.Title:0}");
         }, TestContext.Current.CancellationToken);
 
     [Fact]

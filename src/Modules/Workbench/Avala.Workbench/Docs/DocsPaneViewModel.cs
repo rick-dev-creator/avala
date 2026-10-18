@@ -22,6 +22,8 @@ internal interface IDocsPaneViewModel
 
     string State { get; }
 
+    string Problem { get; }
+
     bool IsWriting { get; }
 
     IC4PlayerViewModel Player { get; }
@@ -50,6 +52,7 @@ internal sealed partial class DocsPaneViewModel
     private readonly JobHistoryViewModel history = new();
     private readonly ObservableCollection<FeatureRowViewModel> others = [];
     private Option<JobId> job;
+    private Option<JobId> shownJob;
     private string played = string.Empty;
     private Option<FeatureStory> stories;
     private DocsSite site = new(false, "docs", false);
@@ -92,6 +95,9 @@ internal sealed partial class DocsPaneViewModel
     public partial string State { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string Problem { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial bool IsWriting { get; private set; }
 
     [ObservableProperty]
@@ -101,7 +107,7 @@ internal sealed partial class DocsPaneViewModel
     [ObservableProperty]
     public partial string SiteHint { get; private set; } = string.Empty;
 
-    public void Activate() => feed.Start(ReadAsync, Show);
+    public void Activate() => feed.Start(ReadAsync, Show, Fail);
 
     public void Deactivate() => feed.Stop();
 
@@ -140,25 +146,35 @@ internal sealed partial class DocsPaneViewModel
 
     private void Show(Option<JobDocs> read)
     {
+        Problem = string.Empty;
+
+        if (read.IsNone && shownJob != job)
+        {
+            Forget();
+        }
+
         foreach (var docs in read.Match<JobDocs[]>(found => [found], () => []))
         {
             var documented = docs.Documentation;
+            shownJob = documented.Job;
             Feature = documented.Feature.Title;
             IsWriting = documented.Writing.IsSome;
             State = docs.Unplanned ? DocsPanePhrases.NoPlan : DocsPanePhrases.State(documented);
-            var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
+            Problem = DocsPanePhrases.Unplayed(docs.Unplayed);
+            var story = $"{documented.Job}:{docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty)}";
+            history.Show(docs);
+            stories = docs.Story;
 
             if (story != played)
             {
                 played = story;
                 player.Show(docs.Story);
+                player.Version = Index(history.Chosen);
             }
 
-            history.Show(docs);
             site = docs.Site;
             CanOpenSite = docs.Site.Exists && docs.Site.CanServe;
             SiteHint = docs.Site.Exists && !docs.Site.CanServe ? DocsPanePhrases.Install : string.Empty;
-            stories = docs.Story;
 
             others.Clear();
 
@@ -167,6 +183,33 @@ internal sealed partial class DocsPaneViewModel
                 others.Add(new FeatureRowViewModel(listed, () => messenger.Send(FeatureDocsRequested.Of(docs.Repository, listed))));
             }
         }
+    }
+
+    private void Fail(Exception exception)
+    {
+        if (shownJob != job)
+        {
+            Forget();
+        }
+
+        IsWriting = false;
+        State = DocsPanePhrases.Unreadable;
+        Problem = DocsPanePhrases.Problem(exception.Message);
+    }
+
+    private void Forget()
+    {
+        shownJob = job;
+        Feature = job.Match(reader.FeatureOf, () => string.Empty);
+        State = string.Empty;
+        IsWriting = false;
+        played = string.Empty;
+        player.Show(Option<FeatureStory>.None);
+        history.Clear();
+        stories = Option<FeatureStory>.None;
+        others.Clear();
+        CanOpenSite = false;
+        SiteHint = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenSite))]
@@ -202,6 +245,15 @@ internal static class DocsPanePhrases
     public const string Install = "Install DocFX to open the docs site: " + DocsSite.Install;
 
     public const string NoPlan = "No plan yet: the agent has not recorded a task list, so there is nothing to document.";
+
+    public const string Unreadable = "unreadable";
+
+    public static string Problem(string reason) => $"Could not read this feature's docs: {reason}";
+
+    public static string Unplayed(IReadOnlyList<UnplayedVersion> unplayed) =>
+        string.Join(' ', unplayed.Select(version => version.After.Match(
+            after => $"{version.File} could not be played after {after}, so the story leaves it out.",
+            () => $"{version.File} could not be played, so the story leaves it out.")));
 
     public static string State(JobDocumentation documented) =>
         documented.Writing.IsSome ? "writing"

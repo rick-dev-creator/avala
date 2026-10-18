@@ -7,6 +7,7 @@ using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
@@ -191,6 +192,32 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         Assert.Contains(
             run.Get<IDelegations>().OfParent(job),
             record => record.Report.Match(report => report.Outcome == ChildOutcome.Conflict, () => false));
+    }
+
+    [Fact]
+    public async Task AChildLeftForReviewIsDiscardedAndLeavesNoAgentRunningOnceItsParentIsApprovedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [],
+            [
+                (".avala/checks.json", PassingChecks),
+                (".avala/permissions.json", Autonomous),
+                (".avala/jobs.json", """{ "delegation": {} }"""),
+            ]);
+        var reported = run.Watch<ChildReported>();
+        var progressed = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-conflict] Write the release notes")));
+        var reports = await reported.CollectUntilAsync(_ => true);
+        reports = [.. reports, .. await reported.CollectUntilAsync(_ => true)];
+        var waiting = Outcomes.Present(Assert.Single(reports, update => Outcomes.Present(update.Delegation.Report).Outcome == ChildOutcome.Conflict).Delegation.Child);
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == waiting && update.Status == JobStatus.Discarded);
+        await run.DeliveredAsync();
+
+        Assert.Empty(run.Get<IProcessTrees>().Open);
     }
 
     [Fact]

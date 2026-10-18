@@ -48,6 +48,7 @@ An agent can hand self-contained work to sub-agents, which run as child jobs gov
 - Without a `delegation` section, delegation is refused.
 - A delegation is refused when it is too deep, when the parent has too many children, when it asks for more autonomy than its parent or for a model its connection does not offer.
 - A child's work that conflicts with its parent's is reported, not merged.
+- When the parent ends, approved, discarded or failed, every child that has not ended is discarded, including one left for review or held, so no sub-agent keeps running for a job that is gone.
 
 ## See also
 
