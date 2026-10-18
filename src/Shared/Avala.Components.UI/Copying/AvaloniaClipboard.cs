@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -11,14 +12,14 @@ namespace Avala.Components.UI.Copying;
 
 public sealed class AvaloniaClipboard : Sdk.IClipboard
 {
-    private readonly Func<TopLevel?> window;
+    private readonly Func<Option<TopLevel>> window;
 
     public AvaloniaClipboard()
-        : this(() => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } main } ? main : null)
+        : this(() => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } main } ? Option<TopLevel>.Some(main) : Option<TopLevel>.None)
     {
     }
 
-    internal AvaloniaClipboard(Func<TopLevel?> window) => this.window = window;
+    internal AvaloniaClipboard(Func<Option<TopLevel>> window) => this.window = window;
 
     public ValueTask<bool> CopyAsync(string text, CancellationToken cancellationToken) =>
         OnClipboardAsync(
@@ -87,7 +88,7 @@ public sealed class AvaloniaClipboard : Sdk.IClipboard
         return new Bitmap(stream);
     }
 
-    private async ValueTask<bool> OnClipboardAsync(Func<TopLevel, IClipboard, Task<bool>> copy, CancellationToken cancellationToken)
+    private async ValueTask<bool> OnClipboardAsync(Func<TopLevel, Avalonia.Input.Platform.IClipboard, Task<bool>> copy, CancellationToken cancellationToken)
     {
         if (Application.Current is null)
         {
@@ -97,7 +98,7 @@ public sealed class AvaloniaClipboard : Sdk.IClipboard
         return await await Dispatcher.UIThread.InvokeAsync(
             async () =>
             {
-                if (window() is not { Clipboard: { } clipboard } top)
+                if (window().Match<TopLevel?>(found => found, () => null) is not { Clipboard: { } clipboard } top)
                 {
                     return false;
                 }

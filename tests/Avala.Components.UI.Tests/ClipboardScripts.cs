@@ -1,4 +1,5 @@
 using Avala.Components.UI.Copying;
+using Avala.Sdk;
 using Avala.Testing.UI;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
@@ -16,7 +17,7 @@ public sealed class ClipboardScripts(HeadlessUi ui)
         {
             var view = ViewScript.Show(new Border(), new object());
 
-            var copied = await new AvaloniaClipboard(() => view.Window).CopyLinkAsync(new Uri("https://example.com/pull/7"), Cancellation);
+            var copied = await new AvaloniaClipboard(() => Option<TopLevel>.Some(view.Window)).CopyLinkAsync(new Uri("https://example.com/pull/7"), Cancellation);
 
             Assert.True(copied);
             Assert.Equal("https://example.com/pull/7", await view.Window.Clipboard!.TryGetTextAsync());
@@ -33,7 +34,7 @@ public sealed class ClipboardScripts(HeadlessUi ui)
             try
             {
                 var clipboard = view.Window.Clipboard!;
-                var copied = await new AvaloniaClipboard(() => view.Window).CopyImageAsync(path, Cancellation);
+                var copied = await new AvaloniaClipboard(() => Option<TopLevel>.Some(view.Window)).CopyImageAsync(path, Cancellation);
                 using var picture = await clipboard.TryGetBitmapAsync();
                 var file = await clipboard.TryGetFileAsync();
 
@@ -63,7 +64,7 @@ public sealed class ClipboardScripts(HeadlessUi ui)
                 }
 
                 var clipboard = view.Window.Clipboard!;
-                var copied = await new AvaloniaClipboard(() => view.Window).CopyFilesAsync(paths, Cancellation);
+                var copied = await new AvaloniaClipboard(() => Option<TopLevel>.Some(view.Window)).CopyFilesAsync(paths, Cancellation);
                 var files = await clipboard.TryGetFilesAsync() ?? [];
 
                 Assert.True(copied);
@@ -81,6 +82,6 @@ public sealed class ClipboardScripts(HeadlessUi ui)
         {
             var view = ViewScript.Show(new Border(), new object());
 
-            Assert.False(await new AvaloniaClipboard(() => view.Window).CopyImageAsync(Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.png"), Cancellation));
+            Assert.False(await new AvaloniaClipboard(() => Option<TopLevel>.Some(view.Window)).CopyImageAsync(Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.png"), Cancellation));
         }, Cancellation);
 }
