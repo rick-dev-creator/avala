@@ -86,6 +86,38 @@ public sealed class DeliveryFlowScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "beta11-agent-pull-request-note");
     }
 
+    [Fact]
+    public async Task ThePullRequestTheAgentOpenedFromABranchItNeverCheckedOutShowsInTheInspectorAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, []);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ForgeTests.ReviewedEditAsync(run, "mentions");
+        var number = await ForgeTests.PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {ForgeTests.PullRequestLink(number)}", Cancellation));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workbench = await run.WorkbenchAsync();
+        var section = (await workbench.InspectAsync(job, "PullRequestSectionViewModel"))[0];
+        await run.Ui.PresentedAsync(section.Presentation, () => section["Fact"].Text.Contains($"#{number}", StringComparison.Ordinal), () => $"the inspector reads {section["Fact"].Text}");
+
+        await Camera.ShootAsync(run, "stabilize-agent-pull-request-inspector");
+    }
+
+    [Fact]
+    public async Task AJobWithoutChecksShowsWhatTheAgentRanAfterItsLastEditAndOffersToDeclareChecksAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("edit"), [], []);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.InspectAsync(run.Job, "EvidenceSectionViewModel");
+
+        await Camera.ShootAsync(run, "stabilize-no-checks-evidence");
+
+        await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
+        await Camera.ShootAsync(run, "stabilize-no-checks-review");
+    }
+
     private static void Gated() =>
         Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
 }

@@ -102,6 +102,8 @@ internal sealed class PollerWorld : IAsyncDisposable
         public ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<bool> HasBranchAsync(string worktree, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
 

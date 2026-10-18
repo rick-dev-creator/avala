@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Forges.Accounts;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
@@ -55,6 +56,8 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<PullRequestFinder>()
             .AddSingleton<PullRequestDiscovery>()
             .AddForwarded<IHandle<JobProgressed>, PullRequestDiscovery>()
+            .AddForwarded<IHandle<JobSessionStarted>, PullRequestDiscovery>()
+            .AddForwarded<IHandle<AgentActivity>, PullRequestDiscovery>()
             .AddSingleton<PullRequestOffers>()
             .AddSingleton<IPullRequests, PullRequestDesk>()
             .AddSingleton<IMentionedPullRequests, MentionedPullRequests>()

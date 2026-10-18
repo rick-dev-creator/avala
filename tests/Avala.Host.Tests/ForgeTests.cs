@@ -215,20 +215,36 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task APullRequestFromABranchTheWorktreeNeverCheckedOutIsNotAdoptedAsync()
+    public async Task APullRequestTheAgentReportsFromABranchItNeverCheckedOutIsAdoptedAndWatchedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
         _ = await run.Repository.PublishAsync(Cancellation);
-        var (job, _) = await ReviewedEditAsync(run);
+        var opened = run.Watch<PullRequestOpened>();
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(number)}", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
+
+        Assert.Equal((number, "fix/rounding"), (adopted.PullRequest.Number, adopted.PullRequest.Head));
+        Assert.True(run.Get<IPullRequests>().Of(job).IsSome);
+    }
+
+    [Fact]
+    public async Task APullRequestFromAnotherCloneIsNotAdoptedEvenWhenTheAgentReportsItLastAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var own = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
 
         await run.Repository.CommitToRemoteAsync("elsewhere", "OTHER.md", "Another clone's work.\n", Cancellation);
-        _ = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("elsewhere", "main", "Another change", Cancellation);
-        var progressed = run.Watch<JobProgressed>();
-        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Push your branch and open a pull request.", Cancellation));
-        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
-        await run.DeliveredAsync();
+        var other = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("elsewhere", "main", "Another change", Cancellation);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(own)}, next to {PullRequestLink(other)}", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
 
-        Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
+        Assert.Equal((own, "fix/rounding"), (adopted.PullRequest.Number, adopted.PullRequest.Head));
     }
 
     [Fact]
@@ -252,9 +268,23 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
     }
 
-    private static async Task<(JobId Job, WorkspaceInfo Worktree)> ReviewedEditAsync(SimulatedRun run)
+    internal static string PullRequestLink(int number) => $"https://forge.invalid/octo/shop/pulls/{number}";
+
+    internal static async Task<int> PullRequestFromABranchNeverCheckedOutAsync(SimulatedRun run, WorkspaceInfo worktree, string branch)
     {
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("edit"))));
+        await File.WriteAllTextAsync(Path.Combine(worktree.Path, "ROUNDING.md"), "Round half to even.\n", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "add", "ROUNDING.md");
+        var tree = await run.Repository.GitInAsync(worktree.Path, Cancellation, "write-tree");
+        var commit = await run.Repository.GitInAsync(worktree.Path, Cancellation, "-c", "user.name=Ada", "-c", "user.email=ada@localhost", "commit-tree", tree, "-p", "origin/main", "-m", "Round half to even");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "branch", branch, commit);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", branch);
+
+        return await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(branch, "main", "Round half to even", Cancellation);
+    }
+
+    internal static async Task<(JobId Job, WorkspaceInfo Worktree)> ReviewedEditAsync(SimulatedRun run, string scenario = "edit")
+    {
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate(scenario))));
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
 

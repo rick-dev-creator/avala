@@ -155,8 +155,11 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
             _ => Mergeability.Unknown,
         } : Mergeability.Unknown;
 
-        return new PullRequestState(known with { Link = new Uri(pull.GetProperty("html_url").GetString()!) }, lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
     }
+
+    private static PullRequestRef Known(PullRequestRef read, PullRequestRef known) =>
+        read with { Head = read.Head.Length > 0 ? read.Head : known.Head, Base = read.Base.Length > 0 ? read.Base : known.Base };
 
     public static IReadOnlyList<CheckRun> Statuses(JsonElement root) =>
         root.TryGetProperty("statuses", out var statuses) && statuses.ValueKind == JsonValueKind.Array
