@@ -11,7 +11,7 @@ const hopPause = 1400;
 const laneGap = 34;
 const laneShift = 18;
 const clearance = 4;
-const along = [0.5, 0.35, 0.65, 0.2, 0.8];
+const along = [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9];
 const zoomStep = 1.25;
 const wheelStep = 1.2;
 const smallest = 0.25;
@@ -91,7 +91,7 @@ function read(source) {
       if (opens) {
         open.push(boundary.alias);
       }
-    } else if (kinds[name]) {
+    } else if (Object.hasOwn(kinds, name)) {
       const [kind, shape, external] = kinds[name];
       const hasTechnology = technical.test(name);
       keep(model.elements, {
@@ -109,7 +109,7 @@ function read(source) {
       });
     }
   }
-  model.relations = model.relations.filter(relation =>
+  model.relations = model.relations.filter(relation => relation.from !== relation.to &&
     model.elements.some(element => element.alias === relation.from) && model.elements.some(element => element.alias === relation.to));
   return model;
 }
@@ -190,7 +190,7 @@ function layout(model) {
       return null;
     }
     const nested = nesting(model, boundary.alias);
-    const pad = framePad - nested * 8;
+    const pad = Math.max(6, framePad - nested * 8);
     const xs = inside.map(element => positions.get(element.alias).x);
     const ys = inside.map(element => positions.get(element.alias).y);
     return {
@@ -257,19 +257,18 @@ function wrap(text, limit) {
   return lines.length > 2 ? [lines[0], lines[1].replace(/.{0,2}$/, "…")] : lines;
 }
 
-function middle(box) {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+function measure(text, font) {
+  const drawn = text.getComputedTextLength();
+  if (drawn > 0) {
+    return drawn;
+  }
+  measure.context ??= document.createElement("canvas").getContext("2d");
+  measure.context.font = `${font} system-ui, -apple-system, "Segoe UI", sans-serif`;
+  return measure.context.measureText(text.textContent).width;
 }
 
-function edge(box, toward) {
-  const center = middle(box);
-  const dx = toward.x - center.x;
-  const dy = toward.y - center.y;
-  if (!dx && !dy) {
-    return center;
-  }
-  const scale = Math.min(Math.abs(dx) < 0.001 ? Infinity : box.width / 2 / Math.abs(dx), Math.abs(dy) < 0.001 ? Infinity : box.height / 2 / Math.abs(dy));
-  return { x: center.x + dx * scale, y: center.y + dy * scale };
+function middle(box) {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 function cuts(from, to, box) {
@@ -306,44 +305,66 @@ function length(points) {
   return points.slice(1).reduce((sum, point, at) => sum + Math.hypot(point.x - points[at].x, point.y - points[at].y), 0);
 }
 
-function route(from, to, boxes, shift) {
+function inside(box, point) {
+  return {
+    x: Math.min(Math.max(point.x, box.x + 2), box.x + box.width - 2),
+    y: Math.min(Math.max(point.y, box.y + 2), box.y + box.height - 2),
+  };
+}
+
+function exit(box, origin, toward) {
+  const dx = toward.x - origin.x;
+  const dy = toward.y - origin.y;
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+    return origin;
+  }
+  const tx = dx > 0 ? (box.x + box.width - origin.x) / dx : dx < 0 ? (box.x - origin.x) / dx : Infinity;
+  const ty = dy > 0 ? (box.y + box.height - origin.y) / dy : dy < 0 ? (box.y - origin.y) / dy : Infinity;
+  const t = Math.min(tx, ty);
+  return { x: origin.x + dx * t, y: origin.y + dy * t };
+}
+
+function route(from, to, boxes, lane) {
   const blocking = boxes.filter(box => box !== from && box !== to);
-  const start = edge(from, middle(to));
-  const end = edge(to, middle(from));
-  const moved = points => points.map(point => ({ x: point.x + shift.x, y: point.y + shift.y }));
-  const straight = moved([start, end]);
+  const [a, b] = [middle(from), middle(to)];
+  const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const origin = inside(from, { x: a.x - (b.y - a.y) / span * lane, y: a.y + (b.x - a.x) / span * lane });
+  const target = inside(to, { x: b.x - (b.y - a.y) / span * lane, y: b.y + (b.x - a.x) / span * lane });
+  const straight = [exit(from, origin, target), exit(to, target, origin)];
   if (clear(straight, blocking)) {
     return straight;
   }
-  const [a, b] = [middle(from), middle(to)];
+  const outward = lane >= 0 ? 2 * lane : -2 * lane - laneShift;
   const column = [...blocking.filter(box => box.y < Math.max(a.y, b.y) && box.y + box.height > Math.min(a.y, b.y)), from, to];
   const row = [...blocking.filter(box => box.x < Math.max(a.x, b.x) && box.x + box.width > Math.min(a.x, b.x)), from, to];
-  const east = Math.max(...column.map(box => box.x + box.width)) + laneGap;
-  const west = Math.min(...column.map(box => box.x)) - laneGap;
-  const north = Math.min(...row.map(box => box.y)) - laneGap;
-  const south = Math.max(...row.map(box => box.y + box.height)) + laneGap;
+  const east = Math.max(...column.map(box => box.x + box.width)) + laneGap + outward;
+  const west = Math.min(...column.map(box => box.x)) - laneGap - outward;
+  const north = Math.min(...row.map(box => box.y)) - laneGap - outward;
+  const south = Math.max(...row.map(box => box.y + box.height)) + laneGap + outward;
+  const [ay, by] = [inside(from, { x: a.x, y: a.y + lane }).y, inside(to, { x: b.x, y: b.y + lane }).y];
+  const [ax, bx] = [inside(from, { x: a.x + lane, y: a.y }).x, inside(to, { x: b.x + lane, y: b.y }).x];
   const bends = [];
   if (to.y > from.y + from.height || from.y > to.y + to.height) {
     const down = to.y > from.y;
     const [leave, arrive] = down ? [from.y + from.height, to.y] : [from.y, to.y + to.height];
     for (const y of [(leave + arrive) / 2, arrive + (down ? -laneGap / 2 : laneGap / 2), leave + (down ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: a.x, y: leave }, { x: a.x, y }, { x: b.x, y }, { x: b.x, y: arrive }]);
+      bends.push([{ x: ax, y: leave }, { x: ax, y: y + lane / 2 }, { x: bx, y: y + lane / 2 }, { x: bx, y: arrive }]);
     }
   }
   if (to.x > from.x + from.width || from.x > to.x + to.width) {
     const right = to.x > from.x;
     const [leave, arrive] = right ? [from.x + from.width, to.x] : [from.x, to.x + to.width];
     for (const x of [(leave + arrive) / 2, arrive + (right ? -laneGap / 2 : laneGap / 2), leave + (right ? laneGap / 2 : -laneGap / 2)]) {
-      bends.push([{ x: leave, y: a.y }, { x, y: a.y }, { x, y: b.y }, { x: arrive, y: b.y }]);
+      bends.push([{ x: leave, y: ay }, { x: x + lane / 2, y: ay }, { x: x + lane / 2, y: by }, { x: arrive, y: by }]);
     }
   }
   const detours = [
     ...bends,
-    [{ x: from.x + from.width, y: a.y }, { x: east, y: a.y }, { x: east, y: b.y }, { x: to.x + to.width, y: b.y }],
-    [{ x: from.x, y: a.y }, { x: west, y: a.y }, { x: west, y: b.y }, { x: to.x, y: b.y }],
-    [{ x: a.x, y: from.y }, { x: a.x, y: north }, { x: b.x, y: north }, { x: b.x, y: to.y }],
-    [{ x: a.x, y: from.y + from.height }, { x: a.x, y: south }, { x: b.x, y: south }, { x: b.x, y: to.y + to.height }],
-  ].map(moved).filter(points => clear(points, blocking));
+    [{ x: from.x + from.width, y: ay }, { x: east, y: ay }, { x: east, y: by }, { x: to.x + to.width, y: by }],
+    [{ x: from.x, y: ay }, { x: west, y: ay }, { x: west, y: by }, { x: to.x, y: by }],
+    [{ x: ax, y: from.y }, { x: ax, y: north }, { x: bx, y: north }, { x: bx, y: to.y }],
+    [{ x: ax, y: from.y + from.height }, { x: ax, y: south }, { x: bx, y: south }, { x: bx, y: to.y + to.height }],
+  ].filter(points => clear(points, blocking));
   return detours.length ? detours.reduce((best, points) => length(points) < length(best) ? points : best) : straight;
 }
 
@@ -355,12 +376,14 @@ function overlaps(one, other) {
 function spot(points, width, height, taken) {
   const [a, b] = points.slice(1).map((point, at) => [points[at], point])
     .reduce((best, segment) => Math.hypot(segment[1].x - segment[0].x, segment[1].y - segment[0].y) > Math.hypot(best[1].x - best[0].x, best[1].y - best[0].y) ? segment : best);
-  const beside = width / 2 + clearance + 2;
-  const sides = Math.abs(a.x - b.x) < 0.5 ? [0, beside, -beside] : [0];
-  const spots = sides.flatMap(side => along.map(t => ({
-    x: a.x + (b.x - a.x) * t + side - width / 2, y: a.y + (b.y - a.y) * t - height / 2, width, height,
+  const span = Math.hypot(b.x - a.x, b.y - a.y);
+  const [nx, ny] = span > 0 ? [-(b.y - a.y) / span, (b.x - a.x) / span] : [1, 0];
+  const beside = Math.abs(nx) * width / 2 + Math.abs(ny) * height / 2 + clearance + 2;
+  const spots = [0, beside, -beside, 2 * beside, -2 * beside].flatMap(side => along.map(t => ({
+    x: a.x + (b.x - a.x) * t + nx * side - width / 2, y: a.y + (b.y - a.y) * t + ny * side - height / 2, width, height,
   })));
-  return spots.find(candidate => !taken.some(other => overlaps(candidate, other))) || spots[0];
+  const crowding = candidate => taken.filter(other => overlaps(candidate, other)).length;
+  return spots.reduce((best, candidate) => crowding(candidate) < crowding(best) ? candidate : best);
 }
 
 function lanes(relations) {
@@ -383,7 +406,8 @@ button svg { width: 15px; height: 15px; fill: currentColor; }
 button:disabled { opacity: .38; cursor: default; background: none; }
 .zoom { display: inline-flex; align-items: center; gap: 2px; padding-left: 8px; margin-left: 2px; border-left: 1px solid var(--bs-border-color, #d2d2d7); }
 .percent { min-width: 44px; color: var(--bs-secondary-color, #6e6e73); }
-.stage { position: relative; overflow: hidden; height: 320px; background: var(--bs-body-bg, #fff); touch-action: none; cursor: grab; }
+.stage { position: relative; overflow: hidden; height: 320px; background: var(--bs-body-bg, #fff); touch-action: pan-y; cursor: grab; }
+.stage.zoomed { touch-action: none; }
 .stage.dragging { cursor: grabbing; }
 .stage:focus-visible { outline: 2px solid var(--bs-primary, #0071e3); outline-offset: -2px; }
 svg.diagram { display: block; width: 100%; height: 100%; user-select: none; }
@@ -500,6 +524,10 @@ class AvalaC4 extends HTMLElement {
       if (!last) {
         return;
       }
+      if (event.pointerType === "mouse" && !event.buttons) {
+        release(event);
+        return;
+      }
       const at = this.pointOf(event);
       this.pointers.set(event.pointerId, at);
       if (this.pinch && this.pointers.size === 2) {
@@ -535,6 +563,9 @@ class AvalaC4 extends HTMLElement {
     }, true);
     stage.addEventListener("keydown", event => {
       const moves = { ArrowLeft: [40, 0], ArrowRight: [-40, 0], ArrowUp: [0, 40], ArrowDown: [0, -40] };
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
       if (event.key === "+" || event.key === "=") {
         this.zoomBy(zoomStep);
       } else if (event.key === "-") {
@@ -551,7 +582,7 @@ class AvalaC4 extends HTMLElement {
       event.preventDefault();
     });
     let width = stage.clientWidth;
-    this.resizing = new ResizeObserver(() => {
+    this.resizing = new ResizeObserver(() => requestAnimationFrame(() => {
       if (stage.clientWidth !== width) {
         width = stage.clientWidth;
         if (this.fitted) {
@@ -560,7 +591,7 @@ class AvalaC4 extends HTMLElement {
           this.apply();
         }
       }
-    });
+    }));
     this.resizing.observe(stage);
   }
 
@@ -630,6 +661,7 @@ class AvalaC4 extends HTMLElement {
     root.querySelector(".zoom-in").disabled = this.scale >= largest - 0.005;
     root.querySelector(".zoom-out").disabled = this.scale <= this.floor + 0.005;
     root.querySelector(".fit").disabled = this.fitted;
+    this.stage.classList.toggle("zoomed", !this.fitted);
   }
 
   storyOf(model) {
@@ -662,8 +694,12 @@ class AvalaC4 extends HTMLElement {
     this.frames = frames.map(frame => {
       const group = element("g", { class: "frame" }, svg);
       element("rect", { x: frame.x, y: frame.y, width: frame.width, height: frame.height, rx: 14 }, group);
-      element("text", { x: frame.x + 14, y: frame.y + frame.height - 11 }, group).textContent = frame.boundary.label;
-      return { group, frame };
+      const caption = element("text", { x: frame.x + 14, y: frame.y + frame.height - 11 }, group);
+      caption.textContent = frame.boundary.label;
+      for (let kept = frame.boundary.label.length; kept > 1 && measure(caption, "600 11.5px") > frame.width - 28; kept--) {
+        caption.textContent = `${frame.boundary.label.slice(0, kept - 1).trimEnd()}…`;
+      }
+      return { group, frame, label: { x: frame.x + 14, y: frame.y + frame.height - 24, width: measure(caption, "600 11.5px"), height: 16 } };
     });
     const boxes = new Map(this.model.elements.map(item => [item.alias, { ...positions.get(item.alias), width: nodeWidth, height: nodeHeight }]));
     const relationLayer = element("g", {}, svg);
@@ -672,31 +708,33 @@ class AvalaC4 extends HTMLElement {
     const taken = [...boxes.values(), ...frames.flatMap(frame => [
       { x: frame.x, y: frame.y, width: frame.width, height: 0 }, { x: frame.x, y: frame.y + frame.height, width: frame.width, height: 0 },
       { x: frame.x, y: frame.y, width: 0, height: frame.height }, { x: frame.x + frame.width, y: frame.y, width: 0, height: frame.height },
-    ])];
+    ]), ...this.frames.map(frame => frame.label)];
     const drawn = [...boxes.values(), ...frames];
     const shifts = lanes(this.model.relations);
     this.relations = this.model.relations.map((relation, index) => {
       const from = boxes.get(relation.from);
       const to = boxes.get(relation.to);
-      const [a, b] = [middle(from), middle(to)];
-      const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-      const points = route(from, to, [...boxes.values()], { x: -(b.y - a.y) / span * shifts[index], y: (b.x - a.x) / span * shifts[index] });
+      const points = route(from, to, [...boxes.values()], shifts[index]);
       const group = element("g", { class: "relation" }, relationLayer);
       const path = element("path", { d: points.map((point, at) => `${at ? "L" : "M"}${point.x} ${point.y}`).join(""), "marker-end": "url(#arrow)" }, group);
       if (relation.both) {
         path.setAttribute("marker-start", "url(#arrow)");
       }
       const tag = element("g", { class: "relation" }, labelLayer);
-      const plate = element("rect", { class: "plate", rx: 9 }, tag);
+      drawn.push(...points.map(point => ({ ...point, width: 0, height: 0 })));
       const label = relation.technology ? `${relation.label} [${relation.technology}]` : relation.label;
+      const badged = this.model.level === "Dynamic";
+      if (!label && !badged) {
+        return { group, tag, path, relation };
+      }
+      const plate = element("rect", { class: "plate", rx: 9 }, tag);
       const text = element("text", { "text-anchor": "start" }, tag);
       text.textContent = label;
-      const badged = this.model.level === "Dynamic";
-      const textWidth = label ? text.getComputedTextLength() || label.length * 6.4 : 0;
+      const textWidth = label ? measure(text, "11.5px") : 0;
       const width = textWidth + (badged ? 22 + (label ? 4 : 0) : 0) + 12;
       const place = spot(points, width, 20, taken);
       taken.push(place);
-      drawn.push(place, ...points.map(point => ({ ...point, width: 0, height: 0 })));
+      drawn.push(place);
       plate.setAttribute("x", place.x);
       plate.setAttribute("y", place.y);
       plate.setAttribute("width", place.width);
