@@ -65,6 +65,17 @@ internal sealed class DogfoodScript(string name)
             .Event("limitReported", new JsonObject { ["limit"] = limit });
     }
 
+    public DogfoodScript Call(string tool, string input, bool refused)
+    {
+        var item = Next("call");
+        Event("toolCalled", new JsonObject { ["item"] = item, ["tool"] = tool, ["input"] = input });
+        entries.Add(new JsonObject { ["at"] = 0, ["return"] = new JsonObject { ["item"] = item, ["content"] = string.Empty, ["isError"] = refused } });
+
+        return Event("toolReturned", new JsonObject { ["item"] = item, ["result"] = new JsonObject { ["item"] = item, ["content"] = string.Empty, ["isError"] = refused } });
+    }
+
+    public DogfoodScript End(string outcome) => Event("turnCompleted", new JsonObject { ["outcome"] = outcome });
+
     public DogfoodScript Interrupt()
     {
         entries.Add(new JsonObject { ["at"] = 0, ["interrupt"] = new JsonObject() });

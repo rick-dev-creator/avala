@@ -322,6 +322,138 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         Assert.Equal(Outcomes.Present(delivered.Answered), Outcomes.Present(Outcomes.Present(run.Get<IDelegations>().OfChild(child)).Answered));
     }
 
+    [Fact]
+    public async Task ADelegateCallInARepositoryWhoseCommittedJobFileDeclaresNoDelegationIsRefusedAsNotDeclaredWithItsReasonAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [],
+            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", "{}")]);
+        var refused = run.Watch<DelegationRefused>();
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
+
+        var refusal = (await refused.UntilAsync(_ => true)).Delegation;
+        var answer = await ReturnedAsync(activity, refusal.Item.Value);
+
+        Assert.Equal(Option<DelegationError>.Some(DelegationError.NotDeclared), refusal.Refusal);
+        Assert.True(answer.IsError, answer.Content);
+        Assert.Equal("notDeclared", Field(answer, "refused"));
+        Assert.Contains("declares no delegation section", Field(answer, "reason"), StringComparison.Ordinal);
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+    }
+
+    [Fact]
+    public async Task AJobInARepositoryThatDeclaresNoDelegationKnowsFromItsFirstTurnThatItCannotDelegateAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [("recording.json", """{ "enabled": true }""")], [(".avala/checks.json", PassingChecks)]);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+
+        var recording = System.Text.Json.Nodes.JsonNode.Parse(Assert.Single(await run.StopAndReadRecordingsAsync()))!;
+        var offered = recording["options"]!["tools"]!.AsArray().Select(tool => tool!["name"]!.GetValue<string>()).ToList();
+        var told = recording["entries"]!.AsArray().Select(entry => entry?["send"]?["text"]?.GetValue<string>()).OfType<string>().ToList();
+
+        Assert.True(
+            !offered.Contains("delegate") || told.Any(text => text.Contains("delegat", StringComparison.OrdinalIgnoreCase)),
+            $"The agent was offered the delegate tool although the repository declares no delegation, and nothing it was told says it cannot delegate. Offered: {string.Join(", ", offered)}. Told: {string.Join(" | ", told)}");
+    }
+
+    [Fact]
+    public async Task ADelegationSectionWrittenInTheWorktreeButNotCommittedDoesNotEnableDelegationAsync()
+    {
+        var script = new DogfoodScript("uncommitted-delegation")
+            .Turn()
+            .Write(".avala/jobs.json", """{ "delegation": { "maxChildren": 2 } }""")
+            .Call("delegate", """{ "instruction": "[simulate: notes] Write the release notes" }""", refused: true)
+            .Say("Delegation is not declared.")
+            .Bill(0.0040m, 0.20)
+            .Finish();
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [($"recordings/{script.Name}.json", script.Json)], [(".avala/checks.json", PassingChecks)]);
+        var refused = run.Watch<DelegationRefused>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{script.Tag} Ship the release")));
+
+        var refusal = (await refused.UntilAsync(_ => true)).Delegation;
+
+        Assert.Equal(Option<DelegationError>.Some(DelegationError.NotDeclared), refusal.Refusal);
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+        Assert.Empty(await run.Get<IJobCatalog>().ChildrenAsync(job, Cancellation));
+    }
+
+    [Fact]
+    public async Task ADelegateInstructionLongerThanFourThousandCharactersIsRefusedAsMalformedInputWithItsReasonAsync()
+    {
+        var instruction = "[simulate: notes] Write the release notes. " + new string('x', 4_000);
+        var script = new DogfoodScript("long-delegation")
+            .Turn()
+            .Call("delegate", new System.Text.Json.Nodes.JsonObject { ["instruction"] = instruction }.ToJsonString(), refused: true)
+            .Say("The instruction was too long.")
+            .Bill(0.0040m, 0.20)
+            .Finish();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [($"recordings/{script.Name}.json", script.Json)],
+            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }""")]);
+        var refused = run.Watch<DelegationRefused>();
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{script.Tag} Ship the release")));
+
+        var refusal = (await refused.UntilAsync(_ => true)).Delegation;
+        var answer = await ReturnedAsync(activity, refusal.Item.Value);
+
+        Assert.Equal(Option<DelegationError>.Some(DelegationError.MalformedInput), refusal.Refusal);
+        Assert.Equal("malformedInput", Field(answer, "refused"));
+        Assert.Contains("at most 4,000 characters", Field(answer, "reason"), StringComparison.Ordinal);
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+    }
+
+    [Fact]
+    public async Task AParentWhoseDelegatedChildFailsIsToldTheChildFailedAndWhyAsync()
+    {
+        var child = new DogfoodScript("failing-child").Turn().Say("Starting on the notes.").Bill(0.0030m, 0.20).End("failed");
+        var parent = new DogfoodScript("delegating-parent")
+            .Turn()
+            .Call("delegate", new System.Text.Json.Nodes.JsonObject { ["instruction"] = $"{child.Tag} Write the release notes" }.ToJsonString(), refused: false)
+            .Say("The sub-agent reported back.")
+            .Bill(0.0040m, 0.20)
+            .Finish();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [($"recordings/{child.Name}.json", child.Json), ($"recordings/{parent.Name}.json", parent.Json)],
+            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }""")]);
+        var delegated = run.Watch<ChildDelegated>();
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{parent.Tag} Ship the release")));
+
+        var call = (await delegated.UntilAsync(_ => true)).Delegation.Item.Value;
+        var reported = await run.ChildReportedAsync();
+        var answer = await ReturnedAsync(activity, call);
+
+        Assert.Equal(Option<JobId>.Some(job), reported.Parent);
+        Assert.Equal((JobStatus.Failed, ChildOutcome.Failed), (Outcomes.Present(reported.Report).Status, Outcomes.Present(reported.Report).Outcome));
+        Assert.Equal("failed", Field(answer, "outcome"));
+        Assert.False(
+            string.IsNullOrWhiteSpace(Optional(answer, "reason")),
+            $"The parent was told its child failed without the reason it failed: {answer.Content}");
+    }
+
+    private static async Task<ToolResult> ReturnedAsync(EventWatch<AgentActivity> activity, string item) =>
+        ((ToolReturned)(await activity.UntilAsync(update => update.Event is ToolReturned returned && returned.Item.Value == item)).Event).Result;
+
+    private static string Field(ToolResult answer, string name)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(answer.Content);
+
+        return document.RootElement.GetProperty(name).GetString() ?? string.Empty;
+    }
+
+    private static string Optional(ToolResult answer, string name)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(answer.Content);
+
+        return document.RootElement.TryGetProperty(name, out var found) && found.ValueKind == System.Text.Json.JsonValueKind.String ? found.GetString() ?? string.Empty : string.Empty;
+    }
+
     private static async Task<IReadOnlyList<string>> HarnessesAsync(SimulatedRun run, Func<Bound, bool> settled)
     {
         var overview = run.Page("Overview");
