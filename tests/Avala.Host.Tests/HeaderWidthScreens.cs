@@ -10,7 +10,7 @@ using Avalonia.VisualTree;
 
 namespace Avala.Host.Tests;
 
-public sealed class AdversaryPopoverScreens(HeadlessUi ui, PublishedPlugins plugins)
+public sealed class HeaderWidthScreens(HeadlessUi ui, PublishedPlugins plugins)
 {
     private FeatureCamera Camera { get; } = new(ui, FeatureCamera.Folder ?? string.Empty);
 
@@ -33,14 +33,14 @@ public sealed class AdversaryPopoverScreens(HeadlessUi ui, PublishedPlugins plug
         {
             foreach (var variant in new[] { ThemeVariant.Dark, ThemeVariant.Light })
             {
-                await Camera.ShootAsync(run, $"a-inspector-{name}-{variant}", variant, Framed(width, height, sidebar), HoverUsage, Draft("Keep the old importer working beside the new one and add a regression test for the CSV header row"));
+                await Camera.ShootAsync(run, $"98-inspector-{name}-{variant}", variant, Framed(width, height, sidebar), HoverUsage, Draft("Keep the old importer working beside the new one and add a regression test for the CSV header row"));
                 await RestoreAsync(run);
             }
         }
 
         foreach (var variant in new[] { ThemeVariant.Dark, ThemeVariant.Light })
         {
-            await Camera.ShootAsync(run, $"a-usage-by-day-720-default-sidebar-{variant}", variant, Framed(720, 480, WindowLayout.DefaultSidebarWidth), Page("Usage"), ScrollToDays);
+            await Camera.ShootAsync(run, $"99-usage-by-day-720-default-sidebar-{variant}", variant, Framed(720, 480, WindowLayout.DefaultSidebarWidth), Page("Usage"), ScrollToDays);
             await RestoreAsync(run);
         }
     }
