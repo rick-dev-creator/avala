@@ -7,12 +7,19 @@
   <Design.DataContext>
     <usage:DesignJobMeterViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <ContainerQuery Name="JobMeter" Query="max-width:520">
+      <Style Selector="TextBlock#Connection, Border#BarSlot">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
   <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,11">
-    <Grid ColumnSpacing="16">
+    <Grid Container.Name="JobMeter" Container.Sizing="Width">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="110" />
-        <ColumnDefinition Width="120" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="Auto" SharedSizeGroup="Cost" />
       </Grid.ColumnDefinitions>
       <DockPanel>
@@ -20,18 +27,19 @@
         <TextBlock x:Name="Interventions"
                    DockPanel.Dock="Right"
                    Classes="caption attention"
-                   Margin="8,0,0,0"
                    VerticalAlignment="Center"
                    Text="{Binding Held}"
                    IsVisible="{Binding Interventions}" />
-        <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Margin="0,0,8,0" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
       </DockPanel>
-      <TextBlock x:Name="Connection" Grid.Column="1" Classes="caption" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-      <Panel Grid.Column="2" VerticalAlignment="Center" IsVisible="{Binding HasCap}">
-        <ProgressBar x:Name="Used" Classes="bar" Classes.attention="{Binding IsNearCap}" Value="{Binding Used}" VerticalAlignment="Center" />
-        <ProgressBar Classes="marker" Height="10" Value="1" />
-      </Panel>
-      <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+      <TextBlock x:Name="Connection" Grid.Column="1" Width="110" Margin="16,0,0,0" Classes="caption" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      <Border x:Name="BarSlot" Grid.Column="2" Width="120" Margin="16,0,0,0" VerticalAlignment="Center">
+        <Panel IsVisible="{Binding HasCap}">
+          <ProgressBar x:Name="Used" Classes="bar" Classes.attention="{Binding IsNearCap}" Value="{Binding Used}" VerticalAlignment="Center" />
+          <ProgressBar Classes="marker" Height="10" Value="1" />
+        </Panel>
+      </Border>
+      <StackPanel Grid.Column="3" Margin="16,0,0,0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
         <TextBlock x:Name="Cost" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Cost}" />
         <TextBlock x:Name="Cap" Classes="tertiary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Cap, StringFormat=' / {0}'}" IsVisible="{Binding HasCap}" />
       </StackPanel>

@@ -7,18 +7,35 @@
   <Design.DataContext>
     <usage:DesignUsageDayViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock#Tokens">
+      <Setter Property="Grid.Column" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <ContainerQuery Name="Day" Query="max-width:520">
+      <Style Selector="ProgressBar#Share">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+      <Style Selector="TextBlock#Tokens">
+        <Setter Property="Grid.Row" Value="1" />
+        <Setter Property="Grid.Column" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
   <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,9" ToolTip.Tip="{Binding Types}">
-    <Grid ColumnSpacing="16">
+    <Grid RowDefinitions="Auto,Auto" ColumnSpacing="16" Container.Name="Day" Container.Sizing="Width">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" SharedSizeGroup="Day" />
-        <ColumnDefinition Width="*" MinWidth="40" />
+        <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" SharedSizeGroup="Tokens" />
         <ColumnDefinition Width="Auto" SharedSizeGroup="Cost" />
       </Grid.ColumnDefinitions>
       <TextBlock x:Name="Day" Text="{Binding Day}" Classes.secondary="{Binding !IsToday}" VerticalAlignment="Center" />
       <ProgressBar x:Name="Share" Grid.Column="1" Classes="bar" Value="{Binding Share}" Maximum="1" VerticalAlignment="Center" />
-      <TextBlock x:Name="Tokens" Grid.Column="2" Classes="caption" HorizontalAlignment="Right" Text="{Binding Tokens}" VerticalAlignment="Center" />
-      <TextBlock x:Name="Cost" Grid.Column="3" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Cost}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Cost" Grid.Column="3" Grid.RowSpan="2" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Cost}" VerticalAlignment="Center" />
     </Grid>
   </Border>
 </UserControl>
