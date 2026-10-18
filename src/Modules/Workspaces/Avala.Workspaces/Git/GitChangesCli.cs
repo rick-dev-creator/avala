@@ -15,13 +15,11 @@ internal sealed class GitChangesCli(IProcessRunner processes) : IGitChanges
         ResolveAsync(repository, $"{GitRefs.Heads}{branch.Value}", cancellationToken);
 
     public Task<Result<Option<CommitSha>, WorkspaceFailure>> LastMergedAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
-        ResolveAsync(repository, Merged(workspace), cancellationToken);
+        ResolveAsync(repository, GitRefs.MergedOf(workspace), cancellationToken);
 
     public async Task<bool> RecordMergedAsync(string repository, WorkspaceId workspace, CommitSha work, CancellationToken cancellationToken) =>
-        (await RunAsync(["-C", repository, "update-ref", "-m", "avala: merged", Merged(workspace), work.Value], cancellationToken))
+        (await RunAsync(["-C", repository, "update-ref", "-m", "avala: merged", GitRefs.MergedOf(workspace), work.Value], cancellationToken))
             .Match(outcome => outcome.Succeeded, _ => false);
-
-    private static string Merged(WorkspaceId workspace) => $"{GitRefs.Merged}{workspace.Value:N}";
 
     private async Task<Result<Option<CommitSha>, WorkspaceFailure>> ResolveAsync(string repository, string reference, CancellationToken cancellationToken) =>
         (await RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", $"{reference}^{{commit}}"], cancellationToken))

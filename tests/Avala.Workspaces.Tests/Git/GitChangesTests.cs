@@ -227,6 +227,20 @@ public sealed class GitChangesTests
     }
 
     [Fact]
+    public async Task RemovingAMergedWorkspaceForgetsWhatItMergedAsync()
+    {
+        await using var job = await Job.PreparedAsync();
+        await job.WriteAsync("calculator.txt", "add(2, 2) = 4\n");
+        await job.CheckpointAsync();
+        _ = Outcomes.Succeeds(await job.Changes.MergeAsync(job.Workspace.Id, Message, Cancellation));
+        Assert.NotEmpty(await job.Repository.GitAsync(Cancellation, "for-each-ref", "refs/avala/merged/"));
+
+        _ = Outcomes.Succeeds(await job.Service.RemoveAsync(job.Workspace.Id, Cancellation));
+
+        Assert.Empty(await job.Repository.GitAsync(Cancellation, "for-each-ref", "refs/avala/merged/"));
+    }
+
+    [Fact]
     public async Task WorkTheBaseAlreadyHoldsMergesWithoutANewCommitAsync()
     {
         await using var job = await Job.PreparedAsync();
