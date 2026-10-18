@@ -45,7 +45,7 @@ public sealed class FeatureStoryTests
     }
 
     [Fact]
-    public async Task AVersionThatCannotBePlayedIsLeftOutOfItsJobsStoryAndNamedWithTheVersionBeforeItAsync()
+    public async Task AVersionFileTheWorkspaceCannotReadIsLeftOutOfItsJobsStoryAndNamedWithTheVersionBeforeItAsync()
     {
         var documented = Documented.With();
         var (job, session) = await documented.RunningAsync();
@@ -54,7 +54,7 @@ public sealed class FeatureStoryTests
         await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
         var worktree = Documented.FakeJobs.Worktree(job);
         documented.Files.Draft(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", "# Handle Stripe refund webhooks\n");
-        documented.Files.Break(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", "The docs folder went away");
+        documented.Files.Refuse(worktree, "docs/features/handle-stripe-refund-webhooks/v2-deviation.md", Workspaces.Contracts.WorkspaceFailure.FileUnreadable);
         var entry = documented.Entry();
 
         var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
