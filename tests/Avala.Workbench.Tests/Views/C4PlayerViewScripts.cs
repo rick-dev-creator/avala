@@ -222,6 +222,29 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AStepWithinAVersionKeepsEveryElementWhereTheZoomedViewShowedItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "One", [Element("a", "A"), Element("b", "B"), Element("c", "C"), Element("old", "OLD")], [], [new("a", "b", "Calls"), new("b", "c", "Writes"), new("old", "c", "Feeds")]);
+            var hops = Enumerable.Range(0, 4).Select(index => index % 2 == 0 ? new C4Relation("a", "c", $"Hop {index} goes straight from A to C past B") : new C4Relation("c", "a", $"Hop {index} answers")).ToList();
+            using var player = Player(structure, [new PlayStep(StepKind.Flow, "flow", "Flow", string.Empty) { Relations = hops }]);
+            var view = Screen.Show(player, ThemeVariant.Dark, 900, 600);
+            var surface = view.Find<ZoomSurface>("Surface");
+            var graph = view.All<C4GraphPanel>().Single();
+            view.Click("ZoomIn");
+            player.StopCommand.Execute(null);
+            view.Settle();
+            var before = Places(graph, surface);
+            var size = graph.Children[0].DesiredSize;
+
+            player.NextCommand.Execute(null);
+            view.Settle();
+
+            Assert.Equal(before, Places(graph, surface));
+            Assert.Equal(size, graph.Children[0].DesiredSize);
+        }, Cancellation);
+
+    [Fact]
     public Task APlayerZoomedBeforeItsViewIsShownOpensCentredAtItsZoomAsync() =>
         ui.RunAsync(() =>
         {
@@ -258,4 +281,7 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
     }
 
     private static C4Element Element(string alias, string label) => new(alias, label, C4Shape.Container, false);
+
+    private static List<Point> Places(C4GraphPanel graph, ZoomSurface surface) =>
+        [.. graph.Children.Select(child => child.TranslatePoint(default, surface)!.Value).Select(point => new Point(Math.Round(point.X), Math.Round(point.Y)))];
 }
