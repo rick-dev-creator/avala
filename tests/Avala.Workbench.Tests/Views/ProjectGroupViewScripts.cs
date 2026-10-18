@@ -138,6 +138,41 @@ public sealed class ProjectGroupViewScripts(HeadlessUi ui)
             Assert.Equal("It needs you before it can be archived", view.TextOf("Refusal"));
         }, Cancellation);
 
+    [Fact]
+    public Task AProjectsMenuSetsDeletingApartAtItsEndAndMarksItDestructiveAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignProjectGroupViewModel { Done = [Row("Paginate the export", JobGroup.Done)] });
+            var header = view.Find<Button>("Header");
+            var menu = Assert.IsType<MenuFlyout>(header.ContextFlyout);
+
+            menu.ShowAt(header);
+            view.Settle();
+            var shown = menu.Items.OfType<Control>().Where(item => item.IsVisible).ToList();
+
+            Assert.Equal(["Rename", "DocumentFeatures", "ArchiveDoneItem", "Separator", "Delete"], shown.Select(item => item is Separator ? "Separator" : item.Name));
+            Assert.Contains("destructive", shown[^1].Classes);
+            Assert.All(shown.OfType<MenuItem>(), item => Assert.NotNull(item.Icon));
+        }, Cancellation);
+
+    [Theory]
+    [InlineData(true, "IconCheck")]
+    [InlineData(false, "IconDocument")]
+    public Task DocumentFeaturesShowsACheckInPlaceOfItsIconWhileDocsAreOnAsync(bool on, string glyph) =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignProjectGroupViewModel { Docs = new DesignProjectDocsViewModel { IsOn = on } });
+            var header = view.Find<Button>("Header");
+            var menu = Assert.IsType<MenuFlyout>(header.ContextFlyout);
+
+            menu.ShowAt(header);
+            view.Settle();
+            var docs = menu.Items.OfType<MenuItem>().Single(item => item.Name == "DocumentFeatures");
+            var shown = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(Assert.IsAssignableFrom<Control>(docs.Icon)).OfType<Avalonia.Controls.Shapes.Path>().Single(path => path.IsVisible);
+
+            Assert.Same(view.Window.FindResource(glyph), shown.Data);
+        }, Cancellation);
+
     private static List<Button> Archives(ViewScript view) =>
         [.. view.All<Button>().Where(button => AutomationProperties.GetName(button) == "Archive")];
 

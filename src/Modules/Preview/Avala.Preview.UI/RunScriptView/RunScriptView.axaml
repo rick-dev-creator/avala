@@ -24,7 +24,8 @@
     <Button x:Name="Run" Classes="line" Command="{Binding ToggleCommand}" ToolTip.Tip="Run the project in its worktree on its own ports">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Path Classes="icon small" Data="{StaticResource IconStop}" IsVisible="{Binding IsRunning}" />
-        <TextBlock x:Name="RunLabel" Text="{Binding Label}" VerticalAlignment="Center" />
+        <Path Classes="icon small" Data="{StaticResource IconPlay}" IsVisible="{Binding !IsRunning}" />
+        <TextBlock x:Name="RunLabel" Classes="chip-label" Text="{Binding Label}" VerticalAlignment="Center" />
       </StackPanel>
     </Button>
   </StackPanel>

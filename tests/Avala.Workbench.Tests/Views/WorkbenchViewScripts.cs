@@ -1,19 +1,23 @@
 using Avala.Components.UI.Copying;
 using Avala.Jobs.Contracts;
+using Avala.Sdk.Regions;
+using Avala.Testing;
 using Avala.Testing.UI;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Sidebar;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Views;
 
-public sealed class WorkbenchViewScripts(HeadlessUi ui)
+public sealed partial class WorkbenchViewScripts(HeadlessUi ui)
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -21,7 +25,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
     public Task ThePageHeadsTheConversationWithItsJobPlaceStatusAndInspectorToggleAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignWorkbenchViewModel());
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
 
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "ConversationView");
             Assert.Equal(("Fix JPY rounding in invoice totals", "billing-worker · claude-work"), (view.TextOf("JobTitle"), view.TextOf("Place")));
@@ -29,6 +33,90 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.Equal((false, false, false, true), (view.Shows("Welcome"), view.Shows("ReviewSheet"), view.HasClass("ToggleInspector", "selected"), view.Shows("ToggleInspector")));
             Assert.False(view.Shows("OpenReview"));
         }, Cancellation);
+
+    [Theory]
+    [InlineData(720)]
+    [InlineData(1000)]
+    public Task AHeaderWithEveryChipKeepsTheJobsStatusWhereItHasRoomForItAsync(double width) =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                ],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, width, 480);
+
+            Assert.True(view.Shows("Pill"));
+            Assert.True(view.Find("JobTitle").Bounds.Width >= 120, $"the title has {view.Find("JobTitle").Bounds.Width:0}");
+        }, Cancellation);
+
+    [Fact]
+    public Task ANarrowHeaderWithEveryChipOfARunningJobKeepsTheJobTitleAndEveryButtonInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 2, new Avala.Workbench.Remoting.DesignRemoteControlViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 6, new Avala.Workbench.Inspector.DesignChecksRunningViewModel()),
+                ],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 520, 480);
+            var header = view.Find("Header");
+            double Right(string name) => Avalonia.VisualExtensions.TranslatePoint(view.Find(name), new Avalonia.Point(view.Find(name).Bounds.Width, 0), header)!.Value.X;
+
+            Assert.True(view.Find("JobTitle").Bounds.Width >= 120, $"the title has {view.Find("JobTitle").Bounds.Width:0}");
+            Assert.True(Right("More") <= header.Bounds.Width && Right("ToggleInspector") <= header.Bounds.Width, $"More ends at {Right("More"):0}, the inspector toggle at {Right("ToggleInspector"):0}, the header at {header.Bounds.Width:0}");
+        }, Cancellation);
+
+    [Fact]
+    public Task AHeaderTooNarrowForItsChipsStillOffersTheDocsToggleAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Docs.DesignDocsToggleViewModel()), new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel())],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 400, 480);
+
+            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "DocsToggleView" && control.IsEffectivelyVisible && control.Bounds.Width > 0);
+        }, Cancellation);
+
+    [Fact]
+    public Task AHighlightedItemInTheJobsMoreMenuTurnsItsIconToTheAccentsForegroundAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Avalonia.Controls.Primitives.Popup>()) { Setters = { new Setter(Avalonia.Controls.Primitives.Popup.ShouldUseOverlayLayerProperty, true) } });
+            view.Click("More");
+            var copy = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().Single(item => item.Name == "CopyMarkdown");
+
+            view.Press(Avalonia.Input.Key.Down);
+            view.Settle();
+
+            Assert.Equal(Brush(view, "OnAccentBrush"), (Assert.IsType<Avalonia.Controls.Shapes.Path>(copy.Icon).Stroke as Avalonia.Media.ISolidColorBrush)?.Color);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheJobsMoreMenuDrawsItsIconsLikeEveryOtherMenuAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Avalonia.Controls.Primitives.Popup>()) { Setters = { new Setter(Avalonia.Controls.Primitives.Popup.ShouldUseOverlayLayerProperty, true) } });
+            view.Click("More");
+            var export = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().Single(item => item.Name == "Export");
+
+            Assert.Equal(Brush(view, "TextSecondaryBrush"), (Assert.IsType<Avalonia.Controls.Shapes.Path>(export.Icon).Stroke as Avalonia.Media.ISolidColorBrush)?.Color);
+        }, Cancellation);
+
+    private static Avalonia.Media.Color? Brush(ViewScript view, string key) =>
+        view.Window.TryFindResource(key, ThemeVariant.Dark, out var found) ? (found as Avalonia.Media.ISolidColorBrush)?.Color : null;
 
     [Fact]
     public Task StoppingTheSessionLivesInTheJobsMoreMenuAsync() =>
@@ -167,6 +255,78 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.False(content.Shows("NoJob"));
             Assert.Equal("Fix JPY rounding in invoice totals", content.TextOf("JobTitle"));
         }, Cancellation);
+
+    [Fact]
+    public Task AHeaderWhoseChipsGoAwayGivesTheChipsLeftTheirLabelsOnceTheyFitAsync() =>
+        ui.RunAsync(() =>
+        {
+            var leaving = new[] { new ChecksChip(), new ChecksChip(), new ChecksChip() };
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = ChipsThatLeave(leaving) }, ThemeVariant.Dark, 900, 480);
+
+            foreach (var chip in leaving)
+            {
+                chip.IsShown = false;
+            }
+
+            view.Settle();
+
+            Assert.True(view.Shows("Left"), "the usage chip left alone in a 900 wide header still hides its label");
+        }, Cancellation);
+
+    [Fact]
+    public Task AHeaderWhoseChipsGoAwayPutsTheChipsLeftBesideTheTitleOnceTheyFitAsync() =>
+        ui.RunAsync(() =>
+        {
+            var leaving = new[] { new ChecksChip(), new ChecksChip(), new ChecksChip() };
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = ChipsThatLeave(leaving) }, ThemeVariant.Dark, 480, 480);
+
+            foreach (var chip in leaving)
+            {
+                chip.IsShown = false;
+            }
+
+            view.Settle();
+
+            Assert.True(view.Find("JobHeaderRegion").TranslatePoint(default, view.Window)!.Value.Y < view.Find("Place").TranslatePoint(new Avalonia.Point(0, view.Find("Place").Bounds.Height), view.Window)!.Value.Y, "the one chip left still sits on a line of its own under the title");
+        }, Cancellation);
+
+    [Fact]
+    public Task ChipsMovedUnderTheTitleStartWhereTheTitleStartsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [
+                    new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Inspector.DesignChecksRunningViewModel { IsShown = false }),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Overview.DesignDelegationToggleViewModel { IsShown = false }),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 2, new Avala.Workbench.Remoting.DesignRemoteControlViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 4, new Avala.Workbench.Usage.DesignContextLeftViewModel()),
+                    new RegionContribution(WorkbenchRegions.JobHeader, 5, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+                ],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 400, 480);
+            var first = view.All<UserControl>().First(control => control.GetType().Name == "RemoteControlView");
+
+            Assert.Equal(view.Find("JobTitle").TranslatePoint(default, view.Window)!.Value.X, first.TranslatePoint(default, view.Window)!.Value.X, 1);
+        }, Cancellation);
+
+    private static JobRegions ChipsThatLeave(IEnumerable<ChecksChip> leaving) =>
+        new(
+            [
+                .. leaving.Select((chip, index) => new RegionContribution(WorkbenchRegions.JobHeader, index, chip)),
+                new RegionContribution(WorkbenchRegions.JobHeader, 9, new Avala.Workbench.Usage.DesignUsageLeftViewModel()),
+            ],
+            new RememberedLayout());
+
+    [INotifyPropertyChanged]
+    private sealed partial class ChecksChip : Avala.Workbench.Inspector.IChecksRunningViewModel
+    {
+        [ObservableProperty]
+        public partial bool IsShown { get; set; } = true;
+
+        public string Text => "Checks running · 2 of 3";
+
+        public IReadOnlyList<string> Lines => ["pending · build (ubuntu-latest)"];
+    }
 }
 
 public sealed class SidebarViewScripts(HeadlessUi ui)
@@ -371,10 +531,27 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AMoveTargetWhoseNameFitsTheMenuRaisesNoTooltipRepeatingItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobRowViewModel());
+            var control = view.All<UserControl>().First(found => found.GetType().Name == "JobRowView");
+            var flyout = Assert.IsType<MenuFlyout>(control.ContextFlyout);
+            flyout.ShowAt(control);
+            view.Settle();
+            var move = flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo");
+
+            move.IsSubMenuOpen = true;
+            view.Settle();
+
+            Assert.All(move.GetRealizedContainers().OfType<MenuItem>(), target => Assert.Null(ToolTip.GetTip(target)));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARowsMenuOffersMoveToWithItsProjectsAndASubAgentsRowHidesItAsync() =>
         ui.RunAsync(() =>
         {
-            MenuItem MoveTo(object row)
+            (ViewScript View, MenuItem Item) MoveTo(object row)
             {
                 var view = Screen.Show(row);
                 var control = view.All<UserControl>().First(found => found.GetType().Name == "JobRowView");
@@ -382,14 +559,20 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
                 flyout.ShowAt(control);
                 view.Settle();
 
-                return flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo");
+                return (view, flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo"));
             }
 
-            var movable = MoveTo(new DesignJobRowViewModel());
-            var child = MoveTo(new DesignJobRowViewModel() { IsChild = true });
+            var (shown, movable) = MoveTo(new DesignJobRowViewModel());
+            var child = MoveTo(new DesignJobRowViewModel() { IsChild = true }).Item;
+            movable.IsSubMenuOpen = true;
+            shown.Settle();
+            var glyphs = movable.GetRealizedContainers().OfType<MenuItem>()
+                .Select(target => target.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>().Single(path => path.Classes.Contains("icon") && path.IsEffectivelyVisible).Data)
+                .ToList();
 
             Assert.Equal(("Move to", true), (movable.Header, movable.IsVisible));
             Assert.Equal(["payments-api", "Side projects", "New project…"], movable.Items.OfType<MoveTarget>().Select(target => target.Name));
+            Assert.Equal([shown.Window.FindResource("IconFolder"), shown.Window.FindResource("IconFolder"), shown.Window.FindResource("IconPlus")], glyphs);
             Assert.False(child.IsVisible);
         }, TestContext.Current.CancellationToken);
 

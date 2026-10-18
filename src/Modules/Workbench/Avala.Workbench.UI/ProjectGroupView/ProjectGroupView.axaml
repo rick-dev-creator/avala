@@ -120,15 +120,35 @@
             AutomationProperties.Name="{Binding Name}">
       <Button.ContextFlyout>
         <MenuFlyout>
-          <MenuItem x:Name="Rename" Header="Rename" Command="{Binding StartRenameCommand}" IsVisible="{Binding IsProject}" />
-          <MenuItem x:Name="Delete" Header="Delete Project" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}" IsVisible="{Binding IsProject}" />
-          <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}" />
+          <MenuItem x:Name="Rename" Header="Rename" Command="{Binding StartRenameCommand}" IsVisible="{Binding IsProject}">
+            <MenuItem.Icon>
+              <Path Classes="icon" Data="{StaticResource IconEdit}" />
+            </MenuItem.Icon>
+          </MenuItem>
           <MenuItem x:Name="DocumentFeatures"
                     Header="Document Features"
                     ToggleType="CheckBox"
                     IsChecked="{Binding Docs.IsOn, Mode=OneWay}"
                     Command="{Binding Docs.SwitchCommand}"
-                    IsVisible="{Binding IsProject}" />
+                    IsVisible="{Binding IsProject}">
+            <MenuItem.Icon>
+              <Panel>
+                <Path x:Name="DocsOff" Classes="icon" Data="{StaticResource IconDocument}" IsVisible="{Binding !Docs.IsOn}" />
+                <Path x:Name="DocsOn" Classes="icon" Data="{StaticResource IconCheck}" IsVisible="{Binding Docs.IsOn}" />
+              </Panel>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}">
+            <MenuItem.Icon>
+              <Path Classes="icon" Data="{StaticResource IconArchive}" />
+            </MenuItem.Icon>
+          </MenuItem>
+          <Separator IsVisible="{Binding IsProject}" />
+          <MenuItem x:Name="Delete" Classes="destructive" Header="Delete Project" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}" IsVisible="{Binding IsProject}">
+            <MenuItem.Icon>
+              <Path Classes="icon" Data="{StaticResource IconTrash}" />
+            </MenuItem.Icon>
+          </MenuItem>
         </MenuFlyout>
       </Button.ContextFlyout>
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">

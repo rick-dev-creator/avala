@@ -186,7 +186,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
                     .Where(project => current != project.Project)
                     .OrderBy(project => project.Name, StringComparer.OrdinalIgnoreCase)
                     .Select(project => MoveTarget.To(project.Name, token => shelf.MoveAsync(job, project.Project, token))),
-                MoveTarget.To(ProjectPhrases.NewProject, token => MoveToNewAsync(job, token)),
+                MoveTarget.ToNew(token => MoveToNewAsync(job, token)),
             ];
         }
     }

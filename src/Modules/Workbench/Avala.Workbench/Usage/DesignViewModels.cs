@@ -184,7 +184,11 @@ internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
 
     public string Summary => "Usage left on claude-work · 5-hour window 88% used, resets 2026-10-09 16:20 · 7-day window 43% used, resets 2026-10-13 09:00";
 
-    public string Shared => UsagePhrases.Shared("claude-work");
+    public string HoldAt => "Jobs on this connection hold at the 90% threshold.";
+
+    public string More => string.Empty;
+
+    public string Outside => string.Empty;
 
     public IReadOnlyList<ILimitViewModel> Windows { get; } = [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)];
 

@@ -20,7 +20,7 @@
     </ToolTip.Tip>
     <StackPanel Orientation="Horizontal" Spacing="6">
       <Ellipse Width="6" Height="6" Fill="{DynamicResource AttentionBrush}" VerticalAlignment="Center" />
-      <TextBlock x:Name="Text" Text="{Binding Text}" />
+      <TextBlock x:Name="Text" Classes="chip-label" Text="{Binding Text}" />
     </StackPanel>
   </Border>
 </UserControl>

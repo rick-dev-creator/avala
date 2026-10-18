@@ -33,5 +33,5 @@ internal sealed class DesignWorkbenchViewModel(Option<IConversationViewModel> co
 
     public IWelcomeViewModel Welcome { get; init; } = new DesignWelcomeViewModel();
 
-    public JobRegions Regions => JobRegions.Design;
+    public JobRegions Regions { get; init; } = JobRegions.Design;
 }

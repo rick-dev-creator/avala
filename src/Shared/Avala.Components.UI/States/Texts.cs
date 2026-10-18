@@ -21,6 +21,9 @@ public static partial class Texts
         return all.Count > 1 && all.Skip(1).Any(value => !Equals(value, all[0]));
     });
 
+    public static IValueConverter Sentence { get; } = new FuncValueConverter<string, string>(text =>
+        string.IsNullOrEmpty(text) ? string.Empty : string.Concat(char.ToUpperInvariant(text[0]).ToString(), text[1..]));
+
     public static IValueConverter Leaf { get; } = new FuncValueConverter<string, string>(path =>
     {
         var trimmed = (path ?? string.Empty).Trim().TrimEnd('/', '\\');

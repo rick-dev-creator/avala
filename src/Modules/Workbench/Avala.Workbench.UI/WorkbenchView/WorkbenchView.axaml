@@ -5,6 +5,7 @@
              xmlns:navigation="using:Avala.Workbench.Navigation"
              xmlns:ui="using:Avala.Components.UI"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
              x:DataType="navigation:IWorkbenchViewModel">
@@ -12,10 +13,10 @@
     <navigation:DesignWorkbenchViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="Button.glyph Path.icon">
+    <Style Selector="Button.glyph > Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
-    <Style Selector="Button.glyph Path.icon.solid">
+    <Style Selector="Button.glyph > Path.icon.solid">
       <Setter Property="Stroke" Value="{x:Null}" />
       <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
@@ -37,6 +38,23 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
     </Style>
+    <Style Selector="ItemsControl#JobHeaderRegion">
+      <Setter Property="Grid.Column" Value="1" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <Style Selector="Border#Header.stacked ItemsControl#JobHeaderRegion">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="0" />
+      <Setter Property="Grid.ColumnSpan" Value="6" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="0,8,0,0" />
+    </Style>
+    <Style Selector="Border#Header.compact TextBlock.chip-label">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Border#Header.quiet ContentControl#Pill">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
   </UserControl.Styles>
   <Panel>
     <DockPanel>
@@ -46,19 +64,17 @@
                 BorderBrush="{DynamicResource EdgeBrush}"
                 BorderThickness="0,0,0,1"
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}">
-            <StackPanel VerticalAlignment="Center">
+          <Grid x:Name="HeaderRow" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" Margin="{DynamicResource ChromeLeading}">
+            <StackPanel x:Name="HeaderTitle" VerticalAlignment="Center">
               <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
             <ItemsControl x:Name="JobHeaderRegion"
-                          Grid.Column="1"
-                          Margin="12,0,0,0"
                           VerticalAlignment="Center"
                           ItemsSource="{Binding Regions.Header}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <StackPanel Orientation="Horizontal" Spacing="8" />
+                  <local:ChipRow Spacing="8" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
@@ -88,14 +104,26 @@
                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                   <MenuItem x:Name="CopyMarkdown"
                             Header="Copy as Markdown"
-                            Command="{Binding Conversation.CopyMarkdownCommand}" />
+                            Command="{Binding Conversation.CopyMarkdownCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconCopy}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                   <MenuItem x:Name="Export"
                             Header="Export…"
-                            Command="{Binding Conversation.ExportCommand}" />
+                            Command="{Binding Conversation.ExportCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconSave}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                   <Separator />
                   <MenuItem x:Name="StopSession"
                             Header="Stop Session"
-                            Command="{Binding Conversation.Composer.StopCommand}" />
+                            Command="{Binding Conversation.Composer.StopCommand}">
+                    <MenuItem.Icon>
+                      <Path Classes="icon" Data="{StaticResource IconStop}" />
+                    </MenuItem.Icon>
+                  </MenuItem>
                 </MenuFlyout>
               </Button.Flyout>
             </Button>
