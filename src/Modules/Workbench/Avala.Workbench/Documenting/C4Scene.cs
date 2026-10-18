@@ -58,7 +58,7 @@ internal static class C4Scene
 
         return new Scene(nodes, links, [.. played.Structure.Boundaries.Select(boundary => new GraphFrame(boundary.Alias, boundary.Label))], caption)
         {
-            Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
+            Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Concat(played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations)).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
         };
     }
 

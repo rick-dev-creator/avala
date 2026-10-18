@@ -31,14 +31,13 @@ public sealed class ZoomSurface : Border
 
     public const double WheelStep = 1.2;
 
-    private const double WheelPan = 48;
-
     private const double LargestFit = 1.25;
 
     private readonly MatrixTransform transform = new();
     private Size viewport;
     private Vector offset;
     private double applied = 1;
+    private double floor = double.MaxValue;
     private double? pinched;
     private (IPointer Pointer, Point At)? grabbed;
     private bool moved;
@@ -148,14 +147,10 @@ public sealed class ZoomSurface : Border
     {
         base.OnPointerWheelChanged(e);
 
-        if (WheelZooms || (e.KeyModifiers & (Hotkeys.Command | KeyModifiers.Control)) != 0)
+        if (e.Delta.Y != 0 && (WheelZooms || (e.KeyModifiers & (Hotkeys.Command | KeyModifiers.Control)) != 0))
         {
             ZoomAt(e.GetPosition(this), applied * Math.Pow(WheelStep, e.Delta.Y));
             e.Handled = true;
-        }
-        else if (!IsFitted)
-        {
-            e.Handled = Pan(e.Delta * WheelPan);
         }
     }
 
@@ -221,7 +216,13 @@ public sealed class ZoomSurface : Border
 
     private void ZoomAt(Point point, double scale)
     {
-        var bounded = Math.Clamp(scale, Math.Min(Minimum, applied), Math.Max(Maximum, applied));
+        var bounded = Math.Clamp(scale, Math.Min(Math.Min(Minimum, floor), applied), Math.Max(Maximum, applied));
+
+        if (Math.Abs(bounded - applied) < 1e-9)
+        {
+            return;
+        }
+
         var anchor = (point - offset) / applied;
         offset = (Vector)point - (anchor * bounded);
         applied = bounded;
@@ -261,6 +262,7 @@ public sealed class ZoomSurface : Border
         }
 
         applied = Math.Min(LargestFit, Math.Min(room.Width / content.Width, room.Height / content.Height));
+        floor = applied;
         offset = new Vector(room.X + ((room.Width - (content.Width * applied)) / 2), room.Y + ((room.Height - (content.Height * applied)) / 2));
         SetCurrentValue(ScaleProperty, applied);
     }

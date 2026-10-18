@@ -84,7 +84,8 @@ internal static partial class MermaidC4
 
             if (name.EndsWith("Boundary", StringComparison.Ordinal) && arguments.Count >= 1)
             {
-                Keep(boundaries, new C4Boundary(arguments[0], At(arguments, 1, arguments[0])) { Parent = inside }, boundary => boundary.Alias);
+                var parent = boundaries.Where(found => found.Alias == arguments[0]).Select(found => found.Parent).DefaultIfEmpty(inside).First();
+                Keep(boundaries, new C4Boundary(arguments[0], At(arguments, 1, arguments[0])) { Parent = parent }, boundary => boundary.Alias);
 
                 if (opens)
                 {

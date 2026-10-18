@@ -119,7 +119,7 @@ public sealed class C4GraphPanel : Panel
 
     public LayeredGraphLayout Layout => layout;
 
-    public IReadOnlyList<Rect> Labels => [.. Placed(Links).Select(placed => placed.Plate)];
+    public IReadOnlyList<Rect> Labels => [.. Placed(Links).Select(placed => placed.Plate.Translate(origin))];
 
     protected override Size MeasureOverride(Size availableSize)
     {

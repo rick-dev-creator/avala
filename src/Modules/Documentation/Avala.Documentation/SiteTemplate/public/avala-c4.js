@@ -75,7 +75,8 @@ function read(source) {
     const [, name, body, opens] = call;
     const values = argumentsOf(body);
     if (name.endsWith("Boundary")) {
-      const boundary = { alias: values[0], label: values[1] || values[0], parent: open.at(-1) || null };
+      const earlier = model.boundaries.find(found => found.alias === values[0]);
+      const boundary = { alias: values[0], label: values[1] || values[0], parent: earlier ? earlier.parent : open.at(-1) || null };
       keep(model.boundaries, boundary);
       if (opens) {
         open.push(boundary.alias);
