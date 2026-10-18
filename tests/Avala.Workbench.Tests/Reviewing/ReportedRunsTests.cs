@@ -95,13 +95,17 @@ public sealed class ReportedRunsTests
                 Tool(ItemKind.Command, "printf 'Round' > src/Rounding.cs", ItemOutcome.Succeeded),
             ]));
 
-    [Fact]
-    public void ACommandThatDeletesOrCreatesAFolderNamedLikeAVerificationIsAnEditAndNotAReportedRun() =>
+    [Theory]
+    [InlineData("rm -rf tests")]
+    [InlineData("mkdir build")]
+    [InlineData("touch test")]
+    [InlineData("cp -r build dist")]
+    public void ACommandThatDeletesOrCreatesAFolderNamedLikeAVerificationIsAnEditAndNotAReportedRun(string command) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
             Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
             Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
-            Tool(ItemKind.Command, "rm -rf tests", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, command, ItemOutcome.Succeeded),
         ]));
 
     [Theory]
@@ -120,6 +124,9 @@ public sealed class ReportedRunsTests
     [InlineData("dotnet format")]
     [InlineData("npx prettier --write .")]
     [InlineData("cargo fmt")]
+    [InlineData("npx eslint --fix src")]
+    [InlineData("npm install")]
+    [InlineData("go generate ./...")]
     public void ACommandRunBeforeAFormatterRewroteTheFilesIsNotReportedAsAfterTheLastEdit(string formatter) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
