@@ -25,7 +25,7 @@ internal sealed class ChecksGate(IBaseFiles files, CheckRunner runner, EvidenceL
             declaration => CheckDeclaration.Parse(declaration).Match(
                 checks => RunAsync(attempt, file.Origin, checks, cancellationToken),
                 error => Task.FromResult(Invalid(attempt, file.Origin, error))),
-            () => Task.FromResult(Report(attempt, file.Origin, VerificationOutcome.NoChecksDeclared, [], GateVerdict.Pass)));
+            () => Task.FromResult(Report(attempt, file.Origin, VerificationOutcome.NoChecksDeclared, [], GateVerdict.Pass) with { Missing = true }));
 
     private async Task<VerificationReport> RunAsync(
         CompletedAttempt attempt,
