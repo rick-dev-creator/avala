@@ -23,6 +23,7 @@ Avala presses ⌘ on macOS where Windows and Linux press Ctrl, and its tooltips 
 | Mod+F | Find in the conversation; Enter and Shift+Enter step through the matches, Esc closes it |
 | Alt+↑, Alt+↓ | Bring the previous or the next turn of the conversation to the top |
 | End | Jump to the latest, outside a text field |
+| ←, →, Esc | Step to the previous or the next image in the image viewer, or close it |
 
 ### Writing
 

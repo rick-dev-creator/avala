@@ -426,6 +426,33 @@ internal sealed class DesignMediaViewModel : IMediaViewModel
     public Avala.Components.Pictures.IPicture Picture => Avala.Components.Pictures.NoPicture.Instance;
 
     public IAsyncRelayCommand<bool> ShowCommand { get; } = new AsyncRelayCommand<bool>(_ => Task.CompletedTask);
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignMediaViewerViewModel : IMediaViewerViewModel
+{
+    public bool IsOpen { get; init; } = true;
+
+    public string Name { get; init; } = "checkout-screen.png";
+
+    public string Caption { get; init; } = "The checkout page after the rounding fix";
+
+    public bool HasCaption => Caption.Length > 0;
+
+    public string Position { get; init; } = "2 of 3";
+
+    public bool HasMany { get; init; } = true;
+
+    public Avala.Components.Pictures.IPicture Picture => Avala.Components.Pictures.NoPicture.Instance;
+
+    public IAsyncRelayCommand PreviousCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand NextCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CloseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand<int> FitCommand { get; } = new AsyncRelayCommand<int>(_ => Task.CompletedTask);
 }
 
 internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
@@ -497,6 +524,8 @@ internal sealed class DesignRestartViewModel : IRestartViewModel
 internal sealed record DesignConversationViewModel(string Title, string Place, IStatusPillViewModel Pill, IComposerViewModel Composer, IReadOnlyList<object> Entries) : IConversationViewModel
 {
     public IConversationSearchViewModel Search { get; init; } = new DesignConversationSearchViewModel();
+
+    public IMediaViewerViewModel Viewer { get; init; } = new DesignMediaViewerViewModel { IsOpen = false };
 
     public IReadOnlyList<int> TurnStarts => [.. Enumerable.Range(0, Entries.Count).Where(index => Entries[index] is IPromptViewModel)];
 

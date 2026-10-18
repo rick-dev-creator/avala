@@ -12,15 +12,27 @@
   <Design.DataContext>
     <conversation:DesignMediaViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Frame">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button#Frame:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button#Frame:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+  </UserControl.Styles>
   <StackPanel Spacing="{DynamicResource Space2}" HorizontalAlignment="Left">
-    <Border x:Name="Frame"
+    <Button x:Name="Frame"
             HorizontalAlignment="Left"
-            Background="{DynamicResource FillCodeBrush}"
-            BorderBrush="{DynamicResource SeparatorBrush}"
-            BorderThickness="1"
-            CornerRadius="{DynamicResource RadiusCard}"
-            ClipToBounds="True"
-            ToolTip.Tip="{Binding Name}">
+            Command="{Binding OpenCommand}"
+            ToolTip.Tip="{Binding Name}"
+            AutomationProperties.Name="{Binding Name}">
       <Image x:Name="Picture"
              MaxWidth="{DynamicResource ReadingWidth}"
              MaxHeight="{DynamicResource ReadingWidth}"
@@ -28,7 +40,7 @@
              StretchDirection="DownOnly"
              AutomationProperties.Name="{Binding Name}"
              Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}" />
-    </Border>
+    </Button>
     <TextBlock x:Name="Caption"
                Classes="caption secondary"
                TextWrapping="Wrap"

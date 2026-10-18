@@ -115,6 +115,7 @@
         </StackPanel>
         <TextBlock Classes="caption" Text="Nothing said yet. The conversation appears here as the agent works." />
       </StackPanel>
+      <ContentControl x:Name="Viewer" Content="{Binding Viewer}" />
     </Panel>
   </DockPanel>
 </UserControl>

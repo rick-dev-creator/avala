@@ -17,6 +17,8 @@ internal interface IMediaViewModel
     IPicture Picture { get; }
 
     IAsyncRelayCommand<bool> ShowCommand { get; }
+
+    IRelayCommand OpenCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -24,7 +26,11 @@ internal sealed partial class MediaViewModel(MediaEntry entry, IPictureDecoder p
 {
     public const int PictureWidth = 720;
 
+    public event EventHandler? OpenRequested;
+
     public Attachment Media { get; } = entry.Media;
+
+    public ShownImage Shown { get; } = new(entry.Media, entry.Caption);
 
     public string Name => Media.Name;
 
@@ -40,6 +46,9 @@ internal sealed partial class MediaViewModel(MediaEntry entry, IPictureDecoder p
     public void Update(ITimelineEntry entry)
     {
     }
+
+    [RelayCommand]
+    private void Open() => OpenRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
     private async Task ShowAsync(bool shown, CancellationToken cancellationToken)

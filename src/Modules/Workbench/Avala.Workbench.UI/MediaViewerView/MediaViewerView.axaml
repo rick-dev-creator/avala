@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.MediaViewerView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IMediaViewerViewModel">
+  <Design.DataContext>
+    <conversation:DesignMediaViewerViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Scrim">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Focusable" Value="False" />
+    </Style>
+    <Style Selector="Button#Scrim:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button#Scrim:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+    </Style>
+    <Style Selector="Button.step">
+      <Setter Property="Padding" Value="6" />
+    </Style>
+  </UserControl.Styles>
+  <Popup x:Name="Sheet"
+         Placement="Center"
+         IsLightDismissEnabled="False"
+         IsOpen="{Binding IsOpen, Mode=OneWay}">
+    <Panel x:Name="SheetRoot">
+      <Button x:Name="Scrim"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              Command="{Binding CloseCommand}"
+              AutomationProperties.Name="Close the image" />
+      <Border x:Name="SheetCard"
+              Classes="float"
+              theme:Motion.Enter="Sheet"
+              Padding="0"
+              ClipToBounds="True"
+              Focusable="True">
+        <Border.KeyBindings>
+          <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+          <KeyBinding Gesture="Left" Command="{Binding PreviousCommand}" />
+          <KeyBinding Gesture="Right" Command="{Binding NextCommand}" />
+        </Border.KeyBindings>
+        <DockPanel>
+          <Border DockPanel.Dock="Top"
+                  Padding="16,10,10,10"
+                  BorderBrush="{DynamicResource SeparatorBrush}"
+                  BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="4">
+              <TextBlock x:Name="SheetTitle"
+                         Classes="strong"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"
+                         Text="{Binding Name}" />
+              <TextBlock x:Name="Position"
+                         Grid.Column="1"
+                         Classes="caption secondary"
+                         Margin="8,0"
+                         VerticalAlignment="Center"
+                         Text="{Binding Position}"
+                         IsVisible="{Binding HasMany}" />
+              <Button x:Name="Previous"
+                      Grid.Column="2"
+                      Classes="ghost step"
+                      ToolTip.Tip="Previous image (Left)"
+                      AutomationProperties.Name="Previous image"
+                      Command="{Binding PreviousCommand}"
+                      IsVisible="{Binding HasMany}">
+                <Path Classes="icon" Data="{StaticResource IconChevronRight}" RenderTransform="scale(-1,1)" />
+              </Button>
+              <Button x:Name="Next"
+                      Grid.Column="3"
+                      Classes="ghost step"
+                      ToolTip.Tip="Next image (Right)"
+                      AutomationProperties.Name="Next image"
+                      Command="{Binding NextCommand}"
+                      IsVisible="{Binding HasMany}">
+                <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
+              </Button>
+              <Button x:Name="Close"
+                      Grid.Column="4"
+                      Classes="ghost"
+                      ToolTip.Tip="Close (Esc)"
+                      AutomationProperties.Name="Close the image"
+                      Command="{Binding CloseCommand}">
+                <Path Classes="icon" Data="{StaticResource IconCross}" />
+              </Button>
+            </Grid>
+          </Border>
+          <Border DockPanel.Dock="Bottom"
+                  Padding="16,10"
+                  BorderBrush="{DynamicResource SeparatorBrush}"
+                  BorderThickness="0,1,0,0"
+                  IsVisible="{Binding HasCaption}">
+            <TextBlock x:Name="Caption"
+                       Classes="caption secondary"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       MaxWidth="{DynamicResource ReadingWidth}"
+                       Text="{Binding Caption}" />
+          </Border>
+          <Border Background="{DynamicResource SurfaceCanvasBrush}">
+            <Panel x:Name="Stage" Margin="24" states:Fitted.Command="{Binding FitCommand}">
+              <Image x:Name="SheetPicture"
+                     Stretch="Uniform"
+                     StretchDirection="DownOnly"
+                     AutomationProperties.Name="{Binding Name}"
+                     Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}" />
+            </Panel>
+          </Border>
+        </DockPanel>
+      </Border>
+    </Panel>
+  </Popup>
+</UserControl>
