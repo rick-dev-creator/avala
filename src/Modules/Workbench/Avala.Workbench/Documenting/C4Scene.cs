@@ -24,6 +24,8 @@ internal sealed record Scene(IReadOnlyList<SceneNode> Nodes, IReadOnlyList<Graph
     public static Scene Empty { get; } = new([], [], [], string.Empty);
 
     public IReadOnlyList<GraphLink> Structure { get; init; } = [];
+
+    public IReadOnlyList<GraphLink> Flows { get; init; } = [];
 }
 
 internal static class C4Scene
@@ -58,7 +60,8 @@ internal static class C4Scene
 
         return new Scene(nodes, links, [.. played.Structure.Boundaries.Select(boundary => new GraphFrame(boundary.Alias, boundary.Label))], caption)
         {
-            Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Concat(played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations)).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
+            Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
+            Flows = [.. played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = "0" })],
         };
     }
 

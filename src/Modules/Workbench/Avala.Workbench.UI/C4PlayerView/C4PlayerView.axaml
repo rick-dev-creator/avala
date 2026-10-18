@@ -69,7 +69,7 @@
           <ItemsControl x:Name="Diagram" ItemsSource="{Binding Nodes}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <graphs:C4GraphPanel x:Name="Graph" Links="{Binding Links}" Structure="{Binding Structure}" Frames="{Binding Frames}" x:DataType="docs:IC4PlayerViewModel" />
+                <graphs:C4GraphPanel x:Name="Graph" Links="{Binding Links}" Structure="{Binding Structure}" Flows="{Binding Flows}" Frames="{Binding Frames}" x:DataType="docs:IC4PlayerViewModel" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
           </ItemsControl>

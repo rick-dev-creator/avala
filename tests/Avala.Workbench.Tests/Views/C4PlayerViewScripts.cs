@@ -207,6 +207,21 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AReplyHopInAFlowLeavesTheStructureLaidOutByItsRelationsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Reads", [Element("db", "Ledger DB"), Element("api", "Ledger API")], [], [new C4Relation("api", "db", "Reads")]);
+            var flow = new PlayStep(StepKind.Flow, "flow", "A read", string.Empty) { Relations = [new C4Relation("api", "db", "Queries") { Index = 1 }, new C4Relation("db", "api", "Returns the rows") { Index = 2 }] };
+            using var player = Player(structure, [flow]);
+            var view = Screen.Show(player, ThemeVariant.Dark, 1240, 720);
+            var graph = view.All<C4GraphPanel>().Single();
+
+            var (database, api) = (graph.Layout.Nodes[0], graph.Layout.Nodes[1]);
+
+            Assert.True(api.Y < database.Y, $"the API at {api.Y} is not above the database it reads at {database.Y}");
+        }, Cancellation);
+
+    [Fact]
     public Task APlayerZoomedBeforeItsViewIsShownOpensCentredAtItsZoomAsync() =>
         ui.RunAsync(() =>
         {

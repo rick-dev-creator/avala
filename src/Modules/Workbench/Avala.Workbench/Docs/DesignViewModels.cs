@@ -82,6 +82,8 @@ internal sealed class DesignC4PlayerViewModel : IC4PlayerViewModel, IDisposable
 
     public IReadOnlyList<GraphLink> Structure => player.Structure;
 
+    public IReadOnlyList<GraphLink> Flows => player.Flows;
+
     public IReadOnlyList<IDocSectionViewModel> Sections => player.Sections;
 
     public IReadOnlyList<Conversation.ICanvasViewModel> Unread => player.Unread;

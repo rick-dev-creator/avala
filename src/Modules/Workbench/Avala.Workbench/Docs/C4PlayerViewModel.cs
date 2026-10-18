@@ -33,6 +33,8 @@ internal interface IC4PlayerViewModel
 
     IReadOnlyList<GraphLink> Structure { get; }
 
+    IReadOnlyList<GraphLink> Flows { get; }
+
     IReadOnlyList<IDocSectionViewModel> Sections { get; }
 
     IReadOnlyList<Conversation.ICanvasViewModel> Unread { get; }
@@ -113,6 +115,9 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
 
     [ObservableProperty]
     public partial IReadOnlyList<GraphLink> Structure { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<GraphLink> Flows { get; private set; } = [];
 
     [ObservableProperty]
     public partial IReadOnlyList<Conversation.ICanvasViewModel> Unread { get; private set; } = [];
@@ -335,6 +340,7 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
         Links = scene.Links;
         Frames = scene.Frames;
         Structure = Structure.SequenceEqual(scene.Structure) ? Structure : scene.Structure;
+        Flows = Flows.SequenceEqual(scene.Flows) ? Flows : scene.Flows;
         Caption = scene.Caption;
         var steps = Steps;
         Position = DocsPhrases.Step(step, steps.Count, step >= 0 && step < steps.Count ? steps[step].Title : string.Empty);

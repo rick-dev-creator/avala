@@ -15,6 +15,9 @@ public sealed class C4GraphPanel : Panel
     public static readonly StyledProperty<IReadOnlyList<GraphLink>> StructureProperty =
         AvaloniaProperty.Register<C4GraphPanel, IReadOnlyList<GraphLink>>(nameof(Structure), []);
 
+    public static readonly StyledProperty<IReadOnlyList<GraphLink>> FlowsProperty =
+        AvaloniaProperty.Register<C4GraphPanel, IReadOnlyList<GraphLink>>(nameof(Flows), []);
+
     public static readonly StyledProperty<IReadOnlyList<GraphFrame>> FramesProperty =
         AvaloniaProperty.Register<C4GraphPanel, IReadOnlyList<GraphFrame>>(nameof(Frames), []);
 
@@ -53,7 +56,7 @@ public sealed class C4GraphPanel : Panel
 
     static C4GraphPanel()
     {
-        AffectsMeasure<C4GraphPanel>(StructureProperty, FramesProperty, LabelSizeProperty);
+        AffectsMeasure<C4GraphPanel>(StructureProperty, FlowsProperty, FramesProperty, LabelSizeProperty);
         LinksProperty.Changed.AddClassHandler<C4GraphPanel>((panel, _) => EdgeLayer.Refresh(panel));
     }
 
@@ -73,6 +76,12 @@ public sealed class C4GraphPanel : Panel
     {
         get => GetValue(StructureProperty);
         set => SetValue(StructureProperty, value);
+    }
+
+    public IReadOnlyList<GraphLink> Flows
+    {
+        get => GetValue(FlowsProperty);
+        set => SetValue(FlowsProperty, value);
     }
 
     public IReadOnlyList<GraphFrame> Frames
@@ -136,7 +145,7 @@ public sealed class C4GraphPanel : Panel
             Frames.Count,
             Spacing);
         origin = default;
-        var drawn = layout.Nodes.Concat(layout.Groups.Where(group => group.Width > 0)).Select(Rect).Concat(Placed(Structure).SelectMany(placed => new[] { placed.Plate, Extent(placed.Route) })).ToList();
+        var drawn = layout.Nodes.Concat(layout.Groups.Where(group => group.Width > 0)).Select(Rect).Concat(Placed([.. Structure, .. Flows]).SelectMany(placed => new[] { placed.Plate, Extent(placed.Route) })).ToList();
 
         if (drawn.Count == 0)
         {
