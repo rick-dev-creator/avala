@@ -37,6 +37,15 @@ public enum AttemptOutcome
     Interrupted,
 }
 
+public enum JobFailure
+{
+    WorkspaceUnavailable,
+    AgentUnavailable,
+    ConnectionUnavailable,
+    ModelUnavailable,
+    AgentFailed,
+}
+
 public sealed record JobSummary(
     JobId Job,
     string Repository,
@@ -54,6 +63,8 @@ public sealed record JobSummary(
     public Option<HoldReason> Hold { get; init; }
 
     public Option<string> Problem { get; init; }
+
+    public Option<JobFailure> Failure { get; init; }
 
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 

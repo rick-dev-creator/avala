@@ -38,6 +38,7 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
             Model = job.Model,
             Hold = job.Held,
             Problem = job.Problem,
+            Failure = job.Failure,
             RemoteControlled = job.RemoteControlled,
         };
 

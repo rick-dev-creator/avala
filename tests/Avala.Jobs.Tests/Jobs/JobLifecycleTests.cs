@@ -6,6 +6,7 @@ using Avala.Workspaces.Contracts;
 using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
 using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 using HoldReason = Avala.Jobs.Contracts.HoldReason;
+using JobFailure = Avala.Jobs.Contracts.JobFailure;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -130,7 +131,7 @@ public sealed class JobLifecycleTests
     {
         var job = Given.JobIn(JobState.Checking);
 
-        Assert.Equal(new JobFailed(job.Id, FailureReason.AgentUnavailable), Outcomes.Succeeds(job.Fail(FailureReason.AgentUnavailable, Given.Ended)));
+        Assert.Equal(new JobFailed(job.Id, JobFailure.AgentUnavailable), Outcomes.Succeeds(job.Fail(JobFailure.AgentUnavailable, Given.Ended)));
         Assert.Equal((JobState.Failed, Option<DateTimeOffset>.Some(Given.Ended)), (job.State, job.Ended));
         Assert.Equal(AttemptOutcome.Interrupted, job.Attempts[^1].Outcome);
     }

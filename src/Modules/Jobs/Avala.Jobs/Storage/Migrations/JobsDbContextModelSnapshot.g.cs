@@ -42,6 +42,10 @@ namespace Avala.Jobs.Storage.Migrations
                     b.Property<long>("Ended")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Failure")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Held")
                         .IsRequired()
                         .HasColumnType("TEXT")

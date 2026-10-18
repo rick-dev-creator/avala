@@ -16,12 +16,12 @@ public sealed class JobEndingTests(PublishedPlugins plugins)
         var conversation = await workbench.SelectAsync(job);
         Assert.Equal(JobStatus.Failed, await run.SettledAsync());
 
-        var problem = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Problem.Match(text => text, () => string.Empty);
+        var failure = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Failure);
         await workbench.ShowsAsync(() => conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Failed);
         var shown = await run.Ui.ReadAsync(() => Shown(conversation));
 
-        Assert.NotEqual(string.Empty, problem);
-        Assert.Contains(shown, text => text.Contains(problem, StringComparison.Ordinal));
+        Assert.Equal(JobFailure.ConnectionUnavailable, failure);
+        Assert.Contains(shown, text => text.Contains("This job failed · no connection could run it", StringComparison.Ordinal));
     }
 
     [Fact]

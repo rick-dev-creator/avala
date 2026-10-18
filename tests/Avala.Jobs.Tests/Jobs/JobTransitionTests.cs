@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Testing;
 using HoldReason = Avala.Jobs.Contracts.HoldReason;
+using JobFailure = Avala.Jobs.Contracts.JobFailure;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -93,7 +94,7 @@ public sealed class JobTransitionTests
         Operation.SendBackInNewSession => Outcomes.ErrorOf(job.SendBack(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.Approve => Outcomes.ErrorOf(job.Approve(Given.Ended)),
         Operation.Discard => Outcomes.ErrorOf(job.Discard(Given.Ended)),
-        Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed, Given.Ended)),
+        Operation.Fail => Outcomes.ErrorOf(job.Fail(JobFailure.AgentFailed, Given.Ended)),
         Operation.Hold => Outcomes.ErrorOf(job.Hold(HoldReason.Stalled)),
         Operation.HoldOverBudget => Outcomes.ErrorOf(job.Hold(HoldReason.BudgetExceeded)),
         Operation.HoldUnverifiable => Outcomes.ErrorOf(job.Hold(HoldReason.InvalidChecks)),

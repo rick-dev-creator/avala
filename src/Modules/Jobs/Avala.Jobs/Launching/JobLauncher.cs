@@ -39,7 +39,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         if (!(await planner.ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
         {
-            await FailAsync(job, FailureReason.ConnectionUnavailable, cancellationToken);
+            await FailAsync(job, JobFailure.ConnectionUnavailable, cancellationToken);
             return Option<string>.None;
         }
 
@@ -83,7 +83,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
-            await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
+            await FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken);
             return;
         }
 
@@ -315,7 +315,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return GitCouldNotPrepare;
         }
 
-        await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
+        await FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken);
 
         return Option<string>.None;
     }
@@ -329,11 +329,11 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         _ => JobRejection.AgentUnavailable,
     };
 
-    private static FailureReason Failure(AgentError error) => error switch
+    private static JobFailure Failure(AgentError error) => error switch
     {
-        AgentError.UnknownConnection or AgentError.UnusableConnection => FailureReason.ConnectionUnavailable,
-        AgentError.UnofferedModel or AgentError.UnofferedEffort => FailureReason.ModelUnavailable,
-        _ => FailureReason.AgentUnavailable,
+        AgentError.UnknownConnection or AgentError.UnusableConnection => JobFailure.ConnectionUnavailable,
+        AgentError.UnofferedModel or AgentError.UnofferedEffort => JobFailure.ModelUnavailable,
+        _ => JobFailure.AgentUnavailable,
     };
 
     private async Task BeginAsync(Job job, SessionId session, string message, CancellationToken cancellationToken)
@@ -349,11 +349,11 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         if ((await messenger.TellAsync(job, message, author, cancellationToken)).IsFailure)
         {
-            await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
+            await FailAsync(job, JobFailure.AgentUnavailable, cancellationToken);
         }
     }
 
-    private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)
+    private async Task FailAsync(Job job, JobFailure reason, CancellationToken cancellationToken)
     {
         if (job.Fail(reason, ledger.Now).IsSuccess)
         {

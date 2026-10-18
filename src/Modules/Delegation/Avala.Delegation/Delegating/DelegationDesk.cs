@@ -80,7 +80,7 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         }
         else if (Settled.Contains(integrationEvent.Status))
         {
-            Settle(integrationEvent.Job, new Settlement(integrationEvent.Status, Option<HoldReason>.None), cancellationToken);
+            Settle(integrationEvent.Job, new Settlement(integrationEvent.Status, Option<HoldReason>.None) { Failure = integrationEvent.Failure }, cancellationToken);
         }
     }
 

@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
+using Avala.Jobs.Contracts;
 
 namespace Avala.Delegation.Records;
 
@@ -31,10 +32,20 @@ internal static class ToolAnswers
             ["conflicts"] = new JsonArray([.. report.Conflicts.Select(path => Node(JsonValue.Create(path)))]),
             ["hold"] = report.Hold.Match(reason => Camel(reason), () => string.Empty),
             ["refusal"] = report.Refusal.Match(rejection => Camel(rejection), () => string.Empty),
+            ["reason"] = report.Failure.Match(Failed, () => string.Empty),
         };
 
         return new ToolResult(item, answer.ToJsonString());
     }
+
+    private static string Failed(JobFailure failure) => failure switch
+    {
+        JobFailure.WorkspaceUnavailable => "the child's worktree could not be prepared or checkpointed",
+        JobFailure.ConnectionUnavailable => "no connection could run the child",
+        JobFailure.ModelUnavailable => "the child's connection does not offer the model or effort it asked for",
+        JobFailure.AgentFailed => "the child's agent ended its turn in failure",
+        _ => "the child's agent could not take its message",
+    };
 
     public static ToolResult Running(ItemId item, DelegationRecord delegation)
     {

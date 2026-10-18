@@ -10,6 +10,8 @@ namespace Avala.Delegation.Reporting;
 internal sealed record Settlement(JobStatus Status, Option<HoldReason> Hold)
 {
     public bool Held { get; init; }
+
+    public Option<JobFailure> Failure { get; init; }
 }
 
 internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, DelegationJournal journal, ILogger<ChildReporter> logger) : IAsyncDisposable
@@ -49,7 +51,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     private async Task<ChildReport> ReportOfAsync(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken)
     {
-        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold };
+        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold, Failure = settlement.Failure };
 
         if (settlement.Status != JobStatus.AwaitingReview)
         {

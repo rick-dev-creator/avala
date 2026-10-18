@@ -20,6 +20,8 @@ internal static class Stored
 
     public static string Text(Option<HoldReason> hold) => hold.Match(reason => reason.ToString(), () => string.Empty);
 
+    public static string Text(Option<JobFailure> failure) => failure.Match(reason => reason.ToString(), () => string.Empty);
+
     public static string Text(Option<string> problem) => problem.Match(found => found, () => string.Empty);
 
     public static string Text(IReadOnlyList<Attachment> attachments) => attachments.Count == 0 ? string.Empty : StoredJson.Write(attachments);
@@ -29,6 +31,7 @@ internal static class Stored
     public static ModelChoice Model(string text) => text.Length == 0 ? ModelChoice.Default : StoredJson.Read<ModelChoice>(text);
 
     public static Option<HoldReason> Hold(string text) => text.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(text);
+    public static Option<JobFailure> Failure(string text) => text.Length == 0 ? Option<JobFailure>.None : Enum.Parse<JobFailure>(text);
 
     public static IReadOnlyList<Attachment> Attachments(string text) => text.Length == 0 ? [] : StoredJson.Read<List<Attachment>>(text);
 

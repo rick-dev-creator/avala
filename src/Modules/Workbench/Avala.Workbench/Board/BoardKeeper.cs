@@ -70,7 +70,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
         Change(integrationEvent.Job, job => Audited(job with
         {
-            Summary = job.Summary with { Status = integrationEvent.Status },
+            Summary = job.Summary with { Status = integrationEvent.Status, Failure = integrationEvent.Failure },
             Hold = integrationEvent.Status == JobStatus.NeedsHelp ? job.Hold : Option<HoldReason>.None,
             Wait = integrationEvent.Status == JobStatus.NeedsHelp ? job.Wait : Option<ResetWait>.None,
         }));

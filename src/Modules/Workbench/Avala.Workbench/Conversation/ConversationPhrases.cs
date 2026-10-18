@@ -211,11 +211,21 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
-    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch, Option<HoldReason> hold) => status switch
+    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch, Option<HoldReason> hold, Option<JobFailure> failure) => status switch
     {
         JobStatus.Approved => watch.Bind(Watched).Match(phrase => phrase, () => Placeholder(status, takesMessagesMidTurn)),
         JobStatus.NeedsHelp => hold.Match(HeldPlaceholder, () => Placeholder(status, takesMessagesMidTurn)),
+        JobStatus.Failed => failure.Match(reason => $"This job failed · {Failed(reason)}", () => Placeholder(status, takesMessagesMidTurn)),
         _ => Placeholder(status, takesMessagesMidTurn),
+    };
+
+    public static string Failed(JobFailure failure) => failure switch
+    {
+        JobFailure.WorkspaceUnavailable => "its worktree could not be prepared or checkpointed",
+        JobFailure.ConnectionUnavailable => "no connection could run it: check its connection in Settings and the repository's .avala/jobs.json",
+        JobFailure.ModelUnavailable => "its connection does not offer the model or effort it asked for",
+        JobFailure.AgentFailed => "its agent's turn failed",
+        _ => "its agent could not take the message",
     };
 
     public static Option<string> Closed(BoardJob job) =>
