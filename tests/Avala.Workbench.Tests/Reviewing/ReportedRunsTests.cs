@@ -135,6 +135,10 @@ public sealed class ReportedRunsTests
     [InlineData("dotnet add package Newtonsoft.Json")]
     [InlineData("pip3 install requests")]
     [InlineData("cargo add serde")]
+    [InlineData("python3 -m pip install requests")]
+    [InlineData("pnpm i")]
+    [InlineData("cargo update")]
+    [InlineData("uv sync")]
     public void ACommandRunBeforeAFormatterRewroteTheFilesIsNotReportedAsAfterTheLastEdit(string formatter) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
@@ -147,6 +151,8 @@ public sealed class ReportedRunsTests
     [InlineData("npm run lint -- --fix")]
     [InlineData("ruff check --fix .")]
     [InlineData("cargo clippy --fix --allow-dirty")]
+    [InlineData("npm run lint:fix")]
+    [InlineData("bundle exec rubocop -A")]
     public void ACommandRunBeforeALinterThatFixedTheFilesIsNotReportedAsAfterTheLastEdit(string linter) =>
         Assert.Empty(ReportedRuns.AfterLastEdit(
         [
@@ -207,6 +213,47 @@ public sealed class ReportedRunsTests
             Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
             Tool(ItemKind.Command, inspection, ItemOutcome.Succeeded),
         ]));
+
+    [Theory]
+    [InlineData("npx jest -u")]
+    [InlineData("npx jest --updateSnapshot")]
+    [InlineData("npx vitest run -u")]
+    public void ACommandRunBeforeATestRunThatRewroteItsSnapshotsIsNotReportedAsAfterTheLastEdit(string update) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, update, ItemOutcome.Succeeded),
+        ]));
+
+    [Theory]
+    [InlineData("python3 - <<'PY'\nfrom pathlib import Path\nPath('src/rounding.py').write_text('x')\nPY")]
+    [InlineData("python3 -c \"open('src/rounding.py', 'w').write('x')\"")]
+    [InlineData("node -e \"require('fs').writeFileSync('src/rounding.js', '')\"")]
+    public void ACommandRunBeforeAnInlineScriptThatWroteASourceFileIsNotReportedAsAfterTheLastEdit(string script) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, script, ItemOutcome.Succeeded),
+        ]));
+
+    [Theory]
+    [InlineData("dotnet test --list-tests")]
+    [InlineData("pytest --collect-only")]
+    [InlineData("npx jest --listTests")]
+    public void ListingTestsWithoutRunningThemIsNotReported(string inspection) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, inspection, ItemOutcome.Succeeded),
+        ]));
+
+    [Fact]
+    public void AVerboseCtestRunIsReported() =>
+        Assert.Equal(
+            [new ReportedRun("ctest -V", Passed: true)],
+            ReportedRuns.AfterLastEdit([Tool(ItemKind.FileEdit, "src/rounding.c", ItemOutcome.Succeeded), Tool(ItemKind.Command, "ctest -V", ItemOutcome.Succeeded)]));
 
     private static ToolEntry Tool(ItemKind kind, string input, Option<ItemOutcome> outcome) =>
         new($"item:{Guid.NewGuid():N}", kind, input, string.Empty, outcome) { Input = input };

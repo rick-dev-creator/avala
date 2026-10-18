@@ -137,7 +137,10 @@ public sealed class RequestFactsTests
     [InlineData("grep -R secret docs")]
     [InlineData("rg --follow secret docs")]
     [InlineData("find -L docs -name secret.env")]
-    public void ARecursiveReadThatFollowsALinkOutOfTheWorktreeStillAsks(string line)
+    [InlineData("cat docs/*/secret.env")]
+    [InlineData("grep -rn secret docs/hom?")]
+    [InlineData("ls docs/h[o]me/")]
+    public void AReadThatFollowsALinkOutOfTheWorktreeRecursivelyOrThroughAGlobStillAsks(string line)
     {
         using var workspace = new TemporaryFolder();
         using var elsewhere = new TemporaryFolder();

@@ -53,6 +53,9 @@ public sealed class ReadOnlyCommandTests
         "grep -rIn TODO src",
         "git log -S Rounding --oneline",
         "grep -rn '[Tt]odo' src",
+        "grep -n 'Async$' src",
+        "git log --oneline @{u}..",
+        "git status -uno",
     ];
 
     public static TheoryData<string> NotReadOnly =>
