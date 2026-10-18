@@ -34,6 +34,35 @@ public sealed class IdleSessionTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnAgentKeptForRemoteControlEndsOnceRemoteControlIsTurnedOffPastItsPromptCacheAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, RemoteLogin, []);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        Outcomes.Succeeds(await run.Get<IRemoteJobs>().ControlRemotelyAsync(job, true, Cancellation));
+        await run.DeliveredAsync();
+        run.Clock.Advance(PromptCache);
+        await run.DeliveredAsync();
+        var session = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Sessions[^1].Session;
+        Assert.True(run.Get<IAgents>().IsOpen(session));
+        var stopped = run.Watch<SessionStopped>();
+
+        Outcomes.Succeeds(await run.Get<IRemoteJobs>().ControlRemotelyAsync(job, false, Cancellation));
+        await run.DeliveredAsync();
+        run.Clock.Advance(PromptCache);
+        _ = await stopped.UntilAsync(found => found.Session == session);
+        await run.DeliveredAsync();
+
+        Assert.Empty(run.Get<IProcessTrees>().Open);
+    }
+
+    private static readonly (string File, string Content)[] RemoteLogin =
+    [
+        ("connections.json", """{ "default": "claude", "connections": [ { "name": "claude", "provider": "simulator", "credential": { "source": "login" } } ] }"""),
+        ("connections/claude/.login", string.Empty),
+    ];
+
+    [Fact]
     public async Task ArchivingAConversationWaitingForReviewEndsItsAgentAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "reply");

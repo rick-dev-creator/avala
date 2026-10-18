@@ -11,7 +11,7 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.Holding;
 
 internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents agents, TimeProvider clock)
-    : IHandle<SessionOpened>, IHandle<JobProgressed>, IJobSessions, IDisposable
+    : IHandle<SessionOpened>, IHandle<SessionStopped>, IHandle<SessionEnded>, IHandle<JobProgressed>, IHandle<JobRemoteControlChosen>, IJobSessions, IDisposable
 {
     public static readonly TimeSpan UndeclaredCache = TimeSpan.FromHours(1);
 
@@ -31,16 +31,31 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
         return ValueTask.CompletedTask;
     }
 
-    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
-    {
-        var job = integrationEvent.Job;
+    public ValueTask HandleAsync(SessionStopped integrationEvent, CancellationToken cancellationToken) => ForgetAsync(integrationEvent.Session);
 
+    public ValueTask HandleAsync(SessionEnded integrationEvent, CancellationToken cancellationToken) => ForgetAsync(integrationEvent.Session);
+
+    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken) =>
+        await ArmAsync(integrationEvent.Job, integrationEvent.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp, cancellationToken);
+
+    public async ValueTask HandleAsync(JobRemoteControlChosen integrationEvent, CancellationToken cancellationToken) =>
+        await ArmAsync(integrationEvent.Job, !integrationEvent.On, cancellationToken);
+
+    private ValueTask ForgetAsync(SessionId session)
+    {
+        ImmutableInterlocked.TryRemove(ref resumable, session, out _);
+
+        return ValueTask.CompletedTask;
+    }
+
+    private async Task ArmAsync(JobId job, bool waiting, CancellationToken cancellationToken)
+    {
         if (alarms.Remove(job, out var armed))
         {
             armed.Dispose();
         }
 
-        if (integrationEvent.Status is not (JobStatus.AwaitingReview or JobStatus.NeedsHelp))
+        if (!waiting)
         {
             return;
         }
@@ -71,7 +86,8 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
     }
 
     private Option<(SessionId Session, int Rounds, TimeSpan Cache)> Idle(Job job) =>
-        job.Session.Bind(session => Volatile.Read(ref resumable).TryGetValue(session, out var cache)
+        job.State is not (JobState.AwaitingReview or JobState.NeedsHelp) ? Option<(SessionId, int, TimeSpan)>.None
+        : job.Session.Bind(session => Volatile.Read(ref resumable).TryGetValue(session, out var cache)
             ? Option<(SessionId, int, TimeSpan)>.Some((session, job.Attempts.Count, cache))
             : Option<(SessionId, int, TimeSpan)>.None);
 
