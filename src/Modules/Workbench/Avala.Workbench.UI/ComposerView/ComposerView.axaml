@@ -56,11 +56,24 @@
       <Setter Property="Grid.Column" Value="3" />
       <Setter Property="Margin" Value="8,0,0,0" />
     </Style>
-    <ContainerQuery Name="Composer" Query="max-width:560">
+    <ContainerQuery Name="Composer" Query="max-width:680">
       <Style Selector="TextBox#Draft">
         <Setter Property="Grid.ColumnSpan" Value="4" />
       </Style>
-      <Style Selector="Button#Attach, ContentControl#ComposerHarness, Panel#SendSlot">
+      <Style Selector="Button#Attach">
+        <Setter Property="Grid.Row" Value="2" />
+        <Setter Property="Grid.Column" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,6,0,0" />
+      </Style>
+      <Style Selector="ContentControl#ComposerHarness">
+        <Setter Property="Grid.Row" Value="2" />
+        <Setter Property="Grid.Column" Value="0" />
+        <Setter Property="Grid.ColumnSpan" Value="3" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Margin" Value="38,6,0,0" />
+      </Style>
+      <Style Selector="Panel#SendSlot">
         <Setter Property="Grid.Row" Value="2" />
         <Setter Property="Margin" Value="8,6,0,0" />
       </Style>
