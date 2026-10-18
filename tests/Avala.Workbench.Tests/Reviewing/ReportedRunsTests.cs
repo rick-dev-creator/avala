@@ -255,6 +255,14 @@ public sealed class ReportedRunsTests
             [new ReportedRun("ctest -V", Passed: true)],
             ReportedRuns.AfterLastEdit([Tool(ItemKind.FileEdit, "src/rounding.c", ItemOutcome.Succeeded), Tool(ItemKind.Command, "ctest -V", ItemOutcome.Succeeded)]));
 
+    [Theory]
+    [InlineData("dotnet test 2>&1 | tail -20")]
+    [InlineData("npm test 2>&1 | head -50")]
+    public void AVerificationWhoseFailureAPipeHidesIsNotReportedAsPassed(string line) =>
+        Assert.DoesNotContain(
+            new ReportedRun(line, Passed: true),
+            ReportedRuns.AfterLastEdit([Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded), Tool(ItemKind.Command, line, ItemOutcome.Succeeded)]));
+
     private static ToolEntry Tool(ItemKind kind, string input, Option<ItemOutcome> outcome) =>
         new($"item:{Guid.NewGuid():N}", kind, input, string.Empty, outcome) { Input = input };
 }

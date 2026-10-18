@@ -55,6 +55,7 @@ public sealed class ReadOnlyCommandTests
         "grep -n 'Async$' src",
         "git log --oneline @{u}..",
         "git status -uno",
+        "grep -rno TODO src",
     ];
 
     public static TheoryData<string> NotReadOnly =>
@@ -148,6 +149,15 @@ public sealed class ReadOnlyCommandTests
     [InlineData("git log --format='%h %G?' -5")]
     [InlineData("git show --pretty=%GS HEAD")]
     public void AGitFormatThatVerifiesSignaturesRunsAnotherProgramAndStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git diff -U ~/.ssh/id_rsa README.md")]
+    [InlineData("git diff --unified /etc/passwd README.md")]
+    [InlineData("git diff -U --output=../outside.diff")]
+    [InlineData("git log -1 --pretty --output=.git/config")]
+    [InlineData("git show --dirstat-by-file --output=.avala/permissions.json")]
+    public void AGitOptionWhoseValueIsOptionalDoesNotHideTheWordAfterIt(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Theory]
