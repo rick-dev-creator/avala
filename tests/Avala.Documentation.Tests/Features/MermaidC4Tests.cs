@@ -48,6 +48,30 @@ public sealed class MermaidC4Tests
         Assert.Equal([Option<int>.Some(1), Option<int>.Some(2)], ordered.Relations.Select(relation => relation.Index));
     }
 
+    [Fact]
+    public void AnAliasDeclaredTwiceIsOneElementInItsFirstPlaceDescribedByItsLastDeclarationAsMermaidDrawsIt()
+    {
+        var diagram = Outcomes.Present(MermaidC4.Read("""
+            C4Container
+              Container(payments, "Payments", "Go")
+              System_Boundary(ledger, "ledger-api") {
+                ContainerDb(postgres, "Ledger DB", "Postgres")
+              }
+              System_Boundary(ledger, "Ledger API") {
+                Container(payments, "Payments service", "Go, stripe-go v79")
+              }
+              Rel(payments, postgres, "Writes")
+            """));
+
+        Assert.Equal(
+            [
+                new C4Element("payments", "Payments service", C4Shape.Container, false) { Technology = "Go, stripe-go v79", Boundary = "ledger" },
+                new C4Element("postgres", "Ledger DB", C4Shape.Database, false) { Technology = "Postgres", Boundary = "ledger" },
+            ],
+            diagram.Elements);
+        Assert.Equal([new C4Boundary("ledger", "Ledger API")], diagram.Boundaries);
+    }
+
     [Theory]
     [InlineData("flowchart LR\n  a --> b")]
     [InlineData("")]
