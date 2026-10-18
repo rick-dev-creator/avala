@@ -433,28 +433,20 @@
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     <Setter Property="HeaderTemplate">
       <DataTemplate x:DataType="x:String">
-        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Margin="{DynamicResource MarginMenuHeader}" />
       </DataTemplate>
     </Setter>
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:open /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:open /template/ Border#PART_LayoutRoot">
-    <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+  <Style Selector="ContextMenu MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter, MenuFlyoutPresenter MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter">
+    <Setter Property="MaxWidth" Value="0" />
+    <Setter Property="Margin" Value="0" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pressed /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
-    <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
-  </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, ContextMenu MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-  </Style>
-  <Style Selector="ContextMenu MenuItem /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem /template/ TextBlock#PART_InputGestureText, ContextMenu MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, ContextMenu MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected /template/ TextBlock#PART_InputGestureText">
+  <Style Selector="ContextMenu MenuItem /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem /template/ TextBlock#PART_InputGestureText">
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
   </Style>
   <Style Selector="ContextMenu MenuItem /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem /template/ Path#PART_ChevronPath">
     <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
-  </Style>
-  <Style Selector="ContextMenu MenuItem:open /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:open /template/ Path#PART_ChevronPath, ContextMenu MenuItem:pointerover /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:pointerover /template/ Path#PART_ChevronPath">
-    <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>
   <Style Selector="ContextMenu MenuItem:empty /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:empty /template/ Path#PART_ChevronPath, ContextMenu MenuItem:empty /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:empty /template/ TextBlock#PART_InputGestureText">
     <Setter Property="Margin" Value="0" />
@@ -462,20 +454,32 @@
   <Style Selector="ContextMenu MenuItem Path.icon, MenuFlyoutPresenter MenuItem Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">
-    <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
-  </Style>
-  <Style Selector="ContextMenu MenuItem:disabled Path.icon, MenuFlyoutPresenter MenuItem:disabled Path.icon">
-    <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
-  </Style>
   <Style Selector="ContextMenu MenuItem.destructive /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem.destructive /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
   </Style>
   <Style Selector="ContextMenu MenuItem.destructive Path.icon, MenuFlyoutPresenter MenuItem.destructive Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem.destructive:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem.destructive:disabled /template/ ContentPresenter#PART_HeaderPresenter">
+  <Style Selector="ContextMenu MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:pressed /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected /template/ TextBlock#PART_InputGestureText">
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected /template/ Path#PART_ChevronPath, MenuFlyoutPresenter MenuItem:selected /template/ Path#PART_ChevronPath">
+    <Setter Property="Fill" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:selected > Path.icon, MenuFlyoutPresenter MenuItem:selected > Path.icon, ContextMenu MenuItem:selected > Panel > Path.icon, MenuFlyoutPresenter MenuItem:selected > Panel > Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:disabled Path.icon, MenuFlyoutPresenter MenuItem:disabled Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
   </Style>
   <Style Selector="ContextMenu Separator, MenuFlyoutPresenter Separator">
     <Setter Property="Margin" Value="{DynamicResource MarginMenuSeparator}" />

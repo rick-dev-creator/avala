@@ -28,6 +28,7 @@
   <Thickness x:Key="PaddingTip">10,7</Thickness>
   <Thickness x:Key="PaddingMenuItem">8,5</Thickness>
   <Thickness x:Key="MarginMenuItem">4,0</Thickness>
+  <Thickness x:Key="MarginMenuHeader">0,0,16,0</Thickness>
   <Thickness x:Key="MarginMenuSeparator">12,4</Thickness>
 
   <x:Double x:Key="SidebarWidth">260</x:Double>

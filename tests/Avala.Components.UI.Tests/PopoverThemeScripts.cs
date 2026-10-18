@@ -16,16 +16,29 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AHighlightedMenuItemSitsOnTheQuietHoverFillInsteadOfTheAccentAsync() =>
+    public Task AHighlightedMenuItemTurnsItsTextAndIconToTheAccentsForegroundAsync() =>
         ui.RunAsync(() =>
         {
-            var rename = new MenuItem { Header = "Rename" };
+            var icon = new Avalonia.Controls.Shapes.Path { Classes = { "icon" } };
+            var rename = new MenuItem { Header = "Rename", Icon = icon };
             var view = Opened(rename, new MenuItem { Header = "Archive" });
 
             rename.IsSelected = true;
             view.Settle();
 
-            Assert.Equal((Brush(view, "FillHoverBrush"), Brush(view, "TextPrimaryBrush")), (Color(Part<Border>(rename, "PART_LayoutRoot").Background), Color(Part<ContentPresenter>(rename, "PART_HeaderPresenter").Foreground)));
+            Assert.Equal((Brush(view, "AccentBrush"), Brush(view, "OnAccentBrush"), Brush(view, "OnAccentBrush")), (Color(Part<Border>(rename, "PART_LayoutRoot").Background), Color(Part<ContentPresenter>(rename, "PART_HeaderPresenter").Foreground), Color(icon.Stroke)));
+        }, Cancellation);
+
+    [Fact]
+    public Task ACheckedItemKeepsTheIconColumnWhereEveryOtherItemHasItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename", Icon = new Avalonia.Controls.Shapes.Path { Classes = { "icon" } } };
+            var docs = new MenuItem { Header = "Document Features", ToggleType = MenuItemToggleType.CheckBox, IsChecked = true, Icon = new Avalonia.Controls.Shapes.Path { Classes = { "icon" } } };
+            var view = Opened(rename, docs);
+
+            Assert.Equal(Part<ContentControl>(rename, "PART_IconPresenter").TranslatePoint(default, view.Window)!.Value.X, Part<ContentControl>(docs, "PART_IconPresenter").TranslatePoint(default, view.Window)!.Value.X);
+            Assert.Equal(0d, Part<ContentControl>(docs, "PART_ToggleIconPresenter").Bounds.Width);
         }, Cancellation);
 
     [Fact]
