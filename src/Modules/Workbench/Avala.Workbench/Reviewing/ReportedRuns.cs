@@ -27,7 +27,7 @@ internal static class ReportedRuns
         StringComparer.Ordinal,
         "test", "tests", "build", "check", "lint", "vet", "verify", "typecheck", "tsc", "pytest", "jest", "vitest", "mocha", "rspec", "clippy", "ctest", "phpunit", "unittest");
 
-    private static readonly FrozenSet<string> Asking = FrozenSet.Create(StringComparer.Ordinal, "--version", "-V", "--help", "-h");
+    private static readonly FrozenSet<string> Asking = FrozenSet.Create(StringComparer.Ordinal, "--version", "--help", "--list-tests", "--collect-only", "--co", "--listTests", "--list");
 
     private static readonly FrozenSet<string> Formatting = FrozenSet.Create(StringComparer.Ordinal, "format", "fmt", "prettier", "fix", "codegen", "generate");
 
@@ -46,13 +46,23 @@ internal static class ReportedRuns
         StringComparer.Ordinal,
         "dotnet format", "dotnet add", "dotnet remove", "cargo fmt", "cargo fix", "cargo add", "cargo remove", "go fmt", "go generate", "go mod", "go get", "ruff format",
         "npm install", "npm i", "npm ci", "npm update", "npm uninstall", "yarn add", "yarn install", "yarn remove", "pnpm install", "pnpm add", "pnpm remove",
-        "bundle install", "bundle add", "pip install", "pip3 install", "uv add", "uv pip", "poetry add", "composer install", "composer require");
+        "bundle install", "bundle add", "bundle update", "pip install", "pip3 install", "pip uninstall", "uv add", "uv pip", "uv sync", "uv lock", "poetry add", "poetry install",
+        "poetry lock", "composer install", "composer require", "composer update", "pnpm i", "pnpm update", "yarn upgrade", "cargo update", "dotnet restore", "go install");
 
     private static readonly FrozenSet<string> Wrappers = FrozenSet.Create(StringComparer.Ordinal, "env", "nohup", "time", "command", "nice", "stdbuf", "timeout");
 
     private static readonly FrozenSet<string> Logs = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, ".log", ".txt", ".out", ".trx");
 
     private static readonly char[] Separators = [':', '='];
+
+    private static readonly char[] Parts = [':', '-', '_'];
+
+    private static readonly FrozenSet<string> Fixing = FrozenSet.Create(
+        StringComparer.Ordinal, "--fix", "--write", "--apply", "--updateSnapshot", "--update-snapshots", "--autocorrect", "--autocorrect-all", "--auto-correct", "--auto-correct-all");
+
+    private static readonly FrozenSet<string> Interpreters = FrozenSet.Create(StringComparer.Ordinal, "python", "python3", "node", "ruby", "perl", "php", "bun", "deno", "Rscript", "pwsh");
+
+    private static readonly FrozenSet<string> Inline = FrozenSet.Create(StringComparer.Ordinal, "-c", "-e", "-E", "-r", "-", "eval", "--eval", "-Command");
 
     public static IReadOnlyList<ReportedRun> AfterLastEdit(IEnumerable<ITimelineEntry> entries)
     {
@@ -108,12 +118,16 @@ internal static class ReportedRuns
             ["git", ..] => GitVerb(words).Match(GitWriting.Contains, () => false),
             [var program, ..] when InPlaceEditors.Contains(Program(program)) => words.Skip(1).Any(InPlace),
             [var program, ..] => Writing.Contains(Program(program))
-                || (words.Count > 1 && Rewriting.Contains($"{Program(program)} {words[1]}"))
-                || (Runners.Contains(Program(program)) && Named(words).Take(2).Any(Formatting.Contains))
-                || words.Any(word => word is "--fix" or "--write" or "--apply" || word.StartsWith("--fix=", StringComparison.Ordinal))
+                || words.Zip(words.Skip(1)).Any(pair => Rewriting.Contains($"{Program(pair.First)} {pair.Second}"))
+                || Interprets(words)
+                || (Runners.Contains(Program(program)) && Named(words).Take(2).SelectMany(word => word.Split(Parts)).Any(Formatting.Contains))
+                || words.Any(word => Fixing.Contains(word) || word.StartsWith("--fix=", StringComparison.Ordinal))
+                || (words.Any(word => word is "rubocop" or "jest" or "vitest") && words.Any(word => word is "-a" or "-A" or "-u"))
                 || (words.Contains("prettier") && words.Contains("-w")),
         };
     }
+
+    private static bool Interprets(List<string> words) => Interpreters.Contains(Program(words[0])) && words.Skip(1).Any(Inline.Contains);
 
     private static Sdk.Option<string> GitVerb(List<string> words)
     {
