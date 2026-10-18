@@ -185,6 +185,43 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(("v3 · as built", 2), await ui.ReadAsync(() => (pane.History.Heading, pane.Player.Version)));
     }
 
+    [Fact]
+    public async Task AVersionChosenInTheHistoryIsForgottenWhenThePersonSwitchesToAnotherJobAndBackAsync()
+    {
+        Document(writing: false);
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+        var other = JobId.New();
+
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(other), Cancellation);
+        await ui.PresentedAsync(pane, () => !pane.IsOpen, () => "still open");
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(job), Cancellation);
+        Grow();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Player.Versions.Count == 3, () => $"{pane.Player.Versions.Count} versions");
+
+        Assert.Equal(("v3 · as built", 2), await ui.ReadAsync(() => (pane.History.Heading, pane.Player.Version)));
+    }
+
+    [Fact]
+    public async Task AnotherOfferedJobWhoseDocsReadNothingShowsNothingOfTheJobShownBeforeAsync()
+    {
+        Document(writing: false);
+        var other = JobId.New();
+        board.Publish(board.Docs.Add(other, new JobDocumentation(other, Payouts)));
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.Steps.Count == 3, () => $"{pane.History.Steps.Count} steps");
+        documentation.Job = Option<JobDocs>.None;
+
+        await ui.InvokeAsync(() => pane.OnRegionContextChanged(other), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.Feature == Payouts.Title, () => $"feature '{pane.Feature}'");
+
+        Assert.Equal((true, false, 0, 0), await ui.ReadAsync(() => (pane.IsOpen, pane.Player.IsShown, pane.History.Steps.Count, pane.Others.Count)));
+    }
+
     private void Grow()
     {
         var ledger = DesignStories.Ledger();

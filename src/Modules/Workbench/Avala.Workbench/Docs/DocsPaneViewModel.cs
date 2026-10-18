@@ -148,6 +148,11 @@ internal sealed partial class DocsPaneViewModel
     {
         Problem = string.Empty;
 
+        if (read.IsNone && shownJob != job)
+        {
+            Forget();
+        }
+
         foreach (var docs in read.Match<JobDocs[]>(found => [found], () => []))
         {
             var documented = docs.Documentation;
@@ -182,20 +187,22 @@ internal sealed partial class DocsPaneViewModel
 
     private void Fail(Exception exception)
     {
-        IsWriting = false;
-        State = DocsPanePhrases.Unreadable;
-        Problem = DocsPanePhrases.Problem(exception.Message);
-
         if (shownJob != job)
         {
             Forget();
         }
+
+        IsWriting = false;
+        State = DocsPanePhrases.Unreadable;
+        Problem = DocsPanePhrases.Problem(exception.Message);
     }
 
     private void Forget()
     {
         shownJob = job;
         Feature = job.Match(reader.FeatureOf, () => string.Empty);
+        State = string.Empty;
+        IsWriting = false;
         played = string.Empty;
         player.Show(Option<FeatureStory>.None);
         history.Clear();
