@@ -74,13 +74,33 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 public sealed class UsageRangeViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task ANarrowRangeCaptionBreaksAfterItsDotNotBeforeItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageRangeViewModel(), Avalonia.Styling.ThemeVariant.Dark, 640, 480);
+            var caption = view.Find<TextBlock>("Caption");
+            var starts = new List<string>();
+
+            for (var width = 260; width <= 640; width += 4)
+            {
+                view.Window.Width = width;
+                view.Settle();
+                var text = caption.Text ?? string.Empty;
+                starts.AddRange(caption.TextLayout.TextLines.Skip(1).Select(line => text[line.FirstTextSourceIndex..].TrimStart()));
+            }
+
+            Assert.NotEmpty(starts);
+            Assert.All(starts, start => Assert.False(start.StartsWith('·'), start));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheWindowIsChosenWithSegmentsAndItsDaysListUnderItsTotalAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignUsageRangeViewModel());
 
             Assert.Equal((false, true, false), (view.HasClass("ShowToday", "selected"), view.HasClass("ShowWeek", "selected"), view.HasClass("ShowMonth", "selected")));
-            Assert.Equal(("Since Sun 4 Oct, in this computer's time zone · newest first", 7), (view.TextOf("Caption"), view.Find<ItemsControl>("Days").ItemCount));
+            Assert.Equal((Components.UI.States.Texts.Typeset("Since Sun 4 Oct, in this computer's time zone · newest first"), 7), (view.TextOf("Caption"), view.Find<ItemsControl>("Days").ItemCount));
             Assert.Contains("Tokens by type · Last 7 days", view.VisibleTexts);
         }, TestContext.Current.CancellationToken);
 
