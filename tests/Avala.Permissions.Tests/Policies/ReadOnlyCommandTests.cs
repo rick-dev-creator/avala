@@ -35,6 +35,20 @@ public sealed class ReadOnlyCommandTests
         "ls 2>/dev/null",
         "ls -la src | head -5; grep -rn TODO . | wc -l",
         "git status && git diff --stat 2>&1 | tail -3",
+        "git log --oneline -n 20",
+        "git log --format='%h %s' -10",
+        "git diff --name-only HEAD~1",
+        "git diff --stat",
+        "rg -n --glob '*.cs' foo",
+        "rg -l TODO src",
+        "grep -rn --include='*.cs' TODO src",
+        "grep -e /api -rn src",
+        "head -n 50 README.md",
+        "cat -n src/app.cs",
+        "wc -l README.md",
+        "find . -name '*.cs' -type f",
+        "find src -maxdepth 2 -type d -newermt 2026-01-01",
+        "uniq -c -",
     ];
 
     public static TheoryData<string> NotReadOnly =>
@@ -86,6 +100,24 @@ public sealed class ReadOnlyCommandTests
     [Theory]
     [MemberData(nameof(NotReadOnly))]
     public void ALineThatWritesRunsSomethingElseOrReadsOutsideTheWorktreeStillAsks(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("ls --some-new-option")]
+    [InlineData("head --lin=5 README.md")]
+    [InlineData("sort --files0-from=list.txt")]
+    [InlineData("sort '-o' out.txt names.txt")]
+    [InlineData("sort \"-ofoo\" names.txt")]
+    [InlineData("sort *")]
+    [InlineData("cat [-]o")]
+    [InlineData("grep --exclude-from=patterns.txt TODO src")]
+    [InlineData("git log --output=log.txt")]
+    [InlineData("git diff --textconv")]
+    [InlineData("rg --search-zip TODO")]
+    [InlineData("tail -f build.log")]
+    [InlineData("find . -name x -newer /etc/passwd")]
+    [InlineData("find . -fls found.txt")]
+    public void AnOptionOutsideWhatAReadOnlyProgramIsKnownToReadWithIsNotAllowedWithoutAsking(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Fact]

@@ -1,125 +1,169 @@
-using System.Collections.Frozen;
 using Avala.CommandLines;
 
 namespace Avala.Permissions.Policies;
 
 internal static class ReadOnlyCommands
 {
-    private static readonly Reader Plain = new([]);
-
-    private static readonly Reader Patterns = new([]) { TakesPattern = true };
-
-    private static readonly Reader Printing = new([]) { Paths = false };
-
-    private static readonly FrozenDictionary<string, Reader> Programs = new Dictionary<string, Reader>
+    public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate)
     {
-        ["ls"] = Plain,
-        ["cat"] = Plain,
-        ["head"] = Plain,
-        ["tail"] = Plain,
-        ["wc"] = Plain,
-        ["stat"] = Plain,
-        ["cut"] = Plain,
-        ["grep"] = Patterns,
-        ["egrep"] = Patterns,
-        ["fgrep"] = Patterns,
-        ["rg"] = new(["--pre", "--pre-glob"]) { TakesPattern = true },
-        ["find"] = new(["-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf", "-fls"]),
-        ["file"] = new(["-C", "--compile"]),
-        ["tree"] = new(["-o"]),
-        ["sort"] = new(["-o", "--output", "--compress-program"]),
-        ["uniq"] = new([]) { Most = 1 },
-        ["pwd"] = Printing,
-        ["echo"] = Printing,
-        ["tr"] = Printing,
-        ["git"] = new(["--output", "--ext-diff"]) { Subcommands = ["status", "log", "diff", "show"] },
-    }.ToFrozenDictionary(StringComparer.Ordinal);
+        var words = command.Words;
 
-    public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate) =>
-        command.Words.Count > 0
-        && Programs.TryGetValue(command.Words[0], out var reader)
-        && Invokes(command.Words, reader)
-        && Allows(reader, [.. command.Words.Skip(reader.Skipped)], locate);
+        if (words.Count == 0 || words.Any(word => word.Contains('$', StringComparison.Ordinal)))
+        {
+            return false;
+        }
 
-    private static bool Invokes(IReadOnlyList<string> words, Reader reader) =>
-        reader.Skipped <= words.Count
-        && (reader.Subcommands.Length == 0 || reader.Subcommands.Contains(words[1], StringComparer.Ordinal));
-
-    private static bool Allows(Reader reader, List<string> rest, Func<string, PermissionRequest> locate)
-    {
-        var operands = Operands(rest).ToList();
-
-        return !rest.Exists(word => word.Contains('$', StringComparison.Ordinal) || reader.Forbids(word))
-            && operands.Count <= reader.Most
-            && (!reader.Paths || StayInside(reader, rest, operands, locate));
+        return words[0] switch
+        {
+            "find" => Finds(new Queue<string>(words.Skip(1)), locate),
+            "git" => words.Count > 1 && ReadOnlyOptions.Git.TryGetValue(words[1], out var git) && new Scan(git, words.Skip(2)).Accepts(locate),
+            var program => ReadOnlyOptions.Programs.TryGetValue(program, out var options) && new Scan(options, words.Skip(1)).Accepts(locate),
+        };
     }
 
-    private static bool StayInside(Reader reader, List<string> rest, List<string> operands, Func<string, PermissionRequest> locate) =>
-        operands.Skip(PatternFirst(rest, reader) ? 1 : 0).All(word => Inside(word, locate))
-        && rest.Where(Option).All(word => Inside(word, locate));
+    public static string Unquoted(string word) => new([.. word.Where(character => character is not ('\'' or '"' or '\\'))]);
 
-    private static bool PatternFirst(List<string> words, Reader reader) =>
-        reader.TakesPattern && !words.Exists(word => word.StartsWith("--regexp", StringComparison.Ordinal)
-            || word.StartsWith("--file", StringComparison.Ordinal)
-            || (Short(word) && word.AsSpan(1).IndexOfAny('e', 'f') >= 0));
+    public static bool Globbed(string raw) => raw.Length > 0 && raw[0] is '*' or '?' or '[';
 
-    private static IEnumerable<string> Operands(List<string> words)
+    public static bool Inside(string path, Func<string, PermissionRequest> locate) =>
+        path.Length == 0 || (!path.StartsWith('~') && locate(path) is var located && (located.InsideWorkspace || located.Readable));
+
+    private static bool Finds(Queue<string> pending, Func<string, PermissionRequest> locate)
     {
-        var ended = false;
-
-        foreach (var word in words)
+        while (pending.TryPeek(out var first) && Unquoted(first) is "-H" or "-L" or "-P")
         {
-            if (!ended && word == "--")
+            _ = pending.Dequeue();
+        }
+
+        while (pending.TryPeek(out var start) && !Expression(Unquoted(start)))
+        {
+            if (Globbed(pending.Dequeue()) || !Inside(Unquoted(start), locate))
             {
-                ended = true;
-            }
-            else if ((ended || !word.StartsWith('-')) && word != "-")
-            {
-                yield return word;
+                return false;
             }
         }
+
+        while (pending.TryDequeue(out var raw))
+        {
+            if (!Primary(raw, pending, locate))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    private static bool Option(string word) => word.StartsWith('-') && word.Length > 1;
-
-    private static bool Short(string word) => word.Length > 1 && word[0] == '-' && word[1] != '-';
-
-    private static bool Inside(string word, Func<string, PermissionRequest> locate)
+    private static bool Primary(string raw, Queue<string> pending, Func<string, PermissionRequest> locate)
     {
-        var path = Option(word) ? Valued(word) : word;
+        var word = Unquoted(raw);
 
-        return path.Length == 0
-            || (Option(word) && !path.Contains('/', StringComparison.Ordinal) && !path.StartsWith('~'))
-            || (!path.StartsWith('~') && locate(path) is var located && (located.InsideWorkspace || located.Readable));
+        if (Globbed(raw))
+        {
+            return false;
+        }
+
+        if (ReadOnlyOptions.FindFlags.Contains(word))
+        {
+            return true;
+        }
+
+        var newer = word.Length == 8 && word.StartsWith("-newer", StringComparison.Ordinal);
+        var path = ReadOnlyOptions.FindPaths.Contains(word) || (newer && word[^1] != 't');
+
+        return (path || newer || ReadOnlyOptions.FindValued.Contains(word))
+            && pending.TryDequeue(out var value)
+            && (!path || Inside(Unquoted(value), locate));
     }
 
-    private static string Valued(string option) =>
-        option.IndexOf('=', StringComparison.Ordinal) is var equals and >= 0 ? option[(equals + 1)..]
-        : Short(option) && option.Contains('/', StringComparison.Ordinal) ? option[option.IndexOf('/', StringComparison.Ordinal)..]
-        : string.Empty;
+    private static bool Expression(string word) => word.StartsWith('-') || word is "(" or ")" or "!" or ",";
 
-    private sealed record Reader(string[] Forbidden)
+    private sealed class Scan(OptionSet options, IEnumerable<string> words)
     {
-        public bool TakesPattern { get; init; }
+        private readonly Queue<string> pending = new(words);
+        private readonly List<string> operands = [];
+        private bool patternGiven;
+        private bool ended;
 
-        public bool Paths { get; init; } = true;
+        public bool Accepts(Func<string, PermissionRequest> locate)
+        {
+            if (options.Free)
+            {
+                return true;
+            }
 
-        public int Most { get; init; } = int.MaxValue;
+            while (pending.TryDequeue(out var raw))
+            {
+                if (!Takes(raw))
+                {
+                    return false;
+                }
+            }
 
-        public string[] Subcommands { get; init; } = [];
+            return operands.Count <= options.Most
+                && (!options.Paths || operands.Skip(options.TakesPattern && !patternGiven ? 1 : 0).All(operand => operand == "-" || Inside(operand, locate)));
+        }
 
-        public int Skipped => Subcommands.Length > 0 ? 2 : 1;
+        private bool Takes(string raw)
+        {
+            var word = Unquoted(raw);
 
-        public bool Forbids(string word) =>
-            Forbidden.Any(option => word == option
-                || word.StartsWith(option + "=", StringComparison.Ordinal)
-                || (option.Length == 2 && Short(word) && word.AsSpan(1).Contains(option[1]))
-                || Abbreviates(word, option));
+            if (ended || word == "-" || !word.StartsWith('-'))
+            {
+                operands.Add(word);
 
-        private static bool Abbreviates(string word, string option) =>
-            option.StartsWith("--", StringComparison.Ordinal)
-            && word.StartsWith("--", StringComparison.Ordinal)
-            && word.Split('=', 2)[0] is { Length: > 2 } name
-            && option.StartsWith(name, StringComparison.Ordinal);
+                return ended || !Globbed(raw);
+            }
+
+            if (word == "--")
+            {
+                ended = true;
+
+                return true;
+            }
+
+            return word.StartsWith("--", StringComparison.Ordinal) ? Long(word) : Short(word);
+        }
+
+        private bool Long(string word)
+        {
+            var name = word[2..].Split('=', 2)[0];
+
+            if (options.Long.Contains(name))
+            {
+                return true;
+            }
+
+            patternGiven |= options.PatternOptions.Contains(name);
+
+            return options.LongValued.Contains(name) && (word.Contains('=', StringComparison.Ordinal) || pending.TryDequeue(out _));
+        }
+
+        private bool Short(string word)
+        {
+            var letters = word[1..];
+
+            if (options.Digits && letters.All(char.IsAsciiDigit))
+            {
+                return true;
+            }
+
+            for (var position = 0; position < letters.Length; position++)
+            {
+                if (options.Valued.Contains(letters[position], StringComparison.Ordinal))
+                {
+                    patternGiven |= options.TakesPattern && letters[position] == 'e';
+
+                    return position + 1 < letters.Length || pending.TryDequeue(out _);
+                }
+
+                if (!options.Flags.Contains(letters[position], StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }
