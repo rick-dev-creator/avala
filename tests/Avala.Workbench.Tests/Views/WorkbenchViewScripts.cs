@@ -371,6 +371,23 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AMoveTargetWhoseNameFitsTheMenuRaisesNoTooltipRepeatingItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobRowViewModel());
+            var control = view.All<UserControl>().First(found => found.GetType().Name == "JobRowView");
+            var flyout = Assert.IsType<MenuFlyout>(control.ContextFlyout);
+            flyout.ShowAt(control);
+            view.Settle();
+            var move = flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo");
+
+            move.IsSubMenuOpen = true;
+            view.Settle();
+
+            Assert.All(move.GetRealizedContainers().OfType<MenuItem>(), target => Assert.Null(ToolTip.GetTip(target)));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARowsMenuOffersMoveToWithItsProjectsAndASubAgentsRowHidesItAsync() =>
         ui.RunAsync(() =>
         {

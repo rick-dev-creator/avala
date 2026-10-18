@@ -51,6 +51,21 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ALongConnectionNameIsTrimmedToOneLineAtTheTopOfThePopoverAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Chip(isShown: true, "claude-work-account-for-the-payments-platform-team-in-frankfurt"), ThemeVariant.Dark, 640, 900);
+            view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+            var chip = view.Find<Button>("Open");
+
+            ToolTip.SetIsOpen(chip, true);
+            view.Settle();
+            var connection = Assert.IsAssignableFrom<Control>(ToolTip.GetTip(chip)).GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "Connection");
+
+            Assert.Equal((1, true), (connection.TextLayout.TextLines.Count, connection.TextLayout.TextLines[0].HasCollapsed));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutAWindowToShowTheChipIsHiddenAsync() =>
         ui.RunAsync(() =>
         {
@@ -61,9 +76,10 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
     private sealed class Chip : IUsageLeftViewModel
     {
-        public Chip(bool isShown)
+        public Chip(bool isShown, string connection = "claude-work")
         {
             IsShown = isShown;
+            Connection = connection;
             OpenCommand = new RelayCommand(() => Opened++);
         }
 
@@ -71,7 +87,7 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
         public bool IsShown { get; }
 
-        public string Connection => "claude-work";
+        public string Connection { get; }
 
         public string Left => "28% usage left";
 
