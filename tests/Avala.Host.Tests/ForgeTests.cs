@@ -41,6 +41,22 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task APersonsMessageToAPullRequestJobTheWatchAlreadyWokeComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.RedeliveredAsync();
+        var progressed = forge.Run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await forge.Run.Get<IJobs>().ContinueAsync(forge.Job, "Please also document the fix.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == forge.Job && update.Status == JobStatus.AwaitingReview);
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
     public async Task AReviewRequestingChangesWakesTheAgentWithItsCommentsWhenThePolicyWatchesReviewsAsync()
     {
         await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci-and-reviews", 3, "changes-requested-once");
