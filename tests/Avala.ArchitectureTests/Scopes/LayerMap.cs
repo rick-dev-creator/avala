@@ -296,6 +296,14 @@ internal static class LayerMap
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Notes", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Notebook"] = Layer.Domain,
+            ["Taking"] = Layer.Application,
+            ["NoteFiles"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Triggers", new()
         {
             [""] = Layer.None,

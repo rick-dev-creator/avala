@@ -101,6 +101,10 @@
     <Project Path="src/Modules/Handoffs/Avala.Handoffs.Contracts/Avala.Handoffs.Contracts.csproj" />
     <Project Path="src/Modules/Handoffs/Avala.Handoffs/Avala.Handoffs.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Notes/">
+    <Project Path="src/Modules/Notes/Avala.Notes.Contracts/Avala.Notes.Contracts.csproj" />
+    <Project Path="src/Modules/Notes/Avala.Notes/Avala.Notes.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Triggers/">
     <Project Path="src/Modules/Triggers/Avala.Triggers.Contracts/Avala.Triggers.Contracts.csproj" />
     <Project Path="src/Modules/Triggers/Avala.Triggers/Avala.Triggers.csproj" />
@@ -190,6 +194,7 @@
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Transcripts.Tests/Avala.Transcripts.Tests.csproj" />
     <Project Path="tests/Avala.Handoffs.Tests/Avala.Handoffs.Tests.csproj" />
+    <Project Path="tests/Avala.Notes.Tests/Avala.Notes.Tests.csproj" />
     <Project Path="tests/Avala.Triggers.Tests/Avala.Triggers.Tests.csproj" />
     <Project Path="tests/Avala.Notifications.Tests/Avala.Notifications.Tests.csproj" />
     <Project Path="tests/Avala.Contests.Tests/Avala.Contests.Tests.csproj" />
