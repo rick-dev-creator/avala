@@ -113,4 +113,16 @@ public sealed class FactPhrasesTests
 
         Assert.Equal((80, '…'), (title.Length, title[^1]));
     }
+
+    [Fact]
+    public void ADeliveredJobSaysItsPullRequestAndItsChecksAndAnEndedOneHowItEnded() =>
+        Assert.Equal(
+            ["delivered · #7 · checks 1 of 2", "delivered · #7", "merged · #7", "closed · #7"],
+            new[]
+            {
+                new JobFact(FactKind.Delivered) { PullRequest = 7, Done = 1, Total = 2 },
+                new JobFact(FactKind.Delivered) { PullRequest = 7 },
+                new JobFact(FactKind.PullRequestMerged) { PullRequest = 7 },
+                new JobFact(FactKind.PullRequestClosed) { PullRequest = 7 },
+            }.Select(FactPhrases.Of));
 }
