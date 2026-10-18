@@ -148,6 +148,7 @@
                          Margin="8,0,0,0"
                          Text="Avala"
                          Classes="strong"
+                         TextTrimming="CharacterEllipsis"
                          VerticalAlignment="Center" />
               <ItemsControl x:Name="ToolbarRegion"
                             Grid.Column="2"
