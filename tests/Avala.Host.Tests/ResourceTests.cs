@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
@@ -74,6 +75,28 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Empty(report.Survivors);
         Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its reaping");
         Assert.Equal([report], run.Get<IOrphans>().OfJob(run.Job));
+    }
+
+    [Fact]
+    public async Task AProcessOfAJobWhoseIdleAgentEndedKeepsRunningUntilTheJobEndsAndIsReapedThenAsync()
+    {
+        await using var run = await ProcessesAsync(test: 6);
+        var stopped = run.Watch<SessionStopped>();
+        var port = ServedPort(await run.TurnAsync());
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await run.DeliveredAsync();
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await stopped.UntilAsync(_ => true);
+        await run.DeliveredAsync();
+        Assert.Empty(run.Get<IOrphans>().OfJob(run.Job));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
+        var report = await run.OrphansFoundAsync();
+
+        var server = Assert.Single(report.Processes);
+        Assert.Equal((Option<JobId>.Some(run.Job), OrphanDisposal.Killed), (report.Job, report.Disposal));
+        Assert.Contains(port, server.Ports);
+        Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its reaping");
     }
 
     [Fact]

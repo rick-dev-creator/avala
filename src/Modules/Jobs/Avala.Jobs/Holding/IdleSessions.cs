@@ -104,6 +104,8 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
             return false;
         }
 
+        await ledger.AnnounceRestAsync(job.Id, session, cancellationToken);
+
         return (await agents.StopAsync(session, cancellationToken)).IsSuccess;
     }
 }

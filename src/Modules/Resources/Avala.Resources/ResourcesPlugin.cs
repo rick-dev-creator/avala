@@ -49,6 +49,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<ResourceTracker>()
             .AddForwarded<IHandle<SessionOpened>, ResourceTracker>()
             .AddForwarded<IHandle<JobSessionStarted>, ResourceTracker>()
+            .AddForwarded<IHandle<JobSessionRested>, ResourceTracker>()
             .AddForwarded<IHandle<SessionEnded>, ResourceTracker>()
             .AddForwarded<IHandle<SessionStopped>, ResourceTracker>()
             .AddForwarded<IHandle<JobProgressed>, ResourceTracker>()
