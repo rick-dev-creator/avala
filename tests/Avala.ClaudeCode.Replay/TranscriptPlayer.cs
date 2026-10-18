@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Avala.Sdk;
+using Avala.Sdk.Processes;
 
 namespace Avala.ClaudeCode.Replay;
 
@@ -8,6 +10,12 @@ public static class TranscriptPlayer
     public const string WorkingDirectory = "${workingDirectory}";
 
     public const string ConfigurationDirectory = "${configurationDirectory}";
+
+    public const string EncodedWorkingDirectory = "${encodedWorkingDirectory}";
+
+    public const string TemporaryDirectory = "${temporaryDirectory}";
+
+    public const string MainRepository = "${mainRepository}";
 
     private const string CommandPrefix = "command:";
 
@@ -28,7 +36,8 @@ public static class TranscriptPlayer
 
         var cwd = JsonSerializer.Serialize(Environment.CurrentDirectory)[1..^1];
         var login = JsonSerializer.Serialize(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? string.Empty)[1..^1];
-        transcript = [.. transcript.Select(entry => JsonNode.Parse(entry.ToJsonString().Replace(ConfigurationDirectory, login, StringComparison.Ordinal))!)];
+        var places = await PlacesAsync(login);
+        transcript = [.. transcript.Select(entry => JsonNode.Parse(places.Aggregate(entry.ToJsonString(), (text, place) => text.Replace(place.Key, place.Value, StringComparison.Ordinal)))!)];
         var position = 0;
         var results = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -72,6 +81,33 @@ public static class TranscriptPlayer
         }
 
         return 0;
+    }
+
+    private static async Task<Dictionary<string, string>> PlacesAsync(string login) => new(StringComparer.Ordinal)
+    {
+        [ConfigurationDirectory] = login,
+        [EncodedWorkingDirectory] = string.Concat(Environment.CurrentDirectory.Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-')),
+        [TemporaryDirectory] = JsonSerializer.Serialize(Scratch(Environment.CurrentDirectory))[1..^1],
+        [MainRepository] = JsonSerializer.Serialize(await MainRepositoryAsync(Environment.CurrentDirectory))[1..^1],
+    };
+
+    private static string Scratch(string workingDirectory) =>
+        ScratchFolders.Of(new AvalaPaths(Path.GetDirectoryName(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(workingDirectory))) ?? workingDirectory), workingDirectory);
+
+    private static async Task<string> MainRepositoryAsync(string workingDirectory)
+    {
+        var marker = Path.Combine(workingDirectory, ".git");
+
+        if (!File.Exists(marker))
+        {
+            return workingDirectory;
+        }
+
+        var linked = (await File.ReadAllTextAsync(marker)).Trim();
+        var administration = Path.GetFullPath(linked["gitdir:".Length..].Trim(), workingDirectory);
+        var common = Path.GetDirectoryName(Path.GetDirectoryName(administration));
+
+        return Path.GetDirectoryName(common) ?? workingDirectory;
     }
 
     private static void Remember(JsonNode? message, Dictionary<string, string> results)
