@@ -1,9 +1,10 @@
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Workbench.Following;
 
-internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, IDisposable
+internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<LiveFeed> logger) : IPresentation, IDisposable
 {
     private CancellationTokenSource? active;
 
@@ -23,7 +24,8 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
         {
             active = new CancellationTokenSource();
             var following = active.Token;
-            Following = Task.Run(() => FollowAsync(read, show, fail, following), CancellationToken.None);
+            var component = (show.Target ?? read.Target)?.GetType().Name ?? "A component";
+            Following = Task.Run(() => FollowAsync(read, show, Reported(component, fail), following), CancellationToken.None);
         }
     }
 
@@ -37,6 +39,21 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
     }
 
     public void Dispose() => Stop();
+
+    private Action<Exception> Reported(string component, Action<Exception> fail) =>
+        exception =>
+        {
+            LogFailed(component, exception);
+
+            try
+            {
+                fail(exception);
+            }
+            catch (Exception failed)
+            {
+                LogFailed(component, failed);
+            }
+        };
 
     private async Task FollowAsync<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, Action<Exception> fail, CancellationToken following)
     {
@@ -61,9 +78,9 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
 
             return () => show(state);
         }
-        catch (Exception exception) when (!following.IsCancellationRequested)
+        catch (Exception exception)
         {
-            return () => fail(exception);
+            return following.IsCancellationRequested ? () => { } : () => fail(exception);
         }
     }
 
@@ -86,4 +103,7 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, I
         Revision++;
         Presented?.Invoke(this, new Presented(Revision));
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "{Component} failed to read or show what it follows, and keeps following")]
+    private partial void LogFailed(string component, Exception exception);
 }

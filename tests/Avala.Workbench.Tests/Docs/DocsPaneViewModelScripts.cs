@@ -9,6 +9,7 @@ using Avala.Workbench.Documenting;
 using Avala.Workbench.Following;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Docs;
 
@@ -187,7 +188,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
 
     private DocsPaneViewModel Pane()
     {
-        var pane = new DocsPaneViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher()));
+        var pane = new DocsPaneViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), messenger, new C4PlayerViewModel(new FakeTimeProvider(), new InlineUiDispatcher()));
         pane.OnRegionContextChanged(job);
         pane.Activate();
 
@@ -196,7 +197,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
 
     private DocsToggleViewModel Toggle()
     {
-        var toggle = new DocsToggleViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui), messenger);
+        var toggle = new DocsToggleViewModel(new DocsReader(board, documentation, previews), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), messenger);
         toggle.OnRegionContextChanged(job);
 
         return toggle;

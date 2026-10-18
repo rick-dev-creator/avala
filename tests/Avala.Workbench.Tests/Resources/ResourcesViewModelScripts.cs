@@ -9,6 +9,7 @@ using Avala.Workbench.Following;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Upkeep;
 using Avala.Workspaces.Contracts;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Resources;
 
@@ -148,5 +149,5 @@ public sealed class ResourcesViewModelScripts : IDisposable
     private ResourceReader Reader() => new(resources, orphans, leftovers, Pages.Board(job));
 
     private ResourcesViewModel Page() =>
-        new(Reader(), new Housekeeping(orphans, worktrees), new LiveFeed(new Pulse(new JobBoard()), ui));
+        new(Reader(), new Housekeeping(orphans, worktrees), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance));
 }

@@ -12,6 +12,7 @@ using Avala.Workbench.Spending;
 using Avala.Workbench.Usage;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Time.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Usage;
 
@@ -173,8 +174,8 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         var readings = Pages.Readings(usage);
         var spending = new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage()));
         var watch = new WindowWatch(board);
-        var page = new UsageViewModel(new UsageReader(readings, spending, board, watch), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui));
-        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board, watch), new LiveFeed(new Pulse(board), ui), new JobFocus(new TestRegions(), messenger), page);
+        var page = new UsageViewModel(new UsageReader(readings, spending, board, watch), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance));
+        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board, watch), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger), page);
 
         return (chip, page);
     }

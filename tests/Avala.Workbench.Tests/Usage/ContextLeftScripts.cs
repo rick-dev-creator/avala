@@ -7,6 +7,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Following;
 using Avala.Workbench.Timeline;
 using Avala.Workbench.Usage;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workbench.Tests.Usage;
 
@@ -91,7 +92,7 @@ public sealed class ContextLeftViewModelScripts : IDisposable
 
     private ContextLeftViewModel Gauge()
     {
-        var gauge = new ContextLeftViewModel(board, new LiveFeed(new Pulse(board), ui));
+        var gauge = new ContextLeftViewModel(board, new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance));
         gauge.Activate();
         gauge.OnRegionContextChanged(job.Job);
 
