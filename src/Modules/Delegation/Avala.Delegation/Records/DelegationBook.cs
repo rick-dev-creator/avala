@@ -25,10 +25,25 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
         {
             var claim = record with { Answered = answer };
 
-            if (Swap(record, current => current.Answered.IsNone, claim))
+            if (!Swap(record, current => current.Answered.IsNone, claim))
             {
-                claimed.Add(claim);
+                continue;
+            }
+
+            claimed.Add(claim);
+
+            try
+            {
                 await store.RecordAsync(claim, cancellationToken);
+            }
+            catch
+            {
+                foreach (var undone in claimed)
+                {
+                    _ = Swap(undone, current => current.Answered == undone.Answered, undone with { Answered = Option<CallAnswer>.None });
+                }
+
+                throw;
             }
         }
 
@@ -47,6 +62,9 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
             }
         }
     }
+
+    public bool Holds(DelegationRecord claim) =>
+        Volatile.Read(ref records).Exists(current => Same(current, claim) && current.Answered == claim.Answered);
 
     public Task RunAsync(CancellationToken cancellationToken) => RestoreAsync(cancellationToken);
 

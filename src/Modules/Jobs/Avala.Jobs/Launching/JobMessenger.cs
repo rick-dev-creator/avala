@@ -27,23 +27,34 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
         }
         catch
         {
-            await SettleAsync(job, briefs, brief => brief.Undelivered, cancellationToken);
+            await SettleAsync(job, briefs, brief => brief.Undelivered);
             throw;
         }
 
-        var told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), cancellationToken);
-        await SettleAsync(job, briefs, brief => told.IsSuccess ? brief.Delivered : brief.Undelivered, cancellationToken);
+        Result<AgentTurn, AgentError> told;
+
+        try
+        {
+            told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), cancellationToken);
+        }
+        catch
+        {
+            await SettleAsync(job, briefs, brief => brief.Undelivered);
+            throw;
+        }
+
+        await SettleAsync(job, briefs, brief => told.IsSuccess ? brief.Delivered : brief.Undelivered);
 
         return told;
     }
 
-    private async Task SettleAsync(Job job, IReadOnlyList<JobBrief> briefs, Func<JobBrief, Func<CancellationToken, Task>> settle, CancellationToken cancellationToken)
+    private async Task SettleAsync(Job job, IReadOnlyList<JobBrief> briefs, Func<JobBrief, Func<CancellationToken, Task>> settle)
     {
         foreach (var brief in briefs)
         {
             try
             {
-                await settle(brief)(cancellationToken);
+                await settle(brief)(CancellationToken.None);
             }
             catch (Exception exception)
             {

@@ -12,8 +12,15 @@ internal sealed class InMemoryDelegations : IDelegationStore
 
     public IReadOnlyList<DelegationRecord> Earlier { get; set; } = [];
 
+    public Func<DelegationRecord, bool> Fails { get; set; } = _ => false;
+
     public Task RecordAsync(DelegationRecord record, CancellationToken cancellationToken)
     {
+        if (Fails(record))
+        {
+            throw new IOException("The delegation database is locked");
+        }
+
         recorded.Enqueue(record);
 
         return Task.CompletedTask;

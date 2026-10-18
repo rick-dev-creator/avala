@@ -242,6 +242,44 @@ public sealed class JobFlowTests
         }
     }
 
+    [Fact]
+    public async Task ABriefingWhoseMessageThrowsOnTheWayToTheAgentIsReleasedAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var briefing = new SettledBriefing();
+        flow.Briefings.Add(briefing);
+        var job = await flow.RunningAsync();
+        briefing.Armed = true;
+        flow.Agents.SayFault = new OperationCanceledException("The send was cancelled");
+
+        _ = await Record.ExceptionAsync(async () => await flow.FinishTurnAsync(job));
+
+        Assert.Equal("undelivered", briefing.Settlement);
+    }
+
+    private sealed class SettledBriefing : IJobBriefing
+    {
+        public bool Armed { get; set; }
+
+        public string Settlement { get; private set; } = "unsettled";
+
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Armed
+                ? Option<JobBrief>.Some(new JobBrief("The child finished.")
+                {
+                    Delivered = _ => SettledAsync("delivered"),
+                    Undelivered = _ => SettledAsync("undelivered"),
+                })
+                : Option<JobBrief>.None);
+
+        private Task SettledAsync(string settlement)
+        {
+            Settlement = settlement;
+
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class OwedOnce : IJobBriefing
     {
         private string? report;

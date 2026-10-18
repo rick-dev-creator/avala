@@ -95,6 +95,50 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AReportWhoseClaimCouldNotBeStoredIsStillOwedToTheParentAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Agents.Closed = true;
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+        desk.Store.Fails = record => record.Answered.IsSome;
+        _ = await Record.ExceptionAsync(async () => await desk.Briefing.BriefAsync(desk.Parent, Cancellation));
+        desk.Store.Fails = _ => false;
+
+        var briefing = await desk.Briefing.BriefAsync(desk.Parent, Cancellation);
+
+        Assert.True(briefing.IsSome);
+    }
+
+    [Fact]
+    public async Task AReportAMessageBriefsWhileAWaitIsReturningItIsDeliveredOnceAsync()
+    {
+        var desk = new Desk();
+        await desk.StartedAsync();
+        desk.Audit.Working[desk.Session] = desk.Parent;
+        var child = await desk.DelegateAsync("notes");
+        desk.Agents.Closed = true;
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+        desk.Agents.Closed = false;
+        var briefings = new List<JobBrief>();
+        desk.Agents.BeforeReturn = async () => briefings.AddRange((await desk.Briefing.BriefAsync(desk.Parent, Cancellation)).Match<JobBrief[]>(found => [found], () => []));
+
+        await desk.WaitChildAsync("wait", child);
+        _ = await desk.Agents.ResultOfAsync("wait", Cancellation);
+        await desk.DisposeAsync();
+
+        foreach (var briefing in briefings)
+        {
+            await briefing.Delivered(Cancellation);
+        }
+
+        Assert.Single(desk.Bus.Published.OfType<ReportDelivered>());
+    }
+
+    [Fact]
     public async Task AReportTheCallCannotReceiveIsSteeredIntoTheParentsLiveTurnOnceWhenItsHarnessAcceptsMessagesMidTurnAsync()
     {
         await using var desk = new Desk { Agents = { Closed = true }, Jobs = { Steerable = true } };

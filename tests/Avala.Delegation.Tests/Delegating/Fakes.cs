@@ -50,22 +50,26 @@ internal sealed class ReturningAgents : IAgents
     private TaskCompletionSource<ToolResult> Signal(ItemId item) =>
         signals.GetOrAdd(item, _ => new TaskCompletionSource<ToolResult>(TaskCreationOptions.RunContinuationsAsynchronously));
 
-    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
+    public Func<Task> BeforeReturn { get; set; } = () => Task.CompletedTask;
+
+    public async ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
     {
         if (Closed)
         {
-            return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
+            return Result<ItemId, AgentError>.Failure(AgentError.SessionClosed);
         }
+
+        await BeforeReturn();
 
         if (results.Any(returned => returned.Session == session && returned.Result.Item == result.Item))
         {
-            return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.NoPendingCall));
+            return Result<ItemId, AgentError>.Failure(AgentError.NoPendingCall);
         }
 
         results.Enqueue((session, result));
         Signal(result.Item).TrySetResult(result);
 
-        return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));
+        return Result<ItemId, AgentError>.Success(result.Item);
     }
 
     public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();

@@ -74,7 +74,7 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
 
     public async Task ConfirmedAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken)
     {
-        foreach (var record in claimed)
+        foreach (var record in claimed.Where(claim => book.Holds(claim)))
         {
             await bus.PublishAsync(new ReportDelivered(record), cancellationToken);
         }
