@@ -115,6 +115,36 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
         Copy(Path.Combine(worktree, site.Root), Path.Combine(FeatureCamera.Folder, "site"));
     }
 
+    [Fact]
+    public async Task TheDocsPaneFollowsATaskListRevisedAfterASendBackAndSaysWhenAVersionCannotBeReadAsync()
+    {
+        Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-when-asked] Add the changelog")));
+        _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+        Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
+        var asBuilt = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt && version.Version.Number == 4);
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        var pane = await OpenPaneAsync(run, "4 versions");
+
+        await Camera.ShootAsync(run, "docs-plan-followed-dark", window => FeatureCamera.ScrollTo(window, "History"));
+        await Camera.ShootAsync(run, "docs-plan-followed-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "History"));
+
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
+        var worktree = Outcomes.Succeeds(await run.Get<Avala.Workspaces.Contracts.IWorkspaces>().FindAsync(workspace, Cancellation)).Path;
+        var deviation = Path.Combine(worktree, Path.GetDirectoryName(asBuilt.Version.Path)!, "v3-deviation.md");
+        await File.WriteAllTextAsync(deviation, "# Changelog\n\n```mermaid\nC4Container\n  Container(log, \"Changelog\", \"Markdown\")\n  Container(log, \"Changelog again\", \"Markdown\")\n```\n", Cancellation);
+        var toggle = new Bound(run.Get<IEnumerable<RegionContribution>>().Single(contribution => contribution.Region == WorkbenchRegions.JobHeader && contribution.ViewModel.GetType().Name == "DocsToggleViewModel").ViewModel);
+        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
+        await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
+        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Problem"].Text.Length > 0, () => $"the pane says {pane["State"].Text}");
+
+        await Camera.ShootAsync(run, "docs-pane-unreadable-dark");
+        await Camera.ShootAsync(run, "docs-pane-unreadable-light", ThemeVariant.Light);
+    }
+
     private static void Copy(string from, string to)
     {
         foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
