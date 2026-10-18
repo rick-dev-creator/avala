@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 namespace Avala.Components.UI.Theme;
 
@@ -50,16 +51,25 @@ public sealed class Menus
 
     private static void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (sender is MenuBase menu && !GetIsHighlighting(menu))
+        if (sender is not MenuBase menu || GetIsHighlighting(menu))
+        {
+            return;
+        }
+
+        if (e.Key is Key.Down or Key.Up)
         {
             SetIsHighlighting(menu, true);
-            e.Handled = e.Key is Key.Down or Key.Up;
+            e.Handled = true;
+        }
+        else if (e.Key is Key.Enter or Key.Space or Key.Right or Key.Left)
+        {
+            e.Handled = true;
         }
     }
 
     private static void OnPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (sender is MenuBase menu && !GetIsHighlighting(menu))
+        if (sender is MenuBase menu && !GetIsHighlighting(menu) && (e.Source as Visual)?.FindAncestorOfType<MenuItem>(includeSelf: true) is { IsEffectivelyEnabled: true })
         {
             SetIsHighlighting(menu, true);
         }
