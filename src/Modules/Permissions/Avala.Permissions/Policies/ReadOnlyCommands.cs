@@ -2,50 +2,88 @@ using Avala.CommandLines;
 
 namespace Avala.Permissions.Policies;
 
+internal readonly record struct Argument(string Value, string Raw)
+{
+    public bool Expands
+    {
+        get
+        {
+            var (single, quoted, started, escaped) = (false, false, false, false);
+
+            foreach (var character in Raw)
+            {
+                if (escaped)
+                {
+                    (escaped, started) = (false, true);
+                }
+                else if (character == '\\' && !single)
+                {
+                    escaped = true;
+                }
+                else if ((character == '\'' && !quoted) || (character == '"' && !single))
+                {
+                    (single, quoted) = character == '\'' ? (!single, quoted) : (single, !quoted);
+                }
+                else if (single || quoted || !Expanding(character, started))
+                {
+                    started = true;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    private static bool Expanding(char character, bool started) => character == '{' || (!started && character is '*' or '?' or '[');
+}
+
 internal static class ReadOnlyCommands
 {
     public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate)
     {
-        var words = command.Words;
+        var arguments = command.Words.Select((word, index) => new Argument(word, index < command.Raws.Count ? command.Raws[index] : word)).ToList();
 
-        if (words.Count == 0 || words.Any(word => word.Contains('$', StringComparison.Ordinal)))
+        if (arguments.Count == 0 || arguments.Any(argument => argument.Value.Contains('$', StringComparison.Ordinal) || argument.Expands))
         {
             return false;
         }
 
-        return words[0] switch
+        return arguments[0].Value switch
         {
-            "find" => Finds(new Queue<string>(words.Skip(1)), locate),
-            "git" => words.Count > 1 && ReadOnlyOptions.Git.TryGetValue(words[1], out var git) && new Scan(git, words.Skip(2)).Accepts(locate),
-            var program => ReadOnlyOptions.Programs.TryGetValue(program, out var options) && new Scan(options, words.Skip(1)).Accepts(locate),
+            "find" => Finds(new Queue<Argument>(arguments.Skip(1)), locate),
+            "git" => Git([.. arguments.Skip(1).SkipWhile(argument => argument.Value is "--no-pager" or "-P")], locate),
+            var program => ReadOnlyOptions.Programs.TryGetValue(program, out var options) && new Scan(options, arguments.Skip(1)).Accepts(locate),
         };
     }
-
-    public static string Unquoted(string word) => new([.. word.Where(character => character is not ('\'' or '"' or '\\'))]);
-
-    public static bool Globbed(string raw) => raw.Length > 0 && raw[0] is '*' or '?' or '[';
 
     public static bool Inside(string path, Func<string, PermissionRequest> locate) =>
         path.Length == 0 || (!path.StartsWith('~') && locate(path) is var located && (located.InsideWorkspace || located.Readable));
 
-    private static bool Finds(Queue<string> pending, Func<string, PermissionRequest> locate)
+    private static bool Git(List<Argument> arguments, Func<string, PermissionRequest> locate) =>
+        arguments.Count > 0 && ReadOnlyOptions.Git.TryGetValue(arguments[0].Value, out var git) && new Scan(git, arguments.Skip(1)).Accepts(locate);
+
+    private static bool Finds(Queue<Argument> pending, Func<string, PermissionRequest> locate)
     {
-        while (pending.TryPeek(out var first) && Unquoted(first) is "-H" or "-L" or "-P")
+        while (pending.TryPeek(out var first) && first.Value is "-H" or "-L" or "-P")
         {
             _ = pending.Dequeue();
         }
 
-        while (pending.TryPeek(out var start) && !Expression(Unquoted(start)))
+        while (pending.TryPeek(out var start) && !Expression(start.Value))
         {
-            if (Globbed(pending.Dequeue()) || !Inside(Unquoted(start), locate))
+            if (!Inside(pending.Dequeue().Value, locate))
             {
                 return false;
             }
         }
 
-        while (pending.TryDequeue(out var raw))
+        while (pending.TryDequeue(out var argument))
         {
-            if (!Primary(raw, pending, locate))
+            if (!Primary(argument.Value, pending, locate))
             {
                 return false;
             }
@@ -54,15 +92,8 @@ internal static class ReadOnlyCommands
         return true;
     }
 
-    private static bool Primary(string raw, Queue<string> pending, Func<string, PermissionRequest> locate)
+    private static bool Primary(string word, Queue<Argument> pending, Func<string, PermissionRequest> locate)
     {
-        var word = Unquoted(raw);
-
-        if (Globbed(raw))
-        {
-            return false;
-        }
-
         if (ReadOnlyOptions.FindFlags.Contains(word))
         {
             return true;
@@ -73,14 +104,14 @@ internal static class ReadOnlyCommands
 
         return (path || newer || ReadOnlyOptions.FindValued.Contains(word))
             && pending.TryDequeue(out var value)
-            && (!path || Inside(Unquoted(value), locate));
+            && (!path || Inside(value.Value, locate));
     }
 
     private static bool Expression(string word) => word.StartsWith('-') || word is "(" or ")" or "!" or ",";
 
-    private sealed class Scan(OptionSet options, IEnumerable<string> words)
+    private sealed class Scan(OptionSet options, IEnumerable<Argument> arguments)
     {
-        private readonly Queue<string> pending = new(words);
+        private readonly Queue<Argument> pending = new(arguments);
         private readonly List<string> operands = [];
         private bool patternGiven;
         private bool ended;
@@ -92,9 +123,9 @@ internal static class ReadOnlyCommands
                 return true;
             }
 
-            while (pending.TryDequeue(out var raw))
+            while (pending.TryDequeue(out var argument))
             {
-                if (!Takes(raw))
+                if (!Takes(argument.Value))
                 {
                     return false;
                 }
@@ -104,15 +135,13 @@ internal static class ReadOnlyCommands
                 && (!options.Paths || operands.Skip(options.TakesPattern && !patternGiven ? 1 : 0).All(operand => operand == "-" || Inside(operand, locate)));
         }
 
-        private bool Takes(string raw)
+        private bool Takes(string word)
         {
-            var word = Unquoted(raw);
-
             if (ended || word == "-" || !word.StartsWith('-'))
             {
                 operands.Add(word);
 
-                return ended || !Globbed(raw);
+                return true;
             }
 
             if (word == "--")
@@ -128,15 +157,10 @@ internal static class ReadOnlyCommands
         private bool Long(string word)
         {
             var name = word[2..].Split('=', 2)[0];
-
-            if (options.Long.Contains(name))
-            {
-                return true;
-            }
-
             patternGiven |= options.PatternOptions.Contains(name);
 
-            return options.LongValued.Contains(name) && (word.Contains('=', StringComparison.Ordinal) || pending.TryDequeue(out _));
+            return options.Long.Contains(name)
+                || (options.LongValued.Contains(name) && (word.Contains('=', StringComparison.Ordinal) || pending.TryDequeue(out _)));
         }
 
         private bool Short(string word)

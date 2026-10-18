@@ -35,7 +35,7 @@ internal static class RuleMatching
         public Verdict Commanded(PermissionRequest request)
         {
             var line = CommandLine.Parse(request.Target);
-            var reads = line.Writes.Count == 0 && !line.Opaque && !line.MovesDirectory;
+            var reads = line.Writes.Count == 0 && !line.Opaque && !line.MovesDirectory && line.Reads.All(path => ReadOnlyCommands.Inside(path, request.Locate));
             Verdict[] verdicts =
             [
                 .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(Part(request, command, reads)))),

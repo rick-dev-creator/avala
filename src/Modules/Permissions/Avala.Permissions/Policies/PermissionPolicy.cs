@@ -13,6 +13,8 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
     [
         new(RuleOrigin.BuiltIn, "policy-file-goes-to-a-human", ItemKind.FileEdit, PolicyFile, RuleScope.Workspace, PolicyAnswer.Ask),
         new(RuleOrigin.BuiltIn, "edits-outside-the-workspace-go-to-a-human", ItemKind.FileEdit, Option<string>.None, RuleScope.OutsideWorkspace, PolicyAnswer.Ask),
+        new(RuleOrigin.BuiltIn, "git-files-go-to-a-human", ItemKind.FileEdit, ".git", RuleScope.Workspace, PolicyAnswer.Ask),
+        new(RuleOrigin.BuiltIn, "git-folder-goes-to-a-human", ItemKind.FileEdit, ".git/*", RuleScope.Workspace, PolicyAnswer.Ask),
     ];
 
     public const string ReadOnlyAllowed = "read-only allowed";

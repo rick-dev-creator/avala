@@ -66,8 +66,8 @@ internal static class ReadOnlyOptions
             + $"stats trim multiline multiline-dotall pcre2 only-matching type-list unrestricted text null column quiet no-messages passthru byte-offset crlf {Help}",
             "type type-not glob iglob max-count max-depth max-filesize context before-context after-context color colors sort sortr replace regexp threads max-columns "
             + "field-match-separator field-context-separator context-separator path-separator engine")
-            with { TakesPattern = true, PatternOptions = OptionSet.Words("regexp") },
-        ["file"] = OptionSet.Of("bEhiLNnrskvz0S", "eFP", $"brief mime mime-type mime-encoding dereference no-dereference no-pad raw special-files keep-going uncompress extension apple {Help}", "exclude separator parameter"),
+            with { TakesPattern = true, PatternOptions = OptionSet.Words("regexp files type-list") },
+        ["file"] = OptionSet.Of("bEhiLNnrskv0", "eFP", $"brief mime mime-type mime-encoding dereference no-dereference no-pad raw special-files keep-going extension apple {Help}", "exclude separator parameter"),
         ["tree"] = OptionSet.Of(
             "adlfxiqNQpugshDFvtcUrCnAJX",
             "LPIH",
@@ -83,9 +83,9 @@ internal static class ReadOnlyOptions
     public static FrozenDictionary<string, OptionSet> Git { get; } = new Dictionary<string, OptionSet>
     {
         ["status"] = OptionSet.Of("sbvuz", string.Empty, "short branch porcelain long verbose untracked-files ignored ignore-submodules column no-column ahead-behind no-ahead-behind renames no-renames", string.Empty),
-        ["diff"] = OptionSet.Of("pusMCRbwaz", "U", GitDiffing, "unified diff-filter inter-hunk-context stat-width") with { Digits = true },
-        ["log"] = OptionSet.Of("pusMCRbwaiz", "nU", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
-        ["show"] = OptionSet.Of("pusMCRbwaiz", "nU", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
+        ["diff"] = OptionSet.Of("pusMCRbwaz", "USG", GitDiffing, "unified diff-filter inter-hunk-context stat-width") with { Digits = true },
+        ["log"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
+        ["show"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static FrozenSet<string> FindFlags { get; } = OptionSet.Words(
@@ -99,7 +99,7 @@ internal static class ReadOnlyOptions
 
     private static OptionSet Grep() =>
         OptionSet.Of(
-            "EFGPiyvwxcLlqsbHhnTZzrRUa",
+            "EFGPiyvwxcLlqsbHhnTZzrRUaI",
             "emABCdD",
             "extended-regexp fixed-strings basic-regexp perl-regexp ignore-case no-ignore-case word-regexp line-regexp null-data no-messages invert-match byte-offset line-number "
             + $"line-buffered with-filename no-filename only-matching quiet silent text recursive dereference-recursive files-without-match files-with-matches count initial-tab null color colour binary {Help}",

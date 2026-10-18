@@ -23,6 +23,7 @@ internal sealed class ShellReader(string text)
 
     private readonly List<ShellCommand> commands = [];
     private readonly List<string> writes = [];
+    private readonly List<string> reads = [];
     private List<string> redirected = [];
     private readonly Queue<(string Delimiter, bool Quoted, bool Tabs)> heredocs = new();
     private int at;
@@ -38,7 +39,7 @@ internal sealed class ShellReader(string text)
             commands,
             writes,
             opaque || heredocs.Count > 0 || (commands.Count == 0 && writes.Count == 0) || (movesDirectory && writes.Exists(path => !CommandLine.Rooted(path))),
-            movesDirectory);
+            movesDirectory) { Reads = reads };
     }
 
     private static bool Diverges(char c) => c is '"' or '\'' or '`' or '$' or '#' or ';' or '&' or '|' or '<' or '>' or '(' or ')' or '{' or '}';
@@ -183,9 +184,25 @@ internal sealed class ShellReader(string text)
         {
             heredocs.Enqueue((target.Value, target.Raw.IndexOfAny(['\'', '"', '\\']) >= 0, op == "<<-"));
         }
+        else if (kind == Redirection.Input && op != "<<<" && !(op == "<&" && IsDescriptor(target.Value)))
+        {
+            Read(target);
+        }
         else if (kind == Redirection.Output || (kind == Redirection.Duplication && !IsDescriptor(target.Value)))
         {
             Write(target);
+        }
+    }
+
+    private void Read(ShellWord target)
+    {
+        if (target.Literal)
+        {
+            reads.Add(target.Value);
+        }
+        else
+        {
+            opaque = true;
         }
     }
 
@@ -432,7 +449,7 @@ internal sealed class ShellReader(string text)
     }
 
     public void Found(List<ShellWord> words, IReadOnlyList<string> written, bool restated) =>
-        commands.Add(new ShellCommand(string.Join(' ', words.Select(word => word.Raw)), [.. words.Select(word => word.Value)], written, restated));
+        commands.Add(new ShellCommand(string.Join(' ', words.Select(word => word.Raw)), [.. words.Select(word => word.Value)], written, restated) { Raws = [.. words.Select(word => word.Raw)] });
 
     public void Unanalysable() => opaque = true;
 
@@ -443,6 +460,7 @@ internal sealed class ShellReader(string text)
         var line = depth < Deepest ? new ShellReader(script) { depth = depth + 1 }.Read() : new CommandLine([], [], Opaque: true, MovesDirectory: false);
         commands.AddRange(line.Commands);
         writes.AddRange(line.Writes);
+        reads.AddRange(line.Reads);
         this.opaque |= opaque || line.Opaque;
         movesDirectory |= line.MovesDirectory;
     }
