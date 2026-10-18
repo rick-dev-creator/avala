@@ -8,4 +8,9 @@ internal enum CanvasError
     AlreadyOpen,
     AlreadyClosed,
     UnknownCanvas,
+    MalformedMedia,
+    NotAnImage,
+    MissingMedia,
+    MediaTooLarge,
+    MediaNotKept,
 }

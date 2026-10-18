@@ -358,6 +358,17 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void AShownImageFollowsTheCallThatShowedItAsItsOwnEntryWithItsCaption()
+    {
+        var screen = new Attachment("screen.png", "image/png", "/data/attachments/screen.png");
+        var transcript = Played(new ToolCalled(Session, Turn, new ItemId("show"), "show_media", """{"path":"screen.png"}"""))
+            .Apply(new MediaShown(Session, Turn, new ItemId("show"), screen, "The checkout page"));
+
+        Assert.Equal([typeof(ToolEntry), typeof(MediaEntry)], transcript.Entries.Select(entry => entry.GetType()));
+        Assert.Equal(new MediaEntry(EntryKeys.Media(Turn, new ItemId("show")), screen, "The checkout page"), transcript.Entries[^1]);
+    }
+
+    [Fact]
     public void ContentForAnItemThatNeverStartedIsIgnored()
     {
         var transcript = Played(

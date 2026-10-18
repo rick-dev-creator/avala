@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             x:Class="Avala.Workbench.UI.NoteRowView"
+             x:ClassModifier="internal"
+             x:DataType="notes:INoteRowViewModel">
+  <Design.DataContext>
+    <notes:DesignNoteRowViewModel />
+  </Design.DataContext>
+  <Button x:Name="Note"
+          Classes="row"
+          Classes.selected="{Binding IsSelected}"
+          Padding="10,7"
+          Command="{Binding OpenCommand}"
+          AutomationProperties.Name="{Binding Title}">
+    <StackPanel Spacing="2">
+      <DockPanel>
+        <TextBlock x:Name="When"
+                   DockPanel.Dock="Right"
+                   Classes="caption"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center"
+                   Text="{Binding When}" />
+        <TextBlock x:Name="NoteTitle" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+      <TextBlock x:Name="Excerpt"
+                 Classes="caption secondary"
+                 Text="{Binding Excerpt}"
+                 TextTrimming="CharacterEllipsis"
+                 IsVisible="{Binding HasExcerpt}" />
+      <TextBlock x:Name="ImageCount"
+                 Classes="caption"
+                 Text="{Binding Images}"
+                 IsVisible="{Binding HasImages}" />
+    </StackPanel>
+  </Button>
+</UserControl>

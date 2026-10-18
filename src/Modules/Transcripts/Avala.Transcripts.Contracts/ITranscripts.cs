@@ -22,6 +22,8 @@ public sealed record AgentActed(IAgentEvent Event) : ITranscriptFact;
 
 public sealed record CanvasDrawn(CanvasSnapshot Snapshot) : ITranscriptFact;
 
+public sealed record MediaKept(MediaShown Shown) : ITranscriptFact;
+
 public sealed record PermissionRuled(PolicyDecision Decision) : ITranscriptFact;
 
 public sealed record FormRuled(FormDecision Decision) : ITranscriptFact;

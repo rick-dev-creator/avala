@@ -26,7 +26,7 @@ internal sealed class WriterLauncher(IJobs jobs, IRoleSettings roles, FeatureCat
         var request = new JobRequest(subject.Place.Repository, brief.Text())
         {
             Parent = subject.Place.Job,
-            Autonomy = Autonomy.Autonomous,
+            Autonomy = Autonomy.Supervised,
             Companion = true,
             Model = await roles.OfRoleAsync(subject.Place.Worktree, ChildRole.Research, cancellationToken),
         };

@@ -18,6 +18,7 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         ToolEntry tool => new ToolViewModel(tool, clipboard, files.For(job)),
         PlanEntry plan => new PlanViewModel(plan),
         CanvasEntry canvas => new CanvasViewModel(canvas),
+        MediaEntry media => new MediaViewModel(media, files.Pictures),
         PermissionEntry permission => new PermissionCardViewModel(permission, replies),
         DeniedEntry denied => new DeniedCardViewModel(denied, replies),
         FormEntry form => new FormCardViewModel(form, replies),
@@ -25,6 +26,8 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         ChildAskingEntry asked => new ChildAskingViewModel(asked),
         _ => QuietItems.Of(entry, files.Links),
     };
+
+    public MediaViewerViewModel Viewer() => new(files.Pictures);
 
     private IReadOnlyList<IAttachmentChipViewModel> Chips(IReadOnlyList<Avala.Agents.Contracts.Sessions.Attachment> attachments) =>
         [.. attachments.Select(attachment => new AttachmentChipViewModel(attachment, files.Pictures, removable: false))];

@@ -45,6 +45,20 @@ internal static class DocumentationScenarios
         ],
     ]);
 
+    public const string AskingCue = "[writer asks]";
+
+    public static Scenario DocumentAsking { get; } = new("document-asking",
+    [
+        [
+            Thought("Stripe's refund events ", "are described in its API reference."),
+            new RunCommand(new ItemId("reference"), "curl -s https://docs.stripe.com/api/refunds", "Refunds API reference.", AsksPermission: true),
+            new WriteFile(new ItemId("version"), DocumentationDraft.Path, Version),
+            Message("Wrote the version ", "with its C4."),
+            .. Bill(1_200, 440, 0.0021m, 0.08),
+            new Finish(),
+        ],
+    ]);
+
     public const string Decision = """
         # Keep idempotency keys in the ledger
 
@@ -118,5 +132,5 @@ internal static class DocumentationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentDecision, PlanRevised, PlanWhenAsked];
+    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentAsking, DocumentDecision, PlanRevised, PlanWhenAsked];
 }

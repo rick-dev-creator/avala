@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.MediaView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IMediaViewModel"
+             theme:Motion.Enter="Arrive"
+             states:Realized.Command="{Binding ShowCommand}"
+             Margin="0,10">
+  <Design.DataContext>
+    <conversation:DesignMediaViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Frame">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button#Frame:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button#Frame:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="{DynamicResource Space2}" HorizontalAlignment="Left">
+    <Button x:Name="Frame"
+            HorizontalAlignment="Left"
+            Command="{Binding OpenCommand}"
+            ToolTip.Tip="{Binding Name}"
+            AutomationProperties.Name="{Binding Name}">
+      <Image x:Name="Picture"
+             MaxWidth="{DynamicResource ReadingWidth}"
+             MaxHeight="{DynamicResource ReadingWidth}"
+             Stretch="Uniform"
+             StretchDirection="DownOnly"
+             AutomationProperties.Name="{Binding Name}"
+             Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}" />
+    </Button>
+    <TextBlock x:Name="Caption"
+               Classes="caption secondary"
+               TextWrapping="Wrap"
+               Text="{Binding Caption}"
+               IsVisible="{Binding HasCaption}" />
+  </StackPanel>
+</UserControl>

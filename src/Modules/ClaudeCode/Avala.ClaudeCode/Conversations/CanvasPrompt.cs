@@ -12,12 +12,15 @@ internal static class CanvasPrompt
         ["text/vnd.mermaid"] = "Mermaid",
     };
 
+    private const string ShowMedia = "show_media";
+
     public static Option<string> For(IReadOnlyList<HarnessTool> tools, Option<PreviewOffer> preview)
     {
         var parts = new[]
         {
             tools.FirstOrDefault(tool => tool.Surface == ToolSurface.Canvas) is { } canvas ? Canvas(canvas, preview.IsSome) : string.Empty,
             preview.Match(Pages, () => string.Empty),
+            tools.FirstOrDefault(tool => tool.Name == ShowMedia) is { } media ? Evidence(media) : string.Empty,
         }.Where(part => part.Length > 0).ToList();
 
         return parts.Count > 0 ? string.Join(" ", parts) : Option<string>.None;
@@ -35,7 +38,13 @@ internal static class CanvasPrompt
         $"For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
         + $"Serve it bound to 127.0.0.1 on port ${offer.PortVariable}, or start its dev server there; the ports ${offer.PortsVariable} are yours. "
         + $"Then tell the person its URL, such as http://localhost:${offer.PortVariable}: Avala shows it beside the conversation. "
-        + "Never open a browser or take screenshots.";
+        + "Never open a browser for the person.";
+
+    private static string Evidence(HarnessTool media) =>
+        "When you build or change something visual, such as a screen, a page or an app, show the person how it looks: "
+        + "save a screenshot or a rendered image of it outside the repository, such as in a temporary folder, so it does not land in the branch, "
+        + $"and call the {CommandLine.Qualified(media.Name)} tool with its path and a short caption. "
+        + "Take it headless, without opening a browser in front of the person.";
 
     private static string Animated(string schema) =>
         MediaTypes(schema).Contains("image/svg+xml", StringComparer.OrdinalIgnoreCase)

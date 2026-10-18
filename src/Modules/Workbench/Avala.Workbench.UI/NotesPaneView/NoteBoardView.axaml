@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             x:Class="Avala.Workbench.UI.NoteBoardView"
+             x:ClassModifier="internal"
+             x:DataType="notes:INoteBoardViewModel">
+  <Design.DataContext>
+    <notes:DesignNoteBoardViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#EditorFooter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+    <Style Selector="TextBox#BodyField">
+      <Setter Property="MinHeight" Value="220" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <ScrollViewer x:Name="List" IsVisible="{Binding IsListing}">
+      <StackPanel Margin="8,8,8,20" Spacing="2">
+        <TextBlock x:Name="Empty"
+                   Classes="caption"
+                   Margin="10,8"
+                   TextWrapping="Wrap"
+                   Text="{Binding Empty}"
+                   IsVisible="{Binding !HasNotes}" />
+        <ItemsControl x:Name="Notes" Classes="rows" ItemsSource="{Binding Notes}" />
+      </StackPanel>
+    </ScrollViewer>
+    <DockPanel x:Name="Editor" IsVisible="{Binding IsEditing}">
+      <Border x:Name="EditorFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="12,10">
+        <DockPanel>
+          <Button x:Name="Archive"
+                  DockPanel.Dock="Left"
+                  Classes="glyph"
+                  IsVisible="{Binding !IsNew}"
+                  Command="{Binding ArchiveCommand}"
+                  ToolTip.Tip="Archive"
+                  AutomationProperties.Name="Archive the note">
+            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconArchive}" />
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="{DynamicResource Space2}" HorizontalAlignment="Right">
+            <Button x:Name="Cancel" Content="Cancel" Command="{Binding CancelCommand}" />
+            <Button x:Name="Save" Content="Save" Command="{Binding SaveCommand}" />
+          </StackPanel>
+        </DockPanel>
+      </Border>
+      <ScrollViewer>
+        <StackPanel Margin="12,12,12,20" Spacing="10">
+          <TextBox x:Name="TitleField"
+                   Text="{Binding Title}"
+                   PlaceholderText="Title"
+                   AutomationProperties.Name="Note title" />
+          <TextBox x:Name="BodyField"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   Text="{Binding Body}"
+                   PlaceholderText="An idea, a plan or a bug"
+                   AutomationProperties.Name="Note body" />
+          <TextBlock x:Name="Problem"
+                     Classes="caption secondary"
+                     TextWrapping="Wrap"
+                     Text="{Binding Problem}"
+                     IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <StackPanel Spacing="{DynamicResource Space2}" IsVisible="{Binding !!Images.Count}">
+            <TextBlock Classes="section" Margin="2,4,0,0" Text="Images" />
+            <ItemsControl x:Name="Images" ItemsSource="{Binding Images}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Panel>
+</UserControl>

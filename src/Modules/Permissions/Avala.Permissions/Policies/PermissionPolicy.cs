@@ -9,9 +9,12 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
 {
     public const string PolicyFile = ".avala/permissions.json";
 
+    public const string NotesFolder = ".avala/notes/*";
+
     public static IReadOnlyList<PolicyRule> Guards { get; } =
     [
         new(RuleOrigin.BuiltIn, "policy-file-goes-to-a-human", ItemKind.FileEdit, PolicyFile, RuleScope.Workspace, PolicyAnswer.Ask),
+        new(RuleOrigin.BuiltIn, "notes-belong-to-the-developer", ItemKind.FileEdit, NotesFolder, RuleScope.Workspace, PolicyAnswer.Deny),
         new(RuleOrigin.BuiltIn, "edits-outside-the-workspace-go-to-a-human", ItemKind.FileEdit, Option<string>.None, RuleScope.OutsideWorkspace, PolicyAnswer.Ask),
         new(RuleOrigin.BuiltIn, "git-files-go-to-a-human", ItemKind.FileEdit, ".git", RuleScope.Workspace, PolicyAnswer.Ask),
         new(RuleOrigin.BuiltIn, "git-folder-goes-to-a-human", ItemKind.FileEdit, ".git/*", RuleScope.Workspace, PolicyAnswer.Ask),

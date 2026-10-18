@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Regions;
 using Avala.Testing;
+using Avala.Testing.UI;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
@@ -78,6 +79,23 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         var delivered = (await run.Get<IDocumentation>().OfRepositoryAsync(run.Repository.Path, Cancellation)).Features.Single(listed => listed.Feature.Slug == slug);
         Assert.Equal(4, delivered.Versions);
         Assert.Contains("## Evidence\n", (await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "features", slug, "v4-as-built.md"), Cancellation)).ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public async Task TheWritersPermissionRequestWaitsInItsJobsConversationAndIsAnsweredFromThereAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-across-turns] [writer asks] Add the changelog")));
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(job);
+        await workbench.ShowsAsync(() => Asking(conversation) is { } card && card["AwaitsYou"].Value<bool>());
+
+        await run.Ui.RunAsync(() => Asking(conversation)!.Value.ExecuteAsync("AllowCommand"));
+        var version = await written.UntilAsync(found => found.Job == job);
+
+        await workbench.ShowsAsync(() => Asking(conversation) is { } card && !card["AwaitsYou"].Value<bool>());
+        Assert.Equal(VersionKind.Proposed, version.Version.Kind);
     }
 
     [Fact]
@@ -365,4 +383,7 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
 
         return Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(Outcomes.Present(history.Summary.Workspace), Cancellation)).Path;
     }
+
+    private static Bound? Asking(Bound conversation) =>
+        conversation["Entries"].Items.Cast<Bound?>().FirstOrDefault(entry => entry!.Value.Kind == "PermissionCardViewModel" && entry.Value["Target"].Text.Contains("curl", StringComparison.Ordinal));
 }

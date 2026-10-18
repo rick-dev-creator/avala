@@ -36,5 +36,6 @@
     <ProjectReference Include="..\..\src\Modules\Projects\Avala.Projects.Contracts\Avala.Projects.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Preview\Avala.Preview.Contracts\Avala.Preview.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Documentation\Avala.Documentation.Contracts\Avala.Documentation.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Notes\Avala.Notes.Contracts\Avala.Notes.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

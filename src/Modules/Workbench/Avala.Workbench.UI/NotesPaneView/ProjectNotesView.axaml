@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             x:Class="Avala.Workbench.UI.ProjectNotesView"
+             x:ClassModifier="internal"
+             x:DataType="notes:IProjectNotesViewModel">
+  <Design.DataContext>
+    <notes:DesignProjectNotesViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <Button x:Name="NewNote"
+                DockPanel.Dock="Right"
+                Classes="glyph"
+                VerticalAlignment="Center"
+                Command="{Binding Board.NewCommand}"
+                ToolTip.Tip="New note"
+                AutomationProperties.Name="New note">
+          <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconPlus}" />
+        </Button>
+        <StackPanel VerticalAlignment="Center" Spacing="1">
+          <TextBlock x:Name="PageTitle" Classes="pageTitle" Text="{Binding Title}" />
+          <TextBlock x:Name="Where" Classes="caption" Text="{Binding Where}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+    <ContentControl x:Name="Board"
+                    MaxWidth="{DynamicResource ReadingWidth}"
+                    Margin="0,8,0,0"
+                    Content="{Binding Board}" />
+  </DockPanel>
+</UserControl>

@@ -64,6 +64,23 @@ public sealed class RecollectionTests
     }
 
     [Fact]
+    public void AShownImageIsRecalledAfterARestart()
+    {
+        var shown = new MediaShown(Session, Turn, new ItemId("show"), new Attachment("screen.png", "image/png", "/data/attachments/screen.png"), "The checkout page");
+
+        var recalled = Recollection.Recalled(
+            Instruction,
+            [Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Passed)],
+            [
+                Kept(new AttemptBegan(1)),
+                Kept(new AgentActed(new TurnStarted(Session, Turn))),
+                Kept(new MediaKept(shown)),
+            ]);
+
+        Assert.Equal(["prompt 1 Fix the failing test Passed", "media screen.png The checkout page", "restart kept"], recalled.Entries.Select(Describe));
+    }
+
+    [Fact]
     public void EachRestartBetweenEarlierRunsIsMarkedWhereItHappenedAndLaterAttemptsFollowTheLastMark()
     {
         var secondRun = Guid.CreateVersion7();
@@ -103,6 +120,7 @@ public sealed class RecollectionTests
         ReasoningEntry reasoning => $"reasoning {reasoning.Outcome.Match(outcome => outcome.ToString(), () => string.Empty)} {reasoning.Duration.Match(duration => duration.ToString(), () => string.Empty)}",
         PermissionEntry permission => permission.Closed ? "permission closed" : "permission open",
         CanvasEntry canvas => $"canvas {canvas.Status}",
+        MediaEntry media => $"media {media.Media.Name} {media.Caption}",
         TurnEndEntry ended => $"turn {ended.Outcome} {ended.Duration}",
         RestartEntry restart => restart.Kept ? "restart kept" : "restart not kept",
         _ => entry.GetType().Name,

@@ -113,6 +113,14 @@ internal sealed record Transcript
     public Transcript KeptIn(int attempt, ITimelineEntry entry) =>
         Positions.ContainsKey(entry.Key) || !Positions.TryGetValue(EntryKeys.Attempt(attempt + 1), out var next) ? Kept(entry) : Inserted(next, entry);
 
+    public Transcript Relayed(Transcript companion, bool over) =>
+        companion.Entries.Aggregate(this, (transcript, entry) => entry switch
+        {
+            PermissionEntry { WentToHuman: true } permission => transcript.Kept(over ? permission with { Closed = true } : permission),
+            FormEntry { WentToHuman: true } form => transcript.Kept(over ? form with { Closed = true } : form),
+            _ => transcript,
+        });
+
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
     public Transcript Stopped(DateTimeOffset at) =>
@@ -150,6 +158,9 @@ internal sealed record Transcript
         Change(EntryKeys.Item(snapshot.Canvas.Turn, snapshot.Canvas.Item), entry => entry is CanvasEntry canvas
             ? canvas with { Title = snapshot.Title, MediaType = snapshot.MediaType, Content = snapshot.Content, Status = snapshot.Status, IsOffered = snapshot.IsOffered }
             : entry);
+
+    public Transcript Apply(MediaShown shown) =>
+        Add(new MediaEntry(EntryKeys.Media(shown.Turn, shown.Item), shown.Media, shown.Caption));
 
     public Transcript Apply(PolicyDecision decision)
     {

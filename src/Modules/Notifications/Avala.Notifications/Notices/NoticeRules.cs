@@ -83,6 +83,9 @@ internal static partial class NoticeRules
         return spaced.Length == 0 ? spaced : char.ToUpperInvariant(spaced[0]) + spaced[1..];
     }
 
+    public static Notice OfParent(Notice notice, JobId parent) =>
+        notice with { Subject = Subject(parent, "decision"), Job = parent };
+
     private static Notice Decision(Option<JobId> job, SessionId session, ItemId item, DateTimeOffset at) =>
         new(NotificationKind.Decision, job.Match(known => Subject(known, "decision"), () => $"session:{session.Value:N}:decision"), Item(session, item), at) { Job = job };
 

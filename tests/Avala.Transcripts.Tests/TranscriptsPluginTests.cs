@@ -48,6 +48,7 @@ public sealed class TranscriptsPluginTests
                 composition.Get<IHandle<JobProgressed>>(),
                 composition.Get<IHandle<AgentActivity>>(),
                 composition.Get<IHandle<CanvasUpdated>>(),
+                composition.Get<IHandle<MediaShown>>(),
                 composition.Get<IHandle<PermissionDecided>>(),
                 composition.Get<IHandle<FormDecided>>(),
                 composition.Get<IHandle<WorktreeReclaimed>>(),

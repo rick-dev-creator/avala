@@ -50,6 +50,10 @@ public sealed class CleanEvidenceTests
         Assert.Equal([Enum.Parse<ExceptionReason>(reason)], With(exception).Exceptions);
 
     [Fact]
+    public void ANoteTheDeveloperTookInTheJobsBranchIsNotARuleFileEdit() =>
+        Assert.Empty((Clean with { ChangedFiles = Option<IReadOnlyList<string>>.Some(["GREETING.md", ".avala/notes/0199/2026-10-19-1200-idea/note.md"]) }).Exceptions);
+
+    [Fact]
     public void AJobVerifiedAfterARetryIsStillCleanSinceOnlyItsLastVerificationCounts() =>
         Assert.Empty((Clean with { Verifications = [Report(VerificationOutcome.Failed), Report(VerificationOutcome.Passed, Tests)] }).Exceptions);
 

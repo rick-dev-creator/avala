@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:notes="using:Avala.Workbench.Notes"
+             x:Class="Avala.Workbench.UI.NotesToggleView"
+             x:ClassModifier="internal"
+             x:DataType="notes:INotesToggleViewModel">
+  <Design.DataContext>
+    <notes:DesignNotesToggleViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Notes"
+          Classes="glyph"
+          Classes.selected="{Binding IsOpen}"
+          IsVisible="{Binding IsShown}"
+          Command="{Binding ToggleCommand}"
+          ToolTip.Tip="Notes"
+          AutomationProperties.Name="Toggle the notes pane">
+    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconEdit}" />
+  </Button>
+</UserControl>

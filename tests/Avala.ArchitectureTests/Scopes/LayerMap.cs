@@ -25,6 +25,7 @@ internal static class LayerMap
             ["Canvases"] = Layer.Domain,
             ["Drawing"] = Layer.Application,
             ["Gallery"] = Layer.Application,
+            ["Showing"] = Layer.Application,
             ["Streaming"] = Layer.Application,
             ["Throttling"] = Layer.Application,
         }),
@@ -123,6 +124,7 @@ internal static class LayerMap
             ["NewJob"] = Layer.ViewModels,
             ["Documenting"] = Layer.Application,
             ["Docs"] = Layer.ViewModels,
+            ["Notes"] = Layer.ViewModels,
             ["Readying"] = Layer.Application,
             ["Readiness"] = Layer.ViewModels,
             ["RepositoryChoice"] = Layer.ViewModels,
@@ -294,6 +296,14 @@ internal static class LayerMap
             ["RuleFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Notes", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Notebook"] = Layer.Domain,
+            ["Taking"] = Layer.Application,
+            ["NoteFiles"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Triggers", new()
         {

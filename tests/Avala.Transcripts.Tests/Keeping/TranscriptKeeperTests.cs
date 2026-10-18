@@ -54,6 +54,17 @@ public sealed class TranscriptKeeperTests
     }
 
     [Fact]
+    public async Task AnImageTheAgentShowedIsKeptWithTheConversationOfItsJobAsync()
+    {
+        await keeper.HandleAsync(new JobSessionStarted(job, Session), Cancellation);
+        var shown = new MediaShown(Session, Turn, Item, new Attachment("screen.png", "image/png", "/data/attachments/screen.png"), "The checkout page");
+
+        await keeper.HandleAsync(shown, Cancellation);
+
+        Assert.Equal([(job, clock.Start, (ITranscriptFact)new MediaKept(shown))], log.Kept);
+    }
+
+    [Fact]
     public async Task TheEventsOfASessionNoJobStartedAreNotKeptAsync()
     {
         await keeper.HandleAsync(new AgentActivity(new TurnStarted(Session, Turn)), Cancellation);

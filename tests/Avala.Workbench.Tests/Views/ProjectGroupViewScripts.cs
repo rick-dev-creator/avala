@@ -150,7 +150,7 @@ public sealed class ProjectGroupViewScripts(HeadlessUi ui)
             view.Settle();
             var shown = menu.Items.OfType<Control>().Where(item => item.IsVisible).ToList();
 
-            Assert.Equal(["Rename", "DocumentFeatures", "ArchiveDoneItem", "Separator", "Delete"], shown.Select(item => item is Separator ? "Separator" : item.Name));
+            Assert.Equal(["Rename", "DocumentFeatures", "NotesItem", "ArchiveDoneItem", "Separator", "Delete"], shown.Select(item => item is Separator ? "Separator" : item.Name));
             Assert.Contains("destructive", shown[^1].Classes);
             Assert.All(shown.OfType<MenuItem>(), item => Assert.NotNull(item.Icon));
         }, Cancellation);

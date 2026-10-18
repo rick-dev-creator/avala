@@ -45,6 +45,7 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
             new AgentActed(new UsageReported(Session, Turn, new TokenUsage(1, 2, 3, 4, 5), new Cost(0.25m, "USD"))),
             new AgentActed(new ModelReported(Session, Turn, "claude-opus-5-5") { Effort = "high" }),
             new AgentActed(new TurnCompleted(Session, Turn, TurnOutcome.Finished)),
+            new MediaKept(new MediaShown(Session, Turn, new ItemId("show"), new Attachment("screen.png", "image/png", "/data/attachments/screen.png"), "The checkout page")),
             new PermissionRuled(new PolicyDecision(Session, Turn, new ItemId("tool"), job, ItemKind.Command, "dotnet test", PolicyAnswer.Allow, Option<PolicyRule>.None, DecisionDelivery.Answered, At)),
             new FormRuled(new FormDecision(Session, Turn, new ItemId("form"), job, new AgentForm(FormPurpose.Question, "Which database?", string.Empty, []), Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToHuman, At)),
         ];
@@ -170,6 +171,7 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
     {
         AttemptBegan began => $"attempt {began.Attempt}",
         CanvasDrawn drawn => $"canvas {drawn.Snapshot.Content} {drawn.Snapshot.Status}",
+        MediaKept media => $"media {media.Shown.Session} {media.Shown.Turn} {media.Shown.Item} {media.Shown.Media} {media.Shown.Caption}",
         AgentActed { Event: ItemStarted started } => $"{started} {started.Input}",
         AgentActed { Event: FormRequested requested } => $"{requested.Session} {requested.Form.Title} {string.Join(",", requested.Form.Fields.SelectMany(field => field.Options).Select(option => $"{option.Label}:{option.Recommended}"))}",
         AgentActed { Event: FormAnswered answered } => $"{answered.Item} {string.Join(",", answered.Answer.Fields.SelectMany(field => field.Chosen))}",

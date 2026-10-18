@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Canvas.Drawing;
 using Avala.Canvas.Gallery;
+using Avala.Canvas.Showing;
 using Avala.Canvas.Streaming;
 using Avala.Canvas.Throttling;
 using Avala.Sdk;
@@ -30,6 +31,10 @@ public sealed class CanvasPlugin : IPlugin
                 provider.GetRequiredService<TimeProvider>(),
                 SnapshotInterval))
             .AddSingleton<IHandle<AgentActivity>, CanvasFeed>()
-            .AddSingleton(provider => CanvasTool.For(provider.GetRequiredService<CanvasOffer>()));
+            .AddSingleton(provider => CanvasTool.For(provider.GetRequiredService<CanvasOffer>()))
+            .AddSingleton(ShowMediaTool.Definition)
+            .AddSingleton<MediaDesk>()
+            .AddForwarded<IHandle<SessionOpened>, MediaDesk>()
+            .AddForwarded<IHandle<AgentActivity>, MediaDesk>();
     }
 }

@@ -33,6 +33,8 @@ internal interface IConversationViewModel
 
     IConversationSearchViewModel Search { get; }
 
+    IMediaViewerViewModel Viewer { get; }
+
     IReadOnlyList<int> TurnStarts { get; }
 
     string Notice { get; }
@@ -53,6 +55,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly WorkingViewModel working = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private readonly ConversationSearchViewModel search;
+    private readonly MediaViewerViewModel viewer;
     private Transcript shown = Transcript.Empty;
 
     public ConversationViewModel(ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan, TranscriptExport export)
@@ -65,6 +68,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Notice = string.Empty;
         Entries = [];
         this.plan = plan;
+        viewer = items.Viewer();
         search = new ConversationSearchViewModel(() => [.. Entries.Select(item => item is ISearchable searchable ? searchable.SearchText : string.Empty)]);
         search.Found += (_, found) => Mark(found);
     }
@@ -80,6 +84,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public IWorkingViewModel Working => working;
 
     public IConversationSearchViewModel Search => search;
+
+    public IMediaViewerViewModel Viewer => viewer;
 
     [ObservableProperty]
     public partial ObservableCollection<ITimelineItem> Entries { get; private set; }
@@ -252,6 +258,11 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         {
             prompt.EditRequested += (_, text) => composer.Edit(text);
             prompt.RetryRequested += (_, text) => composer.ResendCommand.Execute(text);
+        }
+
+        if (item is MediaViewModel media)
+        {
+            media.OpenRequested += (_, _) => viewer.Show([.. Entries.OfType<MediaViewModel>().Select(shown => shown.Shown)], media.Shown);
         }
 
         return item;

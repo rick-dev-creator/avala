@@ -13,6 +13,8 @@ internal static class EntryKeys
 
     public static string Item(TurnId turn, ItemId item) => $"item:{turn.Value}:{item.Value}";
 
+    public static string Media(TurnId turn, ItemId item) => $"media:{turn.Value}:{item.Value}";
+
     public static string Permission(TurnId turn, ItemId item) => $"permission:{turn.Value}:{item.Value}";
 
     public static string Denied(TurnId turn, ItemId item) => $"denied:{turn.Value}:{item.Value}";

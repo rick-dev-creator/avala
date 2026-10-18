@@ -11,6 +11,8 @@ internal static class CleanEvidence
 {
     public const string RuleFolder = ".avala/";
 
+    public const string NotesFolder = ".avala/notes/";
+
     public const string CheckDeclaration = ".avala/checks.json";
 
     public const string PolicyFile = ".avala/permissions.json";
@@ -59,7 +61,7 @@ internal static class CleanEvidence
 
         public IReadOnlyList<string> RuleFiles =>
         [
-            .. evidence.ChangedFiles.Match(files => files.Where(file => file.StartsWith(RuleFolder, StringComparison.Ordinal)), () => []),
+            .. evidence.ChangedFiles.Match(files => files.Where(file => file.StartsWith(RuleFolder, StringComparison.Ordinal) && !file.StartsWith(NotesFolder, StringComparison.Ordinal)), () => []),
             .. When(evidence.Latest.Bind(report => report.Declaration).Match(origin => origin.EditedInWorktree, () => false), CheckDeclaration),
             .. When(evidence.RuleOrigins.Any(origin => origin.EditedInWorktree), PolicyFile),
         ];

@@ -9,6 +9,8 @@ using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Projects;
 
+internal sealed record ProjectNotesRequested(string Repository);
+
 internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout, IDocumentation documentation, IMessenger messenger)
 {
     public const string NewProjectName = "New project";
@@ -45,6 +47,8 @@ internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout, IDo
     public Task<Result<DocsCommit, DocumentationError>> CommitDocsAsync(string repository, CancellationToken cancellationToken) => documentation.CommitRulesAsync(repository, cancellationToken);
 
     public void OpenFeature(string repository, RepositoryFeature listed) => messenger.Send(FeatureDocsRequested.Of(repository, listed));
+
+    public void OpenNotes(string repository) => messenger.Send(new ProjectNotesRequested(repository));
 
     public async Task<ImmutableHashSet<string>> CollapsedAsync(CancellationToken cancellationToken) =>
         [.. (await layout.ReadAsync(cancellationToken)).CollapsedGroups];

@@ -1,6 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Notifications.Contracts;
 using Avala.Notifications.Pacing;
+using Avala.Sdk;
 
 namespace Avala.Notifications.Tests.Dispatching;
 
@@ -29,6 +30,20 @@ public sealed class NotificationDeskTests
         await notified.AdvanceAsync(Outbox.Coalescing);
 
         Assert.Equal(NotificationKind.Decision, Assert.Single(notified.Channel.Sent).Kind);
+    }
+
+    [Fact]
+    public async Task ACompanionsDecisionIsTitledByItsParentJobAsync()
+    {
+        await using var notified = new Notified();
+        notified.Catalog.Jobs[Samples.Other] = notified.Catalog.Jobs[Samples.Other] with { Instruction = "Handle Stripe refund webhooks" };
+        notified.Catalog.Jobs[Samples.Job] = notified.Catalog.Jobs[Samples.Job] with { Instruction = "Document the feature", Parent = Samples.Other, Companion = true };
+
+        await notified.Desk.HandleAsync(Samples.Asked("tool-1"), Notified.Cancellation);
+        await notified.AdvanceAsync(Outbox.Coalescing);
+
+        Assert.Equal("Handle Stripe refund webhooks", Assert.Single(notified.Channel.Sent).Body);
+        Assert.Equal(Option<JobId>.Some(Samples.Other), Assert.Single(notified.Records).Job);
     }
 
     [Fact]

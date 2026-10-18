@@ -4,6 +4,7 @@ using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Notes.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Resources.Contracts;
@@ -62,7 +63,7 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
-        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
+        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Settings", "Notes", "Archived"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
         Assert.Equal(
             [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Triggers", "IconTriggers"), ("Settings", "IconSettings")],
@@ -89,6 +90,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
             .AddSingleton<Sdk.Appearance.IWindowLayout>(new RememberedLayout())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
+            .AddSingleton<INotes>(new FakeNotes())
             .AddSingleton<IJobs>(new FakeJobs())
             .AddSingleton<IJobCheckpoints>(new FakeJobCheckpoints())
             .AddSingleton<IJobLaunches>(new FakeJobs())

@@ -41,6 +41,8 @@
     <ProjectReference Include="..\..\src\Modules\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs\Avala.Handoffs.csproj" />
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notes\Avala.Notes\Avala.Notes.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notes\Avala.Notes.Contracts\Avala.Notes.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers\Avala.Triggers.csproj" />
     <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Avala.Notifications\Avala.Notifications.csproj" />

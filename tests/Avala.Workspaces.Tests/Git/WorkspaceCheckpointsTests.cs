@@ -79,7 +79,7 @@ public sealed class WorkspaceCheckpointsTests
         var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
         var store = new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
-        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, []));
 
         return (service, new WorkspaceCheckpoints(store, service, new GitChangesCli(Processes), git));
     }
