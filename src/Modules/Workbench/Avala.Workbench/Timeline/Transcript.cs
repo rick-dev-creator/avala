@@ -113,6 +113,14 @@ internal sealed record Transcript
     public Transcript KeptIn(int attempt, ITimelineEntry entry) =>
         Positions.ContainsKey(entry.Key) || !Positions.TryGetValue(EntryKeys.Attempt(attempt + 1), out var next) ? Kept(entry) : Inserted(next, entry);
 
+    public Transcript Relayed(Transcript companion, bool over) =>
+        companion.Entries.Aggregate(this, (transcript, entry) => entry switch
+        {
+            PermissionEntry { WentToHuman: true } permission => transcript.Kept(over ? permission with { Closed = true } : permission),
+            FormEntry { WentToHuman: true } form => transcript.Kept(over ? form with { Closed = true } : form),
+            _ => transcript,
+        });
+
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
     public Transcript Stopped(DateTimeOffset at) =>

@@ -21,7 +21,7 @@ public sealed class DocumentationDeskTests
         await documented.PlanAsync(session, "Add a Webhooks container", "Write the refund to the ledger");
 
         var (writer, request) = Assert.Single(documented.Jobs.Submitted);
-        Assert.Equal((Option<JobId>.Some(job), true, Option<Autonomy>.Some(Autonomy.Autonomous), FixedRoles.Research), (request.Parent, request.Companion, request.Autonomy, request.Model));
+        Assert.Equal((Option<JobId>.Some(job), true, Option<Autonomy>.Some(Autonomy.Supervised), FixedRoles.Research), (request.Parent, request.Companion, request.Autonomy, request.Model));
         Assert.Contains("1. Add a Webhooks container\n2. Write the refund to the ledger\n", request.Instruction);
         Assert.Equal([new VersionWriting(job, writer, 1, VersionKind.Proposed)], documented.Published<VersionWriting>());
         Assert.Equal([new FeatureChosen(job, FeatureChoice.Of(new Feature("handle-stripe-refund-webhooks", "Handle Stripe refund webhooks")))], documented.Published<FeatureChosen>());

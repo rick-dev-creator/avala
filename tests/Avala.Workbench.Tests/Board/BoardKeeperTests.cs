@@ -133,6 +133,29 @@ public sealed class BoardKeeperTests
         Assert.Equal(ChildAskingState.Denied, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
     }
 
+    [Fact]
+    public async Task ACompanionsRequestWaitingForAPersonShowsInItsParentsConversation()
+    {
+        var (parent, companion, session, turn) = await CompanionAsync();
+        await keeper.HandleAsync(new AgentActivity(new PermissionRequested(session, turn, new ItemId("fetch"), "Fetch a page", ItemKind.Web, "https://docs.stripe.com")), Cancellation);
+
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(session, turn, new ItemId("fetch"), companion, ItemKind.Web, "https://docs.stripe.com", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+
+        var relayed = Assert.Single(Joined(parent).Transcript.Entries.OfType<PermissionEntry>());
+        Assert.Equal((session, "https://docs.stripe.com", true, 1), (relayed.Session, relayed.Target, relayed.AwaitsHuman, Joined(parent).PendingDecisions));
+    }
+
+    [Fact]
+    public async Task ACompanionsAutoAllowedRequestStaysOutOfItsParentsConversation()
+    {
+        var (parent, companion, session, turn) = await CompanionAsync();
+        await keeper.HandleAsync(new AgentActivity(new PermissionRequested(session, turn, new ItemId("read"), "Read a file", ItemKind.Search, "docs/README.md")), Cancellation);
+
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(session, turn, new ItemId("read"), companion, ItemKind.Search, "docs/README.md", PolicyAnswer.Allow, Option<PolicyRule>.None, DecisionDelivery.Answered, time.GetUtcNow())), Cancellation);
+
+        Assert.Empty(Joined(parent).Transcript.Entries.OfType<PermissionEntry>());
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -422,6 +445,20 @@ public sealed class BoardKeeperTests
         await keeper.HandleAsync(new AgentActivity(new ToolCalled(session, turn, new ItemId("delegate-1"), "delegate", """{"instruction":"Extract the address step"}""")), Cancellation);
 
         return (parent, child, session);
+    }
+
+    private async Task<(JobId Parent, JobId Companion, SessionId Session, TurnId Turn)> CompanionAsync()
+    {
+        var parent = catalog.Add("Handle Stripe refund webhooks", JobStatus.Running).Summary.Job;
+        var companion = catalog.Add("Document the feature").Summary.Job;
+        catalog.Change(companion, history => history with { Summary = history.Summary with { Parent = parent, Companion = true } });
+        var (session, turn) = (SessionId.New(), TurnId.New());
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(companion), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(companion, session), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+
+        return (parent, companion, session, turn);
     }
 
     private Avala.Delegation.Contracts.DelegationRecord? Delegation(JobId job) =>

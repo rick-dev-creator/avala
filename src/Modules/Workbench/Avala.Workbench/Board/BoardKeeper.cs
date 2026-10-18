@@ -270,7 +270,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
                 }
                 else
                 {
-                    Publish(job, await joiner.JoinedAsync(found, restored, cancellationToken));
+                    var joined = await joiner.JoinedAsync(found, restored, cancellationToken);
+                    jobs = CompanionRelay.Gathered(jobs.SetItem(job, joined), job);
+                    Publish(job, jobs[job]);
                 }
             },
             () => Task.CompletedTask);
@@ -305,7 +307,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     private void Publish(JobId job, BoardJob updated)
     {
-        jobs = jobs.SetItem(job, updated);
+        jobs = CompanionRelay.Relayed(jobs.SetItem(job, updated), updated);
         board.Publish(jobs);
     }
 }

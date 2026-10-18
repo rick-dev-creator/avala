@@ -545,6 +545,7 @@ internal static class ScenarioCatalog
 
     public static string NameIn(string firstMessage) =>
         firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
+        : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) && firstMessage.Contains(DocumentationScenarios.AskingCue, StringComparison.Ordinal) ? DocumentationScenarios.DocumentAsking.Name
         : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? DocumentationScenarios.Document.Name
         : Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
