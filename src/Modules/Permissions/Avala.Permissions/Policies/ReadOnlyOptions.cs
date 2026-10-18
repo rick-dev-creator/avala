@@ -32,7 +32,7 @@ internal static class ReadOnlyOptions
     private const string GitDiffing =
         "stat shortstat numstat name-only name-status patch no-patch raw summary minimal patience histogram no-renames find-renames find-copies color no-color word-diff "
         + "ignore-all-space ignore-space-change ignore-blank-lines ignore-space-at-eol cached staged exit-code quiet check relative no-relative full-index binary abbrev "
-        + "text ignore-submodules dirstat compact-summary no-textconv src-prefix dst-prefix no-prefix";
+        + "text ignore-submodules dirstat compact-summary no-textconv src-prefix dst-prefix no-prefix unified pretty dirstat-by-file";
 
     private const string GitLogging =
         "oneline graph all branches tags remotes decorate no-decorate abbrev-commit no-abbrev-commit reverse first-parent merges no-merges follow topo-order date-order "
@@ -40,7 +40,7 @@ internal static class ReadOnlyOptions
         + "basic-regexp extended-regexp perl-regexp children parents log-size walk-reflogs mailmap no-mailmap";
 
     private const string GitLogValued =
-        "max-count skip since until after before author committer grep format pretty date diff-filter unified inter-hunk-context stat-width dirstat-by-file encoding";
+        "max-count skip since until after before author committer grep format date diff-filter inter-hunk-context stat-width encoding";
 
     public static FrozenDictionary<string, OptionSet> Programs { get; } = new Dictionary<string, OptionSet>
     {
@@ -85,9 +85,9 @@ internal static class ReadOnlyOptions
     public static FrozenDictionary<string, OptionSet> Git { get; } = new Dictionary<string, OptionSet>
     {
         ["status"] = OptionSet.Of("sbvz", string.Empty, "short branch porcelain long verbose untracked-files ignored ignore-submodules column no-column ahead-behind no-ahead-behind renames no-renames", string.Empty) with { Attached = "u" },
-        ["diff"] = OptionSet.Of("pusMCRbwaz", "USG", GitDiffing, "unified diff-filter inter-hunk-context stat-width") with { Digits = true },
-        ["log"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
-        ["show"] = OptionSet.Of("pusMCRbwaiz", "nUSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true },
+        ["diff"] = OptionSet.Of("pusMCRbwaz", "SG", GitDiffing, "diff-filter inter-hunk-context stat-width") with { Digits = true, Attached = "U" },
+        ["log"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U" },
+        ["show"] = OptionSet.Of("pusMCRbwaiz", "nSG", $"{GitDiffing} {GitLogging}", GitLogValued) with { Digits = true, Attached = "U" },
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static FrozenSet<string> FindFlags { get; } = OptionSet.Words(
@@ -101,7 +101,7 @@ internal static class ReadOnlyOptions
 
     private static OptionSet Grep() =>
         OptionSet.Of(
-            "EFGPiyvwxcLlqsbHhnTZzrUaI",
+            "EFGPiyvwxcLlqsbHhnTZzrUaIo",
             "emABCdD",
             "extended-regexp fixed-strings basic-regexp perl-regexp ignore-case no-ignore-case word-regexp line-regexp null-data no-messages invert-match byte-offset line-number "
             + $"line-buffered with-filename no-filename only-matching quiet silent text recursive files-without-match files-with-matches count initial-tab null color colour binary {Help}",

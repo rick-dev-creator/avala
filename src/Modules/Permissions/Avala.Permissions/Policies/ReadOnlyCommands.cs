@@ -120,15 +120,19 @@ internal static class ReadOnlyCommands
             var name = word[2..].Split('=', 2)[0];
             patternGiven |= options.PatternOptions.Contains(name);
 
+            var attached = word.Contains('=', StringComparison.Ordinal);
+
             if (options.Long.Contains(name))
             {
-                return true;
+                return !attached || Safe(name, word.Split('=', 2)[1]);
             }
 
-            var value = word.Contains('=', StringComparison.Ordinal) ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) ? next.Value : null;
+            var value = attached ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) ? next.Value : null;
 
-            return options.LongValued.Contains(name) && value is not null && !(name is "format" or "pretty" && value.Contains("%G", StringComparison.Ordinal));
+            return options.LongValued.Contains(name) && value is not null && Safe(name, value);
         }
+
+        private static bool Safe(string name, string value) => !(name is "format" or "pretty" && value.Contains("%G", StringComparison.Ordinal));
 
         private bool Short(string word)
         {
