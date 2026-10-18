@@ -27,6 +27,7 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobRejection.AgentUnavailable, "The agent could not start.")]
     [InlineData(JobRejection.NotAwaitingReview, "The job no longer awaits review.")]
     [InlineData(JobRejection.NotSteerable, "This agent takes no message while it works.")]
+    [InlineData(JobRejection.NotRoot, "This sub-agent's work is already in its parent, so it takes no more messages.")]
     [InlineData(JobRejection.InvalidRequest, "The job refused the command.")]
     public void ARefusedCommandToAJobSaysWhy(JobRejection rejection, string phrase) =>
         Assert.Equal(phrase, ConversationPhrases.Rejection(rejection));
