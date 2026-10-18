@@ -113,7 +113,55 @@ public sealed class ReportedPullRequestsTests
         Assert.Equal(1, forge.Reads);
     }
 
-    private sealed class CountingForge : IForge
+    [Fact]
+    public async Task APullRequestLinkOnTheForgesWebHostIsAdoptedWhenOriginIsReachedThroughAnotherSshHostAsync()
+    {
+        var forge = new CountingForge(PullRequestLifecycle.Open);
+        var connections = new ForgeConnections(new Declared(), [forge], new Transports());
+        var git = new OriginGit("ssh://git@ssh.forge.example:443/octo/shop.git");
+        var finder = new PullRequestFinder(new EffectiveRules(new DeclaredRules(), git, connections), git, connections);
+
+        var found = await finder.FindAsync(
+            JobId.New(),
+            new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "abc1234"),
+            [new Uri("https://forge.example/octo/shop/pulls/7")],
+            Cancellation);
+
+        Assert.Equal(Option<int>.Some(7), found.Map(delivered => delivered.PullRequest.Number));
+    }
+
+    [Fact]
+    public async Task APullRequestTheAgentNamesFromABranchThePersonFetchedFromAnotherCloneIsNotAdoptedAsync()
+    {
+        var forge = new CountingForge(PullRequestLifecycle.Open);
+        var connections = new ForgeConnections(new Declared(), [forge], new Transports());
+        var git = new FetchedGit(new Dictionary<string, string[]> { ["avala/shop"] = ["f00d123"], ["fix/old"] = ["abc1234"] });
+        var finder = new PullRequestFinder(new EffectiveRules(new DeclaredRules(), git, connections), git, connections);
+
+        var found = await finder.FindAsync(
+            JobId.New(),
+            new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "f00d123"),
+            [new Uri("https://forge.example/octo/shop/pulls/7")],
+            Cancellation);
+
+        Assert.True(found.IsNone);
+    }
+
+    private sealed class FetchedGit(IReadOnlyDictionary<string, string[]> branches) : IGitRemote
+    {
+        public ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Result<string, ForgeError>.Success(Origin));
+
+        public ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
+
+        public ValueTask<bool> HoldsAsync(string worktree, string branch, string commit, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(branches.TryGetValue(branch, out var commits) && commits.Contains(commit, StringComparer.Ordinal));
+    }
+
+    private sealed class CountingForge(PullRequestLifecycle lifecycle = PullRequestLifecycle.Merged) : IForge
     {
         public const string Id = "counting";
 
@@ -133,7 +181,7 @@ public sealed class ReportedPullRequestsTests
             Reads++;
 
             return ValueTask.FromResult(Result<PullRequestState, ForgeError>.Success(
-                new PullRequestState(pullRequest with { Head = "fix/old", Base = "main" }, PullRequestLifecycle.Merged, "abc1234", Mergeability.Unknown)));
+                new PullRequestState(pullRequest with { Head = "fix/old", Base = "main" }, lifecycle, "abc1234", Mergeability.Unknown)));
         }
 
         public ValueTask<Result<CommentRef, ForgeError>> CommentAsync(ForgeContext context, PullRequestRef pullRequest, string body, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -165,9 +213,9 @@ public sealed class ReportedPullRequestsTests
         public ValueTask<Result<ForgeResponse, ForgeError>> SendAsync(ForgeRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class OriginGit : IGitRemote
+    private sealed class OriginGit(string url = Origin) : IGitRemote
     {
-        public ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Result<string, ForgeError>.Success(Origin));
+        public ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Result<string, ForgeError>.Success(url));
 
         public ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
 
