@@ -36,6 +36,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
         return shown switch
         {
             JobStatus.Discarded or JobStatus.Failed => JobRejection.NotHeld,
+            JobStatus.Approved => await AttemptAsync(jobs.ContinueAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotHeld], SteeredAsync),
             JobStatus.AwaitingReview => await AttemptAsync(jobs.SendBackAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotAwaitingReview], ContinuedAsync),
             JobStatus.Running => await SteeredAsync(),
             _ => await ContinuedAsync(),
@@ -80,13 +81,13 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     {
         var job = integrationEvent.Job;
 
-        if (integrationEvent.Status.IsOver)
+        if (integrationEvent.Status is JobStatus.Discarded or JobStatus.Failed)
         {
             Withdraw(job);
             return;
         }
 
-        if (integrationEvent.Status != JobStatus.NeedsHelp || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
+        if (integrationEvent.Status is not (JobStatus.NeedsHelp or JobStatus.Approved) || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
         {
             return;
         }

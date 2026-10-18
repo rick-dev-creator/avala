@@ -87,6 +87,31 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AMessageToAnApprovedJobThatAWakeUpAlreadyReopenedJoinsItsRunningTurn()
+    {
+        (jobs.Status, jobs.Steerable) = (JobStatus.Running, true);
+
+        Assert.Equal(MessageDelivery.JoinedTheTurn, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Approved, "Keep the alias", Cancellation)));
+        Assert.Equal(["steer Keep the alias"], jobs.Calls);
+    }
+
+    [Fact]
+    public async Task AMessageWaitingWhenTheJobIsApprovedAgainReopensItAndOneWaitingWhenItIsDiscardedIsDropped()
+    {
+        var discarded = JobId.New();
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(discarded, JobStatus.Running, "Drop it", Cancellation)));
+
+        jobs.Status = JobStatus.Approved;
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.Approved), Cancellation);
+        await queue.HandleAsync(new JobProgressed(discarded, JobStatus.Discarded), Cancellation);
+
+        Assert.Equal(["continue Keep the alias"], jobs.Calls);
+        Assert.Equal((true, true), (steering.Queued(job).IsNone, steering.Queued(discarded).IsNone));
+    }
+
+    [Fact]
     public async Task InterruptingAndStoppingBothHoldTheJobWithTheirOwnReasonAndNeitherDiscardsIt()
     {
         Outcomes.Succeeds(await steering.InterruptAsync(job, Cancellation));
