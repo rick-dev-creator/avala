@@ -121,6 +121,18 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ARetryVerdictSendsItsFeedbackFollowedByEveryBriefingAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        flow.Briefings.Add(new NoteBriefing("Bring your task list up to date."));
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal("Two tests fail\n\nBring your task list up to date.", flow.Agents.Sent[^1].Message);
+    }
+
+    [Fact]
     public async Task WhenRetriesRunOutTheJobAsksForHelpAsync()
     {
         var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
@@ -180,6 +192,11 @@ public sealed class JobFlowTests
 
         Assert.Equal(job.Id, asked);
         Assert.Equal(JobState.Running, job.State);
+    }
+
+    private sealed class NoteBriefing(string note) : IJobBriefing
+    {
+        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.Some(note));
     }
 
     private sealed class GatedAdmission : IJobAdmission
