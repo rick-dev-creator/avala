@@ -1,0 +1,44 @@
+Avala
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+New job
+What should the agent do?
+Repository
+repository
+/home/rick/.local/share/Avala/temp/044ce44a45005ce0/avala-pNgYYb
+Instruction
+Handle Stripe refund webhooks
+new
+Connection
+Auto
+Auto → simulator · no connection has reported usage yet, so there is no capacity to compare: the first usable connection
+Autonomy
+Repository's level: supervised
+Supervised: the repository declares no autonomy, so whatever the rules leave open asks you first.
+Model
+Default (simulated-medium)
+Effort
+Default (medium)
+Auto picks the connection when the job starts and runs with its default: now simulator, simulated-medium · medium effort.
+Candidates
+−
+1 candidate
++
+Up to 4 candidates; the best verified run is kept and the others are discarded once you approve it.
+Start
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
+Delegation

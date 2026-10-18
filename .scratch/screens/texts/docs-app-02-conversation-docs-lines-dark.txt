@@ -1,0 +1,54 @@
+Avala
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+repository
+1
+[simulate: plan-revised] Handle Stripe refund webhooks
+no checks declared
+1
+Docs
+[simulate: plan-revised] Handle Stripe refund webhooks
+repository · simulator · simulated-medium · medium effort
+98% context left
+92% usage left
+Ready for review
+Review
+Before this repository works well
+Without .avala/checks.json Avala cannot verify the work
+Declare checks
+Send the agent more to do before you review…
+S
+simulator · simulated-medium · medium
+Handle Stripe refund webhooks · as built
+v2-as-built.md
+Handle Stripe refund webhooks · proposed
+v1-proposed.md
+Worked for 1s
+·
+4,065 tokens
+·
+0.012 USD at API prices
+Checkpoint · 1 file changed
+Restore to here
+Edit WEBHOOKS.md
+Plan
+2 of 2
+Add a Webhooks container
+Apply the refund in Payments
+[simulate: plan-revised] Handle Stripe refund webhooks
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
+Delegation
