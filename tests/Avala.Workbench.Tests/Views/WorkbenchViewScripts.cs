@@ -1,5 +1,7 @@
 using Avala.Components.UI.Copying;
 using Avala.Jobs.Contracts;
+using Avala.Sdk.Regions;
+using Avala.Testing;
 using Avala.Testing.UI;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Navigation;
@@ -21,13 +23,29 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
     public Task ThePageHeadsTheConversationWithItsJobPlaceStatusAndInspectorToggleAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignWorkbenchViewModel());
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
 
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "ConversationView");
             Assert.Equal(("Fix JPY rounding in invoice totals", "billing-worker · claude-work"), (view.TextOf("JobTitle"), view.TextOf("Place")));
             Assert.Contains("Running", view.VisibleTexts);
             Assert.Equal((false, false, false, true), (view.Shows("Welcome"), view.Shows("ReviewSheet"), view.HasClass("ToggleInspector", "selected"), view.Shows("ToggleInspector")));
             Assert.False(view.Shows("OpenReview"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ANarrowHeaderKeepsTheJobTitleAndEveryButtonInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var regions = new JobRegions(
+                [new RegionContribution(WorkbenchRegions.JobHeader, 0, new Avala.Workbench.Usage.DesignUsageLeftViewModel()), new RegionContribution(WorkbenchRegions.JobHeader, 1, new Avala.Workbench.Usage.DesignContextLeftViewModel())],
+                new RememberedLayout());
+            var view = Screen.Show(new DesignWorkbenchViewModel { Regions = regions }, ThemeVariant.Dark, 520, 480);
+            var header = view.Find("Header");
+            double Right(string name) => Avalonia.VisualExtensions.TranslatePoint(view.Find(name), new Avalonia.Point(view.Find(name).Bounds.Width, 0), header)!.Value.X;
+
+            Assert.True(view.Find("JobTitle").Bounds.Width >= 120, $"the title has {view.Find("JobTitle").Bounds.Width:0}");
+            Assert.True(Right("More") <= header.Bounds.Width && Right("ToggleInspector") <= header.Bounds.Width, $"More ends at {Right("More"):0}, the inspector toggle at {Right("ToggleInspector"):0}, the header at {header.Bounds.Width:0}");
+            Assert.False(view.Shows("Pill"));
         }, Cancellation);
 
     [Fact]

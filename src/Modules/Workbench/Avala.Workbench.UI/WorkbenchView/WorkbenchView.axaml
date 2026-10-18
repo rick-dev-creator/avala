@@ -37,6 +37,19 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
     </Style>
+    <ContainerQuery Name="JobHeader" Query="max-width:680">
+      <Style Selector="ContentControl#Pill">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+      <Style Selector="ItemsControl#JobHeaderRegion TextBlock#Left, ItemsControl#JobHeaderRegion TextBlock#Share">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
+    <ContainerQuery Name="JobHeader" Query="max-width:400">
+      <Style Selector="ItemsControl#JobHeaderRegion">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
   <Panel>
     <DockPanel>
@@ -46,7 +59,7 @@
                 BorderBrush="{DynamicResource EdgeBrush}"
                 BorderThickness="0,0,0,1"
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}" Container.Name="JobHeader" Container.Sizing="Width">
             <StackPanel VerticalAlignment="Center">
               <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />

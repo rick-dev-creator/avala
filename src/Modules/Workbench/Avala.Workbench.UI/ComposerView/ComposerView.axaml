@@ -41,6 +41,30 @@
     <Style Selector="TextBox#Draft">
       <Setter Property="FocusAdorner" Value="{x:Null}" />
     </Style>
+    <Style Selector="Button#Attach">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="1" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <Style Selector="ContentControl#ComposerHarness">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="2" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <Style Selector="Panel#SendSlot">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="3" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <ContainerQuery Name="Composer" Query="max-width:560">
+      <Style Selector="TextBox#Draft">
+        <Setter Property="Grid.ColumnSpan" Value="4" />
+      </Style>
+      <Style Selector="Button#Attach, ContentControl#ComposerHarness, Panel#SendSlot">
+        <Setter Property="Grid.Row" Value="2" />
+        <Setter Property="Margin" Value="8,6,0,0" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
   <StackPanel Spacing="6">
     <TextBlock x:Name="Error"
@@ -94,8 +118,10 @@
             states:Dropping.Command="{Binding Attachments.DropCommand}"
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"
-            Padding="16,8,8,8">
-      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto,Auto">
+            Padding="16,8,8,8"
+            Container.Name="Composer"
+            Container.Sizing="Width">
+      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto,Auto,Auto">
         <ContentControl x:Name="Attachments" Grid.ColumnSpan="4" Margin="-8,0,0,4" Content="{Binding Attachments}" IsVisible="{Binding Attachments.HasAttachments}" />
         <TextBox x:Name="Draft"
                  Grid.Row="1"
@@ -132,10 +158,7 @@
           <ContentControl x:Name="Mentions" Content="{Binding Mentions}" />
         </Popup>
         <Button x:Name="Attach"
-                Grid.Row="1"
-                Grid.Column="1"
                 Classes="glyph"
-                Margin="8,0,0,0"
                 VerticalAlignment="Bottom"
                 Command="{Binding Attachments.AttachCommand}"
                 IsVisible="{Binding Attachments.CanAttach}"
@@ -144,12 +167,9 @@
           <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconAttach}" />
         </Button>
         <ContentControl x:Name="ComposerHarness"
-                        Grid.Row="1"
-                        Grid.Column="2"
-                        Margin="8,0,0,0"
                         VerticalAlignment="Bottom"
                         Content="{Binding Harness}" />
-        <Panel Grid.Row="1" Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Bottom">
+        <Panel x:Name="SendSlot" VerticalAlignment="Bottom">
           <Button x:Name="Send"
                   Classes="send"
                   Command="{Binding SendCommand}"
