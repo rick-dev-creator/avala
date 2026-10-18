@@ -139,6 +139,94 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task EveryReportOfAnUndeliveredBriefStaysOwedWhenReleasingTheFirstCannotBeStoredAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var first = await desk.DelegateAsync("notes");
+        var second = await desk.DelegateAsync("todo", "Write the changelog");
+        desk.Agents.Closed = true;
+        await desk.ProgressAsync(first, JobStatus.Failed);
+        _ = await desk.ReportedAsync(first);
+        await desk.ProgressAsync(second, JobStatus.Failed);
+        _ = await desk.ReportedAsync(second);
+        var briefing = Outcomes.Present(await desk.Briefing.BriefAsync(desk.Parent, Cancellation));
+        desk.Store.Fails = record => record.Answered.IsNone;
+        _ = await Record.ExceptionAsync(async () => await briefing.Undelivered(Cancellation));
+        desk.Store.Fails = _ => false;
+
+        Assert.Equal(2, desk.Book.OwedTo(desk.Parent).Count);
+    }
+
+    [Fact]
+    public async Task AReportAMessageDeliversWhileAWaitIsReturningItIsDeliveredOnceAsync()
+    {
+        var desk = new Desk();
+        await desk.StartedAsync();
+        desk.Audit.Working[desk.Session] = desk.Parent;
+        var child = await desk.DelegateAsync("notes");
+        desk.Agents.Closed = true;
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+        desk.Agents.Closed = false;
+        desk.Agents.BeforeReturn = BriefingDelivery(desk);
+
+        await desk.WaitChildAsync("wait", child);
+        _ = await desk.Agents.ResultOfAsync("wait", Cancellation);
+        await desk.DisposeAsync();
+
+        Assert.Single(desk.Bus.Published.OfType<ReportDelivered>());
+    }
+
+    [Fact]
+    public async Task AReportAMessageDeliversWhileTheParentsCallIsReceivingItIsDeliveredOnceAsync()
+    {
+        var desk = new Desk();
+        await desk.StartedAsync();
+        desk.Audit.Working[desk.Session] = desk.Parent;
+        var child = await desk.DelegateAsync("notes");
+        await desk.WaitChildAsync("wait", child);
+        desk.Agents.BeforeReturn = BriefingDelivery(desk);
+
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+        await desk.DisposeAsync();
+
+        Assert.Single(desk.Bus.Published.OfType<ReportDelivered>());
+    }
+
+    [Fact]
+    public async Task AReportSteeredWhileAMessageThatFailedHeldItsClaimIsNotBriefedAgainAsync()
+    {
+        var desk = new Desk { Agents = { Closed = true }, Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        var briefings = new List<JobBrief>();
+        desk.Jobs.BeforeSteer = async () => briefings.AddRange((await desk.Briefing.BriefAsync(desk.Parent, Cancellation)).Match<JobBrief[]>(found => [found], () => []));
+
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+        await desk.DisposeAsync();
+
+        foreach (var briefing in briefings)
+        {
+            await briefing.Undelivered(Cancellation);
+        }
+
+        Assert.Single(desk.Jobs.Steered);
+        Assert.True((await desk.Briefing.BriefAsync(desk.Parent, Cancellation)).IsNone);
+    }
+
+    private static Func<Task> BriefingDelivery(Desk desk) =>
+        async () =>
+        {
+            foreach (var briefing in (await desk.Briefing.BriefAsync(desk.Parent, Cancellation)).Match<JobBrief[]>(found => [found], () => []))
+            {
+                await briefing.Delivered(Cancellation);
+            }
+        };
+
+    [Fact]
     public async Task AReportTheCallCannotReceiveIsSteeredIntoTheParentsLiveTurnOnceWhenItsHarnessAcceptsMessagesMidTurnAsync()
     {
         await using var desk = new Desk { Agents = { Closed = true }, Jobs = { Steerable = true } };

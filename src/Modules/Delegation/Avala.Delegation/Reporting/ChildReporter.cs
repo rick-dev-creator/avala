@@ -72,7 +72,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         {
             if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
             {
-                await journal.ConfirmedAsync(await journal.ClaimedAsync([reported], cancellationToken), cancellationToken);
+                await journal.SteeredAsync(reported, cancellationToken);
             }
         }
     }
@@ -82,7 +82,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         var reported = journal.OfChild(child).Bind(record => record.Report.Map(report => (Record: record, Report: report)));
 
         await reported.Match(
-            found => found.Record.Answered.IsNone
+            found => journal.Unanswered(found.Record)
                 ? journal.DeliveredAsync(found.Record, found.Report, call, cancellationToken)
                 : ReturnedAsync(call, ToolAnswers.AlreadyTold(call.Item, found.Report), cancellationToken),
             () => asking.Match(result => ReturnedAsync(call, result, cancellationToken), () => OpenedAsync(child, call)));
