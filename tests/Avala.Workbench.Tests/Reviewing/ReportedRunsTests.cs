@@ -95,6 +95,39 @@ public sealed class ReportedRunsTests
                 Tool(ItemKind.Command, "printf 'Round' > src/Rounding.cs", ItemOutcome.Succeeded),
             ]));
 
+    [Fact]
+    public void ACommandThatDeletesOrCreatesAFolderNamedLikeAVerificationIsAnEditAndNotAReportedRun() =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "rm -rf tests", ItemOutcome.Succeeded),
+        ]));
+
+    [Theory]
+    [InlineData("git revert --no-edit HEAD")]
+    [InlineData("git am fix.patch")]
+    [InlineData("git clean -fd")]
+    public void ACommandRunBeforeAGitCommandThatChangedTheWorkingTreeIsNotReportedAsAfterTheLastEdit(string command) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, command, ItemOutcome.Succeeded),
+        ]));
+
+    [Theory]
+    [InlineData("dotnet format")]
+    [InlineData("npx prettier --write .")]
+    [InlineData("cargo fmt")]
+    public void ACommandRunBeforeAFormatterRewroteTheFilesIsNotReportedAsAfterTheLastEdit(string formatter) =>
+        Assert.Empty(ReportedRuns.AfterLastEdit(
+        [
+            Tool(ItemKind.FileEdit, "src/Rounding.cs", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, "dotnet test", ItemOutcome.Succeeded),
+            Tool(ItemKind.Command, formatter, ItemOutcome.Succeeded),
+        ]));
+
     private static ToolEntry Tool(ItemKind kind, string input, Option<ItemOutcome> outcome) =>
         new($"item:{Guid.NewGuid():N}", kind, input, string.Empty, outcome) { Input = input };
 }
