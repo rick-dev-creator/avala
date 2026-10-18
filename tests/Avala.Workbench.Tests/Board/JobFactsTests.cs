@@ -124,6 +124,30 @@ public sealed class JobFactsTests
         return job with { Hold = HoldReason.LimitNearlyReached, Wait = new ResetWait(job.Job, new ConnectionName("claude-work"), "5h", resumesAt, Now) };
     }
 
+    [Theory]
+    [InlineData("Watching", null, "Delivered", "Delivered")]
+    [InlineData("Green", null, "Delivered", "Delivered")]
+    [InlineData("Ended", "Merged", "Done", "PullRequestMerged")]
+    [InlineData("Ended", "Closed", "Done", "PullRequestClosed")]
+    [InlineData("Ended", "Green", "Done", "Approved")]
+    public void AnApprovedJobsPullRequestKeepsItDeliveredWhileItIsWatchedAndSaysHowItEnded(string status, string? ended, string group, string fact)
+    {
+        var watch = new Forges.Contracts.PullRequestWatchState(JobId.New(), new Forges.Contracts.ForgeName("local"), new Forges.Contracts.PullRequestRef(7, new Uri("https://forge.example/o/r/pulls/7"), "avala/7", "main"), Forges.Contracts.OnPullRequest.WatchOnly, 3)
+        {
+            Status = Enum.Parse<Forges.Contracts.WatchStatus>(status),
+            Ended = ended is null ? Option<Forges.Contracts.WatchEnd>.None : Enum.Parse<Forges.Contracts.WatchEnd>(ended),
+            Last = new Forges.Contracts.PullRequestState(new Forges.Contracts.PullRequestRef(7, new Uri("https://forge.example/o/r/pulls/7"), "avala/7", "main"), Forges.Contracts.PullRequestLifecycle.Open, "abc", Forges.Contracts.Mergeability.Mergeable)
+            {
+                Checks = [new Forges.Contracts.CheckRun("build", Forges.Contracts.CheckStatus.Passed, Option<Uri>.None, string.Empty), new Forges.Contracts.CheckRun("lint", Forges.Contracts.CheckStatus.Failed, Option<Uri>.None, string.Empty)],
+            },
+        };
+
+        var job = Job(JobStatus.Approved) with { PullRequest = watch };
+
+        Assert.Equal((Enum.Parse<JobGroup>(group), Enum.Parse<FactKind>(fact)), (job.Group, job.Fact.Kind));
+        Assert.Equal(fact == "Approved" ? (0, 0, 0) : (7, fact == "Delivered" ? 1 : 0, fact == "Delivered" ? 2 : 0), (job.Fact.PullRequest, job.Fact.Done, job.Fact.Total));
+    }
+
     private static BoardJob Job(JobStatus status) =>
         new(new FakeCatalog().Add("Fix the failing test", status).Summary, Transcript.Empty);
 }

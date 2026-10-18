@@ -129,3 +129,44 @@ public sealed class AgentPullRequestNoteViewModelScripts
             (AgentPullRequestNoteViewModel.Phrase(new MentionedPullRequest(123, new Uri("https://github.com/ada/shop/pull/123"))), links.SettingsOpened));
     }
 }
+
+public sealed class AgentPullRequestsTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task WhatTheAgentSaidIsAskedAboutOnlyWhenItHoldsALinkAndNoPullRequestIsWatchedAsync()
+    {
+        var mentions = new FakeMentions { Mentioned = new MentionedPullRequest(4, new Uri("https://forge.example/o/r/pulls/4")) };
+        var board = new Avala.Workbench.Board.JobBoard();
+        var said = Job("Opened https://forge.example/o/r/pulls/4.");
+        var plain = Job("Done, nothing else.");
+        var watched = Job("Opened https://forge.example/o/r/pulls/4.") with
+        {
+            PullRequest = new Forges.Contracts.PullRequestWatchState(JobId.New(), new Forges.Contracts.ForgeName("local"), new Forges.Contracts.PullRequestRef(4, new Uri("https://forge.example/o/r/pulls/4"), "avala/4", "main"), Forges.Contracts.OnPullRequest.WatchOnly, 3),
+        };
+        board.Publish(System.Collections.Immutable.ImmutableDictionary<JobId, Avala.Workbench.Board.BoardJob>.Empty.Add(said.Job, said).Add(plain.Job, plain).Add(watched.Job, watched));
+        var pullRequests = new AgentPullRequests(board, mentions);
+
+        var found = await pullRequests.OfAsync(said.Job, Cancellation);
+        var none = (await pullRequests.OfAsync(plain.Job, Cancellation), await pullRequests.OfAsync(watched.Job, Cancellation), await pullRequests.OfAsync(Option<JobId>.None, Cancellation));
+
+        Assert.Equal(4, Outcomes.Present(found).Number);
+        Assert.Equal((false, false, false), (none.Item1.IsSome, none.Item2.IsSome, none.Item3.IsSome));
+        Assert.Equal(["Opened https://forge.example/o/r/pulls/4."], mentions.Read);
+    }
+
+    private static Avala.Workbench.Board.BoardJob Job(string reply)
+    {
+        var session = Avala.Agents.Contracts.Sessions.SessionId.New();
+        var turn = Avala.Agents.Contracts.Sessions.TurnId.New();
+        var transcript = Avala.Workbench.Timeline.Transcript.Empty
+            .Apply(new Avala.Agents.Contracts.Events.TurnStarted(session, turn), Now)
+            .Apply(new Avala.Agents.Contracts.Events.ItemStarted(session, turn, new Avala.Agents.Contracts.Sessions.ItemId("reply"), Avala.Agents.Contracts.Events.ItemKind.Message, "Reply"), Now)
+            .Apply(new Avala.Agents.Contracts.Events.ItemProgressed(session, turn, new Avala.Agents.Contracts.Sessions.ItemId("reply"), reply), Now);
+
+        return new Avala.Workbench.Board.BoardJob(new FakeCatalog().Add("Open a pull request").Summary, transcript);
+    }
+}
