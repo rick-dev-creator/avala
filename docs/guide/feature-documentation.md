@@ -51,7 +51,7 @@ docs/
 
 It writes nothing in your working copy: it starts a job, whose worktree Avala lays out before its first turn, adding only the files the repository lacks, and the job fills the overview, quickstart, architecture and configuration from the repository, records the decisions of features already documented and lists their As built versions in `whats-new.md`. The site is delivered like any job, so it reaches your docs folder once you merge it. The site job is only structure, so Avala doesn't document it as a feature or ask it for a task list. Until then Settings reads "Being prepared by its job", with **Open its job**; a discarded site job offers Create site again. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
 
-On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid out the way Avala lays it out, in the site's light or dark theme, with **Previous**, **Play**, **Next** and the speed. Playing it reveals the elements level by level, then walks each relation, a flow hop by hop with its number. Choosing an element scrolls to its section. Other Mermaid diagrams show as DocFX's Mermaid draws them.
+On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid out the way Avala lays it out, in the site's light or dark theme, with **Previous**, **Play**, **Next**, the speed and the same zoom as in Avala: **Zoom out**, the percent (choose it for the actual size), **Zoom in** and **Fit to view**; Ctrl or ⌘ with the wheel, a pinch or the + and - keys zoom it, so the plain wheel keeps scrolling the page, and dragging or the arrow keys move it. Relations go around elements and their labels sit on plates. Playing it reveals the elements level by level, then walks each relation, a flow hop by hop with its number. Choosing an element scrolls to its section. Other Mermaid diagrams show as DocFX's Mermaid draws them.
 
 **Open the docs site** with the globe in a job's Docs pane: Avala runs `docfx` on the job's leased port and shows the site in the Preview pane. It needs DocFX: `dotnet tool install -g docfx`; without it, Avala says so instead of offering it.
 
@@ -72,4 +72,3 @@ The documentation companion runs on the `research` role of the `delegation` sect
 
 - A version for code the diff touches outside the plan is not written yet; only a new plan or an attempt that changes it writes a deviation.
 - The site's player walks one version at a time; building a version from the one before, as the app does, is only in Avala.
-- The site's player has no zoom or pan of its own yet; the browser's zoom enlarges it.
