@@ -31,7 +31,7 @@ public sealed class ZoomSurface : Border
 
     public const double WheelStep = 1.2;
 
-    private const double LargestFit = 1.25;
+    private const double LargestFit = 1.5;
 
     private readonly MatrixTransform transform = new();
     private Size viewport;

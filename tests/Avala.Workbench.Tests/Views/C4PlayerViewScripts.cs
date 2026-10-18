@@ -207,6 +207,18 @@ public sealed class C4PlayerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ASmallDiagramIsEnlargedToFitItsAreaButNoMoreThanHalfAgainItsSizeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var structure = new C4Diagram(C4Level.Container, "Two", [Element("a", "Alpha"), Element("b", "Beta")], [], [new C4Relation("a", "b", "Calls")]);
+            using var player = Player(structure, []);
+
+            Screen.Show(player, ThemeVariant.Dark, 1900, 1000);
+
+            Assert.Equal(1.5, player.Zoom.Scale);
+        }, Cancellation);
+
+    [Fact]
     public Task AReplyHopInAFlowLeavesTheStructureLaidOutByItsRelationsAsync() =>
         ui.RunAsync(() =>
         {
