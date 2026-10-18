@@ -125,4 +125,22 @@ Asked 2026-10-18 14:57 UTC. Produced [v5](v5-deviation.md).
 
 Asked 2026-10-18 15:00 UTC. Produced [v5](v5-deviation.md).
 
+### Change request 21 · steer · attempt 17
+
+> procura delegar esto a sub-agents del otro harness claude asi no te vas a terminar tu usage
+
+Asked 2026-10-18 15:03 UTC. No version yet.
+
+### Change request 22 · steer · attempt 17
+
+> Avala now allows TaskStop in this job. You may retry it.
+
+Asked 2026-10-18 15:03 UTC. No version yet.
+
+### Change request 23 · steer · attempt 17
+
+> Avala now allows TaskStop in this job. You may retry it.
+
+Asked 2026-10-18 15:03 UTC. No version yet.
+
 <!-- /avala:job 01a14f58-18bb-7efc-a8fe-0e25f10c70a1 -->

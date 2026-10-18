@@ -10,5 +10,7 @@
   href: v4-as-built.md
 - name: v5 · Deviation
   href: v5-deviation.md
+- name: v6 · As built
+  href: v6-as-built.md
 - name: Change requests
   href: changes.md
