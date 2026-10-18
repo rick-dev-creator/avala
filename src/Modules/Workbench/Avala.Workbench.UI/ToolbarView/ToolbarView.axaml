@@ -34,12 +34,15 @@
     </Button>
     <Button x:Name="NewJob"
             Classes="glyph"
-            Padding="5"
+            Padding="6,4,8,4"
             Command="{Binding NewJobCommand}"
             HotKey="{x:Static copying:Hotkeys.NewJob}"
             ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.NewJobLabel}, StringFormat='New job ({0})'}"
             AutomationProperties.Name="New job">
-      <Path Classes="icon" Width="15" Height="15" StrokeThickness="1.5" Data="{StaticResource IconPlus}" />
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <Path Classes="icon" Width="15" Height="15" StrokeThickness="1.5" Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+        <TextBlock x:Name="NewJobText" Text="New job" VerticalAlignment="Center" />
+      </StackPanel>
     </Button>
     <Popup x:Name="DecisionsPopup"
            IsOpen="{Binding IsDecisionsOpen}"

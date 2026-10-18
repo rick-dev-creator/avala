@@ -1,0 +1,9 @@
+{
+  "build": {
+    "content": [ { "files": [ "**/*.{md,yml}" ], "exclude": [ "_site/**", "template/**" ] } ],
+    "resource": [ { "files": [ "media/**" ] } ],
+    "output": "_site",
+    "template": [ "default", "modern", "template" ],
+    "globalMetadata": { "_appName": "avala", "_appTitle": "avala", "_enableSearch": true }
+  }
+}
