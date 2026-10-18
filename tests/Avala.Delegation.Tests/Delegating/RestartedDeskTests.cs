@@ -23,9 +23,12 @@ public sealed class RestartedDeskTests
         await desk.ProgressAsync(child, JobStatus.Failed);
         var reported = await desk.ReportedAsync(child);
         var briefing = Outcomes.Present(await desk.Briefing.BriefAsync(desk.Parent, Cancellation));
+        var beforeDelivery = desk.Bus.Published.OfType<ReportDelivered>().Count();
+        await briefing.Delivered(Cancellation);
 
         Assert.True(reported.Answered.IsNone);
-        Assert.Contains($"delegate call notes: {{\"job\":\"{child.Value}\",\"outcome\":\"failed\"", briefing, StringComparison.Ordinal);
+        Assert.Equal(0, beforeDelivery);
+        Assert.Contains($"delegate call notes: {{\"job\":\"{child.Value}\",\"outcome\":\"failed\"", briefing.Text, StringComparison.Ordinal);
         var delivered = Assert.Single(desk.Bus.Published.OfType<ReportDelivered>()).Delegation;
         Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
         Assert.Equal(delivered, Outcomes.Present(desk.Book.OfChild(child)));

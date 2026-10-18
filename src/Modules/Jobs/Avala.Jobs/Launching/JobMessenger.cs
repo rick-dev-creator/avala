@@ -15,13 +15,23 @@ internal sealed class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> bri
             return await agents.TellAsync(job, message, cancellationToken);
         }
 
-        var notes = new List<string> { message };
+        var briefs = new List<JobBrief>();
 
         foreach (var briefing in briefings)
         {
-            notes.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<string[]>(note => [note], () => []));
+            briefs.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<JobBrief[]>(brief => [brief], () => []));
         }
 
-        return await agents.TellAsync(job, string.Join("\n\n", notes), cancellationToken);
+        var told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), cancellationToken);
+
+        if (told.IsSuccess)
+        {
+            foreach (var brief in briefs)
+            {
+                await brief.Delivered(cancellationToken);
+            }
+        }
+
+        return told;
     }
 }

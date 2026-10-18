@@ -125,11 +125,11 @@ public sealed class DeferredRecoveryTests
     {
         public int Asked { get; private set; }
 
-        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken)
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken)
         {
             Asked++;
 
-            return ValueTask.FromResult(job == briefed ? note : Option<string>.None);
+            return ValueTask.FromResult(job == briefed ? new JobBrief(note) : Option<JobBrief>.None);
         }
     }
 }

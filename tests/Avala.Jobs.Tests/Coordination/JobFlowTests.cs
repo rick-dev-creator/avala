@@ -213,19 +213,50 @@ public sealed class JobFlowTests
         Assert.Contains(flow.Agents.Sent, sent => sent.Message.Contains("The child finished", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task AReportOwedToAJobWhoseSessionClosesWhileItIsBriefedIsDeliveredWhenTheJobContinuesAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Retry("Two tests fail")));
+        var owed = new OwedOnce();
+        flow.Briefings.Add(owed);
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+        flow.Briefings.Add(new SessionClosing(flow.Agents, session));
+        owed.Owe("The child finished: refunds are idempotent.");
+
+        await flow.FinishTurnAsync(job);
+        await flow.EndSessionAsync(job, session);
+        _ = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage("Go on"), Cancellation));
+        await flow.SettledAsync(job);
+
+        Assert.Contains(flow.Agents.Sent, sent => sent.Message.Contains("The child finished", StringComparison.Ordinal));
+    }
+
+    private sealed class SessionClosing(FakeAgents agents, SessionId session) : IJobBriefing
+    {
+        public async ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken)
+        {
+            _ = await agents.StopAsync(session, cancellationToken);
+
+            return Option<JobBrief>.None;
+        }
+    }
+
     private sealed class OwedOnce : IJobBriefing
     {
         private string? report;
 
         public void Owe(string owed) => report = owed;
 
-        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Interlocked.Exchange(ref report, null) is { } briefed ? Option<string>.Some(briefed) : Option<string>.None);
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Volatile.Read(ref report) is { } briefed
+                ? Option<JobBrief>.Some(new JobBrief(briefed) { Delivered = _ => Task.FromResult(Interlocked.CompareExchange(ref report, null, briefed)) })
+                : Option<JobBrief>.None);
     }
 
     private sealed class NoteBriefing(string note) : IJobBriefing
     {
-        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.Some(note));
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<JobBrief>.Some(new JobBrief(note)));
     }
 
     private sealed class GatedAdmission : IJobAdmission

@@ -135,7 +135,7 @@ public sealed class CouldNotStartTests
 
     private sealed class ThrowingBriefing : IJobBriefing
     {
-        public ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
             throw new InvalidOperationException(Locked);
     }
 }
