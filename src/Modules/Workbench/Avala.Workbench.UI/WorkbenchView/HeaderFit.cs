@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 
 namespace Avala.Workbench.UI;
 
@@ -10,6 +11,7 @@ internal sealed class HeaderFit
     private double fullChips;
     private double compactChips;
     private double pillWidth;
+    private string shown = string.Empty;
 
     private HeaderFit(HeaderParts parts) => this.parts = parts;
 
@@ -32,6 +34,7 @@ internal sealed class HeaderFit
             return;
         }
 
+        Forget();
         Remember();
         var needed = TitleRoom + parts.Row.Children.Where(child => child != parts.Title && child != parts.Chips && child != parts.Pill && child.IsVisible).Sum(child => child.DesiredSize.Width);
         var stackedCompact = fullChips > available;
@@ -46,27 +49,36 @@ internal sealed class HeaderFit
         parts.Header.Classes.Set("quiet", quiet);
     }
 
+    private void Forget()
+    {
+        var now = string.Join(',', parts.Chips.GetRealizedContainers().Select((chip, index) => chip.DesiredSize.Width > 0 ? index : -1).Where(index => index >= 0));
+
+        if (now != shown)
+        {
+            shown = now;
+            fullChips = 0;
+            compactChips = 0;
+        }
+    }
+
     private void Remember()
     {
-        if (!Is("quiet"))
+        if (!Is("quiet") && parts.Pill.IsMeasureValid)
         {
             pillWidth = parts.Pill.DesiredSize.Width;
         }
 
-        if (Is("stacked"))
+        if (Is("stacked") || Is("compact") || !parts.Chips.IsMeasureValid)
         {
             return;
         }
 
-        if (Is("compact"))
-        {
-            compactChips = parts.Chips.DesiredSize.Width;
-        }
-        else
-        {
-            fullChips = parts.Chips.DesiredSize.Width;
-        }
+        var labels = parts.Chips.GetVisualDescendants().OfType<TextBlock>()
+            .Where(label => label.Classes.Contains("chip-label") && label.IsEffectivelyVisible && label.DesiredSize.Width > 0)
+            .Sum(label => label.DesiredSize.Width + (label.GetVisualParent() is StackPanel row ? row.Spacing : 0));
+        fullChips = parts.Chips.DesiredSize.Width;
+        compactChips = fullChips - labels;
     }
 }
 
-internal sealed record HeaderParts(Border Header, Grid Row, Control Title, Control Chips, Control Pill);
+internal sealed record HeaderParts(Border Header, Grid Row, Control Title, ItemsControl Chips, Control Pill);

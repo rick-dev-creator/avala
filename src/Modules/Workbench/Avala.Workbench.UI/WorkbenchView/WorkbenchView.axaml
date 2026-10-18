@@ -5,6 +5,7 @@
              xmlns:navigation="using:Avala.Workbench.Navigation"
              xmlns:ui="using:Avala.Components.UI"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
              x:DataType="navigation:IWorkbenchViewModel">
@@ -73,7 +74,7 @@
                           ItemsSource="{Binding Regions.Header}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <StackPanel Orientation="Horizontal" Spacing="8" />
+                  <local:ChipRow Spacing="8" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
