@@ -40,7 +40,7 @@ internal sealed class ProcessTrees(IContainment containment, IEnumerable<IProces
             try
             {
                 var members = await tree.MembersAsync(cancellationToken);
-                _ = await tree.KillAsync(TimeProvider.System, askFirst: false, cancellationToken);
+                _ = await tree.KillAsync(TimeProvider.System, cancellationToken);
                 reaped.Add((earlier, members.Count));
             }
             finally

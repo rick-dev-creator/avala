@@ -92,11 +92,14 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             return;
         }
 
-        if ((await jobs.ContinueAsync(job, message, cancellationToken)).Match(_ => false, rejection => rejection is not (JobRejection.NotRoot or JobRejection.WorkspaceUnavailable)))
+        if ((await jobs.ContinueAsync(job, message, cancellationToken)).Match(_ => false, rejection => !Final(integrationEvent.Status, rejection)))
         {
             Queue(job, message);
         }
     }
+
+    private static bool Final(JobStatus status, JobRejection rejection) =>
+        rejection == JobRejection.NotRoot || (status == JobStatus.Approved && rejection == JobRejection.WorkspaceUnavailable);
 
     private void Queue(JobId job, JobMessage message) =>
         ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => new JobMessage($"{earlier.Text}\n\n{message.Text}") { Attachments = [.. earlier.Attachments, .. message.Attachments] });

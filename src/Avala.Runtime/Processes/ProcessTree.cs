@@ -55,12 +55,9 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
         return OperatingSystem.IsWindows() ? ConsoleHosts.Attributed(members, WindowsProcesses.ParentOf) : members;
     }
 
-    public Task<IReadOnlyList<TreeProcess>> KillAsync(TimeProvider clock, CancellationToken cancellationToken) =>
-        KillAsync(clock, askFirst: true, cancellationToken);
-
-    public async Task<IReadOnlyList<TreeProcess>> KillAsync(TimeProvider clock, bool askFirst, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TreeProcess>> KillAsync(TimeProvider clock, CancellationToken cancellationToken)
     {
-        if (askFirst && !OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows())
         {
             await AskToEndAsync(clock, cancellationToken);
         }

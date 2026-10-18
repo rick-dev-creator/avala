@@ -1,4 +1,5 @@
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Steering;
 
@@ -109,6 +110,18 @@ public sealed class JobSteeringTests : IAsyncDisposable
 
         Assert.Equal(["continue Keep the alias"], jobs.Calls);
         Assert.Equal((true, true), (steering.Queued(job).IsNone, steering.Queued(discarded).IsNone));
+    }
+
+    [Fact]
+    public async Task AMessageWaitingForAHeldJobThatCannotContinueYetStaysQueued()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+
+        (jobs.Status, jobs.Refusal) = (JobStatus.NeedsHelp, JobRejection.WorkspaceUnavailable);
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation);
+
+        Assert.Equal(Option<string>.Some("Keep the alias"), steering.Queued(job));
     }
 
     [Fact]
