@@ -3,10 +3,11 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> briefings)
+internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> briefings, ILogger<JobMessenger> logger)
 {
     public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, CancellationToken cancellationToken)
     {
@@ -17,21 +18,40 @@ internal sealed class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> bri
 
         var briefs = new List<JobBrief>();
 
-        foreach (var briefing in briefings)
+        try
         {
-            briefs.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<JobBrief[]>(brief => [brief], () => []));
+            foreach (var briefing in briefings)
+            {
+                briefs.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<JobBrief[]>(brief => [brief], () => []));
+            }
+        }
+        catch
+        {
+            await SettleAsync(job, briefs, brief => brief.Undelivered, cancellationToken);
+            throw;
         }
 
         var told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), cancellationToken);
-
-        if (told.IsSuccess)
-        {
-            foreach (var brief in briefs)
-            {
-                await brief.Delivered(cancellationToken);
-            }
-        }
+        await SettleAsync(job, briefs, brief => told.IsSuccess ? brief.Delivered : brief.Undelivered, cancellationToken);
 
         return told;
     }
+
+    private async Task SettleAsync(Job job, IReadOnlyList<JobBrief> briefs, Func<JobBrief, Func<CancellationToken, Task>> settle, CancellationToken cancellationToken)
+    {
+        foreach (var brief in briefs)
+        {
+            try
+            {
+                await settle(brief)(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                LogUnsettled(job.Id.Value, exception);
+            }
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A briefing of job {Job} could not record whether its message reached the agent")]
+    private partial void LogUnsettled(Guid job, Exception exception);
 }

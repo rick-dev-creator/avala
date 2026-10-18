@@ -69,16 +69,16 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         return answered;
     }
 
-    public async Task<IReadOnlyList<DelegationRecord>> BriefedAsync(IReadOnlyList<DelegationRecord> reported, CancellationToken cancellationToken)
-    {
-        var answered = reported.Select(record => record with { Answered = new CallAnswer(AnswerRoute.Message, Now) }).ToList();
+    public Task<IReadOnlyList<DelegationRecord>> ClaimedAsync(IReadOnlyList<DelegationRecord> reported, CancellationToken cancellationToken) =>
+        book.ClaimAsync(reported, new CallAnswer(AnswerRoute.Message, Now), cancellationToken);
 
-        foreach (var record in answered)
+    public async Task ConfirmedAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken)
+    {
+        foreach (var record in claimed)
         {
-            await book.KeepAsync(record, cancellationToken);
             await bus.PublishAsync(new ReportDelivered(record), cancellationToken);
         }
-
-        return answered;
     }
+
+    public Task ReleasedAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken) => book.ReleaseAsync(claimed, cancellationToken);
 }

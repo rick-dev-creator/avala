@@ -17,6 +17,37 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
         await store.RecordAsync(record, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DelegationRecord>> ClaimAsync(IReadOnlyList<DelegationRecord> reported, CallAnswer answer, CancellationToken cancellationToken)
+    {
+        var claimed = new List<DelegationRecord>();
+
+        foreach (var record in reported)
+        {
+            var claim = record with { Answered = answer };
+
+            if (Swap(record, current => current.Answered.IsNone, claim))
+            {
+                claimed.Add(claim);
+                await store.RecordAsync(claim, cancellationToken);
+            }
+        }
+
+        return claimed;
+    }
+
+    public async Task ReleaseAsync(IReadOnlyList<DelegationRecord> claimed, CancellationToken cancellationToken)
+    {
+        foreach (var claim in claimed)
+        {
+            var released = claim with { Answered = Option<CallAnswer>.None };
+
+            if (Swap(claim, current => current.Answered == claim.Answered, released))
+            {
+                await store.RecordAsync(released, cancellationToken);
+            }
+        }
+    }
+
     public Task RunAsync(CancellationToken cancellationToken) => RestoreAsync(cancellationToken);
 
     public Task RestoreAsync(CancellationToken cancellationToken) => restoring ??= LoadAsync(cancellationToken);
@@ -40,6 +71,20 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
         var restored = await store.EarlierRunsAsync(cancellationToken);
         ImmutableInterlocked.Update(ref records, live => [.. restored.Where(record => !live.Exists(other => Same(other, record))), .. live]);
         Volatile.Write(ref earlier, restored);
+    }
+
+    private bool Swap(DelegationRecord record, Func<DelegationRecord, bool> expected, DelegationRecord replacement)
+    {
+        var swapped = false;
+        ImmutableInterlocked.Update(ref records, kept =>
+        {
+            var at = kept.FindIndex(existing => Same(existing, record));
+            swapped = at >= 0 && expected(kept[at]);
+
+            return swapped ? kept.SetItem(at, replacement) : kept;
+        });
+
+        return swapped;
     }
 
     private static ImmutableList<DelegationRecord> Kept(ImmutableList<DelegationRecord> kept, DelegationRecord record) =>

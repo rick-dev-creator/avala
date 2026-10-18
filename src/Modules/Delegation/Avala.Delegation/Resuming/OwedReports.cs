@@ -6,12 +6,16 @@ namespace Avala.Delegation.Resuming;
 
 internal sealed class OwedReports(DelegationBook book, DelegationJournal journal) : IJobBriefing
 {
-    public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken)
+    public async ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken)
     {
-        var reported = book.OwedTo(job).Where(record => record.Report.IsSome).ToList();
+        var claimed = await journal.ClaimedAsync([.. book.OwedTo(job).Where(record => record.Report.IsSome)], cancellationToken);
 
-        return ValueTask.FromResult(reported.Count == 0
+        return claimed.Count == 0
             ? Option<JobBrief>.None
-            : new JobBrief(ToolAnswers.Briefing(reported)) { Delivered = token => journal.BriefedAsync(reported, token) });
+            : new JobBrief(ToolAnswers.Briefing(claimed))
+            {
+                Delivered = token => journal.ConfirmedAsync(claimed, token),
+                Undelivered = token => journal.ReleasedAsync(claimed, token),
+            };
     }
 }

@@ -123,4 +123,24 @@ public sealed class ContinueJobTests
     }
 
     private static ConnectionName Personal => new("personal");
+
+    [Fact]
+    public async Task MovingAHeldJobToAnotherConnectionStopsTheOldSessionEvenWhenABriefingCannotRecordItsDeliveryAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.LimitNearlyReached, Token);
+        var old = Outcomes.Present(job.Session);
+        flow.Briefings.Add(new UnrecordedBriefing());
+
+        var continued = await Record.ExceptionAsync(async () => await flow.Jobs.ContinueOnAsync(job.Id, Personal, Message, Cancellation));
+
+        Assert.Null(continued);
+        Assert.Contains(old, flow.Agents.Stopped);
+    }
+
+    private sealed class UnrecordedBriefing : IJobBriefing
+    {
+        public ValueTask<Option<JobBrief>> BriefAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Option<JobBrief>.Some(new JobBrief("The child finished.") { Delivered = _ => throw new IOException("The delegation database is locked") }));
+    }
 }
