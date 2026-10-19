@@ -79,6 +79,8 @@ public sealed record ChildReport(JobId Child, ChildOutcome Outcome, JobStatus St
 
     public Option<JobFailure> Failure { get; init; }
 
+    public Option<string> Harness { get; init; }
+
     public Option<JobRejection> Refusal { get; init; }
 }
 

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -9,36 +10,16 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
-internal enum SubagentState
-{
-    Running,
-    Waiting,
-    Done,
-    Failed,
-    Stopped,
-    Lost,
-}
-
 internal static class SubagentStates
 {
     public static string Text(SubagentState state) => state switch
     {
-        SubagentState.Running => "running",
+        SubagentState.Working => "working",
         SubagentState.Waiting => "waiting",
-        SubagentState.Done => "done",
+        SubagentState.Completed => "completed",
         SubagentState.Stopped => "stopped",
         SubagentState.Lost => "lost",
         _ => "failed",
-    };
-
-    public static SubagentState Of(JobStatus status, Option<HoldReason> hold) => status switch
-    {
-        JobStatus.AwaitingReview or JobStatus.Approved => SubagentState.Done,
-        JobStatus.Failed => SubagentState.Failed,
-        JobStatus.Discarded => SubagentState.Stopped,
-        JobStatus.NeedsHelp when hold == Option<HoldReason>.Some(HoldReason.SessionLost) => SubagentState.Lost,
-        JobStatus.NeedsHelp => SubagentState.Waiting,
-        _ => SubagentState.Running,
     };
 }
 
@@ -73,12 +54,12 @@ internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) :
     public SubagentState State { get; } = entry.Outcome.Match(
         outcome => outcome switch
         {
-            ItemOutcome.Succeeded => SubagentState.Done,
+            ItemOutcome.Succeeded => SubagentState.Completed,
             ItemOutcome.Cancelled => SubagentState.Stopped,
             ItemOutcome.Abandoned => SubagentState.Lost,
             _ => SubagentState.Failed,
         },
-        () => waiting ? SubagentState.Waiting : SubagentState.Running);
+        () => waiting ? SubagentState.Waiting : SubagentState.Working);
 
     public string Activity { get; } = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
 
@@ -108,7 +89,7 @@ internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) :
                         .Where(tool => tool.Kind == ItemKind.Subagent)
                         .TakeLast(Shown)
                         .Select(tool => new SubagentViewModel(tool, tool.Children.Overlaps(asking)))
-                        .OrderBy(subagent => subagent.State is not (SubagentState.Running or SubagentState.Waiting)),
+                        .OrderBy(subagent => subagent.State is not (SubagentState.Working or SubagentState.Waiting)),
                 ];
             },
             () => []);

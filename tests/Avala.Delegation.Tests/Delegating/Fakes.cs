@@ -132,8 +132,12 @@ internal sealed class FixedAudit : IPermissionAudit
     public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) => [];
 }
 
-internal sealed class FixedUsage : IUsage
+internal sealed class FixedUsage : IUsage, IUsageSessions
 {
+    public List<UsageSession> Opened { get; } = [];
+
+    public IReadOnlyList<UsageSession> Sessions() => Opened;
+
     public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
 
     public Dictionary<ConnectionName, IReadOnlyList<UsageLimit>> Limits { get; } = [];

@@ -1,3 +1,4 @@
+using Avala.Delegation.Contracts;
 using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -42,8 +43,8 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
         Assert.True(shown.Item1);
         Assert.Equal(("Ship the refunds flow", false), (shown.Item2, shown.Item3));
         Assert.Equal([("Refunds screen", false), ("Refund API endpoint", true)], shown.Item4);
-        Assert.Equal([("Plan the work", SubagentState.Done)], shown.Item5);
-        Assert.Equal([("Find the refund call sites", "Reading tests/Payments", SubagentState.Running)], shown.Item6);
+        Assert.Equal([("Plan the work", SubagentState.Completed)], shown.Item5);
+        Assert.Equal([("Find the refund call sites", "Reading tests/Payments", SubagentState.Working)], shown.Item6);
         Assert.Equal(("3 jobs · 2 agents", "claude-work · 2 jobs   personal · 1 job"), (shown.Item7, shown.Item8));
         Assert.Equal([new DelegationPaneChanged(bench.Endpoint.Job, true)], bench.Changes);
     }
@@ -216,7 +217,7 @@ public sealed class SubagentViewModelScripts
     [Fact]
     public void ASubagentSaysWhatItIsAndTheLastThingItReported() =>
         ViewModelScript.Given(new SubagentViewModel(Running, waiting: false))
-            .Then(agent => Assert.Equal(("Find the refund call sites", "Reading tests/Payments", SubagentState.Running, "running"), (agent.Name, agent.Activity, agent.State, agent.StateText)));
+            .Then(agent => Assert.Equal(("Find the refund call sites", "Reading tests/Payments", SubagentState.Working, "working"), (agent.Name, agent.Activity, agent.State, agent.StateText)));
 
     [Fact]
     public void AWorkingSubagentShowsTheCommandItRunsNowAndHowManyToolsAndTokensItHasUsedUntilItEnds()
@@ -247,10 +248,14 @@ public sealed class SubagentViewModelScripts
         Assert.False(new SubagentViewModel(Running, waiting: false).ToggleCommand.CanExecute(null));
 
     [Theory]
+    [InlineData(null, false, "working")]
     [InlineData(null, true, "waiting")]
-    [InlineData(ItemOutcome.Succeeded, false, "done")]
+    [InlineData(ItemOutcome.Succeeded, false, "completed")]
     [InlineData(ItemOutcome.Failed, false, "failed")]
-    public void ASubagentIsWaitingWhileItsJobAsksYouAndDoneOrFailedOnceItEnds(ItemOutcome? outcome, bool waiting, string state) =>
+    [InlineData(ItemOutcome.Expired, false, "failed")]
+    [InlineData(ItemOutcome.Cancelled, false, "stopped")]
+    [InlineData(ItemOutcome.Abandoned, false, "lost")]
+    public void ASubagentShowsItIsWorkingWaitingForYouOrHowItEnded(ItemOutcome? outcome, bool waiting, string state) =>
         ViewModelScript.Given(new SubagentViewModel(Running with { Outcome = outcome is { } ended ? ended : Option<ItemOutcome>.None }, waiting))
             .Then(agent => Assert.Equal(state, agent.StateText));
 }

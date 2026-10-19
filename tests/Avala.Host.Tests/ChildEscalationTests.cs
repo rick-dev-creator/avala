@@ -62,7 +62,7 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
         var conversation = await workbench.SelectAsync(parent);
         await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
 
-        Assert.Matches("^Sub-agent \".+Migrate the.+\" is waiting for this job$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
+        Assert.Matches("^Sub-agent \".+Migrate the.+\" on .+ is waiting for this job$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
     }
 
     [Fact]

@@ -34,7 +34,7 @@ internal sealed class Desk : IAsyncDisposable
         var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionRouter([Selector]));
         reporter = new ChildReporter(
             Jobs,
-            new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, [Budgets])),
+            new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, Usage, [Budgets])),
             journal,
             NullLogger<ChildReporter>.Instance);
         desk = new DelegationDesk(new Delegator(policy, Jobs, journal, Terms), reporter, Jobs, Book);

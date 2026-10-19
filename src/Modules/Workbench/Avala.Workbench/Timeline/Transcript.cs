@@ -34,12 +34,12 @@ internal sealed record Transcript
     public IEnumerable<ITimelineEntry> Pending =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or PermissionEntry { AwaitsParent: true } or FormEntry { AwaitsHuman: true } or FormEntry { AwaitsParent: true });
 
-    public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note)
+    public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note, Option<string> harness)
     {
         var told = Entries.OfType<InterjectionEntry>().LastOrDefault(entry => entry.Text == note);
         var key = told is null ? EntryKeys.ChildAsking(session, item) : told.Key;
 
-        return Put(new ChildAskingEntry(key, session, item, child, asking));
+        return Put(new ChildAskingEntry(key, session, item, child, asking) { Harness = harness });
     }
 
     public Transcript ChildDecided(SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change) =>

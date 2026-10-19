@@ -36,7 +36,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         await SayAsync(run, conversation, "How are they doing?");
         var notified = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
-        Assert.Equal(("running", "done"), (launched.GetValueOrDefault(Survey), notified.GetValueOrDefault(Survey)));
+        Assert.Equal(("working", "completed"), (launched.GetValueOrDefault(Survey), notified.GetValueOrDefault(Survey)));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         var oneFinished = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
         Assert.Equal(
-            [("running", "running"), ("done", "running")],
+            [("working", "working"), ("completed", "working")],
             new[] { launched, oneFinished }.Select(states => (states.GetValueOrDefault(Survey), states.GetValueOrDefault(Build))).ToList());
     }
 
@@ -119,7 +119,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         await workbench.ShowsAsync(() => SubagentNamed(pane, Build).State == "waiting");
         var waiting = await StatesAsync(run, pane);
 
-        Assert.Equal(("npm install", "waiting", "running"), (asked.Target, waiting.GetValueOrDefault(Build), waiting.GetValueOrDefault(Survey)));
+        Assert.Equal(("npm install", "waiting", "working"), (asked.Target, waiting.GetValueOrDefault(Build), waiting.GetValueOrDefault(Survey)));
     }
 
     [Fact]

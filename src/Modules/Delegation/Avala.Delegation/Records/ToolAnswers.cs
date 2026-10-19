@@ -12,6 +12,8 @@ internal static class ToolAnswers
     public static ToolResult Refused(ItemId item, DelegationError error) =>
         new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = Reason(error) }.ToJsonString()) { IsError = true };
 
+    private const string CrossHarness = "crossHarness";
+
     public static ToolResult Reported(ItemId item, DelegationRecord delegation, ChildReport report)
     {
         var answer = new JsonObject
@@ -19,6 +21,9 @@ internal static class ToolAnswers
             ["job"] = report.Child.Value.ToString(),
             ["outcome"] = Camel(report.Outcome),
             ["status"] = Camel(report.Status),
+            ["state"] = Camel(SubagentLifecycle.Of(report.Status, report.Hold)),
+            ["kind"] = CrossHarness,
+            ["harness"] = report.Harness.Match(name => name, () => string.Empty),
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
             ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
             ["role"] = Camel(delegation.Role),
@@ -56,6 +61,8 @@ internal static class ToolAnswers
             ["job"] = child,
             ["outcome"] = "running",
             ["status"] = "running",
+            ["state"] = Camel(SubagentState.Waiting),
+            ["kind"] = CrossHarness,
             ["note"] = "this sub-agent is still working; its call returned early so that you can answer another sub-agent that asks you something. Call wait_child with this child to keep waiting for its report.",
             ["wait_child"] = new JsonObject { ["child"] = child },
         }.ToJsonString());

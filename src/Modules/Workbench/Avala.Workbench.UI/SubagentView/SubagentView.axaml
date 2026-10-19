@@ -44,9 +44,9 @@
                    Margin="0,0,7,0"
                    VerticalAlignment="Center"
                    Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}"
-                   Classes.done="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done'}"
+                   Classes.done="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Completed'}"
                    Classes.failed="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Failed,Lost'}" />
-          <TextBlock x:Name="AgentName" DockPanel.Dock="Left" Classes="caption medium" Classes.ended="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done,Failed,Stopped,Lost'}" Margin="0,0,6,0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="160" VerticalAlignment="Center" />
+          <TextBlock x:Name="AgentName" DockPanel.Dock="Left" Classes="caption medium" Classes.ended="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Completed,Failed,Stopped,Lost'}" Margin="0,0,6,0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="160" VerticalAlignment="Center" />
           <TextBlock x:Name="Activity" Classes="caption" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         </DockPanel>
       </Panel>

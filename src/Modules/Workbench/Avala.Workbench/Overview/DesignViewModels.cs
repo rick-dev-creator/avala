@@ -1,5 +1,6 @@
 using Avala.Components.Privacy;
 using Avala.Components.Status;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Conversation;
@@ -150,7 +151,7 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(StatusKind.Working);
 
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Plan the migration", "Listed 14 call sites", SubagentState.Done)];
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Plan the migration", "Listed 14 call sites", SubagentState.Completed)];
 
     public bool HasSubagents => Subagents.Count > 0;
 
@@ -197,7 +198,7 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Read internal/payments/refund.go", SubagentState.Running) { Meter = "6 tool uses · 18,240 tokens" }];
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Read internal/payments/refund.go", SubagentState.Working) { Meter = "6 tool uses · 18,240 tokens" }];
 
     public bool HasSubagents => Subagents.Count > 0;
 

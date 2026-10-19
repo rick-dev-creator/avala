@@ -220,7 +220,6 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         Title = FactPhrases.Title(node.Job.Instruction);
         Depth = node.Depth;
         Status = node.Job.Status;
-        StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold));
         Connection = node.Job.Connection
             .Match(name => name.Value, () => node.Delegation.Bind(record => record.Connection).Match(name => name.Value, () => "not started"));
         Harness = node.Spend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
@@ -242,6 +241,7 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         Doing = node.Report.IsSome || recent.Count == 0 ? Activity : recent[0].Text;
         SubagentCount = SubagentViewModel.Count(node.Seen);
         NeedsYou = dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
+        StateText = SubagentStates.Text(SubagentLifecycle.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou));
         IsSettled = TreeOrder.IsSettled(node);
     }
 

@@ -52,6 +52,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly HashSet<SessionId> steerable = [];
+    private readonly Dictionary<SessionId, string> harnesses = [];
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
@@ -98,6 +99,8 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
             steerable.Add(integrationEvent.Session);
         }
 
+        harnesses[integrationEvent.Session] = integrationEvent.Provider.Name;
+
         return ValueTask.CompletedTask;
     }
 
@@ -105,7 +108,11 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     {
         sessions[integrationEvent.Session] = integrationEvent.Job;
         await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
-        Change(integrationEvent.Job, job => Audited(job with { TakesMessagesMidTurn = steerable.Contains(integrationEvent.Session) }));
+        Change(integrationEvent.Job, job => Audited(job with
+        {
+            TakesMessagesMidTurn = steerable.Contains(integrationEvent.Session),
+            Harness = harnesses.TryGetValue(integrationEvent.Session, out var harness) ? harness : job.Harness,
+        }));
     }
 
     public async ValueTask HandleAsync(ConnectionChosen integrationEvent, CancellationToken cancellationToken)
@@ -176,7 +183,8 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
                     integrationEvent.Item,
                     integrationEvent.Delegation.Instruction,
                     integrationEvent.Asking,
-                    integrationEvent.Note),
+                    integrationEvent.Note,
+                    integrationEvent.Delegation.Child.Bind(child => jobs.TryGetValue(child, out var asking) ? asking.Harness : Option<string>.None)),
             }));
         }
 

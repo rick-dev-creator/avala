@@ -5,7 +5,7 @@ using Avala.Observability.Contracts;
 
 namespace Avala.Delegation.Reporting;
 
-internal sealed class ChildSpending(IUsage usage, IEnumerable<IBudgets> budgets)
+internal sealed class ChildSpending(IUsage usage, IUsageSessions sessions, IEnumerable<IBudgets> budgets)
 {
     public ChildReport Of(ChildReport report)
     {
@@ -16,6 +16,7 @@ internal sealed class ChildSpending(IUsage usage, IEnumerable<IBudgets> budgets)
             Spent = spent.Match<IReadOnlyList<Cost>>(summary => [.. summary.Costs], () => []),
             Tokens = spent.Match(summary => Total(summary.Tokens), () => 0L),
             Carve = budgets.Select(budget => budget.CarveOf(report.Child)).FirstOrDefault(carve => carve.IsSome),
+            Harness = sessions.Sessions().LastOrDefault(session => session.Job == Avala.Sdk.Option<Avala.Jobs.Contracts.JobId>.Some(report.Child)) is { } seen ? seen.Provider.Name : Avala.Sdk.Option<string>.None,
         };
     }
 

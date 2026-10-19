@@ -39,7 +39,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         ("connections/second/.login", string.Empty),
     ];
 
-    private static readonly string[] Lifecycle = ["Launched", "Working", "Awaiting permission", "Completed", "Failed", "Stopped", "Lost"];
+    private static readonly string[] Lifecycle = ["working", "waiting", "completed", "failed", "stopped", "lost"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -85,7 +85,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         var done = await ChildStateAsync(run, child => child["Activity"].Text == "integrated into its parent");
 
         Assert.True(Lifecycle.Contains(waiting, StringComparer.OrdinalIgnoreCase) && Lifecycle.Contains(done, StringComparer.OrdinalIgnoreCase), $"The child was shown as \"{waiting}\" then \"{done}\", outside the sub-agent lifecycle {string.Join(", ", Lifecycle)}");
-        Assert.Equal(["Awaiting permission", "Completed"], [waiting, done], StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(["waiting", "completed"], [waiting, done]);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
 
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName(TranscribedClaude.Simulator)), asked.Delegation.Connection);
         Assert.True(headline.Contains(SimulatedClaudeCode, StringComparison.Ordinal), $"The parent's conversation does not name the asking child's harness: {headline}");
-        Assert.True(early.Contains("\"status\":\"awaitingPermission\"", StringComparison.Ordinal), $"The parent was not told its child awaits permission:\n{early}");
+        Assert.True(early.Contains("\"state\":\"waiting\"", StringComparison.Ordinal), $"The parent was not told its child awaits permission:\n{early}");
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
 
         var report = Returned(await run.StopAndReadRecordingsAsync(), Delegate);
 
-        Assert.True(report.Contains("\"status\":\"lost\"", StringComparison.Ordinal), $"The parent was not told its child is lost:\n{report}");
+        Assert.True(report.Contains("\"state\":\"lost\"", StringComparison.Ordinal), $"The parent was not told its child is lost:\n{report}");
         Assert.Contains("sessionLost", report, StringComparison.Ordinal);
         Assert.NotEqual(ChildOutcome.Integrated, reported.Outcome);
     }
@@ -211,7 +211,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         var recordings = await run.StopAndReadRecordingsAsync();
 
         Assert.Equal(JobStatus.Discarded, status);
-        Assert.Contains("\"status\":\"stopped\"", Returned(recordings, Called), StringComparison.Ordinal);
+        Assert.Contains("\"state\":\"stopped\"", Returned(recordings, Called), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -305,9 +305,9 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         await run.Ui.PresentedAsync(
             delegation.Presentation,
             () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 1 && shown(delegation["Trees"].Items[0]["Children"].Items[0]),
-            () => string.Join(", ", delegation["Trees"].Items.SelectMany(tree => tree["Children"].Items).Select(child => $"{child["State"].Text} {child["Activity"].Text}")));
+            () => string.Join(", ", delegation["Trees"].Items.SelectMany(tree => tree["Children"].Items).Select(child => $"{child["StateText"].Text} {child["Activity"].Text}")));
 
-        return await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Children"].Items[0]["State"].Text);
+        return await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Children"].Items[0]["StateText"].Text);
     }
 
     private static IReadOnlyList<(string File, string Content)> WithSpareSimulator(IReadOnlyList<(string File, string Content)> data)

@@ -22,6 +22,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public Option<HoldReason> Hold { get; init; }
 
+    public Option<string> Harness { get; init; }
+
     public Option<VerificationReport> Verification { get; init; }
 
     public Option<ApprovalDelivery> Delivery { get; init; }

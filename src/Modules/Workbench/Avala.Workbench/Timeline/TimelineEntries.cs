@@ -165,6 +165,8 @@ internal enum ChildAskingState
 
 internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId Item, string Child, string Asking) : ITimelineEntry
 {
+    public Option<string> Harness { get; init; }
+
     public ChildAskingState State { get; init; }
 
     public Option<PassReason> Passed { get; init; }

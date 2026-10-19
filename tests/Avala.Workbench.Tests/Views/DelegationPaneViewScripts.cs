@@ -1,3 +1,4 @@
+using Avala.Delegation.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Overview;
 using Avalonia;
@@ -96,7 +97,7 @@ public sealed class SubagentViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting) { Meter = "2 tool uses · 3,600 tokens" });
-            var quiet = Screen.Show(new DesignSubagentViewModel("Plan the work", "Split it into three jobs", SubagentState.Done));
+            var quiet = Screen.Show(new DesignSubagentViewModel("Plan the work", "Split it into three jobs", SubagentState.Completed));
 
             Assert.Equal(("Read the signature tests", "Waiting for your answer", "2 tool uses · 3,600 tokens", "waiting"), (view.TextOf("AgentName"), view.TextOf("Activity"), view.TextOf("Meter"), view.TextOf("State")));
             Assert.False(quiet.Shows("Meter"));
@@ -108,8 +109,8 @@ public sealed class SubagentViewScripts(HeadlessUi ui)
     public Task AnOpenSubagentListsTheToolsItRanUnderItsPillAsync() =>
         ui.RunAsync(() =>
         {
-            var open = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Running) { Trail = ["Run go test", "Read refund.go"], IsOpen = true });
-            var closed = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Running) { Trail = ["Run go test"] });
+            var open = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Working) { Trail = ["Run go test", "Read refund.go"], IsOpen = true });
+            var closed = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Working) { Trail = ["Run go test"] });
 
             Assert.Equal((true, 2, false), (open.Shows("Trail"), open.Find<ItemsControl>("Trail").ItemCount, closed.Shows("Trail")));
         }, TestContext.Current.CancellationToken);
