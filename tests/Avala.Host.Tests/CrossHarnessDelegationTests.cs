@@ -235,6 +235,41 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.Running, resumed.Status);
     }
 
+    [Fact(Skip = "Adversary round 3 finding, waiting on the owner: a child resumes at its reset because it is a child, not because handoff terms exist (see .method/docs/notes/handoff-2026-10-19-incident.md)")]
+    public async Task ADelegatedChildHeldAtItsLimitWhoseDelegationListsNoConnectionsGoesOnByItselfOnceItsWindowResetsAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("cross-harness-limit");
+        var data = claude.Data.Select(entry =>
+        {
+            if (entry.File != "connections.json")
+            {
+                return entry;
+            }
+
+            var connections = JsonNode.Parse(entry.Content)!;
+            connections["default"] = TranscribedClaude.Simulator;
+
+            return (entry.File, connections.ToJsonString());
+        }).ToList();
+        await using var run = await SimulatedRun.TranscribedAsync(
+            plugins,
+            claude.Plugin,
+            new JobRequest(string.Empty, "Have a sub-agent build the calculator.") { Connection = new ConnectionName(TranscribedClaude.Connection) },
+            data,
+            [(".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "delegation": { "maxChildren": 2 } }""")]);
+        var delegated = run.Watch<ChildDelegated>();
+        var waits = run.Watch<JobWaitsForReset>();
+        var child = Outcomes.Present((await delegated.UntilAsync(_ => true)).Delegation.Child);
+        var wait = (await waits.UntilAsync(found => found.Wait.Job == child && found.Wait.ResumesAt.IsSome)).Wait;
+        await run.DeliveredAsync();
+        var progressed = run.Watch<JobProgressed>();
+
+        run.Clock.Advance(Outcomes.Present(wait.ResumesAt) - run.Clock.GetUtcNow() + TimeSpan.FromMinutes(1));
+
+        var resumed = await progressed.UntilAsync(found => found.Job == child && found.Status != JobStatus.NeedsHelp);
+        Assert.Equal(JobStatus.Running, resumed.Status);
+    }
+
     [Fact]
     public async Task AClaudeCodeParentStopsItsCrossHarnessChildWhichEndsStoppedAndIsReportedStoppedAsync()
     {

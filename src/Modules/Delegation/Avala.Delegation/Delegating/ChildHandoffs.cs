@@ -17,7 +17,7 @@ internal sealed class ChildHandoffs(DelegationBook book, IDelegationRules rules)
         }
 
         return (await rules.OfWorktreeAsync(worktree, cancellationToken)).Match(
-            declared => declared.Bind(section => section.Connections.Count > 0 ? new HandoffTerms(section.Connections) : Option<HandoffTerms>.None),
-            _ => Option<HandoffTerms>.None);
+            declared => new HandoffTerms(declared.Match(section => section.Connections, () => [])),
+            _ => new HandoffTerms([]));
     }
 }
