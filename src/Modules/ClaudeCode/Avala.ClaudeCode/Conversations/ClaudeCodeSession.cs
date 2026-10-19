@@ -17,24 +17,30 @@ internal sealed class ClaudeCodeSession : IAgentSession
     private TaskCompletionSource turnEnded = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool closed;
 
-    private ClaudeCodeSession(ICliProcess cli, Conversation conversation, SessionId id, Option<AgentAccount> account)
+    private ClaudeCodeSession(ICliProcess cli, Conversation conversation, SessionId id, Option<AgentAccount> account, IReadOnlyList<string> ownFolders)
     {
         this.cli = cli;
         this.conversation = conversation;
         Id = id;
         Account = account;
+        OwnFolders = ownFolders;
     }
 
     public SessionId Id { get; }
 
     public Option<AgentAccount> Account { get; }
 
+    public IReadOnlyList<string> OwnFolders { get; }
+
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
-    public static async Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account)
+    public static Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account) =>
+        OpenAsync(cli, conversation, account, []);
+
+    public static async Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account, IReadOnlyList<string> ownFolders)
     {
         var id = SessionId.New();
-        var session = new ClaudeCodeSession(cli, conversation(id), id, account);
+        var session = new ClaudeCodeSession(cli, conversation(id), id, account, ownFolders);
         await session.stage.RunAsync(_ => session.ApplyAsync(Reaction.Send(Messages.Initialize())), CancellationToken.None);
         session.pump = Task.Run(session.PumpAsync, CancellationToken.None);
 

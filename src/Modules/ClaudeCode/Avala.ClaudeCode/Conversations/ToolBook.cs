@@ -32,6 +32,8 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public bool Backgrounded { get; set; }
 
+    public string Task { get; set; } = string.Empty;
+
     public long Tokens { get; set; }
 
     public string Drawn { get; set; } = string.Empty;
@@ -74,6 +76,8 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
     }
 
     public Option<TrackedTool> Find(string id) => tools.TryGetValue(id, out var tracked) ? tracked : Option<TrackedTool>.None;
+
+    public Option<TrackedTool> OfTask(string task) => tools.Values.FirstOrDefault(tool => task.Length > 0 && tool.Task == task).ToOption();
 
     public Option<HarnessTool> Harness(string qualifiedName) =>
         CommandLine.Unqualified(qualifiedName).Bind(name => Offered.FirstOrDefault(tool => tool.Name == name).ToOption());

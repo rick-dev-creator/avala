@@ -45,10 +45,8 @@ public sealed class ClaudeCodePermissionTests(PublishedPlugins plugins)
             claude.Data,
             []);
 
-        var decisions = await AllowedOrStoppedAsync(run, 2);
-
-        Assert.Equal([], NotAllowed(decisions));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.Equal([], NotAllowed(run.Get<IPermissionAudit>().OfJob(run.Job)));
     }
 
     [Fact]
@@ -62,10 +60,8 @@ public sealed class ClaudeCodePermissionTests(PublishedPlugins plugins)
             claude.Data,
             []);
 
-        var decisions = await AllowedOrStoppedAsync(run, 2);
-
-        Assert.Equal([], NotAllowed(decisions));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.Equal([], NotAllowed(run.Get<IPermissionAudit>().OfJob(run.Job)));
     }
 
     [Fact]

@@ -40,8 +40,8 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
     public Reaction Tasked(JsonNode system, Stamp stamp) => system.TextOr("subtype", string.Empty) switch
     {
-        "task_started" when system.Flag("is_backgrounded") => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(tool => Backgrounded(tool, stamp), () => Reaction.None),
-        "task_notification" => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(
+        "task_started" when system.Flag("is_backgrounded") => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(tool => Backgrounded(tool, system.TextOr("task_id", string.Empty), stamp), () => Reaction.None),
+        "task_notification" => Notifying(system).Match(
             tool => tool.Backgrounded && !tool.Closed ? Notified(tool, system, stamp) : Reaction.None,
             () => Orphaned(system, stamp)),
         _ => Reaction.None,
@@ -75,8 +75,13 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         return Reaction.Of(closing);
     }
 
-    private static Reaction Backgrounded(TrackedTool tool, Stamp stamp)
+    private Option<TrackedTool> Notifying(JsonNode notification) =>
+        tools.Find(notification.TextOr("tool_use_id", string.Empty)).Match(Option<TrackedTool>.Some, () => tools.OfTask(notification.TextOr("task_id", string.Empty)));
+
+    private static Reaction Backgrounded(TrackedTool tool, string task, Stamp stamp)
     {
+        tool.Task = tool.Task.Length == 0 ? task : tool.Task;
+
         if (!tool.Opened || tool.Closed || tool.Backgrounded)
         {
             return Reaction.None;
@@ -422,9 +427,26 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             .Select(block => tools.Find(block.TextOr("tool_use_id", string.Empty)).Match(
                 tool => tool.Role == ToolRole.Plan
                     ? nested ? Reaction.None : Planned(plan.Return(tool.Use.Id, block.Flag("is_error"), Text(block)), stamp)
-                    : Finished(tool, block, stamp, reported),
+                    : Stopping(tool, block, stamp).Then(Finished(tool, block, stamp, reported)),
                 () => Reaction.None))
             .Aggregate(Reaction.None, (all, next) => all.Then(next));
+
+    private Reaction Stopping(TrackedTool stopper, JsonNode result, Stamp stamp) =>
+        stopper.Use.Stops && !result.Flag("is_error")
+            ? tools.OfTask(stopper.Use.Input.TextOr("task_id", stopper.Use.Input.TextOr("shell_id", string.Empty))).Match(
+                stopped =>
+                {
+                    if (!stopped.Backgrounded || stopped.Closed)
+                    {
+                        return Reaction.None;
+                    }
+
+                    stopped.Closed = true;
+
+                    return Reaction.Of(new ItemCompleted(stamp.Session, stamp.Turn, stopped.Item, ItemOutcome.Cancelled));
+                },
+                () => Reaction.None)
+            : Reaction.None;
 
     private static bool Launched(JsonObject outcome) =>
         outcome.TextOr("status", string.Empty) == "async_launched" || outcome.Text("backgroundTaskId").IsSome;
@@ -438,7 +460,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
         if (tool.Role == ToolRole.Work && Launched(reported))
         {
-            return Backgrounded(tool, stamp);
+            return Backgrounded(tool, reported.TextOr("agentId", reported.TextOr("backgroundTaskId", string.Empty)), stamp);
         }
 
         tool.Closed = true;

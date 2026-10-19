@@ -180,7 +180,7 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Deny("This tool is internal to Avala.")));
         }
 
-        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && (Granted(tool.Use) || (tool.Use with { Input = input }).WritesPlan(places)))
+        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && (Granted(tool.Use) || tool.Use.OwnWork || (tool.Use with { Input = input }).WritesPlan(places)))
         {
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Allow(input)));
         }

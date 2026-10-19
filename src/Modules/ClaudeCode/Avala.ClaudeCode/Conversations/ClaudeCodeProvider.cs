@@ -59,9 +59,13 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
             async process => Result<IAgentSession, AgentError>.Success(await ClaudeCodeSession.OpenAsync(
                 process,
                 session => new Conversation(session, options, Places(workingDirectory, options.Connection), resumed).Recalling(earlier),
-                account)),
+                account,
+                [ProjectFolder(workingDirectory, options.Connection)])),
             error => Task.FromResult(Result<IAgentSession, AgentError>.Failure(error)));
     }
+
+    private string ProjectFolder(string workingDirectory, ConnectionEnvironment connection) =>
+        Path.Combine(connection.ConfigurationDirectory.Match(folder => folder, () => home.DefaultFolder), "projects", new string([.. workingDirectory.Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-')]));
 
     private Places Places(string workingDirectory, ConnectionEnvironment connection) =>
         new(workingDirectory, Path.Combine(connection.ConfigurationDirectory.Match(folder => folder, () => home.DefaultFolder), Protocol.Places.PlansFolder));

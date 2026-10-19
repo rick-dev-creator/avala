@@ -40,8 +40,11 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
         ["AskUserQuestion"] = Free,
         ["ExitPlanMode"] = Free,
         ["EnterPlanMode"] = Free,
-        ["BashOutput"] = Free,
-        ["TaskOutput"] = Free,
+        ["BashOutput"] = Own,
+        ["TaskOutput"] = Own,
+        ["TaskStop"] = Own,
+        ["KillShell"] = Own,
+        ["SendMessage"] = Own,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     private Traits Tool => Known.GetValueOrDefault(Name) ?? new(Name.StartsWith("mcp__", StringComparison.Ordinal) ? ItemKind.Mcp : ItemKind.Other, Gated: true, Raw);
@@ -59,7 +62,13 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
         _ => Name,
     };
 
-    public bool Gated => Tool.Gated;
+    public bool Gated => Tool.Gated || Isolated;
+
+    public bool OwnWork => Tool.OwnWork;
+
+    public bool Stops => Name is "TaskStop" or "KillShell";
+
+    private bool Isolated => Kind == ItemKind.Subagent && Input.TextOr("isolation", string.Empty) == "worktree";
 
     public bool ReadsOutside(string workingDirectory) =>
         Tool.Reads && Read(workingDirectory).Match(path => Outside(path, workingDirectory), () => true);
@@ -106,6 +115,8 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     private static Traits Free => new(ItemKind.Other, Gated: false, Raw);
 
+    private static Traits Own => Free with { OwnWork = true };
+
     private static Func<JsonObject, string, string> Field(string name) => (input, _) => input.TextOr(name, string.Empty);
 
     private static string Raw(JsonObject input, string workingDirectory) => input.Count == 0 ? string.Empty : input.ToJsonString();
@@ -145,6 +156,8 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     private sealed record Traits(ItemKind Kind, bool Gated, Func<JsonObject, string, string> Details)
     {
+        public bool OwnWork { get; init; }
+
         public bool Reads { get; init; }
     }
 }
