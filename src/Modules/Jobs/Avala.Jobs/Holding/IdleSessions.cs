@@ -104,7 +104,8 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
             || job.Session != Option<SessionId>.Some(session)
             || job.Attempts.Count != rounds
             || !Volatile.Read(ref resumable).ContainsKey(session)
-            || !agents.IsOpen(session))
+            || !agents.IsOpen(session)
+            || agents.IsWorking(session))
         {
             return false;
         }

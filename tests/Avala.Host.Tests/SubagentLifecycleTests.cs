@@ -31,10 +31,10 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background-agents");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Background), claude.Data, []);
         var (workbench, conversation, pane) = await PaneAsync(run);
-        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.");
+        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.", (Survey, "working"), (Build, "working"));
 
         await SayAsync(run, conversation, "How are they doing?");
-        var notified = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
+        var notified = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.", (Survey, "completed"));
 
         Assert.Equal(("working", "completed"), (launched.GetValueOrDefault(Survey), notified.GetValueOrDefault(Survey)));
     }
@@ -50,7 +50,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         _ = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
 
         await SayAsync(run, conversation, "And the build check?");
-        var stopped = await StatesWhenAsync(run, workbench, conversation, pane, "The build check was stopped before it finished.");
+        var stopped = await StatesWhenAsync(run, workbench, conversation, pane, "The build check was stopped before it finished.", (Build, "stopped"));
 
         Assert.Equal("stopped", stopped.GetValueOrDefault(Build));
     }
@@ -61,10 +61,10 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background-agents");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Background), claude.Data, []);
         var (workbench, conversation, pane) = await PaneAsync(run);
-        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.");
+        var launched = await StatesWhenAsync(run, workbench, conversation, pane, "Both sub-agents are working in the background.", (Survey, "working"), (Build, "working"));
 
         await SayAsync(run, conversation, "How are they doing?");
-        var oneFinished = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.");
+        var oneFinished = await StatesWhenAsync(run, workbench, conversation, pane, "The survey is back: the greeting lives in src/Greeter.cs.", (Survey, "completed"));
 
         Assert.Equal(
             [("working", "working"), ("completed", "working")],
@@ -207,11 +207,11 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
             ? (found["StateText"].Text, true)
             : (string.Empty, false);
 
-    private static async Task<Dictionary<string, string>> StatesWhenAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, Bound pane, string said)
+    private static async Task<Dictionary<string, string>> StatesWhenAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, Bound pane, string said, params (string Name, string State)[] settled)
     {
         await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(said));
         await run.DeliveredAsync();
-        await workbench.ShowsAsync(() => true);
+        await workbench.ShowsAsync(() => settled.All(agent => SubagentNamed(pane, agent.Name).State == agent.State));
 
         return await StatesAsync(run, pane);
     }

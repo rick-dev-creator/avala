@@ -38,6 +38,8 @@ internal sealed partial class AgentSessions(
 
     public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;
 
+    public bool IsWorking(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended && running.InTurn;
+
     public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
         SayAsync(session, new UserTurn(message), cancellationToken);
 

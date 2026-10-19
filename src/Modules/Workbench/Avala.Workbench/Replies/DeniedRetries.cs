@@ -41,6 +41,11 @@ internal sealed class DeniedRetries(IDeniedRequests denials, JobSteering steerin
                 var shown = board.Find(job).Match(found => found.Status, () => JobStatus.Running);
                 var delivered = await steering.SendAsync(job, shown, new JobMessage(notice) { Author = MessageAuthor.Avala }, cancellationToken);
 
+                if (!delivered.IsSuccess)
+                {
+                    ImmutableInterlocked.Update(ref told, all => all.SetItem(job, all.GetValueOrDefault(job, []).Remove(notice)));
+                }
+
                 return Result<Retry, PolicyError>.Success(new Retry(answer, delivered.Match(_ => Option<JobRejection>.None, Option<JobRejection>.Some)));
             },
             () => Task.FromResult(Result<Retry, PolicyError>.Success(new Retry(answer, Option<JobRejection>.None))));

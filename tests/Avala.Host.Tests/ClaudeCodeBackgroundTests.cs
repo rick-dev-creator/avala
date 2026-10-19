@@ -52,6 +52,22 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnAgentInATurnItWokeOnItsOwnIsNotRestedOnceItsPromptCacheExpiresAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var session = (await run.OpenedAsync()).Session;
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        _ = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+
+        run.Clock.Advance(PromptCache + PromptCache);
+        await EvaluatedAsync(run);
+
+        Assert.True(run.Get<IAgents>().IsOpen(session), "Avala stopped the agent while a turn it woke on its own was live.");
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");

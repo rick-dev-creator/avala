@@ -78,7 +78,7 @@ internal static class ToolAnswers
             ["job"] = child,
             ["outcome"] = "running",
             ["status"] = "running",
-            ["state"] = Camel(SubagentState.Waiting),
+            ["state"] = Camel(SubagentState.Working),
             ["kind"] = CrossHarness,
             ["note"] = "this sub-agent is still working; its call returned early so that you can answer another sub-agent that asks you something. Call wait_child with this child to keep waiting for its report.",
             ["wait_child"] = new JsonObject { ["child"] = child },
