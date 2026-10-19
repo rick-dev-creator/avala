@@ -68,6 +68,28 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnAgentKeptForATurnItWokeOnItsOwnEndsOnceThatTurnEndsAndItsPromptCacheExpiresAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var run = await StartAsync(claude);
+        var session = (await run.OpenedAsync()).Session;
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+        run.Clock.Advance(PromptCache + PromptCache);
+        await EvaluatedAsync(run);
+        Assert.True(run.Get<IAgents>().IsOpen(session));
+        var ended = run.Watch<TurnFinished>();
+        var stopped = run.Watch<SessionStopped>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await ended.UntilAsync(finished => finished.Session == session);
+        await EvaluatedAsync(run);
+        run.Clock.Advance(PromptCache + PromptCache);
+        _ = await stopped.UntilAsync(found => found.Session == session);
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");

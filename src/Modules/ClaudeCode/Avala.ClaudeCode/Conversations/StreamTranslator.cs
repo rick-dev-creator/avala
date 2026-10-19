@@ -50,7 +50,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
     private Reaction Close(Stamp stamp, bool interrupted, bool ending)
     {
         var closing = open.Select(item => new ItemCompleted(stamp.Session, stamp.Turn, item, interrupted ? ItemOutcome.Cancelled : ItemOutcome.Succeeded))
-            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed && !tool.Backgrounded).Select(tool =>
+            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed && (ending ? !tool.Backgrounded : !tools.Carries(tool))).Select(tool =>
             {
                 tool.Closed = true;
 
@@ -396,6 +396,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         }
 
         var tool = tools.Track(use);
+        tool.Nested = parent.IsSome;
 
         switch (tool.Role)
         {

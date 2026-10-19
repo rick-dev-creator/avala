@@ -11,11 +11,12 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.Holding;
 
 internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents agents, TimeProvider clock)
-    : IHandle<SessionOpened>, IHandle<SessionStopped>, IHandle<SessionEnded>, IHandle<JobProgressed>, IHandle<JobRemoteControlChosen>, IJobSessions, IDisposable
+    : IHandle<SessionOpened>, IHandle<SessionStopped>, IHandle<SessionEnded>, IHandle<JobProgressed>, IHandle<JobRemoteControlChosen>, IHandle<JobSessionStarted>, IHandle<TurnFinished>, IJobSessions, IDisposable
 {
     public static readonly TimeSpan UndeclaredCache = TimeSpan.FromHours(1);
 
     private readonly Dictionary<JobId, ITimer> alarms = [];
+    private readonly Dictionary<SessionId, JobId> jobs = [];
     private ImmutableDictionary<SessionId, TimeSpan> resumable = ImmutableDictionary<SessionId, TimeSpan>.Empty;
 
     public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
@@ -40,6 +41,21 @@ internal sealed class IdleSessions(JobLedger ledger, JobQueues queues, IAgents a
 
     public async ValueTask HandleAsync(JobRemoteControlChosen integrationEvent, CancellationToken cancellationToken) =>
         await ArmAsync(integrationEvent.Job, !integrationEvent.On, cancellationToken);
+
+    public ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
+    {
+        jobs[integrationEvent.Session] = integrationEvent.Job;
+
+        return ValueTask.CompletedTask;
+    }
+
+    public async ValueTask HandleAsync(TurnFinished integrationEvent, CancellationToken cancellationToken)
+    {
+        if (jobs.TryGetValue(integrationEvent.Session, out var job))
+        {
+            await ArmAsync(job, waiting: true, cancellationToken);
+        }
+    }
 
     private ValueTask ForgetAsync(SessionId session)
     {

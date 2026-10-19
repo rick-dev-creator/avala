@@ -106,6 +106,28 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ABackgroundSubagentsToolCallStillWaitingForAPersonWhenItsOrchestratorRepliesEndsOnlyWithItsOwnResultAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background-asks-carried");
+        await using var run = await SimulatedRun.TranscribedAsync(
+            plugins,
+            claude.Plugin,
+            new JobRequest(string.Empty, Background),
+            claude.Data,
+            [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var asked = await run.DecisionAsync();
+        var replied = await run.RepliedAsync();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        var rest = await run.TurnAsync();
+
+        var completions = replied.Concat(rest).OfType<ItemCompleted>().Where(completed => completed.Item == asked.Item).ToList();
+        Assert.Equal(
+            (0, ItemOutcome.Succeeded),
+            (replied.OfType<ItemCompleted>().Count(completed => completed.Item == asked.Item), Assert.Single(completions).Outcome));
+    }
+
+    [Fact]
     public async Task ASubagentWhoseToolCallAsksAPersonIsShownAwaitingPermissionAsItselfWhileTheOtherKeepsRunningAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-asks");

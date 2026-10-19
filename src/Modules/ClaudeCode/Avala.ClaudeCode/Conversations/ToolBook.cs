@@ -32,6 +32,8 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public bool Backgrounded { get; set; }
 
+    public bool Nested { get; set; }
+
     public string Task { get; set; } = string.Empty;
 
     public long Tokens { get; set; }
@@ -84,9 +86,11 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 
     public bool WorkingInBackground => tools.Values.Any(tool => tool.Backgrounded && !tool.Closed);
 
+    public bool Carries(TrackedTool tool) => tool.Backgrounded || tool.Nested && tools.Values.Any(other => other.Backgrounded && !other.Closed);
+
     public void Forget()
     {
-        foreach (var id in tools.Where(tool => !tool.Value.Backgrounded || tool.Value.Closed).Select(tool => tool.Key).ToList())
+        foreach (var id in tools.Where(tool => tool.Value.Closed || !(tool.Value.Backgrounded || tool.Value.Nested)).Select(tool => tool.Key).ToList())
         {
             tools.Remove(id);
         }
