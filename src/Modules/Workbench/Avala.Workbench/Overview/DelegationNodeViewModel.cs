@@ -241,7 +241,7 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         Doing = node.Report.IsSome || recent.Count == 0 ? Activity : recent[0].Text;
         SubagentCount = SubagentViewModel.Count(node.Seen);
         NeedsYou = dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
-        StateText = SubagentStates.Text(SubagentLifecycle.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou));
+        StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou));
         IsSettled = TreeOrder.IsSettled(node);
     }
 

@@ -49,7 +49,7 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         Assert.Equal(("[simulate: delegate-agents] Ship the release", true), shown.Item3);
         Assert.Equal(["Plan the split"], shown.Item4);
         Assert.False(shown.Item5);
-        Assert.Equal([("Read the changelog", "done")], shown.Item6);
+        Assert.Equal([("Read the changelog", "completed")], shown.Item6);
         Assert.Equal("1 done", shown.Item7);
         Assert.True(await run.Ui.ReadAsync(() => toggle["IsOpen"].Value<bool>()));
     }
