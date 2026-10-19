@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
     <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
+    <ProjectReference Include="..\..\Transcripts\Avala.Transcripts.Contracts\Avala.Transcripts.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>

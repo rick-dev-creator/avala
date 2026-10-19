@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
+using Avala.Delegation.Policy;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
@@ -37,7 +38,7 @@ internal static class ToolAnswers
             ["job"] = report.Child.Value.ToString(),
             ["outcome"] = Camel(report.Outcome),
             ["status"] = Camel(report.Status),
-            ["state"] = Camel(StateOf(report.Status, report.Hold)),
+            ["state"] = Camel(Lifecycle.Of(report.Status, report.Hold, Asking.Nothing)),
             ["kind"] = CrossHarness,
             ["harness"] = report.Harness.Match(name => name, () => string.Empty),
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
@@ -58,16 +59,6 @@ internal static class ToolAnswers
 
         return new ToolResult(item, answer.ToJsonString());
     }
-
-    private static SubagentState StateOf(JobStatus status, Option<HoldReason> hold) => status switch
-    {
-        JobStatus.AwaitingReview or JobStatus.Approved => SubagentState.Completed,
-        JobStatus.Failed => SubagentState.Failed,
-        JobStatus.Discarded => SubagentState.Stopped,
-        JobStatus.NeedsHelp when hold == Option<HoldReason>.Some(HoldReason.SessionLost) => SubagentState.Lost,
-        JobStatus.NeedsHelp => SubagentState.Waiting,
-        _ => SubagentState.Working,
-    };
 
     private static string Failed(JobFailure failure) => failure switch
     {

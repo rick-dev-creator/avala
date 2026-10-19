@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-19T01:09:20.4642773+00:00",
+  "recordedAt": "2026-10-19T01:36:35.5851385+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -101,6 +101,10 @@
       },
       {
         "name": "wait_child",
+        "surface": "executed"
+      },
+      {
+        "name": "subagents",
         "surface": "executed"
       }
     ]
@@ -202,7 +206,7 @@
       "at": 7200000,
       "return": {
         "item": "toolu_01DelegateMigrate000002",
-        "content": "{\"job\":\"01a151b4-b922-7aaa-8289-d0995a17f346\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151b4b82e743281672d0d453b9e75\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
+        "content": "{\"job\":\"01a151cd-ac6a-752c-8f56-f5745451e50f\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151cdab777da6b2c9461a98ce9713\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
         "isError": false
       }
     },
@@ -214,7 +218,7 @@
         "item": "toolu_01DelegateMigrate000002",
         "result": {
           "item": "toolu_01DelegateMigrate000002",
-          "content": "{\"job\":\"01a151b4-b922-7aaa-8289-d0995a17f346\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151b4b82e743281672d0d453b9e75\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
+          "content": "{\"job\":\"01a151cd-ac6a-752c-8f56-f5745451e50f\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151cdab777da6b2c9461a98ce9713\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
           "isError": false
         }
       }

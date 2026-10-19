@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
 using Avala.Delegation.Escalating;
+using Avala.Delegation.Listing;
 using Avala.Delegation.MachineFiles;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
@@ -29,6 +30,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton(DelegationTool.Definition)
             .AddSingleton(AnswerChildTool.Definition)
             .AddSingleton(WaitChildTool.Definition)
+            .AddSingleton(SubagentsTool.Definition)
             .AddSingleton<IMachineDelegation, MachineDelegation>()
             .AddSingleton<DelegationRulesReader>()
             .AddForwarded<IDelegationRules, DelegationRulesReader>()
@@ -68,6 +70,11 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<ChildAnswers>()
             .AddForwarded<IHandle<AgentActivity>, ChildAnswers>()
             .AddSingleton<ChildWaits>()
-            .AddForwarded<IHandle<AgentActivity>, ChildWaits>();
+            .AddForwarded<IHandle<AgentActivity>, ChildWaits>()
+            .AddSingleton<ChildRoster>()
+            .AddSingleton<SubagentDesk>()
+            .AddForwarded<IHandle<JobSessionStarted>, SubagentDesk>()
+            .AddForwarded<IHandle<AgentActivity>, SubagentDesk>()
+            .AddForwarded<IHandle<SessionEnded>, SubagentDesk>();
     }
 }

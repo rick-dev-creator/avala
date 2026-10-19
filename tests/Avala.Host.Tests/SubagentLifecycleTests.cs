@@ -87,13 +87,14 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         Assert.Equal(("lost", true), (state, shown.Any(text => text.Contains("work is lost", StringComparison.Ordinal) && Mentioned(text))));
     }
 
-    [Fact(Skip = "Awaits the owner's decision on an Avala tool that answers an orchestrator with the real state of its sub-agents, a feature the stabilization leaves to the owner (incident 2026-10-19, AC-37)")]
+    [Fact]
     public async Task AResumedOrchestratorAsksAvalaForItsSubagentsAndGetsTheirRealStatusAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background-lost");
         await using var tapped = new TemporaryFolder();
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Survey the greeting in the background."), claude.Tapping(tapped.Path), []);
         _ = await run.RepliedAsync();
+        await run.DeliveredAsync();
         await run.RestartAsync();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         _ = await run.StopAndReadRecordingsAsync();

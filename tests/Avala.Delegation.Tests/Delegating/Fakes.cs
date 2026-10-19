@@ -12,6 +12,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Transcripts.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
 
@@ -250,4 +251,12 @@ internal sealed class FixedMachine(EscalationTerms terms) : IMachineDelegation
     }
 
     public ValueTask<EscalationTerms> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(terms);
+}
+
+internal sealed class KeptTranscripts : ITranscripts
+{
+    public Dictionary<JobId, IReadOnlyList<KeptFact>> Kept { get; } = [];
+
+    public ValueTask<IReadOnlyList<KeptFact>> EarlierRunsAsync(JobId job, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Kept.TryGetValue(job, out var facts) ? facts : (IReadOnlyList<KeptFact>)[]);
 }
