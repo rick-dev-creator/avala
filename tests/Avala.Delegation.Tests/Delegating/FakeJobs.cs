@@ -78,6 +78,11 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken)
     {
+        if (histories.TryGetValue(job, out var history) && history.Summary.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        {
+            return ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.NotDiscardable));
+        }
+
         discarded.Enqueue(job);
 
         return ValueTask.FromResult(Result<JobId, JobRejection>.Success(job));

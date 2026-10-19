@@ -29,6 +29,14 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         }
     }
 
+    public void Stop(DelegationRecord delegation, CallRef call, CancellationToken cancellationToken)
+    {
+        foreach (var child in delegation.Child.Match<JobId[]>(found => [found], () => []))
+        {
+            Post(child, token => StopAsync(child, call, token), cancellationToken);
+        }
+    }
+
     public void Discard(JobId child, CancellationToken cancellationToken) =>
         Post(child, async token => _ = await jobs.DiscardAsync(child, token), cancellationToken);
 
@@ -88,6 +96,26 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
                 ? journal.DeliveredAsync(found.Record, found.Report, call, cancellationToken)
                 : ReturnedAsync(call, ToolAnswers.AlreadyTold(call.Item, found.Report), cancellationToken),
             () => asking.Match(result => ReturnedAsync(call, result, cancellationToken), () => OpenedAsync(child, call)));
+    }
+
+    private async Task StopAsync(JobId child, CallRef call, CancellationToken cancellationToken)
+    {
+        var known = journal.OfChild(child);
+
+        if (known.Bind(record => record.Report).IsSome || journal.Calls.IsOpen(child))
+        {
+            var stopped = (await jobs.DiscardAsync(child, cancellationToken)).IsSuccess;
+            await ReturnedAsync(call, stopped ? ToolAnswers.Stopped(call.Item, child) : ToolAnswers.NotStopped(call.Item), cancellationToken);
+
+            return;
+        }
+
+        journal.Calls.Open(child, call);
+
+        if (!(await jobs.DiscardAsync(child, cancellationToken)).IsSuccess && journal.Calls.Take(child).IsSome)
+        {
+            await ReturnedAsync(call, ToolAnswers.NotStopped(call.Item), cancellationToken);
+        }
     }
 
     private Task OpenedAsync(JobId child, CallRef call)

@@ -85,6 +85,20 @@ internal static class ToolAnswers
         }.ToJsonString());
     }
 
+    public static ToolResult Stopped(ItemId item, JobId child) =>
+        new(item, new JsonObject
+        {
+            ["job"] = child.Value.ToString(),
+            ["outcome"] = Camel(ChildOutcome.Discarded),
+            ["status"] = Camel(JobStatus.Discarded),
+            ["state"] = Camel(SubagentState.Stopped),
+            ["kind"] = CrossHarness,
+            ["note"] = "this sub-agent was stopped and its job discarded; none of its work reaches yours.",
+        }.ToJsonString());
+
+    public static ToolResult NotStopped(ItemId item) =>
+        new(item, new JsonObject { ["refused"] = "notRunning", ["reason"] = "that sub-agent already ended, so there is nothing to stop." }.ToJsonString()) { IsError = true };
+
     public static ToolResult AlreadyTold(ItemId item, ChildReport report) =>
         new(item, new JsonObject
         {

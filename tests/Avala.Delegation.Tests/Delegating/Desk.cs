@@ -43,6 +43,7 @@ internal sealed class Desk : IAsyncDisposable
         Briefing = new OwedReports(Book, journal);
         Notes = new ParentNotes(journal, Jobs, Answers, Clock);
         Waits = new ChildWaits(reporter, journal, Audit, Answers);
+        Stops = new ChildStops(reporter, journal, Audit);
         Parent = Jobs.Running();
     }
 
@@ -56,6 +57,8 @@ internal sealed class Desk : IAsyncDisposable
     public ParentNotes Notes { get; }
 
     public ChildWaits Waits { get; }
+
+    public ChildStops Stops { get; }
 
     public DeferredParents Parents { get; }
 
@@ -154,6 +157,9 @@ internal sealed class Desk : IAsyncDisposable
 
     public async Task WaitChildAsync(string item, JobId child) =>
         await Waits.HandleAsync(new AgentActivity(new ToolCalled(Session, Turn, new ItemId(item), WaitChildTool.Name, $$"""{ "child": "{{child.Value}}" }""")), Cancellation);
+
+    public async Task StopChildAsync(string item, JobId child) =>
+        await Stops.HandleAsync(new AgentActivity(new ToolCalled(Session, Turn, new ItemId(item), StopChildTool.Name, $$"""{ "child": "{{child.Value}}" }""")), Cancellation);
 
     public async ValueTask DisposeAsync()
     {
