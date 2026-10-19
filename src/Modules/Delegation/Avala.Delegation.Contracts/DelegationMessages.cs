@@ -34,6 +34,7 @@ public enum DelegationError
     UnofferedModel,
     UnofferedEffort,
     InvalidRoleSettings,
+    UndeclaredConnection,
 }
 
 public enum ChildOutcome

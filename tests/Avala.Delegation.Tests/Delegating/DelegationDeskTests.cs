@@ -77,6 +77,19 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildRunsOnTheDeclaredConnectionItsParentNamedWithoutRoutingAsync()
+    {
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Routing = Routing.Capacity }));
+        desk.Selector.Chosen = new ConnectionName("work");
+        await desk.StartedAsync();
+
+        await desk.CallAsync("call", """{ "instruction": "Write the notes", "connection": "personal" }""");
+
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("personal")), Assert.Single(desk.Jobs.Submitted).Connection);
+        Assert.Empty(desk.Selector.Questions);
+    }
+
+    [Fact]
     public async Task AChildOfASectionThatListsNoConnectionsNamesNoneAndItsReportGivesTheConnectionItRanOnAsync()
     {
         await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Connections = [] }));
@@ -192,6 +205,7 @@ public sealed class DelegationDeskTests
     [InlineData("writer", "RoleLoosened")]
     [InlineData("unknown role", "MalformedInput")]
     [InlineData("malformed", "MalformedInput")]
+    [InlineData("undeclared connection", "UndeclaredConnection")]
     [InlineData("no job", "NoJob")]
     [InlineData("not submitted", "NotSubmitted")]
     [InlineData("unoffered model", "UnofferedModel")]
@@ -220,7 +234,8 @@ public sealed class DelegationDeskTests
         await desk.CallAsync("call", situation switch
         {
             "looser" => """{ "instruction": "Write the notes", "autonomy": "autonomous" }""",
-            "malformed" => """{ "instruction": "Write the notes", "connection": "personal" }""",
+            "malformed" => """{ "instruction": "Write the notes", "harness": "codex" }""",
+            "undeclared connection" => """{ "instruction": "Write the notes", "connection": "elsewhere" }""",
             "writer" => """{ "instruction": "Write the notes", "role": "worker" }""",
             "unknown role" => """{ "instruction": "Write the notes", "role": "editor" }""",
             _ => """{ "instruction": "Write the notes" }""",

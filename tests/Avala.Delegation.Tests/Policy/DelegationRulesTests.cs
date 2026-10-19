@@ -225,12 +225,26 @@ public sealed class DelegationRulesTests
     }
 
     [Theory]
+    [InlineData("work", "")]
+    [InlineData("elsewhere", "UndeclaredConnection")]
+    [InlineData("", "")]
+    public void AConnectionAskedForMustBeOneTheSectionDeclares(string asked, string expected)
+    {
+        var parsed = Outcomes.Succeeds(DelegationInput.Parse(asked.Length == 0 ? """{ "instruction": "Write" }""" : $$"""{ "instruction": "Write", "connection": " {{asked}} " }"""));
+
+        Assert.Equal(
+            expected.Length == 0 ? Option<DelegationError>.None : Enum.Parse<DelegationError>(expected),
+            new DelegationRules([Work, Personal], Routing.Capacity, 1, 2).RefusesConnection(parsed.Connection));
+    }
+
+    [Theory]
     [InlineData("write the notes")]
     [InlineData("""{ "autonomy": "supervised" }""")]
     [InlineData("""{ "instruction": " " }""")]
     [InlineData("""{ "instruction": 1 }""")]
     [InlineData("""{ "instruction": "Write", "autonomy": "trusted" }""")]
-    [InlineData("""{ "instruction": "Write", "connection": "personal" }""")]
+    [InlineData("""{ "instruction": "Write", "connection": " " }""")]
+    [InlineData("""{ "instruction": "Write", "harness": "codex" }""")]
     [InlineData("""{ "instruction": "Write", "model": 1 }""")]
     [InlineData("""{ "instruction": "Write", "effort": " " }""")]
     public void AMalformedInputIsRefused(string input) =>

@@ -66,6 +66,7 @@ internal static class DelegationPhrases
         DelegationError.UnofferedEffort => "its connection does not offer the effort it asked for",
         DelegationError.MalformedInput => "the call was malformed",
         DelegationError.NoJob => "the caller is not a job",
+        DelegationError.UndeclaredConnection => "it asked for a connection its delegation section does not declare",
         _ => "the delegation rules cannot be read",
     };
 }

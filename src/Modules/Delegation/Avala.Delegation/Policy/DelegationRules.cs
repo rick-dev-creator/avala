@@ -32,6 +32,9 @@ internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections
         : asked == Option<Autonomy>.Some(Autonomy.Autonomous) && granted != Autonomy.Autonomous ? DelegationError.AutonomyLoosened
         : Option<DelegationError>.None;
 
+    public Option<DelegationError> RefusesConnection(Option<ConnectionName> asked) =>
+        asked.Match(named => Connections.Contains(named) ? Option<DelegationError>.None : DelegationError.UndeclaredConnection, () => Option<DelegationError>.None);
+
     public ChildRole RoleOf(Option<ChildRole> asked, ChildRole caller) => asked.Match(chosen => chosen, () => Floor(caller));
 
     public Option<DelegationError> RefusesRole(Option<ChildRole> asked, ChildRole caller) =>

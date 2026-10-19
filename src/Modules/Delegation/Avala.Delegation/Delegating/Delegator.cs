@@ -18,7 +18,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
 
         if (!decision.Outcome.TryGetValue(out var plan, out var refusal))
         {
-            await journal.RefusedAsync(record with { Refusal = refusal }, refusal, cancellationToken);
+            await journal.RefusedAsync(record with { Refusal = refusal, Connection = decision.Asked }, ToolAnswers.Refused(called.Item, refusal, decision.Asked, decision.Declared), cancellationToken);
 
             return Option<Delegated>.None;
         }
@@ -50,7 +50,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
         if (!(await jobs.SubmitAsync(request, cancellationToken)).TryGetValue(out var child, out var rejection))
         {
             var refused = Refusal(rejection);
-            await journal.RefusedAsync(planned with { Refusal = refused, Rejection = rejection }, refused, cancellationToken);
+            await journal.RefusedAsync(planned with { Refusal = refused, Rejection = rejection }, ToolAnswers.Refused(planned.Item, refused), cancellationToken);
 
             return Option<Delegated>.None;
         }

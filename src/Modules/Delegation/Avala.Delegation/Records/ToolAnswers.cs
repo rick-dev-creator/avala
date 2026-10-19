@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
@@ -10,8 +11,22 @@ namespace Avala.Delegation.Records;
 
 internal static class ToolAnswers
 {
-    public static ToolResult Refused(ItemId item, DelegationError error) =>
-        new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = Reason(error) }.ToJsonString()) { IsError = true };
+    public static ToolResult Refused(ItemId item, DelegationError error) => Refused(item, error, Reason(error));
+
+    public static ToolResult Refused(ItemId item, DelegationError error, Option<ConnectionName> asked, IReadOnlyList<ConnectionName> declared) =>
+        Refused(item, error, error == DelegationError.UndeclaredConnection ? Undeclared(asked, declared) : Reason(error));
+
+    private static ToolResult Refused(ItemId item, DelegationError error, string reason) =>
+        new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = reason }.ToJsonString()) { IsError = true };
+
+    private static string Undeclared(Option<ConnectionName> asked, IReadOnlyList<ConnectionName> declared)
+    {
+        var named = asked.Match(connection => connection.Value, () => string.Empty);
+
+        return declared.Count == 0
+            ? $"the connection \"{named}\" is not declared in the repository's delegation section, which declares no connections to choose from; leave connection out."
+            : $"the connection \"{named}\" is not declared in the repository's delegation section; choose one of the declared connections, {string.Join(", ", declared.Select(connection => connection.Value))}, or leave connection out.";
+    }
 
     private const string CrossHarness = "crossHarness";
 
@@ -142,7 +157,7 @@ internal static class ToolAnswers
 
     private static string Reason(DelegationError error) => error switch
     {
-        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, a model and an effort as non-empty text if any, and a role of worker, reviewer or research if any.",
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, a model, an effort and a connection as non-empty text if any, and a role of worker, reviewer or research if any.",
         DelegationError.UnofferedModel => "the sub-agent's connection does not offer that model; ask for one it offers or leave the model out.",
         DelegationError.UnofferedEffort => "the sub-agent's connection does not offer that effort level; ask for one it offers or leave the effort out.",
         DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",
