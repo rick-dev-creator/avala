@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Text.Json;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
@@ -187,27 +186,13 @@ internal sealed record Transcript
 
     private ToolEntry Waiting(ToolEntry call)
     {
-        var child = call.Title == WaitChildInput.Tool ? call.Input.Bind(Waited) : Option<JobId>.None;
+        var child = ChildWaits.Of(call);
 
         return call with
         {
             WaitsFor = child,
             Awaited = Entries.OfType<ToolEntry>().Select(entry => entry.Delegation).Where(delegation => delegation.Match(found => child.IsSome && found.Child == child, () => false)).DefaultIfEmpty().Last(),
         };
-    }
-
-    private static Option<JobId> Waited(string input)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize<WaitChildInput>(input, JsonSerializerOptions.Web) is { Child: { } child } && Guid.TryParse(child, out var job)
-                ? new JobId(job)
-                : Option<JobId>.None;
-        }
-        catch (JsonException)
-        {
-            return Option<JobId>.None;
-        }
     }
 
     private Transcript Refused(TurnId turn, ItemId item) =>
@@ -244,9 +229,11 @@ internal sealed record Transcript
         Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title), Children = tool.Children.Add(started.Item) } : entry);
 
     private Transcript LostWith(ItemCompleted completed) =>
-        completed.Outcome == ItemOutcome.Abandoned && Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(entry => entry is ToolEntry { Backgrounded: true, Outcome.IsNone: true }, () => false)
-            ? Tally(completed.Turn, tally => tally with { Lost = tally.Lost.Add(Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(entry => ((ToolEntry)entry).Named, () => string.Empty)) })
-            : this;
+        Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(
+            entry => completed.Outcome == ItemOutcome.Abandoned && entry is ToolEntry { Backgrounded: true, Outcome.IsNone: true } tool
+                ? Tally(completed.Turn, tally => tally with { Lost = tally.Lost.Add(tool.Named) })
+                : this,
+            () => this);
 
     private static ImmutableList<string> Trailed(ImmutableList<string> trail, string title) =>
         trail.Count < TrailKept ? trail.Add(title) : trail.RemoveAt(0).Add(title);
