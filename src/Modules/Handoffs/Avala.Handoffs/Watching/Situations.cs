@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -14,7 +15,7 @@ internal sealed record JobSituation(JobHistory History, Situation Situation)
     public ConnectionName Connection => Situation.Own.Connection;
 }
 
-internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces, ILimitRules rules)
+internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces, ILimitRules rules, IEnumerable<IHandoffTerms> terms)
 {
     public async Task<Option<(JobHistory History, LimitRules Rules)>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
@@ -24,9 +25,24 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces, ILi
     private async Task<LimitRules> RulesOfAsync(JobHistory history, CancellationToken cancellationToken) =>
         await history.Summary.Workspace.Match(
             async id => await (await workspaces.FindAsync(id, cancellationToken)).Match(
-                found => rules.OfWorktreeAsync(found.Path, cancellationToken).AsTask(),
+                async found => (await rules.OfWorktreeAsync(found.Path, cancellationToken)).Under(await TermsAsync(history.Summary.Job, found.Path, cancellationToken)),
                 _ => Task.FromResult(LimitRules.Default)),
             () => Task.FromResult(LimitRules.Default));
+
+    private async Task<Option<HandoffTerms>> TermsAsync(JobId job, string worktree, CancellationToken cancellationToken)
+    {
+        foreach (var given in terms)
+        {
+            var found = await given.OfAsync(job, worktree, cancellationToken);
+
+            if (found.IsSome)
+            {
+                return found;
+            }
+        }
+
+        return Option<HandoffTerms>.None;
+    }
 }
 
 internal sealed class ConnectionReadings(IConnections connections, IUsage usage)

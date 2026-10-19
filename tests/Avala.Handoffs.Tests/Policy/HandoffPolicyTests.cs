@@ -55,6 +55,23 @@ public sealed class HandoffPolicyTests
     }
 
     [Fact]
+    public void AJobWhoseLimitsAreUndeclaredMovesAmongTheConnectionsOfItsHandoffTerms()
+    {
+        var situation = Situated(Option<ConnectionChoice>.None, LimitRules.Default.Under(new HandoffTerms([Work, Codex])), Reading(Work, 0.95));
+
+        Assert.Equal([Codex], HandoffPolicy.Candidates(situation).Select(candidate => candidate.Connection));
+    }
+
+    [Fact]
+    public void DeclaredOrRejectedLimitsWinOverAJobsHandoffTerms()
+    {
+        var terms = new HandoffTerms([Work, Codex]);
+
+        Assert.Empty(HandoffPolicy.Candidates(Situated(Option<ConnectionChoice>.None, Rules(OnLimit.Hold).Under(terms), Reading(Work, 0.95))));
+        Assert.Empty(HandoffPolicy.Candidates(Situated(Option<ConnectionChoice>.None, LimitRules.Rejected(HandoffError.Malformed).Under(terms), Reading(Work, 0.95))));
+    }
+
+    [Fact]
     public void UnderHoldNoConnectionIsACandidate() =>
         Assert.Empty(HandoffPolicy.Candidates(Situated(Chosen(Work, Personal), Rules(OnLimit.Hold), Reading(Work, 0.95))));
 

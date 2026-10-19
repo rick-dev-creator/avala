@@ -88,7 +88,16 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
     {
         Hydrate();
 
-        if (awaitingHold.Remove(integrationEvent.Hold.Job))
+        if (!awaitingHold.Remove(integrationEvent.Hold.Job))
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        if (integrationEvent.Hold.Reason == HoldReason.LimitNearlyReached && pending.TryGetValue(integrationEvent.Hold.Job, out var delegation))
+        {
+            reporter.Held(delegation, integrationEvent.Hold.Job, integrationEvent.Hold, cancellationToken);
+        }
+        else
         {
             Settle(integrationEvent.Hold.Job, new Settlement(JobStatus.NeedsHelp, integrationEvent.Hold.Reason), cancellationToken);
         }

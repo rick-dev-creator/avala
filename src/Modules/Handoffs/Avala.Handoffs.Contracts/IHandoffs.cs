@@ -19,6 +19,13 @@ public interface IHandoffRequests
     ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, ConnectionName to, CancellationToken cancellationToken);
 }
 
+public sealed record HandoffTerms(IReadOnlyList<ConnectionName> Connections);
+
+public interface IHandoffTerms
+{
+    ValueTask<Option<HandoffTerms>> OfAsync(JobId job, string worktree, CancellationToken cancellationToken);
+}
+
 public enum OnLimit
 {
     Hold,

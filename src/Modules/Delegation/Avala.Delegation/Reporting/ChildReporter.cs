@@ -29,6 +29,9 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         }
     }
 
+    public void Held(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken) =>
+        Post(child, token => HeldAsync(delegation, child, hold, token), cancellationToken);
+
     public void Stop(DelegationRecord delegation, CallRef call, CancellationToken cancellationToken)
     {
         foreach (var child in delegation.Child.Match<JobId[]>(found => [found], () => []))
@@ -96,6 +99,21 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
                 ? journal.DeliveredAsync(found.Record, found.Report, call, cancellationToken)
                 : ReturnedAsync(call, ToolAnswers.AlreadyTold(call.Item, found.Report), cancellationToken),
             () => asking.Match(result => ReturnedAsync(call, result, cancellationToken), () => OpenedAsync(child, call)));
+    }
+
+    private async Task HeldAsync(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken)
+    {
+        if (await journal.Calls.Take(child).Match(
+            call => journal.ReturnEarlyAsync(child, call, ToolAnswers.Held(call.Item, child, hold), cancellationToken),
+            () => Task.FromResult(false)))
+        {
+            return;
+        }
+
+        foreach (var parent in delegation.Parent.Match<JobId[]>(found => [found], () => []))
+        {
+            _ = await jobs.SteerAsync(parent, ToolAnswers.HeldNote(delegation, child, hold), cancellationToken);
+        }
     }
 
     private async Task StopAsync(JobId child, CallRef call, CancellationToken cancellationToken)

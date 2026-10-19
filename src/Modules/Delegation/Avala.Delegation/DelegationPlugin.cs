@@ -10,6 +10,7 @@ using Avala.Delegation.Reporting;
 using Avala.Delegation.RepositoryFiles;
 using Avala.Delegation.Resuming;
 using Avala.Delegation.Storage;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -36,6 +37,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<DelegationRulesReader>()
             .AddForwarded<IDelegationRules, DelegationRulesReader>()
             .AddSingleton<IHarnessToolGate, DelegationOffer>()
+            .AddSingleton<IHandoffTerms, ChildHandoffs>()
             .AddForwarded<IRoleSettings, DelegationRulesReader>()
             .AddSingleton<SqliteDelegationStore>()
             .AddForwarded<IDelegationStore, SqliteDelegationStore>()

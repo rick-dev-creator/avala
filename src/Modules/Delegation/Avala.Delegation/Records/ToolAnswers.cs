@@ -85,6 +85,31 @@ internal static class ToolAnswers
         }.ToJsonString());
     }
 
+    public static ToolResult Held(ItemId item, JobId child, JobHold hold) =>
+        new(item, new JsonObject
+        {
+            ["job"] = child.Value.ToString(),
+            ["outcome"] = Camel(ChildOutcome.Held),
+            ["status"] = Camel(JobStatus.NeedsHelp),
+            ["state"] = Camel(SubagentState.Waiting),
+            ["kind"] = CrossHarness,
+            ["hold"] = Camel(hold.Reason),
+            ["reason"] = HeldBecause(hold),
+            ["note"] = HeldNext,
+            ["wait_child"] = new JsonObject { ["child"] = child.Value.ToString() },
+            ["stop_child"] = new JsonObject { ["child"] = child.Value.ToString() },
+        }.ToJsonString());
+
+    public static string HeldNote(DelegationRecord delegation, JobId child, JobHold hold) =>
+        $"Sub-agent \"{delegation.Instruction.Split('\n', 2)[0].Trim()}\", job {child.Value}, is held ({Camel(hold.Reason)}): {HeldBecause(hold)} {HeldNext}";
+
+    private const string HeldNext = "Avala hands it to another connection your delegation section declares when one has room, or it waits for its window to reset; it keeps its work either way. Call wait_child with this child to keep waiting for its report, or stop_child to stop it.";
+
+    private static string HeldBecause(JobHold hold) =>
+        hold.Limit.Match(
+            limit => $"its connection used {limit.UsedFraction.ToString("P0", CultureInfo.InvariantCulture)} of its {limit.Window} usage window.",
+            () => "its connection reached its usage limit.");
+
     public static ToolResult Stopped(ItemId item, JobId child) =>
         new(item, new JsonObject
         {
