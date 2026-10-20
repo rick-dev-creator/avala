@@ -20,6 +20,14 @@ public sealed class EditDiffViewModelScripts
         ViewModelScript.Given(EditDiffViewModel.Of("TODO.md", "- [ ] a task\nexport {}"))
             .Then(edit => Assert.Equal([DiffLineKind.Added, DiffLineKind.Added], edit.Lines.Select(line => line.Kind)));
 
+    [Theory]
+    [InlineData("src/money.ts", "ts")]
+    [InlineData("src\\App.axaml.cs", "cs")]
+    [InlineData("deploy/Dockerfile", "Dockerfile")]
+    public void AnEditIsColoredInTheLanguageOfItsFile(string path, string language) =>
+        ViewModelScript.Given(EditDiffViewModel.Of(path, "- a\n+ b"))
+            .Then(edit => Assert.Equal((language, "-a\n+b"), (edit.Language, edit.Diff)));
+
     [Fact]
     public void ALongEditShowsItsFirstLinesAndSaysHowManyMoreThereAre() =>
         ViewModelScript.Given(EditDiffViewModel.Of("src/money.ts", string.Join('\n', Enumerable.Range(0, EditDiffViewModel.ShownLines + 5).Select(line => $"+ line {line}"))))

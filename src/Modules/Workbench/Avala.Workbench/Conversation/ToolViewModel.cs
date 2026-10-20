@@ -19,6 +19,8 @@ internal interface IToolViewModel
 
     string Input { get; }
 
+    string InputLanguage { get; }
+
     string Output { get; }
 
     bool IsRunning { get; }
@@ -101,6 +103,8 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsInput))]
     public partial string Input { get; private set; } = string.Empty;
+
+    public string InputLanguage => Kind == ItemKind.Command ? "shellscript" : string.Empty;
 
     public bool IsShown => true;
 

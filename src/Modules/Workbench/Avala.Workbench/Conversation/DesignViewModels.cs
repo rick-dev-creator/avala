@@ -229,6 +229,8 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public string Input => string.Empty;
 
+    public string InputLanguage => string.Empty;
+
     public bool IsRunning { get; init; }
 
     public bool Failed { get; init; }
@@ -304,6 +306,10 @@ internal sealed class DesignEditDiffViewModel : IEditDiffViewModel
         new("-    return units * 100", DiffLineKind.Removed),
         new("+    return units * pow10(exponent)", DiffLineKind.Added),
     ];
+
+    public string Diff => DiffLanguage.Text(Lines);
+
+    public string Language => "ts";
 }
 
 internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel

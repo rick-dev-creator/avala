@@ -5,6 +5,7 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
              xmlns:copying="using:Avala.Components.UI.Copying"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
              x:Class="Avala.Workbench.UI.ToolView"
              x:ClassModifier="internal"
              x:DataType="conversation:IToolViewModel"
@@ -28,7 +29,7 @@
       <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
       <Setter Property="FontSize" Value="{DynamicResource FontSizeCode}" />
     </Style>
-    <Style Selector="SelectableTextBlock.output">
+    <Style Selector="SelectableTextBlock.output, markdown|CodeSnippet#Input SelectableTextBlock">
       <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
       <Setter Property="FontSize" Value="{DynamicResource FontSizeOutput}" />
       <Setter Property="LineHeight" Value="18" />
@@ -148,10 +149,10 @@
             IsVisible="{Binding IsExpanded}">
       <Panel>
         <StackPanel Spacing="6" Margin="0,0,22,0">
-          <SelectableTextBlock x:Name="Input"
-                               Classes="output"
-                               Text="{Binding Input}"
-                               IsVisible="{Binding ShowsInput}" />
+          <markdown:CodeSnippet x:Name="Input"
+                                Code="{Binding Input}"
+                                Language="{Binding InputLanguage}"
+                                IsVisible="{Binding ShowsInput}" />
           <ContentControl x:Name="Edit" Content="{Binding Edit}" IsVisible="{Binding ShowsEdit}" />
           <Border x:Name="Problems"
                   Classes="problems"

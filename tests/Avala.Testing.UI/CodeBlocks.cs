@@ -1,4 +1,6 @@
 using Avala.Components.UI.Markdown;
+using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 
@@ -15,6 +17,19 @@ public static class CodeBlocks
 
         var painted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         code.AddHandler(CodeText.PaintedEvent, (_, _) => painted.TrySetResult());
+
+        return painted.Task;
+    }
+
+    public static Task PaintedAsync(CodeDiff diff)
+    {
+        if (diff.IsPainted)
+        {
+            return Task.CompletedTask;
+        }
+
+        var painted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        diff.AddHandler(CodeDiff.PaintedEvent, (_, _) => painted.TrySetResult());
 
         return painted.Task;
     }
@@ -42,4 +57,7 @@ public static class CodeBlocks
 
         return (run?.Properties.ForegroundBrush as ISolidColorBrush)?.Color;
     }
+
+    public static Color? ColorOf(TextBlock line, string word) =>
+        ((line.Inlines ?? []).OfType<Run>().FirstOrDefault(run => run.Text?.Contains(word, StringComparison.Ordinal) == true)?.Foreground as ISolidColorBrush)?.Color;
 }

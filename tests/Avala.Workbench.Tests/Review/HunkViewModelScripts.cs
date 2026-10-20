@@ -12,7 +12,7 @@ public sealed class HunkViewModelScripts
                 new DiffLine(DiffLineKind.Context, "const user = await users.find(email);"),
                 new DiffLine(DiffLineKind.Removed, "return ok(user);"),
                 new DiffLine(DiffLineKind.Added, "return limited(user);"),
-            ])))
+            ]), "src/login.ts"))
             .Then(hunk =>
             {
                 Assert.Equal("@@ -12,6 +12,8 @@ export async function login", hunk.Header);
@@ -22,6 +22,11 @@ public sealed class HunkViewModelScripts
 
     [Fact]
     public void AHunkWithoutASectionHasNoTrailingSpace() =>
-        ViewModelScript.Given(new HunkViewModel(new DiffHunk(1, 0, 1, 1, string.Empty, [new DiffLine(DiffLineKind.Added, "{}")])))
+        ViewModelScript.Given(new HunkViewModel(new DiffHunk(1, 0, 1, 1, string.Empty, [new DiffLine(DiffLineKind.Added, "{}")]), "data.json"))
             .Then(hunk => Assert.Equal("@@ -1,0 +1,1 @@", hunk.Header));
+
+    [Fact]
+    public void AHunkIsColoredInTheLanguageOfItsFile() =>
+        ViewModelScript.Given(new HunkViewModel(new DiffHunk(1, 1, 1, 1, string.Empty, [new DiffLine(DiffLineKind.Removed, "a"), new DiffLine(DiffLineKind.Added, "b")]), "internal/http/routes.go"))
+            .Then(hunk => Assert.Equal(("go", "-a\n+b"), (hunk.Language, hunk.Diff)));
 }

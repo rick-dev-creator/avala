@@ -2,6 +2,7 @@ using Avala.Autopilot.Contracts;
 using Avala.Components.UI.Theme;
 using Avala.Components.UI;
 using Avala.Components.UI.Copying;
+using Avala.Components.UI.Markdown;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -514,7 +515,7 @@ public sealed class HunkViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignHunkViewModel());
-            var lines = view.Find<ItemsControl>("Lines").GetVisualDescendants().OfType<TextBlock>().ToList();
+            var lines = view.Find<CodeDiff>("Lines").Lines;
 
             Assert.StartsWith("@@ -18,7 +18,10 @@", view.TextOf("Header"), StringComparison.Ordinal);
             Assert.Equal(5, lines.Count);
@@ -531,10 +532,22 @@ public sealed class EditDiffViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new Avala.Workbench.Conversation.DesignEditDiffViewModel());
-            var lines = view.Find<ItemsControl>("Lines").GetVisualDescendants().OfType<TextBlock>().ToList();
+            var lines = view.Find<CodeDiff>("Lines").Lines;
 
             Assert.StartsWith("src/money.ts", view.TextOf("Header"), StringComparison.Ordinal);
             Assert.Equal([(true, false), (false, true)], lines.Select(line => (line.Classes.Contains("removed"), line.Classes.Contains("added"))));
             Assert.All(lines, line => Assert.Equal("JetBrains Mono", line.FontFamily.FamilyNames[0]));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnEditColorsItsCodeInTheLanguageOfItsFileAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = Screen.Show(new Avala.Workbench.Conversation.DesignEditDiffViewModel());
+            var diff = view.Find<CodeDiff>("Lines");
+
+            await CodeBlocks.PaintedAsync(diff);
+
+            Assert.All(diff.Lines, line => Assert.NotNull(CodeBlocks.ColorOf(line, "return")));
         }, TestContext.Current.CancellationToken);
 }
