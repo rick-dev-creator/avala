@@ -63,7 +63,7 @@
                 Command="{Binding CreateProjectCommand}"
                 ToolTip.Tip="New project"
                 AutomationProperties.Name="New project">
-          <Path Classes="icon small" Data="{StaticResource IconPlus}" />
+          <Path Classes="icon small" Data="{StaticResource IconFolderNew}" />
         </Button>
       </Grid>
       <ItemsControl x:Name="Projects" Classes="rows" ItemsSource="{Binding Projects}" />
