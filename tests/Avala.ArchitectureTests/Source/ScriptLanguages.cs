@@ -9,16 +9,19 @@ internal static partial class ScriptLanguages
 
     public const string SiteTemplate = "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/";
 
-    public static IEnumerable<string> ForeignScripts(IEnumerable<string> paths) =>
-        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) && !InSiteTemplate(path));
+    public const string LaidOutSiteTemplate = "docs/template/public/";
 
-    private static bool InSiteTemplate(string path)
+    public static IEnumerable<string> ForeignScripts(IEnumerable<string> paths) =>
+        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
+            && !InFolder(path, SiteTemplate) && !InFolder(path, LaidOutSiteTemplate));
+
+    private static bool InFolder(string path, string folder)
     {
         var normalized = path.Replace('\\', '/');
 
         return Path.GetExtension(normalized).Equals(".js", StringComparison.Ordinal)
-            && (normalized.StartsWith(SiteTemplate, StringComparison.Ordinal) || normalized.Contains("/" + SiteTemplate, StringComparison.Ordinal))
-            && normalized[(normalized.IndexOf(SiteTemplate, StringComparison.Ordinal) + SiteTemplate.Length)..].IndexOf('/', StringComparison.Ordinal) < 0;
+            && (normalized.StartsWith(folder, StringComparison.Ordinal) || normalized.Contains("/" + folder, StringComparison.Ordinal))
+            && normalized[(normalized.IndexOf(folder, StringComparison.Ordinal) + folder.Length)..].IndexOf('/', StringComparison.Ordinal) < 0;
     }
 
     public static IEnumerable<string> NonDotnetCommands(string workflow)
