@@ -53,6 +53,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly WorkingViewModel working = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private readonly ConversationSearchViewModel search;
+    private readonly ToolRuns runs = new();
     private Transcript shown = Transcript.Empty;
 
     public ConversationViewModel(ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan, TranscriptExport export)
@@ -67,6 +68,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         this.plan = plan;
         search = new ConversationSearchViewModel(() => [.. Entries.Select(item => item is ISearchable searchable ? searchable.SearchText : string.Empty)]);
         search.Found += (_, found) => Mark(found);
+        runs.Toggled += (_, _) => Rearrange();
     }
 
     public JobId Job => composer.Job;
@@ -118,9 +120,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         {
             shown = job.Transcript;
             plan.Show(job.Transcript.Plan);
-            Arrange(job.Transcript);
-            Mark();
-            search.Refresh();
+            Rearrange();
         }
 
         foreach (var prompt in Entries.OfType<PromptViewModel>())
@@ -200,14 +200,22 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             if (Entries[index] is ISearchable searchable)
             {
                 searchable.Found = index == current ? FindMark.Current : matched.Contains(index) ? FindMark.Match : FindMark.None;
-                _ = index == current && searchable.Unfold();
             }
         }
+
+        _ = current >= 0 && Entries[current] is ISearchable revealed && revealed.Unfold();
+    }
+
+    private void Rearrange()
+    {
+        Arrange(shown);
+        Mark();
+        search.Refresh();
     }
 
     private void Arrange(Transcript transcript)
     {
-        var arranged = transcript.Entries.Select(Item).Where(item => item.IsShown).ToList();
+        var arranged = runs.Fold([.. transcript.Entries.Select(entry => (entry, Item(entry))).Where(pair => pair.Item2.IsShown)]);
 
         if (Entries.Count == 0)
         {
@@ -219,17 +227,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             return;
         }
 
-        var position = 0;
-
-        foreach (var item in arranged)
-        {
-            if (position >= Entries.Count || !ReferenceEquals(Entries[position], item))
-            {
-                Entries.Insert(position, item);
-            }
-
-            position++;
-        }
+        TimelineOrder.Sync(Entries, arranged);
     }
 
     private ITimelineItem Item(ITimelineEntry entry)

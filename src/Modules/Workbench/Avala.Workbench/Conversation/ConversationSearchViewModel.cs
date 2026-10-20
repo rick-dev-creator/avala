@@ -92,7 +92,7 @@ internal sealed partial class ConversationSearchViewModel(Func<IReadOnlyList<str
         var found = query.Length == 0
             ? []
             : Enumerable.Range(0, all.Count).Where(index => all[index].Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
-        var at = found.Count == 0 ? -1 : Math.Max(0, found.IndexOf(kept));
+        var at = found.Count == 0 ? -1 : Math.Max(0, found.FindIndex(index => index >= kept));
         Show(found, at, query);
     }
 

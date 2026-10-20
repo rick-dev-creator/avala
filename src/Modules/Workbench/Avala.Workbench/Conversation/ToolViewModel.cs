@@ -68,10 +68,12 @@ internal interface IToolViewModel
     IAsyncRelayCommand CopyCommand { get; }
 
     IAsyncRelayCommand ShowChangesCommand { get; }
+
+    bool InRun { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISearchable
+internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISearchable, IRunMember
 {
     private readonly IClipboard clipboard;
     private readonly FileChangesViewModel changes;
@@ -158,6 +160,8 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
 
     public bool ShowsCopy => Output.Length > 0 && !ShowsAllChanges;
 
+    public bool StandsAlone => ShowsOutcome || !IsCode || Kind == ItemKind.Subagent;
+
     [ObservableProperty]
     public partial IEditDiffViewModel Edit { get; private set; } = EditDiffViewModel.Of(string.Empty, string.Empty);
 
@@ -168,6 +172,9 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
 
     [ObservableProperty]
     public partial FindMark Found { get; set; }
+
+    [ObservableProperty]
+    public partial bool InRun { get; set; }
 
     public string SearchText => $"{Title}\n{Output}";
 

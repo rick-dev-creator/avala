@@ -12,6 +12,7 @@
              theme:Motion.Enter="Arrive"
              Classes.running="{Binding IsRunning}"
              Classes.failed="{Binding Failed}"
+             Classes.inrun="{Binding InRun}"
              Margin="0,1"
              Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
              Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
@@ -19,6 +20,9 @@
     <conversation:DesignToolViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector=":is(UserControl).inrun">
+      <Setter Property="Padding" Value="24,0,0,0" />
+    </Style>
     <Style Selector="Path#Icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>

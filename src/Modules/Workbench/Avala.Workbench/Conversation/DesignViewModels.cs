@@ -195,6 +195,8 @@ internal sealed class DesignReasoningViewModel(string summary, bool isThinking) 
 {
     public FindMark Found { get; init; }
 
+    public bool InRun { get; init; }
+
     public DesignReasoningViewModel()
         : this("Thought for 6s", false)
     {
@@ -215,9 +217,28 @@ internal sealed class DesignReasoningViewModel(string summary, bool isThinking) 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }
 
+internal sealed class DesignToolGroupViewModel : IToolGroupViewModel
+{
+    public FindMark Found => FindMark.None;
+
+    public ItemKind Kind => ItemKind.Command;
+
+    public string Title => "4 commands, 2 edits";
+
+    public bool IsRunning { get; init; } = true;
+
+    public string Current => "go test ./internal/money/...";
+
+    public bool IsExpanded { get; init; }
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+}
+
 internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string Output) : IToolViewModel
 {
     public FindMark Found { get; init; }
+
+    public bool InRun { get; init; }
 
     public DesignToolViewModel()
         : this(ItemKind.Command, "go test ./internal/money/...", "--- FAIL: TestInvoiceTotal_JPY (0.00s)\n    invoice_test.go:41: want ¥1,080  got ¥1,100")

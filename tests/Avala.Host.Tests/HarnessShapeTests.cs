@@ -88,6 +88,15 @@ public sealed class HarnessShapeTests(PublishedPlugins plugins)
         var conversation = await workbench.SelectAsync(run.Job);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "TurnEndViewModel") is not null);
+        await run.Ui.InvokeAsync(
+            () =>
+            {
+                foreach (var group in conversation["Entries"].Items.Where(entry => entry.Kind == "ToolGroupViewModel" && !entry["IsExpanded"].Value<bool>()))
+                {
+                    group.Execute("ToggleCommand");
+                }
+            },
+            Cancellation);
 
         return await run.Ui.ReadAsync(() => conversation["Entries"].Items
             .Where(entry => entry.Kind == "ToolViewModel")

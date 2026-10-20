@@ -103,6 +103,22 @@ internal static class ConversationPhrases
         _ => "expired",
     };
 
+    public static string Tools(IEnumerable<ItemKind> kinds) =>
+        string.Join(", ", kinds.GroupBy(Tool).Select(kind => Counted(kind.Count(), kind.Key)));
+
+    private static (string One, string Many) Tool(ItemKind kind) => kind switch
+    {
+        ItemKind.Command => ("command", "commands"),
+        ItemKind.FileEdit => ("edit", "edits"),
+        ItemKind.Search => ("search", "searches"),
+        ItemKind.Web => ("web lookup", "web lookups"),
+        ItemKind.Mcp => ("MCP call", "MCP calls"),
+        _ => ("other tool", "other tools"),
+    };
+
+    private static string Counted(int count, (string One, string Many) noun) =>
+        string.Create(CultureInfo.InvariantCulture, $"{count} {(count == 1 ? noun.One : noun.Many)}");
+
     private static string Went(AttemptOutcome outcome) => outcome switch
     {
         AttemptOutcome.Running => "running",
