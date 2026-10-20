@@ -10,6 +10,8 @@ public static class CanvasMediaTypes
     public static string Essence(string mediaType) =>
         mediaType.Split(';', 2)[0].Trim().ToLowerInvariant();
 
+    public static bool IsDiagram(string mediaType) => Essence(mediaType) is Svg or Mermaid;
+
     public static string Label(string mediaType) => Essence(mediaType) switch
     {
         Markdown => "Markdown",

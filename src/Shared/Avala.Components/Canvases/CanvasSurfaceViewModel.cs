@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avala.Components.Zooming;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -11,6 +12,7 @@ public sealed partial class CanvasSurfaceViewModel : ICanvasSurfaceViewModel
 
     private readonly List<CanvasRendering> versions = [];
     private readonly Guid surface = Guid.NewGuid();
+    private readonly ZoomViewModel zoom = new();
     private int sequence;
 
     public CanvasSurfaceViewModel()
@@ -35,7 +37,16 @@ public sealed partial class CanvasSurfaceViewModel : ICanvasSurfaceViewModel
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCommand))]
+    [NotifyPropertyChangedFor(nameof(IsZoomable), nameof(Zoomed), nameof(Scrolled))]
     public partial CanvasRendering Shown { get; private set; } = CanvasRendering.Nothing;
+
+    public bool IsZoomable => CanvasMediaTypes.IsDiagram(Shown.MediaType);
+
+    public CanvasRendering Zoomed => IsZoomable ? Shown : CanvasRendering.Nothing;
+
+    public CanvasRendering Scrolled => IsZoomable ? CanvasRendering.Nothing : Shown;
+
+    public IZoomViewModel Zoom => zoom;
 
     [ObservableProperty]
     public partial int VersionCount { get; private set; }
@@ -81,7 +92,11 @@ public sealed partial class CanvasSurfaceViewModel : ICanvasSurfaceViewModel
     private bool CanReturnToLatest() => !IsFollowingLatest;
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
-    private void Open() => IsOpen = true;
+    private void Open()
+    {
+        zoom.Fit();
+        IsOpen = true;
+    }
 
     private bool CanOpen() => !IsOpen && !Shown.IsNothing;
 

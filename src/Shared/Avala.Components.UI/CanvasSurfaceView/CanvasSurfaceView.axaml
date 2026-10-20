@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:canvases="using:Avala.Components.Canvases"
              xmlns:ui="using:Avala.Components.UI"
+             xmlns:zooming="using:Avala.Components.UI.Zooming"
              x:Class="Avala.Components.UI.CanvasSurfaceView"
              x:ClassModifier="internal"
              x:DataType="canvases:ICanvasSurfaceViewModel">
@@ -35,6 +36,12 @@
       <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
       <Setter Property="StrokeThickness" Value="1.5" />
       <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border#FocusedHud">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="5" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
     </Style>
     <Style Selector="TextBlock.status">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
@@ -175,11 +182,25 @@
               </Button>
             </Grid>
           </Border>
-          <ScrollViewer>
-            <ui:CanvasPresenter x:Name="FocusedDrawing"
-                                Margin="24"
-                                Rendering="{Binding Shown}" />
-          </ScrollViewer>
+          <Panel>
+            <ScrollViewer IsVisible="{Binding !IsZoomable}">
+              <ui:CanvasPresenter x:Name="FocusedDrawing"
+                                  Margin="24"
+                                  Rendering="{Binding Scrolled}" />
+            </ScrollViewer>
+            <zooming:ZoomSurface x:Name="FocusedSurface"
+                                 Scale="{Binding Zoom.Scale}"
+                                 IsFitted="{Binding Zoom.IsFitted}"
+                                 Minimum="{Binding Zoom.Minimum}"
+                                 Maximum="{Binding Zoom.Maximum}"
+                                 FitMargin="24,24,24,64"
+                                 IsVisible="{Binding IsZoomable}">
+              <ui:CanvasPresenter x:Name="FocusedDiagram" Rendering="{Binding Zoomed}" />
+            </zooming:ZoomSurface>
+            <Border x:Name="FocusedHud" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,14" IsVisible="{Binding IsZoomable}">
+              <ContentControl x:Name="FocusedZoom" Content="{Binding Zoom}" />
+            </Border>
+          </Panel>
         </DockPanel>
       </Border>
     </Popup>

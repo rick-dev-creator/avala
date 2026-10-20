@@ -93,6 +93,26 @@ public sealed class CanvasSurfaceViewModelScripts
             .Then(surface => Assert.Equal((false, true), (surface.IsOpen, surface.OpenCommand.CanExecute(null))));
 
     [Theory]
+    [InlineData("image/svg+xml", true)]
+    [InlineData("text/vnd.mermaid", true)]
+    [InlineData("text/markdown", false)]
+    [InlineData("text/html", false)]
+    public void OnlyADiagramZoomsInTheFocusedViewWhileTextScrolls(string mediaType, bool zooms) =>
+        ViewModelScript.Given(new CanvasSurfaceViewModel())
+            .When(surface => surface.Show(new CanvasDraft("Notes", mediaType, "x", CanvasPhase.Completed)))
+            .Then(surface => Assert.Equal((zooms, zooms, !zooms), (surface.IsZoomable, surface.Zoomed == surface.Shown, surface.Scrolled == surface.Shown)));
+
+    [Fact]
+    public void OpeningADiagramAgainShowsItFittedHoweverItWasZoomedBefore() =>
+        ViewModelScript.Given(Drawn("<svg/>"))
+            .Invoke(nameof(CanvasSurfaceViewModel.OpenCommand))
+            .When(surface => surface.Zoom.ZoomInCommand.Execute(null))
+            .Then(surface => Assert.False(surface.Zoom.IsFitted))
+            .Invoke(nameof(CanvasSurfaceViewModel.CloseCommand))
+            .Invoke(nameof(CanvasSurfaceViewModel.OpenCommand))
+            .Then(surface => Assert.True(surface.Zoom.IsFitted));
+
+    [Theory]
     [InlineData("text/markdown; charset=utf-8", "Markdown")]
     [InlineData("IMAGE/SVG+XML", "SVG")]
     [InlineData("text/vnd.mermaid", "Mermaid")]
