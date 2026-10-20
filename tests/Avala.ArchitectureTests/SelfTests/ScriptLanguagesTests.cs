@@ -24,6 +24,18 @@ public sealed class ScriptLanguagesTests
             ]));
 
     [Fact]
+    public void AcceptsOnlyTheJavaScriptOfTheSiteTemplateLaidOutInTheDocsItsOwnFolder() =>
+        Assert.Equal(
+            ["docs/template/public/nested/tool.js", "docs/template/public/build.sh", "docs/template/main.js"],
+            ScriptLanguages.ForeignScripts([
+                "/home/dev/avala/docs/template/public/main.js",
+                "docs/template/public/avala-c4.js",
+                "docs/template/public/nested/tool.js",
+                "docs/template/public/build.sh",
+                "docs/template/main.js",
+            ]));
+
+    [Fact]
     public void AcceptsDotnetCommandsInEveryRunStyle()
     {
         const string workflow = """
