@@ -1,3 +1,4 @@
+using Avala.Components.Zooming;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Components.Canvases;
@@ -26,6 +27,14 @@ public sealed class DesignCanvasSurfaceViewModel : ICanvasSurfaceViewModel
     public bool IsStreaming => false;
 
     public CanvasRendering Shown { get; } = new(CanvasMediaTypes.Svg, RoundingPath, true, 3);
+
+    public bool IsZoomable => true;
+
+    public CanvasRendering Zoomed => Shown;
+
+    public CanvasRendering Scrolled => CanvasRendering.Nothing;
+
+    public IZoomViewModel Zoom { get; } = new DesignZoomViewModel();
 
     public int VersionCount => 3;
 

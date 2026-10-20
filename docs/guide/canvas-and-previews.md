@@ -16,9 +16,10 @@ Agents draw diagrams, charts and notes on a canvas in the conversation, and a pa
 
 1. **Ask for something visual**, such as "draw the architecture" or "chart the results": the agent draws it on a canvas.
 2. **Play an animation again** with the play button that appears on hover, when reduced motion is on.
-3. **Run the project** with **Run** in the job's header: it starts the worktree's `dev` script, or `start`, with the package manager its lock file names (pnpm, yarn, bun or npm), or serves `index.html` when there is no script. Stop ends it.
-4. **Open the preview** from the **Running** chip in the job's header. The pane has Back, Reload, Allow network, Open in browser and Close preview.
-5. **Resize the pane** by dragging its edge, and reset it with a double-click.
+3. **Look closer** with **Open** in the canvas's header, and close it with Escape. An SVG or Mermaid diagram opens fitted, with the same zoom as the Docs pane: **Zoom out**, the zoom in percent (choose it for the actual size), **Zoom in** and **Fit to view**; the wheel or a pinch zooms where the pointer is and dragging moves it. Markdown scrolls.
+4. **Run the project** with **Run** in the job's header: it starts the worktree's `dev` script, or `start`, with the package manager its lock file names (pnpm, yarn, bun or npm), or serves `index.html` when there is no script. Stop ends it.
+5. **Open the preview** from the **Running** chip in the job's header. The pane has Back, Reload, Allow network, Open in browser and Close preview.
+6. **Resize the pane** by dragging its edge, and reset it with a double-click.
 
 ## Settings and files
 

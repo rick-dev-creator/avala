@@ -756,6 +756,21 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AnOpenedCommandColorsWhatItRanAsShellScriptAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.Command, "Run cd", "done", ItemOutcome.Succeeded) { Input = "cd src && echo \"done\"" }));
+
+            view.Click("Toggle");
+            var input = Assert.IsType<CodeText>(view.Find<CodeSnippet>("Input").Child);
+            await CodeBlocks.PaintedAsync(input);
+            view.Settle();
+
+            Assert.Equal("cd src && echo \"done\"", input.Text);
+            Assert.NotEqual(CodeBlocks.ColorOf(input, "src"), CodeBlocks.ColorOf(input, "\"done\""));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ClickingAFileEditLineOpensItsHunksInAPopoverAsync() =>
         ui.RunAsync(async () =>
         {

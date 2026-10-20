@@ -20,6 +20,10 @@ internal sealed class DesignHunkViewModel : IHunkViewModel
         new("+   Post(\"/login\", h.Login)", DiffLineKind.Added),
         new("  r.Post(\"/logout\", h.Logout)", DiffLineKind.Context),
     ];
+
+    public string Diff => DiffLanguage.Text(Lines);
+
+    public string Language => "go";
 }
 
 internal sealed class DesignChangedFileViewModel(string path, ChangeKind kind, string counts, bool isExpanded) : IChangedFileViewModel

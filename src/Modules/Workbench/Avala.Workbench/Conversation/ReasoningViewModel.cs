@@ -21,10 +21,12 @@ internal interface IReasoningViewModel
     bool HasText { get; }
 
     IRelayCommand ToggleCommand { get; }
+
+    bool InRun { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelineItem, ISearchable
+internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelineItem, ISearchable, IRunMember
 {
     public ReasoningViewModel(ReasoningEntry entry)
     {
@@ -56,6 +58,9 @@ internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelin
 
     [ObservableProperty]
     public partial FindMark Found { get; set; }
+
+    [ObservableProperty]
+    public partial bool InRun { get; set; }
 
     public string SearchText => Text;
 

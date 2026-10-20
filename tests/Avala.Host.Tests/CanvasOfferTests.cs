@@ -2,12 +2,16 @@ using System.Text.Json;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
+using Avala.Components.UI.Zooming;
 using Avala.Host.Composition;
 using Avala.Mermaid.UI;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Testing.UI;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Host.Tests;
@@ -74,6 +78,37 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         {
             Assert.True(view.Shows("Mermaid"));
             Assert.True(view.Shows("Svg"));
+        }), Cancellation);
+    }
+
+    [Fact]
+    public async Task AnOpenedDiagramZoomsWithTheWheelAndPansWhenDraggedAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "mermaid-canvas");
+
+        var surfaces = await CanvasSurfacesAsync(run, count: 1);
+
+        await ui.RunAsync(() => PresentedAsync(run, Assert.Single(surfaces), async view =>
+        {
+            view.Click("Open");
+            await view.DrawnAsync();
+            var zoom = view.Find<ZoomSurface>("FocusedSurface");
+            var top = TopLevel.GetTopLevel(zoom)!;
+            var center = zoom.TranslatePoint(new Point(zoom.Bounds.Width / 2, zoom.Bounds.Height / 2), top)!.Value;
+            var fitted = zoom.Shown;
+
+            top.MouseWheel(center, new Vector(0, 1));
+            view.Settle();
+            var zoomed = zoom.Shown;
+            top.MouseDown(center, MouseButton.Left);
+            top.MouseMove(center + new Point(40, 30), RawInputModifiers.LeftMouseButton);
+            top.MouseUp(center + new Point(40, 30), MouseButton.Left);
+            view.Settle();
+
+            Assert.True(view.Shows("FocusedZoom"));
+            Assert.InRange(fitted.Width, 100, zoom.Bounds.Width);
+            Assert.Equal(fitted.Width * ZoomSurface.WheelStep, zoomed.Width, 3);
+            Assert.Equal(zoomed.TopLeft + new Vector(40, 30), zoom.Shown.TopLeft);
         }), Cancellation);
     }
 
@@ -164,13 +199,21 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         return drawn;
     }
 
-    private static async Task PresentedAsync(SimulatedRun run, ICanvasSurfaceViewModel surface, Action<ViewScript> inspect)
+    private static Task PresentedAsync(SimulatedRun run, ICanvasSurfaceViewModel surface, Action<ViewScript> inspect) =>
+        PresentedAsync(run, surface, view =>
+        {
+            inspect(view);
+
+            return Task.CompletedTask;
+        });
+
+    private static async Task PresentedAsync(SimulatedRun run, ICanvasSurfaceViewModel surface, Func<ViewScript, Task> inspect)
     {
         Application.Current!.DataTemplates.Add(run.Views);
 
         try
         {
-            inspect(await ViewScript.Show(surface).DrawnAsync());
+            await inspect(await ViewScript.Show(surface).DrawnAsync());
         }
         finally
         {

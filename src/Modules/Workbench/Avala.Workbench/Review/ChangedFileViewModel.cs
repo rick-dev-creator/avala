@@ -28,6 +28,10 @@ internal interface IHunkViewModel
     string Header { get; }
 
     IReadOnlyList<HunkLine> Lines { get; }
+
+    string Diff { get; }
+
+    string Language { get; }
 }
 
 internal sealed record HunkLine(string Text, DiffLineKind Kind)
@@ -85,7 +89,7 @@ internal sealed partial class ChangedFileViewModel : IChangedFileViewModel
             {
                 foreach (var hunk in found.Hunks)
                 {
-                    hunks.Add(new HunkViewModel(hunk));
+                    hunks.Add(new HunkViewModel(hunk, Path));
                 }
 
                 IsExpanded = true;
@@ -96,7 +100,7 @@ internal sealed partial class ChangedFileViewModel : IChangedFileViewModel
     }
 }
 
-internal sealed class HunkViewModel(DiffHunk hunk) : IHunkViewModel
+internal sealed class HunkViewModel(DiffHunk hunk, string path) : IHunkViewModel
 {
     public string Header { get; } = $"@@ -{hunk.OldStart},{hunk.OldLines} +{hunk.NewStart},{hunk.NewLines} @@ {hunk.Section}".TrimEnd();
 
@@ -108,4 +112,8 @@ internal sealed class HunkViewModel(DiffHunk hunk) : IHunkViewModel
             _ => $" {line.Text}",
         },
         line.Kind))];
+
+    public string Diff => DiffLanguage.Text(Lines);
+
+    public string Language { get; } = DiffLanguage.Of(path);
 }

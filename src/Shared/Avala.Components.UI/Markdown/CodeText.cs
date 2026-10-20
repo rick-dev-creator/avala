@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
@@ -14,6 +15,9 @@ public sealed class CodeText : SelectableTextBlock
     public static readonly RoutedEvent<RoutedEventArgs> PaintedEvent =
         RoutedEvent.Register<CodeText, RoutedEventArgs>("Painted", RoutingStrategies.Bubble);
 
+    public static readonly RoutedEvent<RoutedEventArgs> SelectedEvent =
+        RoutedEvent.Register<CodeText, RoutedEventArgs>("Selected", RoutingStrategies.Bubble);
+
     public const int NumberedLines = 30;
 
     private const double GutterGap = 14;
@@ -24,6 +28,7 @@ public sealed class CodeText : SelectableTextBlock
     private List<(int Start, CodeInk Ink)> painted = [];
     private Action stop = () => { };
     private (TextLayout Code, TextLayout Numbers)? numbers;
+    private bool dragging;
 
     public CodeText(string code, string language)
     {
@@ -32,6 +37,7 @@ public sealed class CodeText : SelectableTextBlock
         starts = LineStarts(code);
         Text = code;
         ActualThemeVariantChanged += (_, _) => InvalidateTextLayout();
+        AddHandler(PointerMovedEvent, KeepDragging, RoutingStrategies.Tunnel, handledEventsToo: true);
 
         if (Highlights(language))
         {
@@ -107,6 +113,29 @@ public sealed class CodeText : SelectableTextBlock
         }
     }
 
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        dragging = e.Pointer.Captured == this && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+
+        if (!dragging)
+        {
+            return;
+        }
+
+        dragging = false;
+
+        if (SelectedText.Length > 0)
+        {
+            RaiseEvent(new RoutedEventArgs(SelectedEvent));
+        }
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         stop();
@@ -153,6 +182,21 @@ public sealed class CodeText : SelectableTextBlock
         }
 
         return found;
+    }
+
+    private void KeepDragging(object? sender, PointerEventArgs e)
+    {
+        if (!dragging || !e.Handled || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        if (e.Pointer.Captured != this)
+        {
+            e.Pointer.Capture(this);
+        }
+
+        OnPointerMoved(e);
     }
 
     private async Task PaintAsync()

@@ -143,6 +143,29 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task DraggingAcrossACodeBlockSelectsItsCodeAndPutsItOnTheClipboardAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = Screen.Show(Message(Rich, done: true));
+            var code = Assert.Single(view.All<CodeText>());
+            var copy = Assert.Single(view.All<Button>(), button => button.Classes.Contains("code-copy"));
+            var from = code.TranslatePoint(new Point(code.Padding.Left + 1, 4), view.Window)!.Value;
+            var to = code.TranslatePoint(new Point(code.Bounds.Width - 1, code.Bounds.Height - 1), view.Window)!.Value;
+
+            view.Window.MouseMove(from);
+            view.Window.MouseDown(from, Avalonia.Input.MouseButton.Left);
+            view.Window.MouseMove(from + new Point(40, 0), Avalonia.Input.RawInputModifiers.LeftMouseButton);
+            view.Window.MouseMove(to, Avalonia.Input.RawInputModifiers.LeftMouseButton);
+            view.Window.MouseUp(to, Avalonia.Input.MouseButton.Left);
+            view.Settle();
+            var copied = await view.Window.Clipboard!.TryGetTextAsync();
+
+            Assert.Equal(code.Text, code.SelectedText);
+            Assert.Equal(code.Text, copied);
+            Assert.Contains(":copied", copy.Classes);
+        }, Cancellation);
+
+    [Fact]
     public Task WhileStreamingSettledBlocksAreAddedWithoutDrawingEarlierOnesAgainAndTheFinishedReplyIsOneDocumentAsync() =>
         ui.RunAsync(() =>
         {

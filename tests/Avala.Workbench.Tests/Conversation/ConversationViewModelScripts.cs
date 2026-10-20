@@ -64,6 +64,96 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void FourToolsInARowFoldIntoOneRowNamedByWhatTheyDidThatUnfoldsThemIndentedInPlace()
+    {
+        var job = Thought(Used(Thought(Used(Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now), ("grep", ItemKind.Command)), "think"), ("test", ItemKind.Command), ("edit", ItemKind.FileEdit), ("again", ItemKind.Command)), "after")
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now);
+        var conversation = Open();
+        conversation.Show(Board(job));
+        var group = Assert.IsType<ToolGroupViewModel>(conversation.Entries[1]);
+        var folded = conversation.Entries.Select(entry => entry.GetType()).ToList();
+
+        group.ToggleCommand.Execute(null);
+
+        Assert.Equal([typeof(PromptViewModel), typeof(ToolGroupViewModel), typeof(ReasoningViewModel), typeof(MessageViewModel)], folded);
+        Assert.Equal(("3 commands, 1 edit", ItemKind.Command, true), (group.Title, group.Kind, group.IsExpanded));
+        Assert.Equal(
+            [(typeof(ToolViewModel), true), (typeof(ReasoningViewModel), true), (typeof(ToolViewModel), true), (typeof(ToolViewModel), true), (typeof(ToolViewModel), true), (typeof(ReasoningViewModel), false)],
+            conversation.Entries.Skip(2).OfType<IRunMember>().Select(member => (member.GetType(), member.InRun)));
+    }
+
+    [Fact]
+    public void ThreeToolsStayOnTheirOwnHoweverMuchTheAgentThinksBetweenThem()
+    {
+        var job = Used(Thought(Used(Thought(Used(Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now), ("grep", ItemKind.Command)), "first"), ("test", ItemKind.Command)), "second"), ("edit", ItemKind.FileEdit));
+        var conversation = Open();
+
+        conversation.Show(Board(job));
+
+        Assert.Empty(conversation.Entries.OfType<ToolGroupViewModel>());
+        Assert.Equal(3, conversation.Entries.OfType<ToolViewModel>().Count());
+    }
+
+    [Fact]
+    public void AFailedToolAndOneThatAskedYouStayOutsideTheirRunAndSplitIt()
+    {
+        var ran = Used(Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now), ("a", ItemKind.Command), ("b", ItemKind.Command), ("c", ItemKind.Command), ("d", ItemKind.Command))
+            .Apply(new ItemStarted(session, turn, new ItemId("broken"), ItemKind.Command, "Run make"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("broken"), ItemOutcome.Failed), Now);
+        var job = Used(ran, ("e", ItemKind.Command), ("f", ItemKind.Command), ("g", ItemKind.Command))
+            .Apply(new ItemStarted(session, turn, new ItemId("migrate"), ItemKind.Command, "dotnet ef database update"), Now)
+            .Apply(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update"), Now)
+            .Apply(new PolicyDecision(session, turn, new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, Now));
+        var conversation = Open();
+
+        conversation.Show(Board(job));
+
+        Assert.Equal(
+            [typeof(PromptViewModel), typeof(ToolGroupViewModel), typeof(ToolViewModel), typeof(ToolViewModel), typeof(ToolViewModel), typeof(ToolViewModel), typeof(ToolViewModel), typeof(PermissionCardViewModel)],
+            conversation.Entries.Select(entry => entry.GetType()));
+        Assert.Equal([true, false, false, false, false], conversation.Entries.OfType<ToolViewModel>().Select(tool => tool.Failed));
+    }
+
+    [Fact]
+    public void ARunFoldsAsItsFourthToolStartsShowingTheOneRunningAndKeepsItsRowAndFoldAsItGrows()
+    {
+        var three = Used(Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now), ("a", ItemKind.Command), ("b", ItemKind.Command), ("c", ItemKind.Command));
+        var running = three.Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run go test ./...") { Input = "go test ./..." }, Now);
+        var conversation = Open();
+        conversation.Show(Board(three));
+        var before = conversation.Entries.Count;
+
+        conversation.Show(Board(running));
+        var group = Assert.IsType<ToolGroupViewModel>(Assert.Single(conversation.Entries, entry => entry is not PromptViewModel));
+        var first = (group.IsRunning, group.Current);
+        group.ToggleCommand.Execute(null);
+        conversation.Show(Board(running.Apply(new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("vet"), ItemKind.Command, "Run go vet ./...") { Input = "go vet ./..." }, Now)));
+
+        Assert.Equal((4, (true, "go test ./...")), (before, first));
+        Assert.Same(group, conversation.Entries[1]);
+        Assert.Equal((5, true, "go vet ./...", "5 commands"), (conversation.Entries.OfType<ToolViewModel>().Count(tool => tool.InRun), group.IsExpanded, group.Current, group.Title));
+    }
+
+    [Fact]
+    public void FindingTextInAFoldedRunOpensItAndTheToolThatHoldsIt()
+    {
+        var job = Used(Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now), ("a", ItemKind.Command), ("b", ItemKind.Command), ("c", ItemKind.Command))
+            .Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run go test"), Now)
+            .Apply(new ItemProgressed(session, turn, new ItemId("test"), "refunds pass"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded), Now);
+        var conversation = Open();
+        conversation.Show(Board(job));
+        var group = Assert.IsType<ToolGroupViewModel>(conversation.Entries[1]);
+
+        conversation.Search.OpenCommand.Execute(null);
+        conversation.Search.Query = "refunds pass";
+
+        Assert.Equal((FindMark.None, true, "1 of 1", 5), (group.Found, group.IsExpanded, conversation.Search.Status, conversation.Search.Revealed));
+        Assert.Equal([(FindMark.None, false), (FindMark.None, false), (FindMark.None, false), (FindMark.Current, true)], conversation.Entries.OfType<ToolViewModel>().Select(tool => (tool.Found, tool.IsExpanded)));
+    }
+
+    [Fact]
     public void EachPromptAndEachMessageSentDuringATurnStartsATurnToStepTo()
     {
         var job = Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now)
@@ -397,6 +487,15 @@ public sealed class ConversationViewModelScripts
             .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now)
             .Apply(new ItemProgressed(session, turn, new ItemId("reply"), "All green."), Now)
             .Apply(new ItemCompleted(session, turn, new ItemId("reply"), ItemOutcome.Succeeded), Now);
+
+    private Transcript Used(Transcript transcript, params (string Id, ItemKind Kind)[] tools) =>
+        tools.Aggregate(transcript, (ran, tool) => ran
+            .Apply(new ItemStarted(session, turn, new ItemId(tool.Id), tool.Kind, $"Run {tool.Id}") { Input = tool.Id }, Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId(tool.Id), ItemOutcome.Succeeded), Now));
+
+    private Transcript Thought(Transcript transcript, string id) =>
+        transcript.Apply(new ItemStarted(session, turn, new ItemId(id), ItemKind.Reasoning, "Thinking"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId(id), ItemOutcome.Succeeded), Now);
 
     private static Transcript Job() => Transcript.Empty;
 

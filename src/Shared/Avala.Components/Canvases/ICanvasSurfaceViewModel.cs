@@ -1,3 +1,4 @@
+using Avala.Components.Zooming;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Components.Canvases;
@@ -13,6 +14,14 @@ public interface ICanvasSurfaceViewModel
     bool IsStreaming { get; }
 
     CanvasRendering Shown { get; }
+
+    bool IsZoomable { get; }
+
+    CanvasRendering Zoomed { get; }
+
+    CanvasRendering Scrolled { get; }
+
+    IZoomViewModel Zoom { get; }
 
     int VersionCount { get; }
 

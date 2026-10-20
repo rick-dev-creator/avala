@@ -9,6 +9,7 @@
              theme:Motion.Enter="Fade"
              Classes.thinking="{Binding IsThinking}"
              Classes.expanded="{Binding IsExpanded}"
+             Classes.inrun="{Binding InRun}"
              Margin="0,1"
              Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
              Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
@@ -16,6 +17,9 @@
     <conversation:DesignReasoningViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector=":is(UserControl).inrun">
+      <Setter Property="Padding" Value="24,0,0,0" />
+    </Style>
     <Style Selector="Button#Toggle">
       <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>

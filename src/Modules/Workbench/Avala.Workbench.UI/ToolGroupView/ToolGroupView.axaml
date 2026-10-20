@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.ToolGroupView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IToolGroupViewModel"
+             theme:Motion.Enter="Arrive"
+             Classes.running="{Binding IsRunning}"
+             Classes.expanded="{Binding IsExpanded}"
+             Margin="0,1"
+             Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
+             Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
+  <Design.DataContext>
+    <conversation:DesignToolGroupViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Path#Icon, Path#Chevron">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock#Current">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCode}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Path#Chevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronRight}" />
+    </Style>
+    <Style Selector=":is(UserControl).expanded Path#Chevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronDown}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Toggle"
+          Classes="line"
+          Command="{Binding ToggleCommand}"
+          AutomationProperties.Name="{Binding Title}">
+    <Grid ColumnDefinitions="14,Auto,*,Auto" ColumnSpacing="10">
+      <Path x:Name="Icon"
+            Classes="icon"
+            VerticalAlignment="Center"
+            Data="{Binding Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=Icon}"
+            IsVisible="{Binding !IsRunning}" />
+      <Arc x:Name="Spinner"
+           Width="12"
+           Height="12"
+           StartAngle="0"
+           SweepAngle="270"
+           Stroke="{DynamicResource TextSecondaryBrush}"
+           StrokeThickness="1.5"
+           VerticalAlignment="Center"
+           HorizontalAlignment="Center"
+           IsVisible="{Binding IsRunning}"
+           theme:Motion.Loop="Spin"
+           theme:Motion.When="{Binding IsRunning}" />
+      <TextBlock x:Name="Title"
+                 Grid.Column="1"
+                 VerticalAlignment="Center"
+                 Text="{Binding Title}" />
+      <TextBlock x:Name="Current"
+                 Grid.Column="2"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"
+                 privacy:PersonalDetails.Scrubbed="{Binding Current}"
+                 IsVisible="{Binding IsRunning}" />
+      <Path x:Name="Chevron"
+            Grid.Column="3"
+            Classes="icon small"
+            VerticalAlignment="Center" />
+    </Grid>
+  </Button>
+</UserControl>

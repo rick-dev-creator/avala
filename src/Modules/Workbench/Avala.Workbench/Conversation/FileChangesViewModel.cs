@@ -55,7 +55,7 @@ internal sealed partial class FileChangesViewModel : IFileChangesViewModel
             {
                 foreach (var hunk in found.Hunks)
                 {
-                    hunks.Add(new HunkViewModel(hunk));
+                    hunks.Add(new HunkViewModel(hunk, Path));
                 }
 
                 return found.Binary ? ConversationPhrases.BinaryChanges : found.Hunks.Count == 0 ? ConversationPhrases.NoChanges : string.Empty;

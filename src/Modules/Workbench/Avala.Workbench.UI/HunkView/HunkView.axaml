@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
              x:Class="Avala.Workbench.UI.HunkView"
              x:ClassModifier="internal"
              x:DataType="review:IHunkViewModel">
@@ -38,16 +39,7 @@
                  Text="{Binding Header}"
                  TextWrapping="NoWrap"
                  TextTrimming="CharacterEllipsis" />
-      <ItemsControl x:Name="Lines" ItemsSource="{Binding Lines}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="review:HunkLine">
-            <TextBlock Classes="line"
-                       Classes.added="{Binding IsAdded}"
-                       Classes.removed="{Binding IsRemoved}"
-                       Text="{Binding Text}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <markdown:CodeDiff x:Name="Lines" Diff="{Binding Diff}" Language="{Binding Language}" />
     </StackPanel>
   </Border>
 </UserControl>
