@@ -54,10 +54,7 @@ public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
         wrap.Click += (_, _) => Wrap(wrap, text, scroller, code, !wrap.Classes.Contains("on"));
         var save = Action("SaveCode", "IconSave", "Save as…", new CodeRequest(CodeAction.Save, code, extension));
         var open = Action("OpenCode", "IconExternal", "Open in the editor", new CodeRequest(CodeAction.Open, code, extension));
-        var copy = new CopyButton { Classes = { "code-copy", "code-action" } };
-        Describe(copy, "Copy");
-        AutomationProperties.SetName(copy, "Copy the code");
-        copy.Command = new CopyCommand(copy, code);
+        var copy = Copy(text, code);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Right, Classes = { "code-actions" }, Children = { wrap, save, open, copy } };
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Classes = { "code-header" }, Children = { label, actions } };
         Grid.SetColumn(actions, 1);
@@ -79,6 +76,17 @@ public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
         button.Loaded += (_, _) => button.IsVisible = Target(button)?.CodeCommand.CanExecute(request) == true;
 
         return button;
+    }
+
+    private static CopyButton Copy(CodeText text, string code)
+    {
+        var copy = new CopyButton { Classes = { "code-copy", "code-action" } };
+        Describe(copy, "Copy");
+        AutomationProperties.SetName(copy, "Copy the code");
+        copy.Command = new CopyCommand(copy, code);
+        text.AddHandler(CodeText.SelectedEvent, (_, _) => _ = CopyAsync(copy, text.SelectedText));
+
+        return copy;
     }
 
     private static MarkdownText? Target(Visual button) => button.FindAncestorOfType<MarkdownText>();
@@ -154,16 +162,16 @@ public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
 
         public bool CanExecute(object? parameter) => true;
 
-        public void Execute(object? parameter) => _ = CopyAsync();
+        public void Execute(object? parameter) => _ = CopyAsync(button, code);
+    }
 
-        private async Task CopyAsync()
+    private static async Task CopyAsync(CopyButton button, string text)
+    {
+        if (TopLevel.GetTopLevel(button)?.Clipboard is { } clipboard)
         {
-            if (TopLevel.GetTopLevel(button)?.Clipboard is { } clipboard)
-            {
-                await clipboard.SetTextAsync(code);
-                button.IsCopied = false;
-                button.IsCopied = true;
-            }
+            await clipboard.SetTextAsync(text);
+            button.IsCopied = false;
+            button.IsCopied = true;
         }
     }
 }

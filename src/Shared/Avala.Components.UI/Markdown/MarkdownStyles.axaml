@@ -41,6 +41,7 @@
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
   <Style Selector="SelectableTextBlock.markdown-code">
+    <Setter Property="Background" Value="Transparent" />
     <Setter Property="Margin" Value="0,0,24,0" />
     <Setter Property="LineHeight" Value="19" />
   </Style>
