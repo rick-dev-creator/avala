@@ -341,6 +341,21 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AChildThatFailsAfterItWasToldItWasLostCanBeToldAboutTheFailureEvenIfItsRecoveryWasNeverShownAsync()
+    {
+        var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
+        var tree = bench.Tree();
+        bench.Becomes(notes, JobStatus.NeedsHelp, HoldReason.SessionLost, Option<JobFailure>.None);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        await Branch(tree, "Write the migration notes").Place.TellCommand.ExecuteAsync(null);
+
+        bench.Becomes(notes, JobStatus.Failed, Option<HoldReason>.None, JobFailure.AgentFailed);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Equal((SubagentState.Failed, true), (Branch(tree, "Write the migration notes").Place.State, Branch(tree, "Write the migration notes").Place.CanTell));
+    }
+
+    [Fact]
     public async Task AChildThatIsLostAgainAfterItRecoveredCanBeToldAboutAgainAsync()
     {
         var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
