@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Supervision.Contracts;
+using Avala.Supervision.Watching;
 using Avala.Testing;
 using static Avala.Supervision.Tests.Supervising.Supervised;
 
@@ -48,8 +49,7 @@ public sealed class WatchdogTests
     [InlineData("permission")]
     [InlineData("form")]
     [InlineData("call")]
-    [InlineData("background")]
-    public async Task WaitingForAPermissionAFormAToolCallOrWorkInTheBackgroundIsNeverSilenceAsync(string waitingFor)
+    public async Task WaitingForAPermissionAFormOrAToolCallIsNeverSilenceAsync(string waitingFor)
     {
         await using var supervised = new Supervised();
         await supervised.RunningAsync();
@@ -59,7 +59,6 @@ public sealed class WatchdogTests
         {
             "form" => new FormRequested(supervised.Session, supervised.Turn, item, question),
             "call" => new ToolCalled(supervised.Session, supervised.Turn, item, "delegate", "{}"),
-            "background" => new ItemBackgrounded(supervised.Session, supervised.Turn, item),
             _ => new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"),
         });
 
@@ -70,11 +69,25 @@ public sealed class WatchdogTests
         {
             "form" => new FormAnswered(supervised.Session, supervised.Turn, item, new FormAnswer(item, [new FieldAnswer("go") { Confirmed = true }])),
             "call" => new ToolReturned(supervised.Session, supervised.Turn, item, new ToolResult(item, "Done")),
-            "background" => new ItemCompleted(supervised.Session, supervised.Turn, item, ItemOutcome.Succeeded),
             _ => new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow),
         });
         await supervised.AdvanceAsync(Window);
         Assert.Single(supervised.Jobs.Holds);
+    }
+
+    [Fact]
+    public async Task WorkInTheBackgroundThatFallsSilentHoldsItsJobOnlyOnceItsTwoHoursOfPatiencePassAsync()
+    {
+        await using var supervised = new Supervised();
+        await supervised.RunningAsync();
+        await supervised.SeeAsync(new ItemBackgrounded(supervised.Session, supervised.Turn, new ItemId("survey")));
+
+        await supervised.AdvanceAsync(JobWatch.BackgroundPatience - Minute);
+        Assert.Empty(supervised.Jobs.Holds);
+
+        await supervised.AdvanceAsync(Minute);
+        Assert.Equal([(supervised.Job, HoldReason.Stalled)], supervised.Jobs.Holds);
+        Assert.Equal(new SilenceMeasure(JobWatch.BackgroundPatience, JobWatch.BackgroundPatience), Assert.Single(supervised.Interventions).Silence);
     }
 
     [Fact]
