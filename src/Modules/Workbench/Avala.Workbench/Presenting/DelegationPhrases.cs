@@ -11,8 +11,8 @@ internal static class DelegationPhrases
 
     public static string Caption(IReadOnlyList<Overview.OrchestrationViewModel> shown)
     {
-        var working = shown.Sum(tree => tree.Children.Count(child => !child.IsSettled));
-        var needing = shown.Sum(tree => tree.Children.Count(child => child.NeedsYou));
+        var working = shown.Sum(tree => tree.AtWork);
+        var needing = shown.Sum(tree => tree.Needing);
 
         return string.Join(" · ", new[]
         {

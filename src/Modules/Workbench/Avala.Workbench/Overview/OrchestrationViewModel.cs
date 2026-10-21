@@ -1,3 +1,4 @@
+using Avala.Delegation.Contracts;
 using System.Collections.ObjectModel;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
@@ -32,9 +33,7 @@ internal interface IOrchestrationViewModel
 
     IRelayCommand ToggleCommand { get; }
 
-    IOrchestratorCardViewModel Root { get; }
-
-    IReadOnlyList<IDelegationNodeViewModel> Children { get; }
+    ISubagentTreeViewModel Tree { get; }
 
     IReadOnlyList<IDelegationRefusalViewModel> Refused { get; }
 }
@@ -42,19 +41,14 @@ internal interface IOrchestrationViewModel
 [INotifyPropertyChanged]
 internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
 {
-    private readonly ObservableCollection<DelegationNodeViewModel> children = [];
     private readonly ObservableCollection<DelegationRefusalViewModel> refused = [];
-    private readonly OrchestratorCardViewModel root;
-    private readonly IRelayCommand<JobId> open;
-    private readonly RowActions actions;
+    private readonly SubagentTreeViewModel tree;
     private bool chosen;
 
     public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions)
     {
         Job = tree.Root.Job;
-        this.open = open;
-        this.actions = actions;
-        root = new OrchestratorCardViewModel(tree) { OpenCommand = open };
+        this.tree = new SubagentTreeViewModel(open, actions);
         Show(tree);
         IsCollapsed = !IsActive;
     }
@@ -87,20 +81,27 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
 
     public DateTimeOffset LastActive { get; private set; }
 
+    public int AtWork { get; private set; }
+
+    public int Needing { get; private set; }
+
     public IReadOnlyList<string> Connections { get; private set; } = [];
 
-    public IOrchestratorCardViewModel Root => root;
+    public ISubagentTreeViewModel Tree => tree;
 
-    public IReadOnlyList<IDelegationNodeViewModel> Children => children;
+    public SubagentTreeViewModel Shown => tree;
 
     public IReadOnlyList<IDelegationRefusalViewModel> Refused => refused;
 
     public void Show(DelegationTree tree)
     {
-        root.Show(tree);
+        this.tree.Show(tree, Option<JobId>.None);
         Title = FactPhrases.Title(tree.Root.Instruction);
         Repository = OverviewPhrases.Repository(tree.Root.Repository);
-        var agents = SubagentViewModel.Count(tree.RootJob) + tree.Children.Sum(node => SubagentViewModel.Count(node.Seen));
+        var branches = AgentBranches.Of(tree).Descendants.ToList();
+        var agents = branches.Count(branch => branch.Kind == BranchKind.InProcess);
+        AtWork = branches.Count(branch => !branch.IsSettled);
+        Needing = branches.Count(branch => branch.State == SubagentState.Waiting);
         Size = agents == 0
             ? OverviewPhrases.Count(tree.Children.Count + 1, "job")
             : $"{OverviewPhrases.Count(tree.Children.Count + 1, "job")} · {OverviewPhrases.Count(agents, "agent")}";
@@ -113,23 +114,6 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
         IsCollapsed = chosen ? IsCollapsed : !IsActive;
         LastActive = Active(tree);
         Connections = [.. tree.Children.Select(node => node.Job.Connection).Prepend(tree.Root.Connection).SelectMany(name => name.Match<string[]>(found => [found.Value], () => [])).Distinct(StringComparer.Ordinal)];
-        var arranged = TreeOrder.Arrange(tree.Children);
-        children.ShowInPlace(
-            arranged.Active.Concat(arranged.Settled),
-            (child, node) => child.Job == node.Job.Job,
-            node =>
-            {
-                var row = new DelegationNodeViewModel(node) { OpenCommand = open };
-                row.Toggled += (_, _) => TreeOrder.OneOpen(children, row);
-                row.Peeked += (_, _) => actions.Peek(row);
-
-                return row;
-            },
-            (child, node) =>
-            {
-                child.Show(node);
-                actions.Peek(child);
-            });
         refused.ShowOnly(tree.Refused.Select(record => new DelegationRefusalViewModel(record)));
     }
 

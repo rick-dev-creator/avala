@@ -15,7 +15,7 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
     ];
 
     [Fact]
-    public async Task TheDelegationPaneShowsTheOrchestratorMarkedAboveItsChildWithEachJobsSubagentsAsync()
+    public async Task TheDelegationPaneHangsEachSubagentAndChildUnderTheJobThatStartedItWithTheOrchestratorMarkedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
@@ -34,23 +34,21 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         await run.Ui.PresentedAsync(toggle.Presentation, () => toggle["IsShown"].Value<bool>(), () => "toggle hidden");
 
         await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), TestContext.Current.CancellationToken);
-        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Settled"].Items.Count == 1 && pane.Has("Root"), () => "pane empty");
+        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane).Count() == 4, () => "pane empty");
 
         var shown = await run.Ui.ReadAsync(() => (
             pane["IsOpen"].Value<bool>(),
             workbench.Page["Regions"]["IsPreviewOpen"].Value<bool>(),
-            (pane["Root"]["Title"].Text, pane["Root"]["IsViewing"].Value<bool>()),
-            pane["Root"]["Subagents"].Items.Select(agent => agent["Name"].Text).ToList(),
-            pane["Settled"].Items[0]["IsViewing"].Value<bool>(),
-            pane["Settled"].Items[0]["Subagents"].Items.Select(agent => (agent["Name"].Text, agent["StateText"].Text)).ToList(),
-            pane["SettledLabel"].Text));
+            Branches(pane).Select(branch => (branch.Kind, branch["Place"]["Depth"].Value<int>(), branch["Place"]["StateText"].Text)).ToList(),
+            Branches(pane).Select(branch => branch.Has("IsViewing") && branch["IsViewing"].Value<bool>()).ToList(),
+            Branches(pane).Where(branch => branch.Kind == "SubagentViewModel").Select(agent => agent["Name"].Text).ToList()));
         Assert.True(shown.Item1);
         Assert.True(shown.Item2);
-        Assert.Equal(("[simulate: delegate-agents] Ship the release", true), shown.Item3);
-        Assert.Equal(["Plan the split"], shown.Item4);
-        Assert.False(shown.Item5);
-        Assert.Equal([("Read the changelog", "completed")], shown.Item6);
-        Assert.Equal("1 done", shown.Item7);
+        Assert.Equal(
+            [("OrchestratorCardViewModel", 0, "completed"), ("SubagentViewModel", 1, "completed"), ("DelegationNodeViewModel", 1, "completed"), ("SubagentViewModel", 2, "completed")],
+            shown.Item3);
+        Assert.Equal([true, false, false, false], shown.Item4);
+        Assert.Equal(["Plan the split", "Read the changelog"], shown.Item5);
         Assert.True(await run.Ui.ReadAsync(() => toggle["IsOpen"].Value<bool>()));
     }
 
@@ -68,10 +66,10 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         var build = await run.DecisionAsync();
         await run.Ui.PresentedAsync(
             pane.Presentation,
-            () => pane["IsOpen"].Value<bool>() && pane.Has("Root") && pane["Root"]["Subagents"].Items.Count == 1 && pane["Root"]["Subagents"].Items[0]["Meter"].Text.Length > 0,
+            () => pane["IsOpen"].Value<bool>() && Branches(pane).Count(branch => branch.Kind == "SubagentViewModel") == 1 && Branches(pane).Single(branch => branch.Kind == "SubagentViewModel")["Meter"].Text.Length > 0,
             () => "no sub-agent in the pane");
 
-        var agent = await run.Ui.ReadAsync(() => pane["Root"]["Subagents"].Items[0]);
+        var agent = await run.Ui.ReadAsync(() => Branches(pane).Single(branch => branch.Kind == "SubagentViewModel"));
         var shown = await run.Ui.ReadAsync(() => (agent["Name"].Text, agent["Activity"].Text, agent["Meter"].Text));
         var rows = await run.Ui.ReadAsync(() => conversation["Entries"].Items.Where(entry => entry.Kind == "ToolViewModel").Select(tool => tool["Title"].Text).ToList());
         Assert.False(closed);
@@ -80,4 +78,7 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         Assert.DoesNotContain(rows, title => title.Contains("greeting", StringComparison.Ordinal) && !title.StartsWith("Subagent", StringComparison.Ordinal));
         Assert.DoesNotContain(rows, title => title.Contains("dotnet build", StringComparison.Ordinal));
     }
+
+    private static IEnumerable<Bound> Branches(Bound pane) =>
+        pane["HasTree"].Value<bool>() ? pane["Tree"]["Branches"].Items : [];
 }

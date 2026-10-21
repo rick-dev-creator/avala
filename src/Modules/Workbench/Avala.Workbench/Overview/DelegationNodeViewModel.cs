@@ -14,7 +14,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
-internal interface IDelegationNodeViewModel
+internal interface IDelegationNodeViewModel : IAgentBranch
 {
     JobId Job { get; }
 
@@ -44,10 +44,6 @@ internal interface IDelegationNodeViewModel
 
     IStatusDotViewModel Dot { get; }
 
-    IReadOnlyList<ISubagentViewModel> Subagents { get; }
-
-    bool HasSubagents { get; }
-
     bool IsViewing { get; }
 
     IRelayCommand<JobId> OpenCommand { get; }
@@ -62,11 +58,13 @@ internal interface IDelegationNodeViewModel
 
     string Doing { get; }
 
-    int SubagentCount { get; }
-
-    string Agents { get; }
-
     bool NeedsYou { get; }
+
+    DateTimeOffset Since { get; }
+
+    bool IsTiming { get; }
+
+    string Took { get; }
 
     bool IsSettled { get; }
 
@@ -92,12 +90,27 @@ internal interface IDelegationRefusalViewModel
 internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 {
     private readonly StatusDotViewModel dot = new(default);
+    private readonly BranchPlaceViewModel place;
 
-    public DelegationNodeViewModel(DelegationNode node)
+    public DelegationNodeViewModel(BranchPlaceViewModel place, DelegationNode node)
     {
+        this.place = place;
         Job = node.Job.Job;
         Show(node);
     }
+
+    public IBranchPlaceViewModel Place => place;
+
+    [ObservableProperty]
+    public partial DateTimeOffset Since { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsTiming { get; private set; }
+
+    [ObservableProperty]
+    public partial string Took { get; private set; } = string.Empty;
+
+    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
 
     public JobId Job { get; }
 
@@ -143,12 +156,6 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
     public string State => OverviewPhrases.State(Kind);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSubagents))]
-    public partial IReadOnlyList<ISubagentViewModel> Subagents { get; private set; } = [];
-
-    public bool HasSubagents => Subagents.Count > 0;
-
-    [ObservableProperty]
     public partial bool IsViewing { get; set; }
 
     public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
@@ -179,12 +186,6 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 
     [ObservableProperty]
     public partial string Doing { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Agents))]
-    public partial int SubagentCount { get; private set; }
-
-    public string Agents => OverviewPhrases.Count(SubagentCount, "agent");
 
     [ObservableProperty]
     public partial bool NeedsYou { get; private set; }
@@ -232,14 +233,15 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         SpentShare = Carved(node.Spend).Match(cost => Math.Clamp(Shares.Of(node.Spend.Spent, cost), 0, 1), () => 0d);
         dot.Kind = node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status));
         Kind = dot.Kind;
-        Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(node.Seen));
         Context = AgentGlance.Context(node.Seen);
         Tokens = AgentGlance.TokensText(AgentGlance.Tokens(node.Spend));
         Spent = node.Spend.Spent.Count == 0 ? string.Empty : Amounts.Costs(node.Spend.Spent);
         var recent = AgentGlance.Recent(node.Seen);
         Recent = AgentGlance.SameRecent(Recent, recent) ? Recent : recent;
         Doing = node.Report.IsSome || recent.Count == 0 ? Activity : recent[0].Text;
-        SubagentCount = SubagentViewModel.Count(node.Seen);
+        Since = node.Job.Submitted;
+        IsTiming = node.Job.Ended.IsNone;
+        Took = BranchPhrases.Took(node.Job);
         NeedsYou = dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
         StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou));
         IsSettled = TreeOrder.IsSettled(node);

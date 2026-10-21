@@ -23,12 +23,6 @@
     <Style Selector="Button#Toggle Path.icon">
       <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
-    <Style Selector="ItemsControl#Children Border#Card">
-      <Setter Property="Width" Value="400" />
-    </Style>
-    <Style Selector="ContentControl#Root Button#Open">
-      <Setter Property="Width" Value="340" />
-    </Style>
   </UserControl.Styles>
   <Border x:Name="Frame" BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" ClipToBounds="True">
     <StackPanel>
@@ -58,22 +52,7 @@
         </Border>
       </Button>
       <StackPanel x:Name="Tree" Spacing="10" Margin="16,14" IsVisible="{Binding !IsCollapsed}">
-        <Grid ColumnDefinitions="Auto,Auto">
-          <ContentControl x:Name="Root"
-                          theme:Motion.Enter="Scale"
-                          Content="{Binding Root}"
-                          VerticalAlignment="Center" />
-          <ItemsControl x:Name="Children"
-                        Grid.Column="1"
-                        ItemsSource="{Binding Children}"
-                        VerticalAlignment="Center">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <graphs:TreeGraphPanel Lead="90" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </Grid>
+        <ContentControl x:Name="AgentTree" Content="{Binding Tree}" />
         <StackPanel x:Name="RefusedGroup" Spacing="6" IsVisible="{Binding !!Refused.Count}">
           <TextBlock Classes="section" Text="Refused delegations" />
           <ItemsControl x:Name="Refused" ItemsSource="{Binding Refused}">

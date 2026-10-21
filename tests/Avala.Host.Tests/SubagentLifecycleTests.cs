@@ -160,15 +160,15 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(job);
         var pane = await OpenPaneAsync(run, workbench);
-        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Settled"].Items.Count == 1, () => "no child in the pane");
+        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane, "DelegationNodeViewModel").Count() == 1, () => "no child in the pane");
 
         var (child, subagent) = await run.Ui.ReadAsync(() =>
         {
-            var node = pane["Settled"].Items[0];
+            var node = Branches(pane, "DelegationNodeViewModel").Single();
 
             return (
                 node.Has("StateText") ? node["StateText"].Text : $"no lifecycle state, only the job status {node["Status"].Text}",
-                pane["Root"]["Subagents"].Items.Single(agent => agent["Name"].Text == "Plan the split")["StateText"].Text);
+                Branches(pane, "SubagentViewModel").Single(agent => agent["Name"].Text == "Plan the split")["StateText"].Text);
         });
 
         Assert.Equal(subagent, child);
@@ -216,16 +216,19 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
             await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), Cancellation);
         }
 
-        await run.Ui.PresentedAsync(pane.Presentation, () => pane["IsOpen"].Value<bool>() && pane.Has("Root"), () => "pane empty");
+        await run.Ui.PresentedAsync(pane.Presentation, () => pane["IsOpen"].Value<bool>() && pane["HasTree"].Value<bool>(), () => "pane empty");
 
         return pane;
     }
 
     private static Task<Dictionary<string, string>> StatesAsync(SimulatedRun run, Bound pane) =>
-        run.Ui.ReadAsync(() => pane["Root"]["Subagents"].Items.ToDictionary(agent => agent["Name"].Text, agent => agent["StateText"].Text));
+        run.Ui.ReadAsync(() => Branches(pane, "SubagentViewModel").ToDictionary(agent => agent["Name"].Text, agent => agent["StateText"].Text));
+
+    private static IEnumerable<Bound> Branches(Bound pane, string kind) =>
+        pane["HasTree"].Value<bool>() ? pane["Tree"]["Branches"].Items.Where(branch => branch.Kind == kind) : [];
 
     private static (string State, bool Exists) SubagentNamed(Bound pane, string name) =>
-        pane.Has("Root") && pane["Root"]["Subagents"].Items.FirstOrDefault(agent => agent["Name"].Text == name) is { } found
+        Branches(pane, "SubagentViewModel").FirstOrDefault(agent => agent["Name"].Text == name) is { } found
             ? (found["StateText"].Text, true)
             : (string.Empty, false);
 

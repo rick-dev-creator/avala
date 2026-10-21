@@ -378,7 +378,7 @@ internal static class ConversationPhrases
         _ => $"The platform refused to open {link}.",
     };
 
-    private static string Duration(TimeSpan duration) =>
+    public static string Duration(TimeSpan duration) =>
         duration.TotalSeconds < 60
             ? string.Create(CultureInfo.InvariantCulture, $"{Math.Max(1, (int)Math.Round(duration.TotalSeconds))}s")
             : string.Create(CultureInfo.InvariantCulture, $"{(int)duration.TotalMinutes}m {duration.Seconds}s");

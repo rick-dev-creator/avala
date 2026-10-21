@@ -151,6 +151,62 @@
     <Setter Property="Stroke" Value="{DynamicResource AttentionBorderBrush}" />
   </Style>
 
+  <Style Selector="Border.node.alert">
+    <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+  </Style>
+  <Style Selector="Border.node.settled">
+    <Setter Property="Opacity" Value="0.72" />
+  </Style>
+  <Style Selector="Border.state">
+    <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Border.state TextBlock">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="Border.state Shape">
+    <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="Border.state.working">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+  </Style>
+  <Style Selector="Border.state.working TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Border.state.working Shape">
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Border.state.waiting">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+  </Style>
+  <Style Selector="Border.state.waiting TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="Border.state.waiting Shape">
+    <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="Border.state.alert">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+  </Style>
+  <Style Selector="Border.state.alert TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector="Border.state.alert Shape">
+    <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector="TextBlock.note.waiting">
+    <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="TextBlock.note.alert">
+    <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+  </Style>
+
   <Style Selector="Border.tag.proposed">
     <Setter Property="BorderBrush" Value="{DynamicResource BorderProposedBrush}" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />

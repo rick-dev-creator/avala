@@ -36,17 +36,27 @@ internal static class SubagentStates
     };
 }
 
-internal interface ISubagentViewModel
+internal interface ISubagentViewModel : IAgentBranch
 {
+    JobId Job { get; }
+
     string Name { get; }
 
     string Activity { get; }
+
+    string Note { get; }
+
+    bool HasNote { get; }
 
     string Meter { get; }
 
     SubagentState State { get; }
 
     string StateText { get; }
+
+    DateTimeOffset Since { get; }
+
+    bool IsTiming { get; }
 
     IReadOnlyList<string> Trail { get; }
 
@@ -55,77 +65,83 @@ internal interface ISubagentViewModel
     bool IsOpen { get; }
 
     IRelayCommand ToggleCommand { get; }
+
+    IRelayCommand<JobId> OpenCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) : ISubagentViewModel
+internal sealed partial class SubagentViewModel(BranchPlaceViewModel place, JobId job) : ISubagentViewModel
 {
-    public const int Shown = 5;
+    public IBranchPlaceViewModel Place => place;
 
-    public string Name { get; } = entry.Named;
+    public JobId Job { get; } = job;
 
-    public SubagentState State { get; } = entry.Outcome.Match(
-        outcome => outcome switch
-        {
-            ItemOutcome.Succeeded => SubagentState.Completed,
-            ItemOutcome.Cancelled => SubagentState.Stopped,
-            ItemOutcome.Abandoned => SubagentState.Lost,
-            _ => SubagentState.Failed,
-        },
-        () => waiting ? SubagentState.Waiting : SubagentState.Working);
+    [ObservableProperty]
+    public partial string Name { get; private set; } = string.Empty;
 
-    public string Activity { get; } = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StateText))]
+    public partial SubagentState State { get; private set; }
 
-    public string Meter { get; } = Metered(entry);
+    public string StateText => SubagentStates.Text(State);
 
-    public IReadOnlyList<string> Trail { get; } = [.. entry.Trail.AsEnumerable().Reverse()];
+    [ObservableProperty]
+    public partial string Activity { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
+    public partial string Note { get; private set; } = string.Empty;
+
+    public bool HasNote => Note.Length > 0;
+
+    [ObservableProperty]
+    public partial string Meter { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial DateTimeOffset Since { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsTiming { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTrail))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCommand))]
+    public partial IReadOnlyList<string> Trail { get; private set; } = [];
 
     public bool HasTrail => Trail.Count > 0;
 
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
 
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
     [RelayCommand(CanExecute = nameof(HasTrail))]
     private void Toggle() => IsOpen = !IsOpen;
 
-    public string StateText => SubagentStates.Text(State);
-
-    public static IReadOnlyList<ISubagentViewModel> Of(Option<BoardJob> job) =>
-        job.Match<IReadOnlyList<ISubagentViewModel>>(
-            found =>
-            {
-                var asking = found.Transcript.Entries.OfType<PermissionEntry>().Where(permission => permission.AwaitsHuman).Select(permission => permission.Item).ToHashSet();
-
-                return
-                [
-                    .. found.Transcript.Entries.OfType<ToolEntry>()
-                        .Where(tool => tool.Kind == ItemKind.Subagent)
-                        .TakeLast(Shown)
-                        .Select(tool => new SubagentViewModel(tool, tool.Children.Overlaps(asking)))
-                        .OrderBy(subagent => subagent.State is not (SubagentState.Working or SubagentState.Waiting)),
-                ];
-            },
-            () => []);
-
-    public static int Count(Option<BoardJob> job) =>
-        job.Match(found => found.Transcript.Entries.OfType<ToolEntry>().Count(tool => tool.Kind == ItemKind.Subagent), () => 0);
-
-    public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next)
+    public void Show(AgentBranch branch, int depth, bool folded)
     {
-        if (current.Select(Seen).SequenceEqual(next.Select(Seen)))
+        place.Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
+        State = branch.State;
+
+        foreach (var entry in branch.Tool.Match<ToolEntry[]>(found => [found], () => []))
         {
-            return current;
+            Name = entry.Named;
+            Activity = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
+            Meter = Metered(entry);
+            Since = entry.Started.Match(at => at, () => DateTimeOffset.MinValue);
+            IsTiming = entry.Outcome.IsNone && entry.Started.IsSome;
+            var trail = entry.Trail.AsEnumerable().Reverse().ToList();
+            Trail = Trail.SequenceEqual(trail) ? Trail : trail;
         }
 
-        foreach (var agent in next.OfType<SubagentViewModel>())
+        Note = branch.State switch
         {
-            agent.IsOpen = current.Any(shown => shown.Name == agent.Name && shown.IsOpen);
-        }
-
-        return next;
+            SubagentState.Waiting => branch.Asks.Match(target => $"asks: {target}", () => "waits for you"),
+            SubagentState.Lost => "its work was lost when its turn or session ended",
+            SubagentState.Failed => "it failed",
+            _ => string.Empty,
+        };
     }
-
-    private static (string Name, SubagentState State, string Activity, string Meter, int Trail) Seen(ISubagentViewModel subagent) => (subagent.Name, subagent.State, subagent.Activity, subagent.Meter, subagent.Trail.Count);
 
     private static string Metered(ToolEntry entry) =>
         string.Join(

@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.SubagentTreeView"
+             x:ClassModifier="internal"
+             x:DataType="overview:ISubagentTreeViewModel">
+  <Design.DataContext>
+    <overview:DesignSubagentTreeViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock#Working">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border#NeedsYouChip">
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+    </Style>
+    <Style Selector="Border#NeedsYouChip TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Border#NeedsYouChip Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="14">
+    <WrapPanel x:Name="Summary" Orientation="Horizontal" ItemSpacing="14" LineSpacing="6">
+      <TextBlock x:Name="Agents" Classes="caption" Text="{Binding Agents}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Working" Classes="caption medium" Text="{Binding Working}" VerticalAlignment="Center" IsVisible="{Binding Working, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Button x:Name="NeedsYou"
+              Classes="bare"
+              Padding="0"
+              IsVisible="{Binding HasNeedsYou}"
+              AutomationProperties.Name="{Binding NeedsYou, StringFormat='{}{0}: show who'}">
+        <Border x:Name="NeedsYouChip" Classes="chip" BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <TextBlock x:Name="NeedsYouText" Classes="caption medium" Text="{Binding NeedsYou}" />
+            <Path Classes="icon" Width="9" Height="9" Data="{StaticResource IconChevronDown}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Border>
+        <Button.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft">
+            <ItemsControl x:Name="Waiting" ItemsSource="{Binding Waiting}" MaxWidth="320">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+      <TextBlock x:Name="Spent" Classes="caption medium" Text="{Binding Spent}" VerticalAlignment="Center" IsVisible="{Binding Spent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </WrapPanel>
+    <ItemsControl x:Name="Branches" ItemsSource="{Binding Branches}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <graphs:AgentTreePanel />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

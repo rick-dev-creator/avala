@@ -37,7 +37,7 @@ public sealed class OverviewViewModelScripts : IDisposable
         overview.Activate();
         await ui.PresentedAsync(overview.Connections, () => overview.Connections.Connections.Count == 2, () => $"{overview.Connections.Connections.Count} connections");
         await ui.PresentedAsync(overview.Delegation, () => overview.Delegation.Trees.Count == 2, () => $"{overview.Delegation.Trees.Count} trees");
-        var trees = await ui.ReadAsync(() => overview.Delegation.Trees.Select(tree => (tree.Title, tree.Children.Single().Title)).OrderBy(tree => tree.Item1, StringComparer.Ordinal).ToList());
+        var trees = await ui.ReadAsync(() => overview.Delegation.Trees.OfType<OrchestrationViewModel>().Select(tree => (tree.Title, tree.Shown.Jobs.Single().Title)).OrderBy(tree => tree.Item1, StringComparer.Ordinal).ToList());
 
         Assert.Equal([("Ship the release", "Write the notes"), ("Split CheckoutPage into steps", "Extract the address step")], trees);
         Assert.Equal(["Ship the release"], await ui.ReadAsync(() => overview.Connections.Connections[0].Agents.Select(agent => agent.Title).ToList()));
@@ -292,7 +292,7 @@ public sealed class OrchestratorCardViewModelScripts
             RootSpend = new JobSpend(Option<SessionSeen>.None, Pages.Used(0.52m), new BudgetCaps([new Cost(3m, "USD")], Option<long>.None, Option<double>.None), Option<BudgetCarve>.None),
         };
 
-        ViewModelScript.Given(new OrchestratorCardViewModel(tree))
+        ViewModelScript.Given(new OrchestratorCardViewModel(TreePlaces.Any(), tree))
             .Then(card => Assert.Equal(("Budget 3 USD", "1.47 USD spent across the tree", true), (card.Budget, card.Spent, card.HasBudget)))
             .Then(card => Assert.Equal([(0.8, true), (0.8, false), (0.8, false), (0.6, false)], card.Shares.Select(share => (Math.Round(share.Weight, 3), share.IsKept))))
             .Then(card => Assert.Equal("kept 0.80 USD · carved 0.80 USD · 0.80 USD · 0.60 USD", card.ShareNote))
@@ -301,7 +301,7 @@ public sealed class OrchestratorCardViewModelScripts
 
     [Fact]
     public void WithoutABudgetTheCardSaysThereIsNoneToShare() =>
-        ViewModelScript.Given(new OrchestratorCardViewModel(new DelegationTree(Pages.Summary("Ship the release", JobStatus.Running), [], [])))
+        ViewModelScript.Given(new OrchestratorCardViewModel(TreePlaces.Any(), new DelegationTree(Pages.Summary("Ship the release", JobStatus.Running), [], [])))
             .Then(card => Assert.Equal(("No budget cap", false, 0, "0 sub-agents, no budget to share"), (card.Budget, card.HasBudget, card.Shares.Count, card.ShareNote)));
 
     internal static DelegationNode Child(JobSummary root, decimal spent, decimal carve)
@@ -397,12 +397,12 @@ public sealed class DelegationViewModelScripts : IDisposable
         await bench.Ui.PresentedAsync(page, () => page.Trees.Count == 1, () => $"{page.Trees.Count} trees");
         var tree = await bench.Ui.ReadAsync(() => page.Trees[0]);
 
-        var header = await bench.Ui.ReadAsync(() => (tree.Size, tree.NeedsYou, tree.Repository, tree.IsCollapsed, tree.Children.Count));
+        var header = await bench.Ui.ReadAsync(() => (tree.Size, tree.NeedsYou, tree.Repository, tree.IsCollapsed, ((OrchestrationViewModel)tree).Shown.Jobs.Count()));
         await bench.Ui.InvokeAsync(() => tree.ToggleCommand.Execute(null), Cancellation);
 
         Assert.Equal(("3 jobs · 2 agents", "1 needs you", "shop", false, 2), header);
         Assert.True(await bench.Ui.ReadAsync(() => tree.IsCollapsed));
-        Assert.Equal("1 orchestration · 2 at work · 1 needs you", await bench.Ui.ReadAsync(() => page.Caption));
+        Assert.Equal("1 orchestration · 3 at work · 1 needs you", await bench.Ui.ReadAsync(() => page.Caption));
     }
 
     public void Dispose() => bench.Dispose();
@@ -420,7 +420,7 @@ public sealed class DelegationNodeViewModelScripts
 {
     [Fact]
     public void AChildNotStartedYetShowsItsStatusAndNoCarve() =>
-        ViewModelScript.Given(new DelegationNodeViewModel(new DelegationNode(
+        ViewModelScript.Given(new DelegationNodeViewModel(TreePlaces.Any(), new DelegationNode(
                 Pages.Summary("Write the payment step's tests", JobStatus.Preparing),
                 2,
                 Option<JobFact>.None,
@@ -432,7 +432,7 @@ public sealed class DelegationNodeViewModelScripts
     [InlineData(0.4, 0.8, 0.5, "0.40 USD of 0.80 USD")]
     [InlineData(1.2, 0.8, 1, "1.20 USD of 0.80 USD")]
     public void AChildsSpendIsMeasuredAgainstItsCarve(double spent, double carve, double share, string spend) =>
-        ViewModelScript.Given(new DelegationNodeViewModel(OrchestratorCardViewModelScripts.Child(Pages.Summary("Root", JobStatus.Running), (decimal)spent, (decimal)carve)))
+        ViewModelScript.Given(new DelegationNodeViewModel(TreePlaces.Any(), OrchestratorCardViewModelScripts.Child(Pages.Summary("Root", JobStatus.Running), (decimal)spent, (decimal)carve)))
             .Then(node => Assert.Equal((share, spend, true), (Math.Round(node.SpentShare, 3), node.Spend, node.HasCarve)))
             .Then(node => Assert.Equal((StatusKind.Working, "Running"), (node.Dot.Kind, node.State)));
 
@@ -442,7 +442,7 @@ public sealed class DelegationNodeViewModelScripts
         var root = Pages.Summary("Root", JobStatus.Running);
         var node = OrchestratorCardViewModelScripts.Child(root, 0.005m, 0m);
 
-        ViewModelScript.Given(new DelegationNodeViewModel(node with { Spend = node.Spend with { Carve = new BudgetCarve(root.Job, node.Job.Job, [], Option<long>.None, 0.25, DateTimeOffset.UnixEpoch) } }))
+        ViewModelScript.Given(new DelegationNodeViewModel(TreePlaces.Any(), node with { Spend = node.Spend with { Carve = new BudgetCarve(root.Job, node.Job.Job, [], Option<long>.None, 0.25, DateTimeOffset.UnixEpoch) } }))
             .Then(child => Assert.Equal(("0.005 USD spent", false, 0d), (child.Spend, child.HasCarve, child.SpentShare)));
     }
 
@@ -457,7 +457,7 @@ public sealed class DelegationNodeViewModelScripts
             Report = new ChildReport(node.Job.Job, ChildOutcome.Reported, JobStatus.Discarded, DateTimeOffset.UnixEpoch),
         };
 
-        ViewModelScript.Given(new DelegationNodeViewModel(node with { Delegation = record }))
+        ViewModelScript.Given(new DelegationNodeViewModel(TreePlaces.Any(), node with { Delegation = record }))
             .Then(child => Assert.Equal("reviewer, read-only", child.Role));
     }
 }
