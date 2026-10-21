@@ -54,7 +54,7 @@
     <ItemsControl x:Name="Branches" ItemsSource="{Binding Branches}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
-          <graphs:AgentTreePanel />
+          <graphs:AgentTreePanel CardWidth="280" RootWidth="320" />
         </ItemsPanelTemplate>
       </ItemsControl.ItemsPanel>
     </ItemsControl>

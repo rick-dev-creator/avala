@@ -16,6 +16,12 @@ public sealed class AgentTreePanel : Panel
     public static readonly StyledProperty<double> DropProperty =
         AvaloniaProperty.Register<AgentTreePanel, double>(nameof(Drop), 28);
 
+    public static readonly StyledProperty<double> CardWidthProperty =
+        AvaloniaProperty.Register<AgentTreePanel, double>(nameof(CardWidth));
+
+    public static readonly StyledProperty<double> RootWidthProperty =
+        AvaloniaProperty.Register<AgentTreePanel, double>(nameof(RootWidth));
+
     public static readonly StyledProperty<IBrush> JointBrushProperty =
         AvaloniaProperty.Register<AgentTreePanel, IBrush>(nameof(JointBrush), Brushes.Transparent);
 
@@ -26,12 +32,13 @@ public sealed class AgentTreePanel : Panel
     private static readonly int Kinds = Enum.GetValues<EdgeKind>().Length;
 
     private AgentTreeGraphLayout layout = AgentTreeGraphLayout.Empty;
+    private double measuredFor = double.PositiveInfinity;
     private readonly EdgeLayer edges;
     private readonly EdgeLayer joints;
 
     static AgentTreePanel()
     {
-        AffectsMeasure<AgentTreePanel>(GapProperty, IndentProperty, DropProperty);
+        AffectsMeasure<AgentTreePanel>(GapProperty, IndentProperty, DropProperty, CardWidthProperty, RootWidthProperty);
         JointBrushProperty.Changed.AddClassHandler<AgentTreePanel>((panel, _) => EdgeLayer.Refresh(panel));
     }
 
@@ -61,6 +68,18 @@ public sealed class AgentTreePanel : Panel
         set => SetValue(DropProperty, value);
     }
 
+    public double CardWidth
+    {
+        get => GetValue(CardWidthProperty);
+        set => SetValue(CardWidthProperty, value);
+    }
+
+    public double RootWidth
+    {
+        get => GetValue(RootWidthProperty);
+        set => SetValue(RootWidthProperty, value);
+    }
+
     public IBrush JointBrush
     {
         get => GetValue(JointBrushProperty);
@@ -71,21 +90,51 @@ public sealed class AgentTreePanel : Panel
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        foreach (var child in Children)
-        {
-            child.Measure(Size.Infinity);
-        }
-
-        layout = AgentTreeLayout.Arrange(
-            [.. Children.Select(child => new TreeNodeSpec(Graph.Read(child, Graph.DepthProperty), new GraphSize(child.DesiredSize.Width, child.DesiredSize.Height)))],
-            new AgentTreeSpacing(Gap, Indent, Drop),
-            availableSize.Width);
+        Fit(availableSize.Width);
 
         return new Size(layout.Size.Width, layout.Size.Height);
     }
 
+    private void Fit(double available)
+    {
+        measuredFor = available;
+        var widths = Children.Select(CardWidthOf).ToList();
+        layout = Lay(widths, available);
+
+        if (layout.Shape == AgentTreeShape.Rail && double.IsFinite(available))
+        {
+            var fitted = widths.Select((width, index) => index < layout.Nodes.Count && width > 0 ? Math.Min(width, Math.Max(0, available - layout.Nodes[index].X)) : width).ToList();
+
+            if (!fitted.SequenceEqual(widths))
+            {
+                layout = Lay(fitted, available);
+            }
+        }
+    }
+
+    private AgentTreeGraphLayout Lay(List<double> widths, double available)
+    {
+        for (var index = 0; index < Children.Count; index++)
+        {
+            Children[index].Measure(widths[index] > 0 ? new Size(widths[index], double.PositiveInfinity) : Size.Infinity);
+        }
+
+        return AgentTreeLayout.Arrange(
+            [.. Children.Select((child, index) => new TreeNodeSpec(Graph.Read(child, Graph.DepthProperty), new GraphSize(widths[index] > 0 ? widths[index] : child.DesiredSize.Width, child.DesiredSize.Height)))],
+            new AgentTreeSpacing(Gap, Indent, Drop),
+            available);
+    }
+
+    private double CardWidthOf(Control child) =>
+        Graph.Read(child, Graph.DepthProperty) == 0 && RootWidth > 0 ? RootWidth : CardWidth;
+
     protected override Size ArrangeOverride(Size finalSize)
     {
+        if (CardWidth > 0 && finalSize.Width < measuredFor - 0.5)
+        {
+            Fit(finalSize.Width);
+        }
+
         for (var index = 0; index < Children.Count && index < layout.Nodes.Count; index++)
         {
             var bounds = layout.Nodes[index];

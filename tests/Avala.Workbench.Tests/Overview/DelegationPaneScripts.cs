@@ -281,9 +281,9 @@ public sealed class SubagentViewModelScripts
 
 internal sealed class TreeBench : IDisposable
 {
-    private static readonly SessionId Session = SessionId.New();
+    public static SessionId Session { get; } = SessionId.New();
 
-    private static readonly TurnId Turn = TurnId.New();
+    public static TurnId Turn { get; } = TurnId.New();
 
     private readonly TreeCatalog catalog = new();
 

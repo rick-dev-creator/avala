@@ -130,7 +130,7 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
         Title = FactPhrases.Title(root.Instruction);
         Harness = tree.RootSpend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
         Connection = root.Connection.Match(name => name.Value, () => tree.RootSpend.Session.Match(seen => seen.Connection.Value, () => "default connection"));
-        var working = children.Count(node => node.Job.Status is JobStatus.Preparing or JobStatus.Running or JobStatus.Checking or JobStatus.NeedsHelp);
+        var working = BranchPhrases.AtWork(tree);
         Detail = string.Join(
             " · ",
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }

@@ -148,6 +148,9 @@ internal static class BranchPhrases
         return recent.Count > 0 ? recent[0].Text : tree.RootJob.Match(job => Sidebar.FactPhrases.Of(job.Fact), () => Presenting.DelegationPhrases.Status(tree.Root.Status));
     }
 
+    public static int AtWork(Fleet.DelegationTree tree) =>
+        AgentBranches.Of(tree).Children.Count(child => child.State is SubagentState.Working or SubagentState.Waiting);
+
     public static string Took(Jobs.Contracts.JobSummary job) =>
         job.Ended.Match(ended => Conversation.ConversationPhrases.Duration(ended - job.Submitted), () => string.Empty);
 

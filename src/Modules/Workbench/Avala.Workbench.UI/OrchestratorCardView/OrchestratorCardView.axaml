@@ -28,6 +28,9 @@
     <Style Selector="Arc#Ring.attention">
       <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
     </Style>
+    <Style Selector="Button#Fold Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
     <Style Selector="TextBlock.tally.attention">
       <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
     </Style>
@@ -42,7 +45,7 @@
             Classes.viewing="{Binding IsViewing}"
             Classes.attention="{Binding Place.IsWaiting}"
             Classes.alert="{Binding Place.IsAlert}"
-            Width="320"
+
             CornerRadius="{DynamicResource RadiusOrchestrator}"
             BoxShadow="{DynamicResource ShadowOrchestrator}"
             Padding="18,16">
@@ -62,7 +65,7 @@
         </DockPanel>
         <TextBlock x:Name="Doing" Classes="caption secondary" Text="{Binding Doing}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Detail" Classes="caption secondary" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-        <StackPanel x:Name="Glance" Orientation="Horizontal" Spacing="10">
+        <WrapPanel x:Name="Glance" Orientation="Horizontal" ItemSpacing="10" LineSpacing="4">
           <StackPanel x:Name="ContextGauge" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Context.IsShown}">
             <Panel Width="13" Height="13" VerticalAlignment="Center">
               <Ellipse Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="2.4" />
@@ -79,7 +82,7 @@
             </Border>
           </StackPanel>
           <TextBlock x:Name="Tokens" Classes="hint" Text="{Binding Tokens, StringFormat='{}{0} in the tree'}" VerticalAlignment="Center" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        </StackPanel>
+        </WrapPanel>
         <StackPanel Spacing="5">
           <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" />
           <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
@@ -95,10 +98,27 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+          <DockPanel>
+            <Button x:Name="Fold"
+                    DockPanel.Dock="Right"
+                    Classes="bare"
+                    Padding="4,0"
+                    IsVisible="{Binding Place.HasBranches}"
+                    AutomationProperties.Name="Fold or unfold its sub-agents"
+                    Command="{Binding Place.FoldCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock x:Name="Branches" Classes="hint" Text="{Binding Place.Branches}" />
+                <Panel Width="9" Height="9" VerticalAlignment="Center">
+                  <Path Classes="icon" Width="9" Height="9" Data="{StaticResource IconChevronRight}" IsVisible="{Binding Place.IsFolded}" />
+                  <Path Classes="icon" Width="9" Height="9" Data="{StaticResource IconChevronDown}" IsVisible="{Binding !Place.IsFolded}" />
+                </Panel>
+              </StackPanel>
+            </Button>
           <StackPanel Orientation="Horizontal" Spacing="6">
             <elapsed:ElapsedText x:Name="Elapsed" Classes="hint" Since="{Binding Since}" IsVisible="{Binding IsTiming}" />
             <TextBlock x:Name="Took" Classes="hint" Text="{Binding Took}" IsVisible="{Binding !IsTiming}" />
           </StackPanel>
+          </DockPanel>
           <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </StackPanel>

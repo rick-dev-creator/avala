@@ -29,7 +29,7 @@
           Classes.alert="{Binding Place.IsAlert}"
           Classes.settled="{Binding Place.IsSettled}"
           Classes.viewing="{Binding IsViewing}"
-          Width="280"
+
           Padding="12,10"
           theme:Motion.Enter="Gentle">
     <StackPanel Spacing="6">
@@ -46,11 +46,11 @@
             </Border>
             <StackPanel Grid.Column="1" Spacing="1">
               <TextBlock x:Name="Title" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-              <StackPanel Orientation="Horizontal" Spacing="4">
+              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
                 <TextBlock x:Name="Harness" Classes="hint" Text="{Binding Harness}" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Classes="hint" Text="·" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock x:Name="Connection" Classes="hint" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" MaxWidth="110" />
-              </StackPanel>
+                <TextBlock Grid.Column="1" Classes="hint" Text="·" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock x:Name="Connection" Grid.Column="2" Classes="hint" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" />
+              </Grid>
             </StackPanel>
             <ContentControl x:Name="State" Grid.Column="2" Content="{Binding Place}" VerticalAlignment="Top" />
           </Grid>

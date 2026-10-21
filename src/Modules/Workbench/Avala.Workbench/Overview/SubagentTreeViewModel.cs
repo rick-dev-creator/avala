@@ -90,7 +90,6 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     {
         shown = Option<DelegationTree>.None;
         branches.Clear();
-        known.Clear();
         Agents = Working = NeedsYou = Spent = string.Empty;
         Waiting = [];
     }
@@ -243,7 +242,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         Agents = agents.Count == 0 ? "no sub-agent yet" : OverviewPhrases.Count(agents.Count, "agent");
         var working = agents.Count(agent => agent.State == SubagentState.Working);
         Working = working == 0 ? string.Empty : $"{working} working";
-        var waiting = agents.Where(agent => agent.State == SubagentState.Waiting).ToList();
+        var waiting = agents.Prepend(root).Where(agent => agent.State == SubagentState.Waiting).ToList();
         NeedsYou = waiting.Count == 0 ? string.Empty : $"{waiting.Count} needs you";
         var spent = Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent)));
         Spent = spent.Count == 0 ? string.Empty : Amounts.Costs(spent);

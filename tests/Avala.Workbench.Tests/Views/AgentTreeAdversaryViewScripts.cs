@@ -1,3 +1,4 @@
+using Avala.Components.UI.Graphs;
 using Avala.Components.Status;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
@@ -20,9 +21,11 @@ public sealed class AgentTreeAdversaryViewScripts(HeadlessUi ui)
             var view = Screen.Show(new AgentTreeSamples.Pane(new DesignSubagentTreeViewModel { Branches = AgentTreeSamples.Deep() }), ThemeVariant.Dark, 380, 1400);
             var viewport = view.All<ScrollViewer>()[0];
             var right = viewport.TranslatePoint(new Point(viewport.Bounds.Width, 0), view.Window)?.X ?? 0;
+            var panel = view.All<AgentTreePanel>().Single();
+            var panelLeft = panel.TranslatePoint(default, view.Window)?.X ?? 0;
 
-            var clipped = view.All<Border>().Where(card => card.Name == "Card")
-                .Select(card => card.TranslatePoint(new Point(card.Bounds.Width, 0), view.Window)?.X ?? 0)
+            var clipped = panel.Children
+                .Select(slot => panelLeft + slot.Bounds.Right)
                 .Where(edge => edge > right)
                 .ToList();
 

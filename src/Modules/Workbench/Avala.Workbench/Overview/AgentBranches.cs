@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Status;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
@@ -29,7 +30,9 @@ internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState St
 
     public Option<string> Asks { get; init; }
 
-    public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped;
+    public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped && Children.All(child => child.IsSettled);
+
+    public int Urgency => Children.Select(child => child.Urgency).Append(AgentBranches.Rank(State)).Min();
 
     public IEnumerable<AgentBranch> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
 }
@@ -63,7 +66,8 @@ internal static class AgentBranches
         InProcess(job, seen)
             .Concat(byParent[Option<JobId>.Some(job)].Select(node => Child(node, harness, byParent)))
             .Select((branch, order) => (branch, order))
-            .OrderBy(pair => Rank(pair.branch.State))
+            .OrderBy(pair => pair.branch.Urgency)
+            .ThenBy(pair => Rank(pair.branch.State))
             .ThenBy(pair => pair.order)
             .Select(pair => pair.branch);
 
@@ -86,13 +90,13 @@ internal static class AgentBranches
         seen.Match<IEnumerable<AgentBranch>>(
             found =>
             {
-                var asking = found.Transcript.Entries.OfType<PermissionEntry>().Where(permission => permission.AwaitsHuman).ToList();
+                var asking = Asking(found);
 
                 return found.Transcript.Entries.OfType<ToolEntry>()
                     .Where(tool => tool.Kind == ItemKind.Subagent)
                     .Select(tool =>
                     {
-                        var asks = asking.Where(permission => tool.Children.Contains(permission.Item)).Select(permission => permission.Target).FirstOrDefault();
+                        var asks = asking.Where(ask => tool.Children.Contains(ask.Item)).Select(ask => ask.What).FirstOrDefault();
 
                         return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [])
                         {
@@ -104,6 +108,12 @@ internal static class AgentBranches
                     .ToList();
             },
             () => []);
+
+    private static List<(ItemId Item, string What)> Asking(BoardJob job) =>
+    [
+        .. job.Transcript.Entries.OfType<PermissionEntry>().Where(permission => permission.AwaitsHuman).Select(permission => (permission.Item, permission.Target)),
+        .. job.Transcript.Entries.OfType<FormEntry>().Where(form => form.AwaitsHuman).Select(form => (form.Item, form.Form.Title)),
+    ];
 
     public static SubagentState ToolState(ToolEntry tool, bool asking) =>
         tool.Outcome.Match(
@@ -121,10 +131,10 @@ internal static class AgentBranches
 
     private static bool OnlyItsSubagentsAsk(BoardJob job)
     {
-        var asking = job.Transcript.Entries.OfType<PermissionEntry>().Where(permission => permission.AwaitsHuman).Select(permission => permission.Item).ToList();
+        var asking = Asking(job);
         var theirs = job.Transcript.Entries.OfType<ToolEntry>().Where(tool => tool.Kind == ItemKind.Subagent).SelectMany(tool => tool.Children).ToHashSet();
 
-        return asking.Count > 0 && asking.All(theirs.Contains) && !job.Transcript.Entries.OfType<FormEntry>().Any(form => form.AwaitsHuman);
+        return asking.Count > 0 && asking.All(ask => theirs.Contains(ask.Item));
     }
 
     private static string Harness(JobSpend spend) => spend.Session.Match(session => session.Provider.Name, () => string.Empty);

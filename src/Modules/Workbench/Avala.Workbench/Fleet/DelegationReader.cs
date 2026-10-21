@@ -60,7 +60,7 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
         board.Find(job).Match(found => found.Transcript.Entries.OfType<ToolEntry>().Where(tool => tool.Kind == ItemKind.Subagent), () => []);
 
     private IEnumerable<DelegationNode> Nodes(JobTree tree, int depth) =>
-        tree.Children.SelectMany(child => Nodes(child, depth + 1)).Prepend(new DelegationNode(
+        tree.Children.Where(child => !child.Job.Companion).SelectMany(child => Nodes(child, depth + 1)).Prepend(new DelegationNode(
             tree.Job,
             depth,
             board.Find(tree.Job.Job).Map(job => job.Fact),

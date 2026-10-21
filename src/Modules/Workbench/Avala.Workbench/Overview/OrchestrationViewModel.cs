@@ -98,15 +98,15 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
         this.tree.Show(tree, Option<JobId>.None);
         Title = FactPhrases.Title(tree.Root.Instruction);
         Repository = OverviewPhrases.Repository(tree.Root.Repository);
-        var branches = AgentBranches.Of(tree).Descendants.ToList();
+        var rooted = AgentBranches.Of(tree);
+        var branches = rooted.Descendants.ToList();
         var agents = branches.Count(branch => branch.Kind == BranchKind.InProcess);
         AtWork = branches.Count(branch => !branch.IsSettled);
-        Needing = branches.Count(branch => branch.State == SubagentState.Waiting);
+        Needing = branches.Prepend(rooted).Count(branch => branch.State == SubagentState.Waiting);
         Size = agents == 0
             ? OverviewPhrases.Count(tree.Children.Count + 1, "job")
             : $"{OverviewPhrases.Count(tree.Children.Count + 1, "job")} · {OverviewPhrases.Count(agents, "agent")}";
-        var needing = tree.Children.Count(node => node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status)) is StatusKind.NeedsYou or StatusKind.Held);
-        NeedsYou = needing == 0 ? string.Empty : $"{needing} needs you";
+        NeedsYou = Needing == 0 ? string.Empty : $"{Needing} needs you";
         Tokens = AgentGlance.TokensText(AgentGlance.Tokens(tree.RootSpend) + tree.Children.Sum(node => AgentGlance.Tokens(node.Spend)));
         var spent = Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent)));
         Spent = spent.Count == 0 ? string.Empty : Amounts.Costs(spent);

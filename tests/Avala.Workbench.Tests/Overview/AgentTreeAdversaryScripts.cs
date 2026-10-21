@@ -12,9 +12,9 @@ namespace Avala.Workbench.Tests.Overview;
 
 public sealed class AgentTreeAdversaryScripts : IDisposable
 {
-    private static readonly SessionId Session = SessionId.New();
+    private static SessionId Session => TreeBench.Session;
 
-    private static readonly TurnId Turn = TurnId.New();
+    private static TurnId Turn => TreeBench.Turn;
 
     private static readonly string[] Reviewed = ["Write the changelog", "Bump the version", "Tag the release"];
 

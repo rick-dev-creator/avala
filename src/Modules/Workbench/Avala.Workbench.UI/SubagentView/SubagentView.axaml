@@ -22,7 +22,7 @@
           Classes.attention="{Binding Place.IsWaiting}"
           Classes.alert="{Binding Place.IsAlert}"
           Classes.settled="{Binding Place.IsSettled}"
-          Width="280"
+
           Padding="12,10"
           theme:Motion.Enter="Gentle">
     <StackPanel Spacing="6">

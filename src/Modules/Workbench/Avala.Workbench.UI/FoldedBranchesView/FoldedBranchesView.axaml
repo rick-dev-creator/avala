@@ -17,7 +17,7 @@
   </UserControl.Styles>
   <Button x:Name="Fold"
           Classes="bare"
-          Width="280"
+
           HorizontalContentAlignment="Stretch"
           AutomationProperties.Name="{Binding Text, StringFormat='Settled sub-agents: {0}'}"
           Command="{Binding Place.FoldCommand}">
