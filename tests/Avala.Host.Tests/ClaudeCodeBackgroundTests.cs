@@ -71,7 +71,8 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     public async Task AnAgentKeptForATurnItWokeOnItsOwnEndsOnceThatTurnEndsAndItsPromptCacheExpiresAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
-        await using var run = await StartAsync(claude);
+        await using var tapped = new TemporaryFolder();
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Tapping(tapped.Path), []);
         var session = (await run.OpenedAsync()).Session;
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var asked = await run.DecisionAsync();
@@ -94,8 +95,20 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         }
         catch (TimeoutException timeout)
         {
-            throw new TimeoutException($"{timeout.Message}; before the clock moved {before}; after {await StateAsync(run, session)}", timeout);
+            throw new TimeoutException($"{timeout.Message}; before the clock moved {before}; after {await StateAsync(run, session)}; the replay's last lines {await TappedAsync(tapped.Path)}", timeout);
         }
+    }
+
+    private static async Task<string> TappedAsync(string folder)
+    {
+        var lines = new List<string>();
+
+        foreach (var file in Directory.GetFiles(folder, "*.jsonl").Order(StringComparer.Ordinal))
+        {
+            lines.AddRange(await File.ReadAllLinesAsync(file, Cancellation));
+        }
+
+        return string.Join(" | ", lines.TakeLast(6).Select(line => line.Length > 260 ? line[..260] : line));
     }
 
     private static async Task<string> StateAsync(SimulatedRun run, SessionId session)
