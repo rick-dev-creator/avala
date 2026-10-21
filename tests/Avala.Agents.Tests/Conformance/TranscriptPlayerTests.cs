@@ -49,6 +49,30 @@ public sealed class TranscriptPlayerTests
         Assert.Equal((1, 0, "No conversation found with session ID: abc"), (code, output.Length, error));
     }
 
+    [Fact]
+    public async Task ARecordedTranscriptNamesAvalasOwnCommandsByTheirPlaceholderSoTheReplayKnowsThemAsAvalasAsync()
+    {
+        var foreign = new List<string>();
+
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(Repository.Root.FullName, "tests", "transcripts", "claude-code"), "*.jsonl", SearchOption.AllDirectories))
+        {
+            var lines = (await File.ReadAllLinesAsync(path, Cancellation)).Where(line => line.Length > 0).Select(line => System.Text.Json.Nodes.JsonNode.Parse(line)!).ToList();
+
+            if (lines[0]["crafted"] is not null)
+            {
+                continue;
+            }
+
+            var sent = lines.Select(line => line["in"]).Where(line => (string?)line?["type"] == "user").Select(line => (string?)line?["uuid"]).OfType<string>().ToHashSet(StringComparer.Ordinal);
+            foreign.AddRange(lines
+                .Select(line => line["out"])
+                .Where(line => (string?)line?["type"] == "command_lifecycle" && sent.Contains((string?)line?["command_uuid"] ?? string.Empty))
+                .Select(line => $"{Path.GetFileName(path)}: {(string?)line?["command_uuid"]}"));
+        }
+
+        Assert.Empty(foreign.Distinct());
+    }
+
     private static async Task<(int Code, string[] Output, string Error)> PlayAsync(string[] arguments, params string[] inputs)
     {
         await using var folder = new TemporaryFolder();
