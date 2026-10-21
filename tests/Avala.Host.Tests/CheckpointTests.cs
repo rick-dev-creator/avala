@@ -46,6 +46,6 @@ public sealed class CheckpointTests(PublishedPlugins plugins)
         _ = Outcomes.Succeeds(await checkpoints.RestoreAsync(job, 1, Cancellation));
 
         Assert.Equal(["GREETING.md"], Assert.Single(listed).Files.Select(file => file.Path));
-        Assert.Equal("# Hello\n\nWritten by the simulator.\n", await File.ReadAllTextAsync(greeting, Cancellation));
+        Assert.Equal("# Hello\n\nWritten by the simulator.\n", (await File.ReadAllTextAsync(greeting, Cancellation)).ReplaceLineEndings("\n"));
     }
 }
