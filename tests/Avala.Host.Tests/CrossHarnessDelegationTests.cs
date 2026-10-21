@@ -386,10 +386,10 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), Cancellation);
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Trees"].Items.Count > 0 && Children(delegation["Trees"].Items[0]).Count() == 1 && shown(Children(delegation["Trees"].Items[0]).Single()),
-            () => string.Join(", ", delegation["Trees"].Items.SelectMany(Children).Select(child => $"{child["StateText"].Text} {child["Activity"].Text}")));
+            () => delegation["Trees"].Items.Count > 0 && TreeBranches.Children(delegation["Trees"].Items[0]).Count == 1 && shown(TreeBranches.Children(delegation["Trees"].Items[0]).Single()),
+            () => string.Join(", ", delegation["Trees"].Items.SelectMany(TreeBranches.Children).Select(child => $"{child["StateText"].Text} {child["Activity"].Text}")));
 
-        return await run.Ui.ReadAsync(() => Children(delegation["Trees"].Items[0]).Single()["StateText"].Text);
+        return await run.Ui.ReadAsync(() => TreeBranches.Children(delegation["Trees"].Items[0]).Single()["StateText"].Text);
     }
 
     private static IReadOnlyList<(string File, string Content)> WithSpareSimulator(IReadOnlyList<(string File, string Content)> data)
@@ -416,7 +416,4 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
 
         return Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(workspace, Cancellation));
     }
-
-    private static IEnumerable<Bound> Children(Bound tree) =>
-        tree["Tree"]["Branches"].Items.Where(branch => branch.Kind == "DelegationNodeViewModel");
 }
