@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using Avala.Components.Graphs;
 using Avala.Components.UI.Theme;
 using Avalonia;
@@ -37,6 +38,10 @@ public sealed class AgentTreePanel : Panel
 
     private const double ReadableCardWidth = 240;
 
+    private const int StalledFrames = 3;
+
+    private static readonly TimeSpan StreamFrame = TimeSpan.FromMilliseconds(80);
+
     private static readonly double[] Narrower = [0.9, 0.8, 0.72];
 
     private static readonly AvaloniaProperty[] Strokes = [EdgeBrushes.FlowingProperty, EdgeBrushes.AttentionProperty, EdgeBrushes.WaitingProperty, EdgeBrushes.FailureProperty, EdgeBrushes.QuietProperty];
@@ -53,6 +58,10 @@ public sealed class AgentTreePanel : Panel
     private double arrangedWidth = double.NaN;
     private bool framing;
     private bool loops;
+    private DispatcherTimer? stream;
+    private TimeSpan lastFrame = TimeSpan.MinValue;
+    private int stalls;
+    private readonly System.Diagnostics.Stopwatch streamed = System.Diagnostics.Stopwatch.StartNew();
 
     static AgentTreePanel()
     {
@@ -228,6 +237,7 @@ public sealed class AgentTreePanel : Panel
         base.OnDetachedFromVisualTree(e);
         Settle();
         motion.Forget();
+        stream?.Stop();
         arrangedWidth = double.NaN;
     }
 
@@ -253,6 +263,7 @@ public sealed class AgentTreePanel : Panel
     private void Frame(TimeSpan now)
     {
         framing = false;
+        Frames++;
 
         if (TopLevel.GetTopLevel(this) is null)
         {
@@ -266,16 +277,47 @@ public sealed class AgentTreePanel : Panel
             EdgeLayer.Refresh(this);
         }
 
-        var looping = loops && IsEffectivelyVisible && !Motion.GetIsReduced(this);
+        stalls = now > lastFrame ? 0 : stalls + 1;
+        lastFrame = now;
 
-        if (looping && strokes.Step(now))
-        {
-            edges.InvalidateVisual();
-        }
-
-        if (motion.IsActive || looping)
+        if (motion.IsActive && stalls < StalledFrames)
         {
             Request();
+        }
+        else if (motion.IsActive)
+        {
+            DispatcherTimer.RunOnce(Request, StreamFrame);
+        }
+    }
+
+    public int Frames { get; private set; }
+
+    public bool IsStreaming => stream?.IsEnabled == true;
+
+    private bool Looping => loops && IsEffectivelyVisible && !Motion.GetIsReduced(this) && TopLevel.GetTopLevel(this) is not null;
+
+    private void Stream()
+    {
+        if (Looping)
+        {
+            stream ??= new DispatcherTimer(StreamFrame, DispatcherPriority.Background, (_, _) => Streamed());
+            stream.Start();
+        }
+        else
+        {
+            stream?.Stop();
+        }
+    }
+
+    private void Streamed()
+    {
+        if (!Looping)
+        {
+            stream?.Stop();
+        }
+        else if (strokes.Step(streamed.Elapsed))
+        {
+            edges.InvalidateVisual();
         }
     }
 
@@ -368,11 +410,7 @@ public sealed class AgentTreePanel : Panel
         }
 
         loops = flowing || waiting;
-
-        if (loops && !Motion.GetIsReduced(this))
-        {
-            Request();
-        }
+        Stream();
     }
 
     private static void Stroke(DrawingContext context, IPen pen, IReadOnlyList<GraphPoint> points, StreamGeometry? shape)

@@ -114,12 +114,29 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AMovingTreeWhoseClockStandsStillRunsOnlyAFewFramesBeforeItWaitsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, tree) = Shown(reduced: false);
+            tree.Children.Insert(1, Card(1));
+            view.Settle();
+            var started = tree.Frames;
+
+            foreach (var _ in Enumerable.Range(0, 20))
+            {
+                view.Settle();
+            }
+
+            Assert.InRange(tree.Frames - started, 0, 4);
+        }, Cancellation);
+
+    [Fact]
     public Task TheClockRestsOnceNoEdgeIsWorkingOrWaitingAsync() =>
         ui.RunAsync(() =>
         {
             var (view, tree) = Shown(reduced: false);
             view.Elapse(Glide);
-            var working = ViewScript.IsAnimating;
+            var working = tree.IsStreaming;
 
             foreach (var card in tree.Children)
             {
@@ -129,7 +146,7 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
             view.Settle();
             view.Elapse(Glide);
 
-            Assert.Equal((true, false), (working, ViewScript.IsAnimating));
+            Assert.Equal((true, false, false), (working, tree.IsStreaming, ViewScript.IsAnimating));
         }, Cancellation);
 
     [Fact]
