@@ -51,6 +51,13 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
 
     private async Task WakeAsync(Job job, SessionId session, CancellationToken cancellationToken)
     {
+        if (job.State == JobState.NeedsHelp)
+        {
+            await hold.HushAsync(job, session, cancellationToken);
+
+            return;
+        }
+
         if (job.State == JobState.AwaitingReview
             && job.Session == Option<SessionId>.Some(session)
             && Feedback.Create(WokenNote).TryGetValue(out var note, out _)

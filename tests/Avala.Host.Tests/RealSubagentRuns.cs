@@ -24,6 +24,12 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
         + "start the Bash command `sleep 30 && echo nested-done` with run_in_background set to true, then end your own work at once by replying started, without waiting for the command. "
         + "After launching the sub-agent, reply with the single word launched and end your turn. When you learn that the command finished, reply with its output.";
 
+    private const string RerunWithTools =
+        "Use the Agent tool once with run_in_background set to true to launch one general-purpose sub-agent with this task: "
+        + "start the Bash command `sleep 25 && echo nested-done > nested.txt` with run_in_background set to true and end your work at once by replying started. "
+        + "When you are told that the command finished, use the Read tool to read nested.txt and reply with its content. "
+        + "After launching the sub-agent, reply with the single word launched and end your turn. When the sub-agent reports the content, reply with it.";
+
     private static readonly TimeSpan Guard = TimeSpan.FromMinutes(6);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -47,6 +53,10 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
     [Fact]
     public Task ASubagentThatEndsWhileItsOwnBackgroundCommandRunsIsRecordedWithWhatAvalaMadeOfItAsync() =>
         RecordAsync("nested", Nested, (_, _, _) => Task.CompletedTask);
+
+    [Fact]
+    public Task ASubagentClaudeCodeStartsAgainThatUsesToolsInItsSecondRunIsRecordedWithWhatAvalaMadeOfItAsync() =>
+        RecordAsync("rerun-tools", RerunWithTools, (_, _, _) => Task.CompletedTask);
 
     private async Task RecordAsync(string name, string instruction, Func<SimulatedRun, Bound, EventWatch<AgentActivity>, Task> act)
     {

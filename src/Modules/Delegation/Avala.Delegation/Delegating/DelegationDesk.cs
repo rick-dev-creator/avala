@@ -11,7 +11,7 @@ using Avala.Sdk.Events;
 namespace Avala.Delegation.Delegating;
 
 internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter, IJobCatalog catalog, DelegationBook book)
-    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<AgentActivity>, IHandle<JobProgressed>, IHandle<JobHeld>, IHandle<StartupCompleted>
+    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<AgentActivity>, IHandle<JobProgressed>, IHandle<JobHeld>, IHandle<StartupCompleted>, IHandle<ChildWentOn>
 {
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Approved, JobStatus.Discarded, JobStatus.Failed];
 
@@ -111,14 +111,26 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
 
         foreach (var child in pending.Keys.Where(child => !awaitingHold.Contains(child)).ToList())
         {
-            var history = await catalog.HistoryAsync(child, cancellationToken);
-            var status = history.Map(found => found.Summary.Status);
+            await SettleIfSettledAsync(child, cancellationToken);
+        }
+    }
 
-            if (status.Match(Settled.Contains, () => false))
-            {
-                var held = status == Option<JobStatus>.Some(JobStatus.NeedsHelp) && history.Match(Interrupted, () => false);
-                Settle(child, new Settlement(status.Match(found => found, () => default), Option<HoldReason>.None) { Held = held }, cancellationToken);
-            }
+    public async ValueTask HandleAsync(ChildWentOn integrationEvent, CancellationToken cancellationToken)
+    {
+        Hydrate();
+        pending.TryAdd(integrationEvent.Child, integrationEvent.Delegation);
+        await SettleIfSettledAsync(integrationEvent.Child, cancellationToken);
+    }
+
+    private async Task SettleIfSettledAsync(JobId child, CancellationToken cancellationToken)
+    {
+        var history = await catalog.HistoryAsync(child, cancellationToken);
+        var status = history.Map(found => found.Summary.Status);
+
+        if (status.Match(Settled.Contains, () => false))
+        {
+            var held = status == Option<JobStatus>.Some(JobStatus.NeedsHelp) && history.Match(Interrupted, () => false);
+            Settle(child, new Settlement(status.Match(found => found, () => default), Option<HoldReason>.None) { Held = held }, cancellationToken);
         }
     }
 

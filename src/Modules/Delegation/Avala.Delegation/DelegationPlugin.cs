@@ -59,6 +59,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, DelegationDesk>()
             .AddForwarded<IHandle<JobHeld>, DelegationDesk>()
             .AddForwarded<IHandle<StartupCompleted>, DelegationDesk>()
+            .AddForwarded<IHandle<ChildWentOn>, DelegationDesk>()
             .AddSingleton<ParentResumption>()
             .AddSingleton<DeferredParents>()
             .AddForwarded<IRecoveryDeferral, DeferredParents>()

@@ -7,6 +7,8 @@ using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Records;
 
+internal sealed record ChildWentOn(DelegationRecord Delegation, JobId Child) : IIntegrationEvent;
+
 internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAgents agents, TimeProvider clock)
 {
     public DateTimeOffset Now => clock.GetUtcNow();
@@ -16,6 +18,9 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
     public Option<DelegationRecord> OfChild(JobId child) => book.OfChild(child);
 
     public async Task AskedAsync(ParentAsked asked, CancellationToken cancellationToken) => await bus.PublishAsync(asked, cancellationToken);
+
+    public async Task WentOnAsync(DelegationRecord delegation, JobId child, CancellationToken cancellationToken) =>
+        await bus.PublishAsync(new ChildWentOn(delegation, child), cancellationToken);
 
     public async Task<bool> ReturnAsync(CallRef call, ToolResult result, CancellationToken cancellationToken) =>
         (await agents.ReturnAsync(call.Session, result with { Item = call.Item }, cancellationToken)).IsSuccess;

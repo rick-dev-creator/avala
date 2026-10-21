@@ -51,6 +51,13 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
     private async Task SettleAsync(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken)
     {
         var report = await ReportOfAsync(delegation, child, settlement, summary, cancellationToken);
+
+        if (report.Outcome == ChildOutcome.NotIntegrated && report.Refusal == Option<JobRejection>.Some(JobRejection.NotAwaitingReview))
+        {
+            await journal.WentOnAsync(delegation, child, cancellationToken);
+
+            return;
+        }
         var connection = delegation.Connection.IsSome ? delegation.Connection : await evidence.ConnectionOfAsync(child, cancellationToken);
         var reported = await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
 

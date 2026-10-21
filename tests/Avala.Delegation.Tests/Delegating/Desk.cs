@@ -149,6 +149,8 @@ internal sealed class Desk : IAsyncDisposable
 
     public async Task ProgressAsync(JobId job, JobStatus status) => await desk.HandleAsync(new JobProgressed(job, status), Cancellation);
 
+    public async Task WentOnAsync(Avala.Delegation.Records.ChildWentOn wentOn) => await desk.HandleAsync(wentOn, Cancellation);
+
     public async Task HeldAsync(JobId job, HoldReason reason) =>
         await desk.HandleAsync(new JobHeld(new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted)), Cancellation);
 

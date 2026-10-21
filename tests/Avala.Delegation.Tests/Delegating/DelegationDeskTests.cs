@@ -156,6 +156,25 @@ public sealed class DelegationDeskTests
         Assert.False(Assert.Single(desk.Agents.Results).Result.IsError);
     }
 
+    [Fact]
+    public async Task AChildThatWokeBeforeItsIntegrationIsNotReportedAndIsIntegratedOnceItIsBackInReviewAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Approval = JobRejection.NotAwaitingReview;
+
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var wentOn = await desk.Bus.WaitForAsync<Avala.Delegation.Records.ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
+        desk.Jobs.Approval = new ApprovalDelivery("merge", "avala/parent", "c0ffee");
+        await desk.WentOnAsync(wentOn);
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+
+        var reports = desk.Bus.Published.OfType<ChildReported>().Where(reported => reported.Delegation.Child == Option<JobId>.Some(child)).ToList();
+        Assert.Equal(ChildOutcome.Integrated, Outcomes.Present((await desk.ReportedAsync(child)).Report).Outcome);
+        Assert.DoesNotContain(reports, reported => reported.Delegation.Report.Match(report => report.Outcome == ChildOutcome.NotIntegrated, () => false));
+    }
+
     [Theory]
     [InlineData("held", "Held")]
     [InlineData("out of retries", "RetriesExhausted")]

@@ -236,6 +236,25 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ATurnTheAgentWakesOnItsOwnWhileItsJobIsHeldIsInterruptedAndTheJobStaysHeldAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-after-interrupt");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        _ = await run.DecisionAsync();
+        var ended = run.Watch<TurnFinished>();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        var turns = 0;
+        var finished = await ended.CollectUntilAsync(_ => ++turns == 2);
+        await run.DeliveredAsync();
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal([TurnOutcome.Interrupted, TurnOutcome.Interrupted], finished.Select(turn => turn.Outcome));
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Interrupted), 1), (history.Summary.Status, history.Summary.Hold, history.Attempts.Count));
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");
