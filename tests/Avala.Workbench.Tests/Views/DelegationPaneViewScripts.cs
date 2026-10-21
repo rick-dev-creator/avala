@@ -129,6 +129,17 @@ public sealed class BranchPlaceViewScripts(HeadlessUi ui)
             Assert.Equal(MotionLoop.Spin, view.LoopOf("Spinner"));
             Assert.True(view.HasClass("Chip", "working"));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AWorkingChipDrawsItsSpinnerInTheAccentColorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignBranchPlaceViewModel("chip", 1, BranchKind.InProcess, SubagentState.Working));
+
+            view.Window.TryFindResource("AccentBrush", view.Window.ActualThemeVariant, out var accent);
+
+            Assert.Equal(accent, view.Find<Avalonia.Controls.Shapes.Arc>("Spinner").Stroke);
+        }, TestContext.Current.CancellationToken);
 }
 
 public sealed class DelegationToggleViewScripts(HeadlessUi ui)

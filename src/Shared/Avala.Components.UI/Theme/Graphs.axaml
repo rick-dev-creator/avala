@@ -198,7 +198,7 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>
-  <Style Selector="Border.state Shape">
+  <Style Selector="Border.state :is(Shape)">
     <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>
   <Style Selector="Border.state.working">
@@ -207,7 +207,7 @@
   <Style Selector="Border.state.working TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
   </Style>
-  <Style Selector="Border.state.working Shape">
+  <Style Selector="Border.state.working :is(Shape)">
     <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
   </Style>
   <Style Selector="Border.state.waiting">
@@ -217,7 +217,7 @@
   <Style Selector="Border.state.waiting TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
   </Style>
-  <Style Selector="Border.state.waiting Shape">
+  <Style Selector="Border.state.waiting :is(Shape)">
     <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
   </Style>
   <Style Selector="Border.state.alert">
@@ -227,7 +227,7 @@
   <Style Selector="Border.state.alert TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
   </Style>
-  <Style Selector="Border.state.alert Shape">
+  <Style Selector="Border.state.alert :is(Shape)">
     <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
   </Style>
   <Style Selector="TextBlock.note.waiting">
