@@ -45,6 +45,16 @@ public sealed class AgentTreeLayoutTests
     }
 
     [Fact]
+    public void ATreeTooWideToFanEveryLevelStacksALastRowOfLeavesUnderTheirParentAndStillFansEveryBranchAboveThem()
+    {
+        var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 60), Card(3, 100, 40), Card(3, 100, 40), Card(3, 100, 40), Card(2, 100, 60), Card(1, 100, 60)], Spacing, 400);
+
+        Assert.Equal(AgentTreeShape.Stacked, layout.Shape);
+        Assert.Equal([(120d, 0d), (65, 70), (0, 160), (20, 230), (20, 280), (20, 330), (130, 160), (240, 70)], layout.Nodes.Select(node => (node.X, node.Y)));
+        Assert.Equal(["3: 10,220 10,250 20,250", "4: 10,250 10,300 20,300", "5: 10,300 10,350 20,350"], layout.Edges.Where(edge => edge.Node is 3 or 4 or 5).Select(Path));
+    }
+
+    [Fact]
     public void ATreeTooWideForItsRoomKeepsItsFirstLevelSideBySideAndHangsDeeperCardsInTheirColumn()
     {
         var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(3, 100, 40), Card(2, 100, 40), Card(1, 100, 60)], Spacing, 300);

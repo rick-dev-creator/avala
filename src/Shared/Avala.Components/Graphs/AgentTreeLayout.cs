@@ -3,6 +3,7 @@ namespace Avala.Components.Graphs;
 public enum AgentTreeShape
 {
     Tree,
+    Stacked,
     Comb,
     Rail,
 }
@@ -54,6 +55,13 @@ public static class AgentTreeLayout
         if (tree is not null && Width(tree) <= availableWidth)
         {
             return Drawn(AgentTreeShape.Tree, tree, parents, spacing);
+        }
+
+        var stacked = rooted && !railsOnly ? Stacked(nodes, parents, spacing) : null;
+
+        if (stacked is not null && Width(stacked) <= availableWidth)
+        {
+            return Drawn(AgentTreeShape.Stacked, stacked, parents, spacing);
         }
 
         var comb = rooted && !railsOnly ? Comb(nodes, levels, spacing) : null;
@@ -177,6 +185,60 @@ public static class AgentTreeLayout
         }
     }
 
+    private static GraphRect[]? Stacked(IReadOnlyList<TreeNodeSpec> nodes, int[] parents, AgentTreeSpacing spacing)
+    {
+        var children = Enumerable.Range(0, nodes.Count).Select(parent => Enumerable.Range(parent + 1, nodes.Count - parent - 1).Where(child => parents[child] == parent).ToList()).ToList();
+        var stacks = children.Select(below => below.Count > 0 && below.All(child => children[child].Count == 0)).ToArray();
+
+        if (stacks[0])
+        {
+            return null;
+        }
+
+        var spans = new double[nodes.Count];
+
+        for (var index = nodes.Count - 1; index >= 0; index--)
+        {
+            spans[index] = stacks[index]
+                ? Math.Max(nodes[index].Size.Width, spacing.Indent + children[index].Max(child => nodes[child].Size.Width))
+                : Math.Max(nodes[index].Size.Width, children[index].Sum(child => spans[child]) + (Math.Max(0, children[index].Count - 1) * spacing.Gap));
+        }
+
+        var rects = new GraphRect[nodes.Count];
+        Place(0, 0, 0);
+
+        return rects;
+
+        void Place(int node, double left, double top)
+        {
+            var size = nodes[node].Size;
+
+            if (stacks[node])
+            {
+                rects[node] = new GraphRect(left, top, size.Width, size.Height);
+                var next = rects[node].Bottom + spacing.Gap;
+
+                foreach (var child in children[node])
+                {
+                    rects[child] = new GraphRect(left + spacing.Indent, next, nodes[child].Size.Width, nodes[child].Size.Height);
+                    next = rects[child].Bottom + spacing.Gap;
+                }
+
+                return;
+            }
+
+            rects[node] = new GraphRect(left + ((spans[node] - size.Width) / 2), top, size.Width, size.Height);
+            var below = children[node].Sum(child => spans[child]) + (Math.Max(0, children[node].Count - 1) * spacing.Gap);
+            var from = left + ((spans[node] - below) / 2);
+
+            foreach (var child in children[node])
+            {
+                Place(child, from, rects[node].Bottom + spacing.Drop);
+                from += spans[child] + spacing.Gap;
+            }
+        }
+    }
+
     private static GraphRect[] Rail(IReadOnlyList<TreeNodeSpec> nodes, int[] levels, bool rooted, AgentTreeSpacing spacing)
     {
         var rects = new GraphRect[nodes.Count];
@@ -213,7 +275,7 @@ public static class AgentTreeLayout
                 continue;
             }
 
-            if (shape == AgentTreeShape.Tree || (shape == AgentTreeShape.Comb && parent == 0))
+            if (shape == AgentTreeShape.Tree || (shape == AgentTreeShape.Comb && parent == 0) || (shape == AgentTreeShape.Stacked && children.Any(child => Enumerable.Range(child + 1, rects.Count - child - 1).Any(grand => parents[grand] == child))))
             {
                 Fan(rects, parent, children, spacing, grown, edges, joints);
             }

@@ -121,21 +121,16 @@ public sealed class AgentTreePanel : Panel
         var widths = Children.Select(CardWidthOf).ToList();
         layout = Lay(widths, available, Indent, railsOnly: false);
 
-        if (layout.Shape != AgentTreeShape.Rail || !double.IsFinite(available) || CardWidth <= 0 || layout.Nodes.Count == 0)
+        if (layout.Shape == AgentTreeShape.Tree || !double.IsFinite(available) || CardWidth <= 0 || layout.Nodes.Count == 0)
         {
             return;
         }
 
-        foreach (var share in Narrower)
+        if (Best(widths, available, layout) is { } best)
         {
-            var tried = Lay(Narrowed(widths, share), available, Indent, railsOnly: false);
+            layout = best;
 
-            if (tried.Shape != AgentTreeShape.Rail)
-            {
-                layout = tried;
-
-                return;
-            }
+            return;
         }
 
         layout = Lay(widths, available, Indent, railsOnly: true);
@@ -146,6 +141,26 @@ public sealed class AgentTreePanel : Panel
         var placed = indent < Indent ? Lay(widths, available, indent, railsOnly: true) : layout;
         var fitted = widths.Select((width, index) => index < placed.Nodes.Count ? Math.Max(1, Math.Min(width, available - placed.Nodes[index].X)) : width).ToList();
         layout = fitted.SequenceEqual(widths) && indent >= Indent ? layout : Lay(fitted, available, indent, railsOnly: true);
+    }
+
+    private AgentTreeGraphLayout? Best(List<double> widths, double available, AgentTreeGraphLayout wide)
+    {
+        foreach (var shape in new[] { AgentTreeShape.Tree, AgentTreeShape.Stacked, AgentTreeShape.Comb })
+        {
+            if (wide.Shape <= shape && wide.Shape != AgentTreeShape.Rail)
+            {
+                return wide;
+            }
+
+            var narrowed = Narrower.Select(share => Lay(Narrowed(widths, share), available, Indent, railsOnly: false)).FirstOrDefault(tried => tried.Shape == shape);
+
+            if (narrowed is not null)
+            {
+                return narrowed;
+            }
+        }
+
+        return null;
     }
 
     private AgentTreeGraphLayout Lay(List<double> widths, double available, double indent, bool railsOnly)
