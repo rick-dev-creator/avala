@@ -33,7 +33,7 @@ public sealed class LifecycleTests
     [InlineData("", "Permission", "Waiting")]
     [InlineData("Succeeded", "Nothing", "Completed")]
     [InlineData("Failed", "Nothing", "Failed")]
-    [InlineData("Expired", "Nothing", "Failed")]
+    [InlineData("Expired", "Nothing", "Stopped")]
     [InlineData("Cancelled", "Nothing", "Stopped")]
     [InlineData("Abandoned", "Nothing", "Lost")]
     public void AnItemsOutcomeGivesTheStateOfTheInProcessSubagentItRan(string outcome, string asking, string state) =>

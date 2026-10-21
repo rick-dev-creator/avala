@@ -68,7 +68,7 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 
     private readonly Dictionary<string, TrackedTool> tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TrackedTool> finished = new(StringComparer.Ordinal);
-    private readonly Queue<string> archived = new();
+    private readonly LinkedList<string> archived = new();
 
     public int Remembers => finished.Count;
 
@@ -104,6 +104,7 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
         }
 
         finished.Remove(id);
+        archived.Remove(id);
         var again = new TrackedTool(earlier.Use, earlier.Role) { Run = earlier.Run + 1, Opened = true, Backgrounded = true, Task = earlier.Task };
         tools[id] = again;
 
@@ -143,12 +144,14 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
         if (tools.Remove(id, out var tool) && tool.Backgrounded && tool.Closed)
         {
             finished[id] = tool;
-            archived.Enqueue(id);
+            archived.Remove(id);
+            archived.AddLast(id);
         }
 
-        while (finished.Count > Remembered && archived.TryDequeue(out var oldest))
+        while (finished.Count > Remembered && archived.First is { } oldest)
         {
-            finished.Remove(oldest);
+            finished.Remove(oldest.Value);
+            archived.RemoveFirst();
         }
     }
 

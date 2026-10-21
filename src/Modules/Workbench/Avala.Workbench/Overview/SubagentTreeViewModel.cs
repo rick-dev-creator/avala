@@ -51,6 +51,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     private readonly Dictionary<string, IAgentBranch> known = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> settledSince = new(StringComparer.Ordinal);
     private ITimer? sweep;
+    private bool disposed;
     private Option<DelegationTree> shown;
     private Option<JobId> viewing;
 
@@ -90,7 +91,12 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         Arrange();
     }
 
-    public void Dispose() => sweep?.Dispose();
+    public void Dispose()
+    {
+        disposed = true;
+        sweep?.Dispose();
+        sweep = null;
+    }
 
     public void Clear()
     {
@@ -130,7 +136,13 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     }
 
     private bool Gone(AgentBranch branch) =>
-        branch.IsSettled && settledSince.TryGetValue(branch.Key, out var since) && clock.GetUtcNow() - since >= Linger;
+        branch.IsSettled
+        && !Finished
+        && viewing != Option<JobId>.Some(branch.Job)
+        && settledSince.TryGetValue(branch.Key, out var since)
+        && clock.GetUtcNow() - since >= Linger;
+
+    private bool Finished => shown.Match(tree => SubagentStates.Of(tree.Root.Status, tree.Root.Hold) is SubagentState.Completed or SubagentState.Stopped, () => false);
 
     private void Note(AgentBranch root, DateTimeOffset now)
     {
@@ -155,7 +167,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
         var next = settledSince.Values.Select(since => since + Linger).Where(due => due > now).DefaultIfEmpty().Min();
         sweep?.Dispose();
-        sweep = next == default ? null : clock.CreateTimer(_ => refresh(), null, next - now, Timeout.InfiniteTimeSpan);
+        sweep = next == default || disposed || Finished ? null : clock.CreateTimer(_ => refresh(), null, next - now, Timeout.InfiniteTimeSpan);
     }
 
     private IAgentBranch Known(DelegationTree tree, ShownBranch next)
@@ -269,7 +281,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private void Summarize(DelegationTree tree, AgentBranch root)
     {
-        var agents = root.Descendants.ToList();
+        var agents = root.Descendants.Where(agent => !Gone(agent)).ToList();
         Agents = agents.Count == 0 ? "no sub-agent yet" : OverviewPhrases.Count(agents.Count, "agent");
         var working = agents.Count(agent => agent.State == SubagentState.Working);
         Working = working == 0 ? string.Empty : $"{working} working";
