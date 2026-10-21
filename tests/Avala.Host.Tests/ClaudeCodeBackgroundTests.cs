@@ -355,9 +355,15 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins) : IAsync
         var found = await progressed.UntilAsync(seen => seen.Job == run.Job && seen.Status is not JobStatus.Running and not JobStatus.Checking);
         var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary;
 
-        return found.Status == expected
-            ? found
-            : throw new Xunit.Sdk.XunitException($"The job settled {found.Status}, held {summary.Hold.Match(hold => hold.ToString(), () => "for no reason")}, not {expected}; the replay's last lines {await TappedAsync(taps.Path)}");
+        if (found.Status == expected)
+        {
+            return found;
+        }
+
+        var tapped = await TappedAsync(taps.Path);
+        var warnings = (await run.StopAndReadLogAsync()).Split('\n').Where(line => line.Contains("Warning", StringComparison.Ordinal) || line.Contains("Error", StringComparison.Ordinal)).TakeLast(12);
+
+        throw new Xunit.Sdk.XunitException($"The job settled {found.Status}, held {summary.Hold.Match(hold => hold.ToString(), () => "for no reason")}, not {expected}; the replay's last lines {tapped}; the log's warnings {string.Join(" | ", warnings)}");
     }
 
     private static async Task EvaluatedAsync(SimulatedRun run)
