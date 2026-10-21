@@ -2,6 +2,7 @@ namespace Avala.Components.Graphs;
 
 public enum AgentTreeShape
 {
+    Tree,
     Comb,
     Rail,
 }
@@ -39,6 +40,13 @@ public static class AgentTreeLayout
         var rooted = nodes[0].Depth <= 0;
         var parents = Parents(nodes);
         var levels = Levels(parents, rooted);
+        var tree = rooted && !railsOnly ? Tree(nodes, parents, levels, spacing) : null;
+
+        if (tree is not null && Width(tree) <= availableWidth)
+        {
+            return Drawn(AgentTreeShape.Tree, tree, parents, spacing);
+        }
+
         var comb = rooted && !railsOnly ? Comb(nodes, levels, spacing) : null;
 
         return comb is not null && Width(comb) <= availableWidth
@@ -116,6 +124,50 @@ public static class AgentTreeLayout
         return rects;
     }
 
+    private static GraphRect[] Tree(IReadOnlyList<TreeNodeSpec> nodes, int[] parents, int[] levels, AgentTreeSpacing spacing)
+    {
+        var children = Enumerable.Range(0, nodes.Count).Select(parent => Enumerable.Range(parent + 1, nodes.Count - parent - 1).Where(child => parents[child] == parent).ToList()).ToList();
+        var spans = new double[nodes.Count];
+
+        for (var index = nodes.Count - 1; index >= 0; index--)
+        {
+            var below = children[index].Sum(child => spans[child]) + (Math.Max(0, children[index].Count - 1) * spacing.Gap);
+            spans[index] = Math.Max(nodes[index].Size.Width, below);
+        }
+
+        var rows = new double[levels.Max() + 2];
+
+        for (var index = 0; index < nodes.Count; index++)
+        {
+            rows[levels[index] + 1] = Math.Max(rows[levels[index] + 1], nodes[index].Size.Height);
+        }
+
+        var tops = new double[rows.Length];
+
+        for (var level = 1; level < rows.Length; level++)
+        {
+            tops[level] = tops[level - 1] + (level > 1 ? rows[level - 1] + spacing.Drop : 0);
+        }
+
+        var rects = new GraphRect[nodes.Count];
+        Place(0, 0);
+
+        return rects;
+
+        void Place(int node, double left)
+        {
+            rects[node] = new GraphRect(left + ((spans[node] - nodes[node].Size.Width) / 2), tops[levels[node] + 1], nodes[node].Size.Width, nodes[node].Size.Height);
+            var below = children[node].Sum(child => spans[child]) + (Math.Max(0, children[node].Count - 1) * spacing.Gap);
+            var next = left + ((spans[node] - below) / 2);
+
+            foreach (var child in children[node])
+            {
+                Place(child, next);
+                next += spans[child] + spacing.Gap;
+            }
+        }
+    }
+
     private static GraphRect[] Rail(IReadOnlyList<TreeNodeSpec> nodes, int[] levels, bool rooted, AgentTreeSpacing spacing)
     {
         var rects = new GraphRect[nodes.Count];
@@ -145,9 +197,9 @@ public static class AgentTreeLayout
                 continue;
             }
 
-            if (shape == AgentTreeShape.Comb && parent == 0)
+            if (shape == AgentTreeShape.Tree || (shape == AgentTreeShape.Comb && parent == 0))
             {
-                Fan(rects, children, spacing, edges, joints);
+                Fan(rects, parent, children, spacing, edges, joints);
             }
             else
             {
@@ -158,11 +210,11 @@ public static class AgentTreeLayout
         return new AgentTreeGraphLayout(shape, rects, parents, edges, joints, new GraphSize(Width(rects), rects.Max(rect => rect.Bottom)));
     }
 
-    private static void Fan(GraphRect[] rects, List<int> children, AgentTreeSpacing spacing, List<AgentTreeEdge> edges, List<GraphPoint> joints)
+    private static void Fan(GraphRect[] rects, int parent, List<int> children, AgentTreeSpacing spacing, List<AgentTreeEdge> edges, List<GraphPoint> joints)
     {
-        var root = rects[0];
+        var root = rects[parent];
         var stem = new GraphPoint(root.Center.X, root.Bottom);
-        var bar = root.Bottom + (spacing.Drop / 2);
+        var bar = children.Min(child => rects[child].Y) - (spacing.Drop / 2);
         var drops = children.Select(child => rects[child].Center.X).ToList();
         var (from, to) = (Math.Min(stem.X, drops.Min()), Math.Max(stem.X, drops.Max()));
 

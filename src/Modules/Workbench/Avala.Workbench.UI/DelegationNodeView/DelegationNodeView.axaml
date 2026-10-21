@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
              xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              x:Class="Avala.Workbench.UI.DelegationNodeView"
              x:ClassModifier="internal"
@@ -29,6 +30,7 @@
           Classes.alert="{Binding Place.IsAlert}"
           Classes.settled="{Binding Place.IsSettled}"
           Classes.viewing="{Binding IsViewing}"
+          Classes.cross="{Binding Place.IsCrossHarness}"
 
           Padding="12,10"
           theme:Motion.Enter="Gentle">
@@ -41,16 +43,26 @@
               Command="{Binding ToggleCommand}">
         <StackPanel Spacing="6">
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-            <Border x:Name="Badge" Classes="tag" Width="24" Height="24" Padding="0" VerticalAlignment="Top" ToolTip.Tip="{Binding Harness}">
-              <TextBlock x:Name="Initials" Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Border x:Name="Badge"
+                    Classes="harness"
+                    Classes.brand="{Binding Place.Harness.HasBrand}"
+                    Background="{Binding Place.Harness.Color, Converter={x:Static states:BrandColor.Brush}}"
+                    VerticalAlignment="Top"
+                    ToolTip.Tip="{Binding Harness}">
+              <Panel>
+                <Path x:Name="HarnessLogo" Classes="logo" Data="{Binding Place.Harness.Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding Place.Harness.HasLogo}" />
+                <TextBlock x:Name="Initials" Classes="monogram" Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
+              </Panel>
             </Border>
-            <StackPanel Grid.Column="1" Spacing="1">
+            <StackPanel Grid.Column="1" Spacing="3">
               <TextBlock x:Name="Title" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
-                <TextBlock x:Name="Harness" Classes="hint" Text="{Binding Harness}" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Grid.Column="1" Classes="hint" Text="·" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock x:Name="Connection" Grid.Column="2" Classes="hint" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" />
-              </Grid>
+              <WrapPanel ItemSpacing="6" LineSpacing="3">
+                <TextBlock x:Name="Harness" Classes="hint" Text="{Binding Harness}" VerticalAlignment="Center" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <Border x:Name="InstanceChip" Classes="instance" ToolTip.Tip="The connection this harness runs on">
+                  <TextBlock x:Name="Connection" Text="{Binding Connection}" />
+                </Border>
+              </WrapPanel>
+              <TextBlock x:Name="OtherHarness" Classes="hint" Text="on another harness" IsVisible="{Binding Place.IsCrossHarness}" />
             </StackPanel>
             <ContentControl x:Name="State" Grid.Column="2" Content="{Binding Place}" VerticalAlignment="Top" />
           </Grid>

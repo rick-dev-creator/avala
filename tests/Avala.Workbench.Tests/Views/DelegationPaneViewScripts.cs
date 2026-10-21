@@ -69,7 +69,7 @@ public sealed class SubagentTreeViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignSubagentTreeViewModel(), ThemeVariant.Dark, 1440, 900);
 
-            Assert.Equal(AgentTreeShape.Comb, view.All<AgentTreePanel>().Single().Layout.Shape);
+            Assert.Equal(AgentTreeShape.Tree, view.All<AgentTreePanel>().Single().Layout.Shape);
             Assert.Equal(("6 agents", "2 working", "1 needs you", "1.47 USD"), (view.TextOf("Agents"), view.TextOf("Working"), view.TextOf("NeedsYouText"), view.TextOf("Spent")));
         }, Cancellation);
 
@@ -245,6 +245,12 @@ public sealed class FoldedBranchesViewScripts(HeadlessUi ui)
         public bool HasBranches => true;
 
         public bool IsFolded => true;
+
+        public HarnessMark Harness => HarnessMark.None;
+
+        public bool IsCrossHarness => false;
+
+        public bool RunsInside => true;
 
         public IRelayCommand FoldCommand { get; } = new RelayCommand(Open);
     }

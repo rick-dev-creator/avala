@@ -9,4 +9,8 @@ public sealed record ProviderInfo(string Id, string Name)
     public Option<string> Install { get; init; }
 
     public Option<string> SignIn { get; init; }
+
+    public string Logo { get; init; } = string.Empty;
+
+    public string Color { get; init; } = string.Empty;
 }

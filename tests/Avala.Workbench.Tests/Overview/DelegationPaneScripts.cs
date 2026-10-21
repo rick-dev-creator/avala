@@ -355,10 +355,12 @@ internal sealed class TreeBench : IDisposable
         return child;
     }
 
-    public async Task RunsOnAsync(JobSummary job, string harness)
+    public Task RunsOnAsync(JobSummary job, string harness) => RunsOnAsync(job, new ProviderInfo(harness.ToLowerInvariant().Replace(' ', '-'), harness));
+
+    public async Task RunsOnAsync(JobSummary job, ProviderInfo harness)
     {
         var session = SessionId.New();
-        await Sessions.HandleAsync(new SessionOpened(session, new ProviderInfo(harness.ToLowerInvariant().Replace(' ', '-'), harness), "/worktrees/1", job.Connection.Match(name => name, () => new Avala.Agents.Contracts.Connections.ConnectionName("claude-work"))), CancellationToken.None);
+        await Sessions.HandleAsync(new SessionOpened(session, harness, "/worktrees/1", job.Connection.Match(name => name, () => new Avala.Agents.Contracts.Connections.ConnectionName("claude-work"))), CancellationToken.None);
         await Sessions.HandleAsync(new JobSessionStarted(job.Job, session), CancellationToken.None);
     }
 

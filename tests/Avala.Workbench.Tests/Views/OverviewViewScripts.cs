@@ -318,9 +318,10 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
             var nodes = tree.Layout.Nodes;
 
             Assert.Equal(2, view.Named("OrchestrationView").Count);
-            Assert.Equal(AgentTreeShape.Comb, tree.Layout.Shape);
+            Assert.Equal(AgentTreeShape.Tree, tree.Layout.Shape);
             Assert.Equal([-1, 0, 0, 0, 3, 0], tree.Layout.Parents);
             Assert.True(nodes[4].Y > nodes[3].Y + nodes[3].Height && nodes[1].Y > nodes[0].Y + nodes[0].Height);
+            Assert.Equal(nodes[3].Center.X, nodes[4].Center.X, 0.5);
             Assert.Single(view.All<StackPanel>(), panel => panel.Name == "Tree" && panel.IsEffectivelyVisible);
             Assert.False(view.Shows("NoOrchestrators"));
         }, TestContext.Current.CancellationToken);

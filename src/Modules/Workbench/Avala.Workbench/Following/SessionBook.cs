@@ -11,9 +11,14 @@ namespace Avala.Workbench.Following;
 
 internal sealed record SessionSeen(SessionId Session, ConnectionName Connection, ProviderInfo Provider, Option<AgentAccount> Account);
 
-internal sealed class SessionBook(IUsageSessions earlier) : IHandle<SessionOpened>, IHandle<JobSessionStarted>
+internal sealed class SessionBook(IUsageSessions earlier, IEnumerable<IAgentProvider> providers) : IHandle<SessionOpened>, IHandle<JobSessionStarted>
 {
     private Ledger ledger = new([], [], []);
+
+    public SessionBook(IUsageSessions earlier)
+        : this(earlier, [])
+    {
+    }
 
     public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
@@ -56,8 +61,11 @@ internal sealed class SessionBook(IUsageSessions earlier) : IHandle<SessionOpene
 
     private Option<SessionSeen> Stored(Func<UsageSession, bool> matches) =>
         earlier.Sessions().LastOrDefault(matches) is { } seen
-            ? new SessionSeen(seen.Session, seen.Connection, seen.Provider, seen.Account)
+            ? new SessionSeen(seen.Session, seen.Connection, Known(seen.Provider), seen.Account)
             : Option<SessionSeen>.None;
+
+    private ProviderInfo Known(ProviderInfo stored) =>
+        providers.Select(provider => provider.Info).FirstOrDefault(info => info.Id == stored.Id) ?? stored;
 
     private sealed record Ledger(
         ImmutableDictionary<SessionId, SessionSeen> Sessions,

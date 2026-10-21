@@ -79,7 +79,7 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
     [ObservableProperty]
     public partial string Took { get; private set; } = string.Empty;
 
-    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
+    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch, folded);
 
     [ObservableProperty]
     public partial bool IsViewing { get; set; }

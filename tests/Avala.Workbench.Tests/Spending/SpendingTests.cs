@@ -50,6 +50,19 @@ public sealed class SpendingTests : IDisposable
     }
 
     [Fact]
+    public void AfterARestartAJobsStoredSessionShowsTheLogoItsHarnessDeclaresNow()
+    {
+        var job = JobId.New();
+        usage.Stored.Add(new UsageSession(SessionId.New(), Pages.Simulator, Option<AgentAccount>.None, new ConnectionName("work"), DateTimeOffset.UnixEpoch) { Job = job });
+        var declared = Pages.Simulator with { Logo = "M0 0L1 1Z", Color = "#D97757" };
+        var restored = new SessionBook(usage, [new ScriptedAgentProvider((_, _) => []) { Info = declared }]);
+
+        var seen = restored.LatestOf(job);
+
+        Assert.Equal(("M0 0L1 1Z", "#D97757"), Outcomes.Present(seen.Map(found => (found.Provider.Logo, found.Provider.Color))));
+    }
+
+    [Fact]
     public async Task AConnectionsLimitShowsItsResetAndTheThresholdItsLatestSessionHoldsJobsAtAsync()
     {
         var job = Pages.Summary("Fix the failing test", JobStatus.Running);

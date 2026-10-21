@@ -120,7 +120,7 @@ internal sealed partial class SubagentViewModel(BranchPlaceViewModel place, JobI
 
     public void Show(AgentBranch branch, int depth, bool folded)
     {
-        place.Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
+        place.Show(depth, branch, folded);
         State = branch.State;
 
         foreach (var entry in branch.Tool.Match<ToolEntry[]>(found => [found], () => []))

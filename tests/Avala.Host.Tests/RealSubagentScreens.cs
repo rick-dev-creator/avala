@@ -23,6 +23,14 @@ public sealed class RealSubagentScreens(HeadlessUi ui, PublishedPlugins plugins)
         + "Sub-agent B: run the Bash command `sleep 25 && echo B-done` and report its output. "
         + "After launching both, reply with the single word launched and end your turn without waiting for them.";
 
+    private const string Delegated =
+        "Do two things at once. First, use the Agent tool with run_in_background set to true to launch one general-purpose sub-agent that runs the Bash command `sleep 25 && echo orchestrator-sub-done` and reports its output. "
+        + "Second, call Avala's delegate tool with connection claude-b and this instruction: "
+        + "Use the Agent tool to launch one general-purpose sub-agent that runs the Bash command `sleep 20 && echo child-sub-done` and reports its output, then reply with that output. "
+        + "When both have reported, reply with both outputs.";
+
+    private const string Checks = """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""";
+
     private FeatureCamera Camera { get; } = new(ui, FeatureCamera.Folder ?? string.Empty);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -70,6 +78,32 @@ public sealed class RealSubagentScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "real-subagents-05-interrupted-subagents-stopped-and-job-held");
     }
 
+    [Fact]
+    public async Task ARealOrchestratorAndTheChildItDelegatesToAnotherInstanceEachShowTheirHarnessAndTheirOwnSubagentsAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [("connections.json", Connections)],
+            [(".avala/permissions.json", Autonomous), (".avala/checks.json", Checks), (".avala/jobs.json", """{ "delegation": { "connections": ["claude-b"] } }""")],
+            harnesses: true);
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Delegated)));
+        await OpenAsync(run, job);
+
+        var sessions = new HashSet<Agents.Contracts.Sessions.SessionId>();
+        _ = await activity.CollectUntilAsync(seen => seen.Event is ItemStarted { Kind: ItemKind.Subagent } started && sessions.Add(started.Session) && sessions.Count == 2);
+        await Camera.ShootAsync(run, "real-harness-01-orchestrator-and-child-instance-with-their-subagents");
+        await Camera.ShootAsync(run, "real-harness-01-orchestrator-and-child-instance-with-their-subagents-light", Avalonia.Styling.ThemeVariant.Light);
+        await OverviewTreeAsync(run);
+        await Camera.ShootAsync(run, "real-harness-02-overview-tree-working");
+        var settled = await SettledAsync(run, job);
+        await run.DeliveredAsync();
+        await Camera.ShootAsync(run, "real-harness-03-overview-tree-settled");
+        await Camera.ShootAsync(run, "real-harness-03-overview-tree-settled-light", Avalonia.Styling.ThemeVariant.Light);
+        Assert.Equal(JobStatus.AwaitingReview, settled);
+    }
+
     private static IAgentEvent Track(IAgentEvent happened, HashSet<Agents.Contracts.Sessions.ItemId> nested, HashSet<Agents.Contracts.Sessions.ItemId> subagents)
     {
         if (happened is ItemStarted { Parent.IsSome: true } step)
@@ -91,14 +125,27 @@ public sealed class RealSubagentScreens(HeadlessUi ui, PublishedPlugins plugins)
 
     private static string Connections => new JsonObject
     {
-        ["connections"] = new JsonArray(new JsonObject
-        {
-            ["name"] = "claude",
-            ["provider"] = "claude-code",
-            ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Login },
-            ["settings"] = new JsonObject { ["model"] = "haiku" },
-        }),
+        ["default"] = "claude",
+        ["connections"] = new JsonArray(Connection("claude"), Connection("claude-b")),
     }.ToJsonString();
+
+    private static JsonObject Connection(string name) => new()
+    {
+        ["name"] = name,
+        ["provider"] = "claude-code",
+        ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Login },
+        ["settings"] = new JsonObject { ["model"] = "haiku" },
+    };
+
+    private static async Task OverviewTreeAsync(SimulatedRun run)
+    {
+        var page = run.Page("Overview");
+        await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (IPage)page.Target, Cancellation);
+        await run.Ui.InvokeAsync(() => page.Execute("ShowDelegationCommand"), Cancellation);
+        var delegation = await run.Ui.ReadAsync(() => page["Delegation"]);
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), Cancellation);
+        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Trees"].Items.Count >= 1, () => "no orchestrator in the delegation view");
+    }
 
     private static async Task<Bound> OpenAsync(SimulatedRun run, JobId job)
     {

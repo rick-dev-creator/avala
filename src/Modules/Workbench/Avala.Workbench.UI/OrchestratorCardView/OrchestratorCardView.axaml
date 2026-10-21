@@ -50,14 +50,27 @@
             BoxShadow="{DynamicResource ShadowOrchestrator}"
             Padding="18,16">
       <StackPanel Spacing="10">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-          <Border Classes="tag" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" />
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+          <Border x:Name="HarnessMark"
+                  Classes="harness"
+                  Classes.brand="{Binding Place.Harness.HasBrand}"
+                  Background="{Binding Place.Harness.Color, Converter={x:Static states:BrandColor.Brush}}"
+                  IsVisible="{Binding Place.Harness.IsKnown}"
+                  ToolTip.Tip="{Binding Place.Harness.Name}">
+            <Panel>
+              <Path x:Name="HarnessLogo" Classes="logo" Data="{Binding Place.Harness.Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding Place.Harness.HasLogo}" />
+              <TextBlock Classes="monogram" Text="{Binding Place.Harness.Name, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
+            </Panel>
           </Border>
-          <TextBlock x:Name="Source" Grid.Column="1" Classes="caption" TextTrimming="CharacterEllipsis">
-            <Run Text="{Binding Harness}" />
-            <Run Text="{Binding Connection, StringFormat=' · {0} · orchestrator'}" />
-          </TextBlock>
+          <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+            <TextBlock x:Name="Source" Classes="caption" TextTrimming="CharacterEllipsis">
+              <Run Text="{Binding Place.Harness.Name}" />
+              <Run Text=" · orchestrator" />
+            </TextBlock>
+            <Border x:Name="InstanceChip" Classes="instance" IsVisible="{Binding Place.Harness.HasInstance}" ToolTip.Tip="The connection this harness runs on">
+              <TextBlock x:Name="Instance" Text="{Binding Place.Harness.Instance}" />
+            </Border>
+          </StackPanel>
         </Grid>
         <DockPanel>
           <ContentControl x:Name="State" DockPanel.Dock="Right" Content="{Binding Place}" Margin="8,0,0,0" VerticalAlignment="Center" />

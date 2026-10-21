@@ -57,6 +57,20 @@ public sealed class AgentTreeRoundTwoViewScripts(HeadlessUi ui)
             Assert.True(sourceRight <= cardRight + 0.5, $"'{string.Concat(source.Inlines?.OfType<Avalonia.Controls.Documents.Run>().Select(run => run.Text) ?? [])}' ends at {sourceRight}, past the card's {cardRight}");
         }, Cancellation);
 
+    [Fact]
+    public Task AChildJobsInstanceIsReadInFullInTheSidePaneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var child = new DesignDelegationNodeViewModel(JobId.New(), "Use the Agent tool to launch one general-purpose sub-agent", 1, StatusKind.Working, "Claude Code", "claude-cuenta2", "working", "0.10 USD", false, 0)
+            {
+                Place = new DesignBranchPlaceViewModel("child", 1, BranchKind.Child, SubagentState.Working),
+            };
+            var view = Screen.Show(new AgentTreeSamples.Pane(new DesignSubagentTreeViewModel { Branches = [new DesignOrchestratorCardViewModel(), child] }), ThemeVariant.Dark, 380, 900);
+            var connection = view.Find<TextBlock>("Connection");
+
+            Assert.False(connection.TextLayout.TextLines.Any(line => line.HasCollapsed), $"'{connection.Text}' is cut to {connection.Bounds.Width} wide");
+        }, Cancellation);
+
     private static IReadOnlyList<IAgentBranch> Chain(int depth) => AgentTreeRoundTwoViewScriptsChain.Of(depth);
 }
 

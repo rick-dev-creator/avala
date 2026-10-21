@@ -17,7 +17,7 @@ public sealed class AgentTreeLayoutTests
     {
         var layout = AgentTreeLayout.Arrange([Card(0, 200, 80)], Spacing, double.PositiveInfinity);
 
-        Assert.Equal((AgentTreeShape.Comb, new GraphRect(0, 0, 200, 80), new GraphSize(200, 80)), (layout.Shape, layout.Nodes[0], layout.Size));
+        Assert.Equal((AgentTreeShape.Tree, new GraphRect(0, 0, 200, 80), new GraphSize(200, 80)), (layout.Shape, layout.Nodes[0], layout.Size));
         Assert.Empty(layout.Edges);
         Assert.Empty(layout.Joints);
     }
@@ -27,7 +27,7 @@ public sealed class AgentTreeLayoutTests
     {
         var layout = AgentTreeLayout.Arrange([Card(0, 200, 80), Card(1, 100, 60), Card(1, 120, 90), Card(1, 100, 50)], Spacing, double.PositiveInfinity);
 
-        Assert.Equal(AgentTreeShape.Comb, layout.Shape);
+        Assert.Equal(AgentTreeShape.Tree, layout.Shape);
         Assert.Equal([0d, 110, 240], layout.Nodes.Skip(1).Select(node => node.X));
         Assert.All(layout.Nodes.Skip(1), node => Assert.Equal(110, node.Y));
         Assert.Equal(new GraphRect(70, 0, 200, 80), layout.Nodes[0]);
@@ -35,10 +35,21 @@ public sealed class AgentTreeLayoutTests
     }
 
     [Fact]
-    public void DeeperSubAgentsHangInTheirColumnIndentedPerLevelAndWidenIt()
+    public void EveryCardStandsCentredOverItsChildrenWhichStandSideBySideOneRowBelowItAtEveryDepth()
     {
         var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(3, 100, 40), Card(2, 100, 40), Card(1, 100, 60)], Spacing, double.PositiveInfinity);
 
+        Assert.Equal(AgentTreeShape.Tree, layout.Shape);
+        Assert.Equal([(110d, 0d), (55, 70), (0, 160), (0, 230), (110, 160), (220, 70)], layout.Nodes.Select(node => (node.X, node.Y)));
+        Assert.Equal(["-1: 105,130 105,145", "-1: 50,145 160,145", "2: 50,145 50,160", "4: 160,145 160,160", "-1: 50,200 50,215", "3: 50,215 50,230"], layout.Edges.Where(edge => edge.Node is 2 or 3 or 4 || (edge.Node == -1 && edge.Points[0].Y > 100)).Select(Path));
+    }
+
+    [Fact]
+    public void ATreeTooWideForItsRoomKeepsItsFirstLevelSideBySideAndHangsDeeperCardsInTheirColumn()
+    {
+        var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(3, 100, 40), Card(2, 100, 40), Card(1, 100, 60)], Spacing, 300);
+
+        Assert.Equal(AgentTreeShape.Comb, layout.Shape);
         Assert.Equal([(0d, 70d), (20, 140), (40, 190), (20, 240), (150, 70)], layout.Nodes.Skip(1).Select(node => (node.X, node.Y)));
     }
 
@@ -58,7 +69,7 @@ public sealed class AgentTreeLayoutTests
         var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(3, 100, 40)], Spacing, double.PositiveInfinity);
 
         Assert.Equal([-1, 0, 1], layout.Parents);
-        Assert.Equal(20, layout.Nodes[2].X);
+        Assert.Equal((layout.Nodes[1].X, layout.Nodes[1].Bottom + 30), (layout.Nodes[2].X, layout.Nodes[2].Y));
     }
 
     [Fact]
@@ -83,7 +94,7 @@ public sealed class AgentTreeLayoutTests
     [Fact]
     public void ARailRunsDownFromUnderItsParentAndTicksIntoEachChildsMiddleOneStretchPerChild()
     {
-        var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(2, 100, 40)], Spacing, double.PositiveInfinity);
+        var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(2, 100, 40)], Spacing, 150);
 
         Assert.Equal(new GraphPoint(10, 130), layout.Joints[^1]);
         Assert.Equal(["2: 10,130 10,160 20,160", "3: 10,160 10,210 20,210"], layout.Edges.Where(edge => edge.Node >= 2).Select(Path));

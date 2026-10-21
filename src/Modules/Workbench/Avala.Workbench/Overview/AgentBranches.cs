@@ -33,6 +33,8 @@ internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState St
 
     public Option<string> Asks { get; init; }
 
+    public HarnessMark Harness { get; init; } = HarnessMark.None;
+
     public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped && Children.All(child => child.IsSettled);
 
     public int Urgency => Children.Select(child => child.Urgency).Append(AgentBranches.Rank(State)).Min();
@@ -50,9 +52,10 @@ internal static class AgentBranches
             tree.Root.Job.ToString(),
             BranchKind.Orchestrator,
             JobState(tree.Root, tree.RootJob),
-            [.. Under(tree.Root.Job, tree.RootJob, Harness(tree.RootSpend), byParent)])
+            [.. Under(tree.Root.Job, tree.RootJob, HarnessMark.Of(tree.RootSpend, tree.Root.Connection), byParent)])
         {
             Job = tree.Root.Job,
+            Harness = HarnessMark.Of(tree.RootSpend, tree.Root.Connection),
             Title = FactPhrases.Title(tree.Root.Instruction),
         };
     }
@@ -66,8 +69,8 @@ internal static class AgentBranches
         _ => 4,
     };
 
-    private static IEnumerable<AgentBranch> Under(JobId job, Option<BoardJob> seen, string harness, ILookup<Option<JobId>, DelegationNode> byParent) =>
-        InProcess(job, seen)
+    private static IEnumerable<AgentBranch> Under(JobId job, Option<BoardJob> seen, HarnessMark harness, ILookup<Option<JobId>, DelegationNode> byParent) =>
+        InProcess(job, seen, harness)
             .Concat(byParent[Option<JobId>.Some(job)].Select(node => Child(node, harness, byParent)))
             .Select((branch, order) => (branch, order))
             .OrderBy(pair => pair.branch.Urgency)
@@ -75,23 +78,25 @@ internal static class AgentBranches
             .ThenBy(pair => pair.order)
             .Select(pair => pair.branch);
 
-    private static AgentBranch Child(DelegationNode node, string parentHarness, ILookup<Option<JobId>, DelegationNode> byParent)
+    private static AgentBranch Child(DelegationNode node, HarnessMark parent, ILookup<Option<JobId>, DelegationNode> byParent)
     {
-        var harness = Harness(node.Spend);
+        var harness = HarnessMark.Of(node.Spend, node.Job.Connection);
+        var running = harness.IsKnown ? harness : parent with { Instance = harness.HasInstance ? harness.Instance : parent.Instance };
 
         return new AgentBranch(
             node.Job.Job.ToString(),
-            harness.Length > 0 && parentHarness.Length > 0 && !string.Equals(harness, parentHarness, StringComparison.Ordinal) ? BranchKind.CrossHarness : BranchKind.Child,
+            harness.IsKnown && parent.IsKnown && !string.Equals(harness.Name, parent.Name, StringComparison.Ordinal) ? BranchKind.CrossHarness : BranchKind.Child,
             JobState(node.Job, node.Seen),
-            [.. Under(node.Job.Job, node.Seen, harness.Length > 0 ? harness : parentHarness, byParent)])
+            [.. Under(node.Job.Job, node.Seen, running, byParent)])
         {
             Job = node.Job.Job,
+            Harness = running,
             Title = FactPhrases.Title(node.Job.Instruction),
             Node = node,
         };
     }
 
-    private static IEnumerable<AgentBranch> InProcess(JobId job, Option<BoardJob> seen) =>
+    private static IEnumerable<AgentBranch> InProcess(JobId job, Option<BoardJob> seen, HarnessMark harness) =>
         seen.Match<IEnumerable<AgentBranch>>(
             found =>
             {
@@ -103,9 +108,10 @@ internal static class AgentBranches
                     {
                         var asks = asking.Where(ask => tool.Children.Contains(ask.Item)).Select(ask => ask.What).FirstOrDefault();
 
-                        return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [.. Commands(job, tool)])
+                        return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [.. Commands(job, tool, harness)])
                         {
                             Job = job,
+                            Harness = harness,
                             Title = tool.Named,
                             Tool = tool,
                             Asks = asks is null ? Option<string>.None : asks,
@@ -115,7 +121,7 @@ internal static class AgentBranches
             },
             () => []);
 
-    private static IEnumerable<AgentBranch> Commands(JobId job, ToolEntry subagent) =>
+    private static IEnumerable<AgentBranch> Commands(JobId job, ToolEntry subagent, HarnessMark harness) =>
         subagent.Background.Select(step =>
         {
             var entry = new ToolEntry($"{subagent.Key}/{step.Item.Value}", ItemKind.Command, step.Title, string.Empty, step.Outcome);
@@ -123,6 +129,7 @@ internal static class AgentBranches
             return new AgentBranch($"{job}/{entry.Key}", BranchKind.Command, ToolState(entry, asking: false), [])
             {
                 Job = job,
+                Harness = harness,
                 Title = step.Title,
                 Tool = entry,
             };
@@ -155,6 +162,4 @@ internal static class AgentBranches
 
         return asking.Count > 0 && asking.All(ask => theirs.Contains(ask.Item));
     }
-
-    private static string Harness(JobSpend spend) => spend.Session.Match(session => session.Provider.Name, () => string.Empty);
 }

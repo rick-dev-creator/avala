@@ -17,7 +17,7 @@ public sealed class AgentTreePanelScripts(HeadlessUi ui)
             var tree = Tree();
             ViewScript.Show(tree, new object());
 
-            Assert.Equal(AgentTreeShape.Comb, tree.Layout.Shape);
+            Assert.Equal(AgentTreeShape.Tree, tree.Layout.Shape);
             Assert.Equal([148d, 148, 148], tree.Children.Skip(1).Select(card => card.Bounds.Y));
             Assert.Equal([0d, 162, 324], tree.Children.Skip(1).Select(card => card.Bounds.X));
             Assert.Equal(162, tree.Children[0].Bounds.X);
@@ -57,7 +57,7 @@ public sealed class AgentTreePanelScripts(HeadlessUi ui)
             ViewScript.Show(new Border { Width = 800, HorizontalAlignment = HorizontalAlignment.Left, Child = tree }, new object());
             ViewScript.Show(new Border { Width = 560, HorizontalAlignment = HorizontalAlignment.Left, Child = narrow }, new object());
 
-            Assert.Equal(AgentTreeShape.Comb, tree.Layout.Shape);
+            Assert.Equal(AgentTreeShape.Tree, tree.Layout.Shape);
             Assert.All(tree.Children.Skip(1), card => Assert.True(card.Bounds.Width is >= 200 and < 280, $"a card {card.Bounds.Width} wide"));
             Assert.True(tree.Children.Max(card => card.Bounds.Right) <= 800);
             Assert.Equal(AgentTreeShape.Rail, narrow.Layout.Shape);

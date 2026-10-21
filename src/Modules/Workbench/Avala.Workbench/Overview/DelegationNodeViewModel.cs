@@ -110,7 +110,7 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
     [ObservableProperty]
     public partial string Took { get; private set; } = string.Empty;
 
-    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
+    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch, folded);
 
     public JobId Job { get; }
 

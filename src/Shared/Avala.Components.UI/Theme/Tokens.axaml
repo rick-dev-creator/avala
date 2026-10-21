@@ -52,6 +52,7 @@
       <SolidColorBrush x:Key="AttentionBrush" Color="#E5A13A" />
       <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59E5A13A" />
       <SolidColorBrush x:Key="OnAttentionBrush" Color="#1B1407" />
+      <SolidColorBrush x:Key="OnBrandBrush" Color="#FAF9F5" />
       <SolidColorBrush x:Key="FailureBrush" Color="#EF6461" />
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#59EF6461" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#6108080A" />
@@ -145,6 +146,7 @@
       <SolidColorBrush x:Key="AttentionBrush" Color="#945800" />
       <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59945800" />
       <SolidColorBrush x:Key="OnAttentionBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="OnBrandBrush" Color="#FAF9F5" />
       <SolidColorBrush x:Key="FailureBrush" Color="#D9221F" />
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#4DD9221F" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#2E1D1D1F" />

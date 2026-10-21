@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Contracts.Events;
 using Avala.Components.Graphs;
 using Avala.Delegation.Contracts;
@@ -37,6 +38,32 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         Assert.Equal(
             [("Ship the refunds flow", "orchestrator"), ("Refunds screen", "child job"), ("Refund API endpoint", "child job"), ("Find the refund call sites", "sub-agent"), ("Plan the work", "sub-agent"), ("Rewrite the webhook tests", "cross-harness")],
             tree.Branches.Where(branch => branch is not IFoldedBranchesViewModel).Select(branch => (Name(branch), branch.Place.KindText)).OrderBy(pair => pair.Item1 == "Rewrite the webhook tests"));
+    }
+
+    [Fact]
+    public async Task EachBranchCarriesTheLogoAndInstanceOfTheHarnessItRunsOnAndASubagentThoseOfTheHarnessItRunsInsideAsync()
+    {
+        var claude = new ProviderInfo("claude-code", "Claude Code") { Logo = "M0 0L1 1Z", Color = "#D97757" };
+        var codex = bench.Child("Rewrite the webhook tests", JobStatus.Running, bench.Root.Job, "codex-pro");
+        await bench.RunsOnAsync(bench.Root, claude);
+        await bench.RunsOnAsync(bench.Endpoint, claude);
+        await bench.RunsOnAsync(codex, new ProviderInfo("codex", "Codex") { Logo = "M1 1L0 0Z" });
+        var tree = bench.Tree();
+
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Equal(
+            [
+                ("Ship the refunds flow", "Claude Code", "claude-work", "M0 0L1 1Z", "#D97757", false),
+                ("Refund API endpoint", "Claude Code", "claude-work", "M0 0L1 1Z", "#D97757", false),
+                ("Find the refund call sites", "Claude Code", "claude-work", "M0 0L1 1Z", "#D97757", true),
+                ("Plan the work", "Claude Code", "claude-work", "M0 0L1 1Z", "#D97757", true),
+                ("Rewrite the webhook tests", "Codex", "codex-pro", "M1 1L0 0Z", string.Empty, false),
+            ],
+            tree.Branches.Where(branch => Name(branch) is not "Refunds screen" && branch is not IFoldedBranchesViewModel)
+                .Select(branch => (Name(branch), branch.Place.Harness.Name, branch.Place.Harness.Instance, branch.Place.Harness.Logo, branch.Place.Harness.Color, branch.Place.RunsInside))
+                .OrderBy(found => found.Item1 == "Rewrite the webhook tests"));
+        Assert.True(tree.Branches.Single(branch => Name(branch) == "Rewrite the webhook tests").Place.IsCrossHarness);
     }
 
     [Fact]

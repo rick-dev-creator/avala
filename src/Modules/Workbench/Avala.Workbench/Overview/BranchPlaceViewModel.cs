@@ -40,6 +40,12 @@ internal interface IBranchPlaceViewModel
 
     bool IsFolded { get; }
 
+    HarnessMark Harness { get; }
+
+    bool IsCrossHarness { get; }
+
+    bool RunsInside { get; }
+
     IRelayCommand FoldCommand { get; }
 }
 
@@ -53,7 +59,15 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(KindText))]
+    [NotifyPropertyChangedFor(nameof(IsCrossHarness), nameof(RunsInside))]
     public partial BranchKind Kind { get; private set; }
+
+    public bool IsCrossHarness => Kind == BranchKind.CrossHarness;
+
+    public bool RunsInside => Kind is BranchKind.InProcess or BranchKind.Command;
+
+    [ObservableProperty]
+    public partial HarnessMark Harness { get; private set; } = HarnessMark.None;
 
     public string KindText => BranchPhrases.Kind(Kind);
 
@@ -86,6 +100,12 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     private void Fold() => fold(Key);
 
     IRelayCommand IBranchPlaceViewModel.FoldCommand => FoldCommand;
+
+    public void Show(int depth, AgentBranch branch, bool folded)
+    {
+        Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
+        Harness = branch.Harness;
+    }
 
     public void Show(int depth, BranchKind kind, SubagentState state, int branches, bool folded)
     {

@@ -116,7 +116,7 @@ public sealed class AgentTreePanel : Panel
         {
             var tried = Lay(Narrowed(widths, share), available, Indent, railsOnly: false);
 
-            if (tried.Shape == AgentTreeShape.Comb)
+            if (tried.Shape != AgentTreeShape.Rail)
             {
                 layout = tried;
 

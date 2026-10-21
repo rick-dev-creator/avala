@@ -154,6 +154,12 @@ internal sealed record DesignBranchPlaceViewModel(string Key, int Depth, BranchK
 
     public bool IsFolded { get; init; }
 
+    public HarnessMark Harness { get; init; } = new("Claude Code", "claude-work", string.Empty, "#D97757");
+
+    public bool IsCrossHarness => Kind == BranchKind.CrossHarness;
+
+    public bool RunsInside => Kind is BranchKind.InProcess or BranchKind.Command;
+
     public IRelayCommand FoldCommand { get; } = new RelayCommand(() => { });
 }
 

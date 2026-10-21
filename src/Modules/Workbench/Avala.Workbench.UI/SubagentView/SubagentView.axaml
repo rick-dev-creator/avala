@@ -3,6 +3,7 @@
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
              xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              x:Class="Avala.Workbench.UI.SubagentView"
              x:ClassModifier="internal"
@@ -22,6 +23,7 @@
           Classes.attention="{Binding Place.IsWaiting}"
           Classes.alert="{Binding Place.IsAlert}"
           Classes.settled="{Binding Place.IsSettled}"
+          Classes.inside="{Binding Place.RunsInside}"
 
           Padding="12,10"
           theme:Motion.Enter="Gentle">
@@ -39,7 +41,22 @@
           </Border>
           <StackPanel Grid.Column="1" Spacing="1">
             <TextBlock x:Name="AgentName" Classes="medium" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="Kind" Classes="hint" Text="{Binding Place.KindText}" />
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock x:Name="Kind" Classes="hint" Text="{Binding Place.KindText}" VerticalAlignment="Center" />
+              <TextBlock Classes="hint" Text="inside" VerticalAlignment="Center" IsVisible="{Binding Place.Harness.IsKnown}" />
+              <Border x:Name="InsideMark"
+                      Classes="harness small"
+                      Classes.brand="{Binding Place.Harness.HasBrand}"
+                      Background="{Binding Place.Harness.Color, Converter={x:Static states:BrandColor.Brush}}"
+                      IsVisible="{Binding Place.Harness.IsKnown}"
+                      ToolTip.Tip="{Binding Place.Harness.Name}">
+                <Panel>
+                  <Path Classes="logo" Data="{Binding Place.Harness.Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding Place.Harness.HasLogo}" />
+                  <TextBlock Classes="monogram" Text="{Binding Place.Harness.Name, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
+                </Panel>
+              </Border>
+              <TextBlock x:Name="Inside" Classes="hint" Text="{Binding Place.Harness.Instance}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" />
+            </StackPanel>
           </StackPanel>
           <ContentControl x:Name="State" Grid.Column="2" Content="{Binding Place}" VerticalAlignment="Top" />
         </Grid>
