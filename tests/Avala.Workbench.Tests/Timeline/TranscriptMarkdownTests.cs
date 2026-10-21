@@ -43,6 +43,16 @@ public sealed class TranscriptMarkdownTests
         Assert.Contains(line, TranscriptMarkdown.Write("Job", Ran("make", "Run make", string.Empty, outcome), MarkdownChoices.Collapsed), StringComparison.Ordinal);
 
     [Fact]
+    public void ASubagentLostWithItsSessionIsWrittenLostAndNotStopped()
+    {
+        var transcript = Transcript.Empty.Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("survey"), ItemKind.Subagent, "Survey the billing module"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("survey"), ItemOutcome.Abandoned), Now);
+
+        Assert.Contains("- Survey the billing module (lost)", TranscriptMarkdown.Write("Job", transcript, MarkdownChoices.Collapsed), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AFenceIsLongerThanAnyRunOfBackticksInTheOutput()
     {
         var transcript = Ran("cat", "Run cat README.md", "```go\nfunc A()\n```", ItemOutcome.Succeeded);

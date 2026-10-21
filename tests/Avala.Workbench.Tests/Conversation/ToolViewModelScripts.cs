@@ -92,6 +92,12 @@ public sealed class ToolViewModelScripts
             .Then(tool => Assert.Equal(("denied", false), (tool.Outcome, tool.Failed)));
 
     [Fact]
+    public void ALostSubagentSaysItWasLostAsTheTreeDoes() =>
+        ViewModelScript.Given(Tools.Of(Running() with { Kind = ItemKind.Subagent }))
+            .When(tool => tool.Update(Running() with { Kind = ItemKind.Subagent, Outcome = ItemOutcome.Abandoned }))
+            .Then(tool => Assert.Equal(("lost", true), (tool.Outcome, tool.Failed)));
+
+    [Fact]
     public void ADeniedToolSaysItWasDeniedAndIsNoFailure() =>
         ViewModelScript.Given(Tools.Of(Running()))
             .When(tool => tool.Update(Running() with { Outcome = ItemOutcome.Cancelled, Denied = true }))
