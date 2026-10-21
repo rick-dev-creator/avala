@@ -202,60 +202,6 @@ public sealed class SubagentViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 }
 
-public sealed class FoldedBranchesViewScripts(HeadlessUi ui)
-{
-    [Fact]
-    public Task TheSettledCountSaysHowManyEndedAndHowAndOpensOntoThemAsync() =>
-        ui.RunAsync(() =>
-        {
-            var opened = 0;
-            var view = Screen.Show(new DesignFoldedBranchesViewModel("2 completed · 1 stopped") { Place = new CountedPlace(() => opened++) });
-
-            view.Click("Fold");
-
-            Assert.Equal(("2 completed · 1 stopped", 1), (view.TextOf("Text"), opened));
-        }, TestContext.Current.CancellationToken);
-
-    private sealed record CountedPlace(Action Open) : IBranchPlaceViewModel
-    {
-        public string Key => "settled";
-
-        public int Depth => 1;
-
-        public BranchKind Kind => BranchKind.InProcess;
-
-        public string KindText => "sub-agent";
-
-        public SubagentState State => SubagentState.Completed;
-
-        public string StateText => "completed";
-
-        public EdgeKind Edge => EdgeKind.Quiet;
-
-        public bool IsWorking => false;
-
-        public bool IsWaiting => false;
-
-        public bool IsAlert => false;
-
-        public bool IsSettled => true;
-
-        public int Branches => 3;
-
-        public bool HasBranches => true;
-
-        public bool IsFolded => true;
-
-        public HarnessMark Harness => HarnessMark.None;
-
-        public bool IsCrossHarness => false;
-
-        public bool RunsInside => true;
-
-        public IRelayCommand FoldCommand { get; } = new RelayCommand(Open);
-    }
-}
-
 public sealed class WaitingAgentViewScripts(HeadlessUi ui)
 {
     [Fact]

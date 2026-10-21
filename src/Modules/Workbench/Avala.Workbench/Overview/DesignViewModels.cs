@@ -299,16 +299,6 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     public IRelayCommand PeekCommand { get; } = new RelayCommand(() => { });
 }
 
-internal sealed record DesignFoldedBranchesViewModel(string Text) : IFoldedBranchesViewModel
-{
-    public DesignFoldedBranchesViewModel()
-        : this("2 completed · 1 stopped")
-    {
-    }
-
-    public IBranchPlaceViewModel Place { get; init; } = new DesignBranchPlaceViewModel("settled", 1, BranchKind.InProcess, SubagentState.Completed) { Branches = 2, IsFolded = true };
-}
-
 internal sealed record DesignWaitingAgentViewModel() : IWaitingAgentViewModel
 {
     public JobId Job => SampleAgents.WebhookTests;
@@ -342,7 +332,6 @@ internal sealed class DesignSubagentTreeViewModel : ISubagentTreeViewModel
             Place = new DesignBranchPlaceViewModel("helpers", 2, BranchKind.InProcess, SubagentState.Working),
             Meter = "6 tool uses · 18.2k tokens",
         },
-        new DesignFoldedBranchesViewModel("1 completed · 1 stopped"),
     ];
 
     public string Agents => "6 agents";

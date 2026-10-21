@@ -93,7 +93,7 @@ internal static class ConversationPhrases
         string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");
 
     public static string Outcome(ItemKind kind, ItemOutcome outcome, bool denied) =>
-        Stopped(kind, outcome) ? "stopped" : Outcome(outcome, denied);
+        !denied && Stopped(kind, outcome) ? "stopped" : Outcome(outcome, denied);
 
     public static string Outcome(ItemOutcome outcome, bool denied) =>
         denied && outcome != ItemOutcome.Succeeded ? "denied" : Outcome(outcome);

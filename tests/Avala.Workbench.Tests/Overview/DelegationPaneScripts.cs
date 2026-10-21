@@ -260,7 +260,7 @@ public sealed class SubagentViewModelScripts
     [InlineData(null, true, "waiting")]
     [InlineData(ItemOutcome.Succeeded, false, "completed")]
     [InlineData(ItemOutcome.Failed, false, "failed")]
-    [InlineData(ItemOutcome.Expired, false, "failed")]
+    [InlineData(ItemOutcome.Expired, false, "stopped")]
     [InlineData(ItemOutcome.Cancelled, false, "stopped")]
     [InlineData(ItemOutcome.Abandoned, false, "lost")]
     public void ASubagentShowsItIsWorkingWaitingForYouOrHowItEnded(ItemOutcome? outcome, bool waiting, string state) =>
@@ -370,6 +370,19 @@ internal sealed class TreeBench : IDisposable
         Apply(job, new ItemBackgrounded(Session, Turn, new ItemId(id)));
     }
 
+    public void Denies(JobSummary job, string id)
+    {
+        Apply(job, new PermissionRequested(Session, Turn, new ItemId(id), "Launch a sub-agent", ItemKind.Subagent, id));
+        Apply(job, new PermissionResolved(Session, Turn, new ItemId(id), PermissionAnswer.Deny));
+        Apply(job, new ItemCompleted(Session, Turn, new ItemId(id), ItemOutcome.Cancelled));
+    }
+
+    public void Forgets(JobSummary job)
+    {
+        catalog.Jobs.RemoveAll(found => found.Job == job.Job || found.Parent == Option<JobId>.Some(job.Job));
+        Board.Publish(Board.Jobs.RemoveRange(Board.Jobs.Keys.Where(key => key == job.Job || Board.Jobs[key].Summary.Parent == Option<JobId>.Some(job.Job)).ToList()));
+    }
+
     public void Ends(JobSummary job, string id, ItemOutcome outcome) => Apply(job, new ItemCompleted(Session, Turn, new ItemId(id), outcome));
 
     public void Asks(JobSummary job, string id, string command)
@@ -391,7 +404,11 @@ internal sealed class TreeBench : IDisposable
 
     public RowActions Actions() => Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs);
 
-    public SubagentTreeViewModel Tree() => new(new CommunityToolkit.Mvvm.Input.RelayCommand<JobId>(job => Selected.Add(job)), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs));
+    public int Refreshes { get; private set; }
+
+    public SubagentTreeViewModel Tree(TimeProvider clock) => new(new CommunityToolkit.Mvvm.Input.RelayCommand<JobId>(job => Selected.Add(job)), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), clock, () => Refreshes++);
+
+    public SubagentTreeViewModel Tree() => Tree(TimeProvider.System);
 
     public async Task<DelegationTree> ReadAsync() => Outcomes.Present(await Reader().TreeAsync(Root.Job, CancellationToken.None));
 
@@ -424,6 +441,16 @@ internal sealed class TreeBench : IDisposable
         page.Activate();
 
         return page;
+    }
+
+    public JobSummary Orchestration(string instruction)
+    {
+        var root = Pages.Summary(instruction, JobStatus.Running, "claude-work");
+        var child = Pages.Summary($"{instruction}: the child", JobStatus.Running, "claude-work", root.Job);
+        catalog.Jobs.AddRange([root, child]);
+        Board.Publish(Board.Jobs.Add(root.Job, new BoardJob(root, Transcript.Empty)).Add(child.Job, new BoardJob(child, Transcript.Empty)));
+
+        return root;
     }
 
     public JobSummary Finished()

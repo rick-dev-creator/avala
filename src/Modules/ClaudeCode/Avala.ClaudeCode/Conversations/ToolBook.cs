@@ -62,8 +62,13 @@ internal sealed class SketchedTool(ToolUse use)
 
 internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 {
+    public const int Remembered = 256;
+
     private readonly Dictionary<string, TrackedTool> tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TrackedTool> finished = new(StringComparer.Ordinal);
+    private readonly Queue<string> archived = new();
+
+    public int Remembers => finished.Count;
 
     public IReadOnlyList<HarnessTool> Offered { get; } = offered;
 
@@ -133,6 +138,12 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
         if (tools.Remove(id, out var tool) && tool.Backgrounded && tool.Closed)
         {
             finished[id] = tool;
+            archived.Enqueue(id);
+        }
+
+        while (finished.Count > Remembered && archived.TryDequeue(out var oldest))
+        {
+            finished.Remove(oldest);
         }
     }
 

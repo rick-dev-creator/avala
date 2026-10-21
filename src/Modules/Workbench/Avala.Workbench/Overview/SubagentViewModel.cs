@@ -139,6 +139,7 @@ internal sealed partial class SubagentViewModel(BranchPlaceViewModel place, JobI
             SubagentState.Waiting => branch.Asks.Match(target => $"asks: {target}", () => "waits for you"),
             SubagentState.Lost => "its work was lost when its turn or session ended",
             SubagentState.Failed => "it failed",
+            SubagentState.Stopped when branch.Tool.Match(tool => tool.Denied, () => false) => "it was denied before it ran",
             _ => string.Empty,
         };
     }

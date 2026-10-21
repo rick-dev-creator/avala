@@ -39,21 +39,25 @@ internal interface IWaitingAgentViewModel
 
 internal sealed record WaitingAgentViewModel(JobId Job, string Name, string What, IRelayCommand<JobId> OpenCommand) : IWaitingAgentViewModel;
 
-internal sealed record ShownBranch(string Key, int Depth, Option<AgentBranch> Branch, IReadOnlyList<AgentBranch> Settled, bool Folded);
+internal sealed record ShownBranch(string Key, int Depth, AgentBranch Branch, bool Folded);
 
 [INotifyPropertyChanged]
-internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, RowActions actions) : ISubagentTreeViewModel
+internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, RowActions actions, TimeProvider clock, Action refresh) : ISubagentTreeViewModel, IDisposable
 {
-    public const int FoldsAfter = 3;
-
-    private const string SettledKey = "/settled";
+    public static readonly TimeSpan Linger = TimeSpan.FromSeconds(5);
 
     private readonly ObservableCollection<IAgentBranch> branches = [];
     private readonly HashSet<string> folded = new(StringComparer.Ordinal);
-    private readonly HashSet<string> opened = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IAgentBranch> known = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> settledSince = new(StringComparer.Ordinal);
+    private ITimer? sweep;
     private Option<DelegationTree> shown;
     private Option<JobId> viewing;
+
+    public SubagentTreeViewModel(IRelayCommand<JobId> open, RowActions actions, Action refresh)
+        : this(open, actions, TimeProvider.System, refresh)
+    {
+    }
 
     public IReadOnlyList<IAgentBranch> Branches => branches;
 
@@ -86,6 +90,8 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         Arrange();
     }
 
+    public void Dispose() => sweep?.Dispose();
+
     public void Clear()
     {
         shown = Option<DelegationTree>.None;
@@ -99,6 +105,8 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         foreach (var tree in shown.Match<DelegationTree[]>(found => [found], () => []))
         {
             var root = AgentBranches.Of(tree);
+            var now = clock.GetUtcNow();
+            Note(root, now);
             branches.ShowInPlace(Visible(root, 0), (branch, next) => branch.Place.Key == next.Key, next => Known(tree, next), (branch, next) => Update(tree, branch, next));
             Forget(root);
             Summarize(tree, root);
@@ -108,34 +116,46 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     private IEnumerable<ShownBranch> Visible(AgentBranch branch, int depth)
     {
         var isFolded = folded.Contains(branch.Key);
-        yield return new ShownBranch(branch.Key, depth, branch, [], isFolded);
+        yield return new ShownBranch(branch.Key, depth, branch, isFolded);
 
         if (isFolded)
         {
             yield break;
         }
 
-        var settled = branch.Children.Where(child => child.IsSettled).ToList();
-        var folds = settled.Count > FoldsAfter;
-
-        foreach (var child in branch.Children.Where(child => !folds || !child.IsSettled).SelectMany(child => Visible(child, depth + 1)))
+        foreach (var child in branch.Children.Where(child => !Gone(child)).SelectMany(child => Visible(child, depth + 1)))
         {
             yield return child;
         }
+    }
 
-        if (!folds)
+    private bool Gone(AgentBranch branch) =>
+        branch.IsSettled && settledSince.TryGetValue(branch.Key, out var since) && clock.GetUtcNow() - since >= Linger;
+
+    private void Note(AgentBranch root, DateTimeOffset now)
+    {
+        var all = root.Descendants.ToList();
+
+        foreach (var branch in all.Where(branch => !branch.IsSettled))
         {
-            yield break;
+            settledSince.Remove(branch.Key);
         }
 
-        var key = branch.Key + SettledKey;
-        var isOpen = opened.Contains(key);
-        yield return new ShownBranch(key, depth + 1, Option<AgentBranch>.None, settled, !isOpen);
-
-        foreach (var child in isOpen ? settled.SelectMany(child => Visible(child, depth + 1)) : [])
+        foreach (var branch in all.Where(branch => branch.IsSettled))
         {
-            yield return child;
+            settledSince.TryAdd(branch.Key, now);
         }
+
+        var present = all.Select(branch => branch.Key).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var gone in settledSince.Keys.Where(key => !present.Contains(key)).ToList())
+        {
+            settledSince.Remove(gone);
+        }
+
+        var next = settledSince.Values.Select(since => since + Linger).Where(due => due > now).DefaultIfEmpty().Min();
+        sweep?.Dispose();
+        sweep = next == default ? null : clock.CreateTimer(_ => refresh(), null, next - now, Timeout.InfiniteTimeSpan);
     }
 
     private IAgentBranch Known(DelegationTree tree, ShownBranch next)
@@ -155,7 +175,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private void Forget(AgentBranch root)
     {
-        var present = root.Descendants.Prepend(root).SelectMany(branch => new[] { branch.Key, branch.Key + SettledKey }).ToHashSet(StringComparer.Ordinal);
+        var present = root.Descendants.Prepend(root).Select(branch => branch.Key).ToHashSet(StringComparer.Ordinal);
 
         foreach (var gone in known.Keys.Where(key => !present.Contains(key)).ToList())
         {
@@ -165,15 +185,13 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private IAgentBranch Create(DelegationTree tree, ShownBranch next)
     {
-        var place = new BranchPlaceViewModel(next.Key, next.Branch.IsSome ? Fold : OpenSettled);
-        var created = next.Branch.Match<IAgentBranch>(
-            branch => branch.Kind switch
-            {
-                BranchKind.Orchestrator => new OrchestratorCardViewModel(place, tree) { OpenCommand = open },
-                BranchKind.InProcess => new SubagentViewModel(place, branch.Job) { OpenCommand = open },
-                _ => branch.Node.Match<IAgentBranch>(node => Node(place, node), () => new SubagentViewModel(place, branch.Job) { OpenCommand = open }),
-            },
-            () => new FoldedBranchesViewModel(place));
+        var place = new BranchPlaceViewModel(next.Key, Fold);
+        var created = next.Branch.Kind switch
+        {
+            BranchKind.Orchestrator => (IAgentBranch)new OrchestratorCardViewModel(place, tree) { OpenCommand = open },
+            BranchKind.InProcess => new SubagentViewModel(place, next.Branch.Job) { OpenCommand = open },
+            _ => next.Branch.Node.Match<IAgentBranch>(node => Node(place, node), () => new SubagentViewModel(place, next.Branch.Job) { OpenCommand = open }),
+        };
         Update(tree, created, next);
 
         return created;
@@ -190,17 +208,16 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private void Update(DelegationTree tree, IAgentBranch shownBranch, ShownBranch next)
     {
-        switch (shownBranch, next.Branch.Match<AgentBranch?>(found => found, () => null))
+        var branch = next.Branch;
+
+        switch (shownBranch)
         {
-            case (FoldedBranchesViewModel stub, _):
-                stub.Show(next.Depth, next.Settled, next.Folded);
-                break;
-            case (OrchestratorCardViewModel card, { } branch):
+            case OrchestratorCardViewModel card:
                 card.Show(tree);
                 card.Locate(next.Depth, branch, next.Folded);
                 card.IsViewing = viewing == Option<JobId>.Some(branch.Job);
                 break;
-            case (DelegationNodeViewModel row, { } branch):
+            case DelegationNodeViewModel row:
                 foreach (var node in branch.Node.Match<DelegationNode[]>(found => [found], () => []))
                 {
                     row.Show(node);
@@ -210,7 +227,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
                 row.IsViewing = viewing == Option<JobId>.Some(branch.Job);
                 actions.Peek(row);
                 break;
-            case (SubagentViewModel agent, { } branch):
+            case SubagentViewModel agent:
                 agent.Show(branch, next.Depth, next.Folded);
                 break;
         }
@@ -221,16 +238,6 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         if (!folded.Remove(key))
         {
             folded.Add(key);
-        }
-
-        Arrange();
-    }
-
-    private void OpenSettled(string key)
-    {
-        if (!opened.Remove(key))
-        {
-            opened.Add(key);
         }
 
         Arrange();

@@ -39,21 +39,28 @@ internal interface IOrchestrationViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
+internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel, IDisposable
 {
     private readonly ObservableCollection<DelegationRefusalViewModel> refused = [];
     private readonly SubagentTreeViewModel tree;
     private bool chosen;
 
     public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions)
+        : this(tree, open, actions, () => { })
+    {
+    }
+
+    public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions, Action refresh)
     {
         Job = tree.Root.Job;
-        this.tree = new SubagentTreeViewModel(open, actions);
+        this.tree = new SubagentTreeViewModel(open, actions, refresh);
         Show(tree);
         IsCollapsed = !IsActive;
     }
 
     public JobId Job { get; }
+
+    public void Dispose() => tree.Dispose();
 
     [ObservableProperty]
     public partial string Title { get; private set; } = string.Empty;

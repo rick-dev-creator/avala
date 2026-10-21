@@ -37,7 +37,7 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
 
         Assert.Equal(
             [("Ship the refunds flow", "orchestrator"), ("Refunds screen", "child job"), ("Refund API endpoint", "child job"), ("Find the refund call sites", "sub-agent"), ("Plan the work", "sub-agent"), ("Rewrite the webhook tests", "cross-harness")],
-            tree.Branches.Where(branch => branch is not IFoldedBranchesViewModel).Select(branch => (Name(branch), branch.Place.KindText)).OrderBy(pair => pair.Item1 == "Rewrite the webhook tests"));
+            tree.Branches.Where(branch => branch is not null).Select(branch => (Name(branch), branch.Place.KindText)).OrderBy(pair => pair.Item1 == "Rewrite the webhook tests"));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
                 ("Plan the work", "Claude Code", "claude-work", "M0 0L1 1Z", "#D97757", true),
                 ("Rewrite the webhook tests", "Codex", "codex-pro", "M1 1L0 0Z", string.Empty, false),
             ],
-            tree.Branches.Where(branch => Name(branch) is not "Refunds screen" && branch is not IFoldedBranchesViewModel)
+            tree.Branches.Where(branch => Name(branch) is not "Refunds screen" && branch is not null)
                 .Select(branch => (Name(branch), branch.Place.Harness.Name, branch.Place.Harness.Instance, branch.Place.Harness.Logo, branch.Place.Harness.Color, branch.Place.RunsInside))
                 .OrderBy(found => found.Item1 == "Rewrite the webhook tests"));
         Assert.True(tree.Branches.Single(branch => Name(branch) == "Rewrite the webhook tests").Place.IsCrossHarness);
@@ -91,7 +91,7 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
                 ("Find the refund call sites", SubagentState.Working, EdgeKind.Flowing),
                 ("Plan the work", SubagentState.Completed, EdgeKind.Quiet),
             ],
-            tree.Branches.Skip(1).Where(branch => branch.Place.Depth > 0 && branch is not IFoldedBranchesViewModel).Select(branch => (Name(branch), branch.Place.State, branch.Place.Edge)));
+            tree.Branches.Skip(1).Where(branch => branch.Place.Depth > 0 && branch is not null).Select(branch => (Name(branch), branch.Place.State, branch.Place.Edge)));
     }
 
     [Fact]
@@ -130,25 +130,68 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
     }
 
     [Fact]
-    public async Task MoreThanThreeSettledBranchesFoldIntoACountThatOpensOntoThemAndStaysOpenAcrossARefreshAsync()
+    public async Task ASettledSubagentStaysAFewSecondsAfterItEndsAndThenLeavesTheTreeWithoutATraceAsync()
     {
-        foreach (var name in new[] { "one", "two", "three", "four" })
-        {
-            bench.Starts(bench.Endpoint, name, $"Check {name}");
-            bench.Ends(bench.Endpoint, name, name == "four" ? ItemOutcome.Cancelled : ItemOutcome.Succeeded);
-        }
-
-        var tree = bench.Tree();
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        bench.Starts(bench.Endpoint, "check", "Check the build");
+        var tree = bench.Tree(clock);
         tree.Show(await bench.ReadAsync(), Option<JobId>.None);
-        var folded = tree.Branches.Select(Name).ToList();
-
-        Assert.Single(tree.Branches.OfType<IFoldedBranchesViewModel>()).Place.FoldCommand.Execute(null);
+        bench.Ends(bench.Endpoint, "check", ItemOutcome.Succeeded);
         tree.Show(await bench.ReadAsync(), Option<JobId>.None);
 
-        Assert.Equal(["Ship the refunds flow", "Refunds screen", "Refund API endpoint", "Find the refund call sites", "3 completed · 1 stopped", "Plan the work"], folded);
+        clock.Advance(SubagentTreeViewModel.Linger - TimeSpan.FromMilliseconds(1));
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        var lingering = (tree.Branches.Select(Name).ToList(), bench.Refreshes);
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        var refreshed = bench.Refreshes;
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Contains("Check the build", lingering.Item1);
+        Assert.Equal((0, 1), (lingering.Refreshes, refreshed));
+        Assert.Equal(["Ship the refunds flow", "Refunds screen", "Refund API endpoint", "Find the refund call sites"], tree.Branches.Select(Name));
+    }
+
+    [Fact]
+    public async Task AFailedLostOrWaitingSubagentStaysInTheTreeLongAfterItsSettledPeersLeftAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        bench.Starts(bench.Endpoint, "failed", "Port the idempotency keys");
+        bench.Ends(bench.Endpoint, "failed", ItemOutcome.Failed);
+        bench.Starts(bench.Endpoint, "lost", "Survey the greeting");
+        bench.Ends(bench.Endpoint, "lost", ItemOutcome.Abandoned);
+        bench.Starts(bench.Endpoint, "asking", "Install the packages");
+        bench.Asks(bench.Endpoint, "asking", "npm install");
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
         Assert.Equal(
-            [("3 completed · 1 stopped", 2), ("Check one", 2), ("Check two", 2), ("Check three", 2), ("Check four", 2)],
-            tree.Branches.Skip(4).Take(5).Select(branch => (Name(branch), branch.Place.Depth)));
+            ["Install the packages", "Port the idempotency keys", "Survey the greeting", "Find the refund call sites"],
+            tree.Branches.OfType<ISubagentViewModel>().Select(agent => agent.Name));
+    }
+
+    [Fact]
+    public async Task ASettledSubagentWhoseBackgroundCommandStillRunsStaysUntilTheCommandEndsAndThenLeavesAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        bench.Starts(bench.Root, "nested", "Start the nested command");
+        bench.Backgrounds(bench.Root, "nested", "sleep", "sleep 20 && echo nested-done");
+        bench.Ends(bench.Root, "nested", ItemOutcome.Succeeded);
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        var running = tree.Branches.Select(Name).ToList();
+        bench.Ends(bench.Root, "sleep", ItemOutcome.Succeeded);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Contains("sleep 20 && echo nested-done", running);
+        Assert.DoesNotContain("Start the nested command", tree.Branches.Select(Name));
     }
 
     [Fact]
@@ -220,6 +263,22 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         Assert.Equal([("Start the nested command", 1, SubagentState.Completed), ("sleep 20 && echo nested-done", 2, SubagentState.Completed)], Commands(tree));
     }
 
+    [Fact]
+    public async Task ASubagentWhoseLaunchWasDeniedReadsStoppedAndSaysItWasDeniedAndOneThatExpiredReadsStoppedAsync()
+    {
+        bench.Starts(bench.Endpoint, "denied", "Delete the fixtures");
+        bench.Denies(bench.Endpoint, "denied");
+        bench.Starts(bench.Endpoint, "expired", "Wait for the build");
+        bench.Ends(bench.Endpoint, "expired", ItemOutcome.Expired);
+        var tree = bench.Tree();
+
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Equal(
+            [("Delete the fixtures", SubagentState.Stopped, "it was denied before it ran"), ("Wait for the build", SubagentState.Stopped, string.Empty)],
+            tree.Branches.OfType<ISubagentViewModel>().Where(agent => agent.Name is "Delete the fixtures" or "Wait for the build").Select(agent => (agent.Name, agent.Place.State, agent.Note)));
+    }
+
     public void Dispose() => bench.Dispose();
 
     private static List<(string, int, SubagentState)> Commands(SubagentTreeViewModel tree) =>
@@ -232,7 +291,6 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         IOrchestratorCardViewModel card => card.Title,
         IDelegationNodeViewModel node => node.Title,
         ISubagentViewModel agent => agent.Name,
-        IFoldedBranchesViewModel folded => folded.Text,
         _ => string.Empty,
     };
 }
@@ -265,35 +323,5 @@ public sealed class BranchPlaceViewModelScripts
         place.FoldCommand.Execute(null);
 
         Assert.Equal(["job/agent"], folded);
-    }
-}
-
-public sealed class FoldedBranchesViewModelScripts
-{
-    [Fact]
-    public void TheSettledCountSaysHowManyCompletedAndHowManyWereStopped()
-    {
-        var folded = new FoldedBranchesViewModel(new BranchPlaceViewModel("root/settled", _ => { }));
-
-        folded.Show(1, [Settled("a", SubagentState.Stopped), Settled("b", SubagentState.Completed), Settled("c", SubagentState.Completed)], true);
-
-        Assert.Equal(("2 completed · 1 stopped", 3, true), (folded.Text, folded.Place.Branches, folded.Place.IsFolded));
-    }
-
-    private static AgentBranch Settled(string key, SubagentState state) => new(key, BranchKind.InProcess, state, []);
-}
-
-public sealed class WaitingAgentViewModelScripts
-{
-    [Fact]
-    public void ChoosingAnAgentThatNeedsYouOpensItsJob()
-    {
-        var opened = new List<JobId>();
-        var job = JobId.New();
-        var waiting = new WaitingAgentViewModel(job, "Install the packages", "asks: npm install", new CommunityToolkit.Mvvm.Input.RelayCommand<JobId>(opened.Add));
-
-        waiting.OpenCommand.Execute(waiting.Job);
-
-        Assert.Equal([job], opened);
     }
 }

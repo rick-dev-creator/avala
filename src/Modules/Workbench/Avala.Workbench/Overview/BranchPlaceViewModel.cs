@@ -117,26 +117,6 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     }
 }
 
-internal interface IFoldedBranchesViewModel : IAgentBranch
-{
-    string Text { get; }
-}
-
-[INotifyPropertyChanged]
-internal sealed partial class FoldedBranchesViewModel(BranchPlaceViewModel place) : IFoldedBranchesViewModel
-{
-    public IBranchPlaceViewModel Place => place;
-
-    [ObservableProperty]
-    public partial string Text { get; private set; } = string.Empty;
-
-    public void Show(int depth, IReadOnlyList<AgentBranch> settled, bool folded)
-    {
-        place.Show(depth, BranchKind.InProcess, SubagentState.Completed, settled.Count, folded);
-        Text = BranchPhrases.Settled(settled);
-    }
-}
-
 internal static class BranchPhrases
 {
     public static string Kind(BranchKind kind) => kind switch
@@ -174,8 +154,4 @@ internal static class BranchPhrases
     public static string Took(Jobs.Contracts.JobSummary job) =>
         job.Ended.Match(ended => Conversation.ConversationPhrases.Duration(ended - job.Submitted), () => string.Empty);
 
-    public static string Settled(IReadOnlyList<AgentBranch> settled) =>
-        string.Join(
-            " · ",
-            settled.GroupBy(branch => branch.State).OrderBy(group => AgentBranches.Rank(group.Key)).Select(group => $"{group.Count()} {SubagentStates.Text(group.Key)}"));
 }

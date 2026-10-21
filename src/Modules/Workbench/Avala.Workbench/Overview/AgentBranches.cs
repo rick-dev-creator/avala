@@ -146,7 +146,7 @@ internal static class AgentBranches
             outcome => outcome switch
             {
                 ItemOutcome.Succeeded => SubagentState.Completed,
-                ItemOutcome.Cancelled => SubagentState.Stopped,
+                ItemOutcome.Cancelled or ItemOutcome.Expired => SubagentState.Stopped,
                 ItemOutcome.Abandoned => SubagentState.Lost,
                 _ => SubagentState.Failed,
             },

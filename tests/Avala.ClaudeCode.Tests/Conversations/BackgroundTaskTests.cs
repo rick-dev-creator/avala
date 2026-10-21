@@ -56,6 +56,29 @@ public sealed class BackgroundTaskTests
     }
 
     [Fact]
+    public void ABackgroundSubagentClaudeCodeReportsFailedAfterTheReplyEndsFailedWithItsReason()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Started(),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Said("m1", "text", "launched"),
+            Cli.Result(0.006m),
+            Cli.Lifecycle(talk.Command, "completed"));
+        talk.Drain();
+
+        talk.Receive(Cli.Parse("""{ "type": "system", "subtype": "task_notification", "task_id": "k1", "tool_use_id": "a1", "status": "failed", "summary": "API Error: overloaded" }"""));
+
+        Assert.Equal(
+            (ItemOutcome.Failed, "API Error: overloaded"),
+            (talk.Events.OfType<ItemCompleted>().Single(completed => completed.Item == new ItemId("a1")).Outcome, string.Concat(talk.Events.OfType<ItemProgressed>().Where(progressed => progressed.Item == new ItemId("a1")).Select(progressed => progressed.Text))));
+    }
+
+    [Fact]
     public void TheServersHandshakeWhileIdleOpensNoTurn()
     {
         var talk = new Talk().Receive(

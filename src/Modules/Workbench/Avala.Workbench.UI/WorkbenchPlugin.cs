@@ -500,7 +500,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IMentionRowViewModel, MentionRowView>();
         views.Register<ISubagentViewModel, SubagentView>();
         views.Register<IBranchPlaceViewModel, BranchPlaceView>();
-        views.Register<IFoldedBranchesViewModel, FoldedBranchesView>();
         views.Register<ISubagentTreeViewModel, SubagentTreeView>();
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
