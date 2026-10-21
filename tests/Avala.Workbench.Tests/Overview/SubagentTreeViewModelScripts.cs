@@ -325,3 +325,18 @@ public sealed class BranchPlaceViewModelScripts
         Assert.Equal(["job/agent"], folded);
     }
 }
+
+public sealed class WaitingAgentViewModelScripts
+{
+    [Fact]
+    public void ChoosingAnAgentThatNeedsYouOpensItsJob()
+    {
+        var opened = new List<JobId>();
+        var job = JobId.New();
+        var waiting = new WaitingAgentViewModel(job, "Install the packages", "asks: npm install", new CommunityToolkit.Mvvm.Input.RelayCommand<JobId>(opened.Add));
+
+        waiting.OpenCommand.Execute(waiting.Job);
+
+        Assert.Equal([job], opened);
+    }
+}
