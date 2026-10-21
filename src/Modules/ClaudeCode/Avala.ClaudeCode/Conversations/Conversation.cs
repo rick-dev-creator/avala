@@ -115,7 +115,7 @@ internal sealed class Conversation
             }
 
             interrupting = true;
-            acknowledging = acknowledging || background;
+            acknowledging = acknowledging || background || generating;
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
@@ -139,7 +139,7 @@ internal sealed class Conversation
 
     private Reaction Continued(string type, JsonNode message)
     {
-        var opening = type is "assistant" or "stream_event" || Notifies(type, message) ? Woken() : Reaction.None;
+        var opening = type is "assistant" or "stream_event" || Notifies(type, message) || (type == "system" && translator.Restarts(message)) ? Woken() : Reaction.None;
 
         return opening.Then(live.Match(stamp => During(type, message, stamp), () => Reaction.None));
     }

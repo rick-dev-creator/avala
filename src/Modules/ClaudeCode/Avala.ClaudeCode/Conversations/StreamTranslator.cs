@@ -75,6 +75,11 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         return Reaction.Of(closing);
     }
 
+    public bool Restarts(JsonNode system) =>
+        system.TextOr("subtype", string.Empty) == "task_started"
+        && system.Flag("is_backgrounded")
+        && tools.Finished(system.TextOr("tool_use_id", string.Empty), system.TextOr("task_id", string.Empty));
+
     public bool Wakes(JsonNode notification) =>
         !tools.Finished(notification.TextOr("tool_use_id", string.Empty), notification.TextOr("task_id", string.Empty))
         || tools.Find(notification.TextOr("tool_use_id", string.Empty)).Match(tool => !tool.Closed, () => false);
@@ -172,7 +177,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         "assistant" => received.Members("message").Items("content")
             .Select(block => block.TextOr("type", string.Empty) switch
             {
-                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, new ItemId(parent)),
+                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, tools.Find(parent).Match(tool => tool.Item, () => new ItemId(parent))),
                 "text" => Narrated(parent, block.TextOr("text", string.Empty), stamp),
                 _ => Reaction.None,
             })
