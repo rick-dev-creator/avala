@@ -63,14 +63,19 @@
     </ResourceDictionary>
   </Styles.Resources>
 
-  <Style Selector="graphs|HubGraphPanel, graphs|TreeGraphPanel, graphs|C4GraphPanel">
+  <Style Selector="graphs|HubGraphPanel, graphs|TreeGraphPanel, graphs|AgentTreePanel, graphs|C4GraphPanel">
     <Setter Property="graphs:EdgeBrushes.Flowing" Value="{DynamicResource EdgeFlowingBrush}" />
     <Setter Property="graphs:EdgeBrushes.Attention" Value="{DynamicResource EdgeAttentionBrush}" />
     <Setter Property="graphs:EdgeBrushes.Waiting" Value="{DynamicResource EdgeWaitingBrush}" />
+    <Setter Property="graphs:EdgeBrushes.Failure" Value="{DynamicResource FailureBrush}" />
     <Setter Property="graphs:EdgeBrushes.Quiet" Value="{DynamicResource EdgeQuietBrush}" />
   </Style>
 
-  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False], graphs|C4GraphPanel[(theme|Motion.IsReduced)=False]">
+  <Style Selector="graphs|AgentTreePanel">
+    <Setter Property="JointBrush" Value="{DynamicResource NodeBrush}" />
+  </Style>
+
+  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False], graphs|AgentTreePanel[(theme|Motion.IsReduced)=False], graphs|C4GraphPanel[(theme|Motion.IsReduced)=False]">
     <Style.Animations>
       <Animation Duration="0:0:1.4" IterationCount="INFINITE">
         <KeyFrame Cue="0%">

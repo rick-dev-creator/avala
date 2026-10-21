@@ -15,6 +15,9 @@ public sealed class EdgeBrushes
     public static readonly AttachedProperty<IBrush> WaitingProperty =
         AvaloniaProperty.RegisterAttached<EdgeBrushes, Panel, IBrush>("Waiting", Brushes.Transparent);
 
+    public static readonly AttachedProperty<IBrush> FailureProperty =
+        AvaloniaProperty.RegisterAttached<EdgeBrushes, Panel, IBrush>("Failure", Brushes.Transparent);
+
     public static readonly AttachedProperty<IBrush> QuietProperty =
         AvaloniaProperty.RegisterAttached<EdgeBrushes, Panel, IBrush>("Quiet", Brushes.Transparent);
 
@@ -23,7 +26,7 @@ public sealed class EdgeBrushes
 
     static EdgeBrushes()
     {
-        foreach (var property in new AvaloniaProperty[] { FlowingProperty, AttentionProperty, WaitingProperty, QuietProperty, PhaseProperty })
+        foreach (var property in new AvaloniaProperty[] { FlowingProperty, AttentionProperty, WaitingProperty, FailureProperty, QuietProperty, PhaseProperty })
         {
             property.Changed.AddClassHandler<Panel>((panel, _) => EdgeLayer.Refresh(panel));
         }
@@ -44,6 +47,10 @@ public sealed class EdgeBrushes
     public static IBrush GetWaiting(Panel panel) => panel.GetValue(WaitingProperty);
 
     public static void SetWaiting(Panel panel, IBrush value) => panel.SetValue(WaitingProperty, value);
+
+    public static IBrush GetFailure(Panel panel) => panel.GetValue(FailureProperty);
+
+    public static void SetFailure(Panel panel, IBrush value) => panel.SetValue(FailureProperty, value);
 
     public static IBrush GetQuiet(Panel panel) => panel.GetValue(QuietProperty);
 
