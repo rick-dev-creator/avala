@@ -154,6 +154,13 @@ internal sealed class Desk : IAsyncDisposable
     public async Task HeldAsync(JobId job, HoldReason reason) =>
         await desk.HandleAsync(new JobHeld(new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted)), Cancellation);
 
+    public async Task HeldMidAttemptAsync(JobId child, HoldReason reason)
+    {
+        Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        await ProgressAsync(child, JobStatus.NeedsHelp);
+        await HeldAsync(child, reason);
+    }
+
     public async Task<DelegationRecord> ReportedAsync(JobId child) =>
         (await Bus.WaitForAsync<ChildReported>(reported => reported.Delegation.Child == Option<JobId>.Some(child), Cancellation)).Delegation;
 

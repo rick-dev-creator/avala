@@ -118,7 +118,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ACrossHarnessChildWhoseSessionIsLostIsReportedToItsParentAsLostWithTheReasonAndNotAsDoneAsync()
+    public async Task ACrossHarnessChildWhoseSessionIsLostEveryTimeIsRetriedTwiceThenGivenUpAndReportedToItsParentAsStoppedWithWhyAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("cross-harness-lost");
         await using var run = await SimulatedRun.TranscribedAsync(
@@ -127,14 +127,21 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
             new JobRequest(string.Empty, "Have a sub-agent migrate the database."),
             claude.Data,
             [(".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }""")]);
-        var reported = Outcomes.Present((await run.ChildReportedAsync()).Report);
+        var reported = await run.ChildReportedAsync();
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(run.Job)));
+        var child = Outcomes.Present(reported.Child);
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(child, Cancellation));
 
-        var report = Returned(await run.StopAndReadRecordingsAsync(), Delegate);
+        var recordings = await run.StopAndReadRecordingsAsync();
+        var report = Returned(recordings, Delegate);
 
-        Assert.True(report.Contains("\"state\":\"lost\"", StringComparison.Ordinal), $"The parent was not told its child is lost:\n{report}");
-        Assert.Contains("sessionLost", report, StringComparison.Ordinal);
-        Assert.NotEqual(ChildOutcome.Integrated, reported.Outcome);
+        Assert.Equal((ChildOutcome.GivenUp, JobStatus.Discarded, 2), (Outcomes.Present(reported.Report).Outcome, history.Summary.Status, Outcomes.Present(reported.Report).Retries));
+        Assert.Contains("\"state\":\"stopped\"", report, StringComparison.Ordinal);
+        Assert.Contains("Avala gave it up after retrying it 2 times: its session was lost each time", report, StringComparison.Ordinal);
+        var notes = Told(recordings).Where(text => text.StartsWith("Sub-agent \"", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, notes.Count);
+        Assert.Contains("retrying 1 of 2 after its session was lost", notes[0], StringComparison.Ordinal);
+        Assert.Contains("retrying 2 of 2 after its session was lost", notes[1], StringComparison.Ordinal);
     }
 
     [Fact]

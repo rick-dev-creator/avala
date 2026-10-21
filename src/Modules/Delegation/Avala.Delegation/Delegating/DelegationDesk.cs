@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
+using Avala.Delegation.Policy;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
 using Avala.Jobs.Contracts;
@@ -84,25 +85,28 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         }
     }
 
-    public ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
+    public async ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
     {
         Hydrate();
+        var hold = integrationEvent.Hold;
 
-        if (!awaitingHold.Remove(integrationEvent.Hold.Job))
+        if (!awaitingHold.Remove(hold.Job) || !pending.TryGetValue(hold.Job, out var delegation))
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        if (integrationEvent.Hold.Reason == HoldReason.LimitNearlyReached && pending.TryGetValue(integrationEvent.Hold.Job, out var delegation))
+        if (hold.Reason == HoldReason.LimitNearlyReached)
         {
-            reporter.Held(delegation, integrationEvent.Hold.Job, integrationEvent.Hold, cancellationToken);
+            reporter.Held(delegation, hold.Job, hold, cancellationToken);
+        }
+        else if (ChildRetries.Retries(hold.Reason))
+        {
+            await RetryAsync(delegation, hold, cancellationToken);
         }
         else
         {
-            Settle(integrationEvent.Hold.Job, new Settlement(JobStatus.NeedsHelp, integrationEvent.Hold.Reason), cancellationToken);
+            Settle(hold.Job, new Settlement(JobStatus.NeedsHelp, hold.Reason), cancellationToken);
         }
-
-        return ValueTask.CompletedTask;
     }
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
@@ -175,6 +179,28 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         foreach (var (child, record) in delegated.Match<Delegated[]>(started => [started], () => []))
         {
             pending[child] = record;
+        }
+    }
+
+    private async Task RetryAsync(DelegationRecord delegation, JobHold hold, CancellationToken cancellationToken)
+    {
+        var givenUp = new Settlement(JobStatus.NeedsHelp, hold.Reason) { GivenUp = true };
+
+        if (delegation.Retries >= ChildRetries.Most)
+        {
+            Settle(hold.Job, givenUp, cancellationToken);
+
+            return;
+        }
+
+        var retried = delegation with { Retries = delegation.Retries + 1 };
+        pending[hold.Job] = retried;
+        await book.KeepAsync(retried, cancellationToken);
+        var refusal = await reporter.RetryAsync(retried, hold.Job, hold, cancellationToken);
+
+        if (refusal.Match(refused => refused != JobRejection.NotHeld, () => false))
+        {
+            Settle(hold.Job, givenUp, cancellationToken);
         }
     }
 

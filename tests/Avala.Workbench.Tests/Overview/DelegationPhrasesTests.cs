@@ -14,6 +14,7 @@ public sealed class DelegationPhrasesTests
     [InlineData(ChildOutcome.Failed, "failed")]
     [InlineData(ChildOutcome.Discarded, "discarded")]
     [InlineData(ChildOutcome.Reported, "reported its findings")]
+    [InlineData(ChildOutcome.GivenUp, "given up after its retries")]
     public void AChildsOutcomeIsPhrasedForItsParent(ChildOutcome outcome, string phrase) =>
         Assert.Equal(phrase, DelegationPhrases.Outcome(outcome));
 

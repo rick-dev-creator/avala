@@ -51,6 +51,7 @@ internal static class DelegationPhrases
         ChildOutcome.RetriesExhausted => "retries ran out",
         ChildOutcome.Failed => "failed",
         ChildOutcome.Reported => "reported its findings",
+        ChildOutcome.GivenUp => "given up after its retries",
         _ => "discarded",
     };
 

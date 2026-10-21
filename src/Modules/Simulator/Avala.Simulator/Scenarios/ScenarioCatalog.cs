@@ -348,6 +348,16 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario CrashAlways { get; } = new("crash-always",
+    [
+        [
+            Thought("Starting the work."),
+            .. Bill(900, 20, 0.0030m, 0.33),
+            new Open(new ItemId("reply"), ItemKind.Message, "Reply"),
+            new Crash("The simulated agent process exited unexpectedly again."),
+        ],
+    ]);
+
     public static Scenario LeftOpen { get; } = new("left-open",
     [
         [
@@ -519,7 +529,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
+        LargeContext, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

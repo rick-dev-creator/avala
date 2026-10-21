@@ -12,6 +12,8 @@ internal sealed record Settlement(JobStatus Status, Option<HoldReason> Hold)
     public bool Held { get; init; }
 
     public Option<JobFailure> Failure { get; init; }
+
+    public bool GivenUp { get; init; }
 }
 
 internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, DelegationJournal journal, ILogger<ChildReporter> logger) : IAsyncDisposable
@@ -31,6 +33,9 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     public void Held(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken) =>
         Post(child, token => HeldAsync(delegation, child, hold, token), cancellationToken);
+
+    public Task<Option<JobRejection>> RetryAsync(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken) =>
+        work.RunAsync(token => RetriedAsync(delegation, child, hold, token), cancellationToken);
 
     public void Stop(DelegationRecord delegation, CallRef call, CancellationToken cancellationToken)
     {
@@ -69,7 +74,12 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     private async Task<ChildReport> ReportOfAsync(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken)
     {
-        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold, Failure = settlement.Failure };
+        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold, Failure = settlement.Failure, Retries = delegation.Retries };
+
+        if (settlement.GivenUp)
+        {
+            return await DiscardedAsync(await evidence.GatherAsync(settled with { Outcome = ChildOutcome.GivenUp }, summary, cancellationToken), cancellationToken);
+        }
 
         if (settlement.Status != JobStatus.AwaitingReview)
         {
@@ -81,9 +91,25 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
             return await evidence.GatherAsync(await IntegrateAsync(settled, cancellationToken), summary, cancellationToken);
         }
 
-        var gathered = await evidence.GatherAsync(settled with { Outcome = ChildOutcome.Reported }, summary, cancellationToken);
+        return await DiscardedAsync(await evidence.GatherAsync(settled with { Outcome = ChildOutcome.Reported }, summary, cancellationToken), cancellationToken);
+    }
 
-        return (await jobs.DiscardAsync(child, cancellationToken)).IsSuccess ? gathered with { Status = JobStatus.Discarded } : gathered;
+    private async Task<ChildReport> DiscardedAsync(ChildReport gathered, CancellationToken cancellationToken) =>
+        (await jobs.DiscardAsync(gathered.Child, cancellationToken)).IsSuccess ? gathered with { Status = JobStatus.Discarded } : gathered;
+
+    private async Task<Option<JobRejection>> RetriedAsync(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken)
+    {
+        var continued = await jobs.ContinueAsync(child, ToolAnswers.Retrying(hold), cancellationToken);
+
+        if (continued.IsSuccess)
+        {
+            foreach (var parent in delegation.Parent.Match<JobId[]>(found => [found], () => []))
+            {
+                _ = await jobs.SteerAsync(parent, ToolAnswers.RetryNote(delegation, child, hold), cancellationToken);
+            }
+        }
+
+        return continued.Match(_ => Option<JobRejection>.None, refusal => refusal);
     }
 
     private async Task BriefAsync(DelegationRecord reported, CancellationToken cancellationToken)

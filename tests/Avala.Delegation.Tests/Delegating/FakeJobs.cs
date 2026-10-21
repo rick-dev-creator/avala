@@ -15,6 +15,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentQueue<JobId> discarded = new();
     private readonly ConcurrentQueue<JobId> resumed = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> steered = new();
+    private readonly ConcurrentQueue<(JobId Job, string Message)> continued = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
 
@@ -106,8 +107,14 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
-    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+    public IReadOnlyList<(JobId Job, string Message)> Continued => [.. continued];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
+    {
+        continued.Enqueue((job, message));
+
+        return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.NewConversation)));
+    }
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
@@ -132,6 +139,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public void Is(JobId job, JobStatus status) =>
         histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = status } };
+
+    public void Knows(JobId job, Option<JobId> parent) =>
+        histories[job] = new JobHistory(Summary(job, JobStatus.Running, new ConnectionName("work")) with { Parent = parent }, [], []);
 
     private static JobSummary Summary(JobId job, JobStatus status, Option<ConnectionName> connection) =>
         new(job, Repository, "Ship the release", DateTimeOffset.UnixEpoch, status, connection, Option<Autonomy>.None, new WorkspaceId(job.Value));

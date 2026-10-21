@@ -47,6 +47,7 @@ public enum ChildOutcome
     Failed,
     Discarded,
     Reported,
+    GivenUp,
 }
 
 public enum ChildRole
@@ -83,6 +84,8 @@ public sealed record ChildReport(JobId Child, ChildOutcome Outcome, JobStatus St
     public Option<string> Harness { get; init; }
 
     public Option<JobRejection> Refusal { get; init; }
+
+    public int Retries { get; init; }
 }
 
 public sealed record DelegationRecord(SessionId Session, ItemId Item, string Instruction, DateTimeOffset At)
@@ -112,6 +115,8 @@ public sealed record DelegationRecord(SessionId Session, ItemId Item, string Ins
     public Option<ChildReport> Report { get; init; }
 
     public Option<CallAnswer> Answered { get; init; }
+
+    public int Retries { get; init; }
 }
 
 public enum AnswerRoute
