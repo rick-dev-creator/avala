@@ -24,7 +24,10 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
     public Option<HandoffRecord> Handoff { get; init; }
 }
 
-internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
+internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry
+{
+    public IReadOnlyList<string> Lost { get; init; } = [];
+}
 
 internal sealed record CiEntry(string Key, int PullRequest, string Head, IReadOnlyList<CheckRun> Checks) : ITimelineEntry
 {
@@ -73,7 +76,21 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public Option<DateTimeOffset> Started { get; init; }
 
     public ImmutableList<string> Trail { get; init; } = [];
+
+    public bool Backgrounded { get; init; }
+
+    public string Named => Title.StartsWith(SubagentPrefix, StringComparison.Ordinal) ? Title[SubagentPrefix.Length..] : Title;
+
+    private const string SubagentPrefix = "Subagent: ";
+
+    public ImmutableHashSet<ItemId> Children { get; init; } = [];
+
+    public ImmutableDictionary<ItemId, string> ChildTitles { get; init; } = ImmutableDictionary<ItemId, string>.Empty;
+
+    public ImmutableList<BackgroundStep> Background { get; init; } = [];
 }
+
+internal sealed record BackgroundStep(ItemId Item, string Title, Option<ItemOutcome> Outcome);
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry
 {
@@ -154,6 +171,8 @@ internal enum ChildAskingState
 
 internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId Item, string Child, string Asking) : ITimelineEntry
 {
+    public Option<string> Harness { get; init; }
+
     public ChildAskingState State { get; init; }
 
     public Option<PassReason> Passed { get; init; }
@@ -162,4 +181,6 @@ internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId It
 internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry
 {
     public Option<string> Model { get; init; }
+
+    public IReadOnlyList<string> Lost { get; init; } = [];
 }

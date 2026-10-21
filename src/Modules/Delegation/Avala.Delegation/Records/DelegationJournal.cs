@@ -17,8 +17,32 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
 
     public async Task AskedAsync(ParentAsked asked, CancellationToken cancellationToken) => await bus.PublishAsync(asked, cancellationToken);
 
+    public async Task WentOnAsync(DelegationRecord delegation, JobId child, Option<string> summary, CancellationToken cancellationToken) =>
+        await bus.PublishAsync(new ChildWentOn(delegation, child) { Summary = summary }, cancellationToken);
+
     public async Task<bool> ReturnAsync(CallRef call, ToolResult result, CancellationToken cancellationToken) =>
         (await agents.ReturnAsync(call.Session, result with { Item = call.Item }, cancellationToken)).IsSuccess;
+
+    public async Task<bool> ReturnEarlyAsync(JobId child, CallRef call, ToolResult early, CancellationToken cancellationToken)
+    {
+        Calls.Expect(child);
+
+        if (!await ReturnAsync(call, early, cancellationToken))
+        {
+            return false;
+        }
+
+        foreach (var (sibling, waiting) in Calls.TakeAll(call.Session))
+        {
+            foreach (var record in OfChild(sibling).Match<DelegationRecord[]>(found => [found], () => []))
+            {
+                Calls.Expect(sibling);
+                _ = await ReturnAsync(waiting, ToolAnswers.Running(waiting.Item, record), cancellationToken);
+            }
+        }
+
+        return true;
+    }
 
     public async Task<DelegationRecord> DeliveredAsync(DelegationRecord reported, ChildReport report, CallRef call, CancellationToken cancellationToken)
     {
@@ -39,10 +63,10 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         return answered;
     }
 
-    public async Task RefusedAsync(DelegationRecord refused, DelegationError error, CancellationToken cancellationToken)
+    public async Task RefusedAsync(DelegationRecord refused, ToolResult answer, CancellationToken cancellationToken)
     {
         await book.KeepAsync(refused, cancellationToken);
-        _ = await agents.ReturnAsync(refused.Session, ToolAnswers.Refused(refused.Item, error), cancellationToken);
+        _ = await agents.ReturnAsync(refused.Session, answer, cancellationToken);
         await bus.PublishAsync(new DelegationRefused(refused), cancellationToken);
     }
 

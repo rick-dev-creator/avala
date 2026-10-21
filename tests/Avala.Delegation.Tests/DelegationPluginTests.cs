@@ -3,6 +3,7 @@ using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
 using Avala.Delegation.Escalating;
+using Avala.Delegation.Listing;
 using Avala.Delegation.Records;
 using Avala.Delegation.Tests.Delegating;
 using Avala.Jobs.Contracts;
@@ -11,6 +12,7 @@ using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Testing;
+using Avala.Transcripts.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,10 +50,14 @@ public sealed class DelegationPluginTests
         Assert.Same(composition.Get<Storage.SqliteDelegationStore>(), composition.Get<IDelegationStore>());
         Assert.Contains(composition.Get<Storage.SqliteDelegationStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<SessionOpened>>());
-        Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobSessionStarted>>());
+        Assert.Contains(composition.Get<DelegationDesk>(), composition.All<IHandle<JobSessionStarted>>());
         Assert.Contains(composition.Get<DelegationDesk>(), composition.All<IHandle<AgentActivity>>());
         Assert.Contains(composition.Get<ChildAnswers>(), composition.All<IHandle<AgentActivity>>());
         Assert.Contains(composition.Get<ChildWaits>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<ChildStops>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<SubagentDesk>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<SubagentDesk>(), composition.All<IHandle<JobSessionStarted>>());
+        Assert.Same(composition.Get<SubagentDesk>(), composition.Get<IHandle<SessionEnded>>());
         Assert.Same(composition.Get<ChildTerms>(), composition.Get<IJobTerms>());
         Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<PermissionDecided>>());
         Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<FormDecided>>());
@@ -69,10 +75,13 @@ public sealed class DelegationPluginTests
             .AddSingleton<IAgents>(new ReturningAgents())
             .AddSingleton<IPermissionAudit>(new FixedAudit())
             .AddSingleton<IParentAnswers>(new RecordingParentAnswers())
-            .AddSingleton<IUsage>(new FixedUsage())
+            .AddSingleton<FixedUsage>()
+            .AddSingleton<IUsage>(provider => provider.GetRequiredService<FixedUsage>())
+            .AddSingleton<IUsageSessions>(provider => provider.GetRequiredService<FixedUsage>())
             .AddSingleton<IBudgets>(new FixedBudgets())
             .AddSingleton<IWorkspaceChanges>(new FixedChanges())
             .AddSingleton<IVerifications>(new FixedVerifications())
-            .AddSingleton<IBaseFiles>(new CommittedFiles()));
+            .AddSingleton<IBaseFiles>(new CommittedFiles())
+            .AddSingleton<ITranscripts>(new KeptTranscripts()));
     }
 }

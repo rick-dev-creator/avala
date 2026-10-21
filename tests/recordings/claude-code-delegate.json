@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-15T08:07:34.1032107+00:00",
+  "recordedAt": "2026-10-19T01:40:57.9042402+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -101,6 +101,14 @@
       },
       {
         "name": "wait_child",
+        "surface": "executed"
+      },
+      {
+        "name": "stop_child",
+        "surface": "executed"
+      },
+      {
+        "name": "subagents",
         "surface": "executed"
       }
     ]
@@ -202,7 +210,7 @@
       "at": 7200000,
       "return": {
         "item": "toolu_01DelegateMigrate000002",
-        "content": "{\"job\":\"01a13e9a-3357-7d10-9e83-e312694c374c\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a13e9a31f9760c9e4ab79c36884d38\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+        "content": "{\"job\":\"01a151d1-ad14-75dc-bf5e-9b4b9679f7ac\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151d1ac1073f5a177db167dc71029\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
         "isError": false
       }
     },
@@ -214,7 +222,7 @@
         "item": "toolu_01DelegateMigrate000002",
         "result": {
           "item": "toolu_01DelegateMigrate000002",
-          "content": "{\"job\":\"01a13e9a-3357-7d10-9e83-e312694c374c\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a13e9a31f9760c9e4ab79c36884d38\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+          "content": "{\"job\":\"01a151d1-ad14-75dc-bf5e-9b4b9679f7ac\",\"outcome\":\"integrated\",\"status\":\"approved\",\"state\":\"completed\",\"kind\":\"crossHarness\",\"harness\":\"Simulated Claude Code\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"role\":\"worker\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a151d1ac1073f5a177db167dc71029\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\",\"reason\":\"\"}",
           "isError": false
         }
       }

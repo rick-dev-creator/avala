@@ -319,6 +319,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await application.Activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
 
+    public async Task<IReadOnlyList<IAgentEvent>> RepliedAsync() =>
+        [.. (await application.Activity.CollectUntilAsync(update => update.Event is UsageReported)).Select(update => update.Event)];
+
     public async Task ProgressedAsync(string text) =>
         _ = await application.Activity.UntilAsync(update => update.Event is ItemProgressed progressed && progressed.Text == text);
 
@@ -330,6 +333,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         return [.. (await application.Decisions.CollectUntilAsync(_ => ++decided == count)).Select(update => update.Decision)];
     }
+
+    public async Task<IReadOnlyList<PolicyDecision>> DecisionsUntilAsync(Func<PolicyDecision, bool> last) =>
+        [.. (await application.Decisions.CollectUntilAsync(update => last(update.Decision))).Select(update => update.Decision)];
 
     public async Task<FormDecision> FormDecisionAsync() => (await application.Forms.UntilAsync(_ => true)).Decision;
 

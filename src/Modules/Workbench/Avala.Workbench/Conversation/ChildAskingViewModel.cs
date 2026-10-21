@@ -22,7 +22,9 @@ internal sealed partial class ChildAskingViewModel : IChildAskingViewModel, ITim
 {
     public ChildAskingViewModel(ChildAskingEntry entry)
     {
-        Headline = $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" is waiting for this job";
+        Headline = entry.Harness.Match(
+            harness => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" on {harness} is waiting for this job",
+            () => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" is waiting for this job");
         Asking = entry.Asking;
         Status = string.Empty;
         Update(entry);

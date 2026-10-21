@@ -21,6 +21,9 @@ internal sealed class Conversation
     private bool tokenIssued;
     private bool modelReported;
     private bool interrupting;
+    private bool carried;
+    private bool woken;
+    private bool acknowledging;
     private bool rejected;
     private bool unsaid;
     private int interruptions;
@@ -59,6 +62,8 @@ internal sealed class Conversation
     {
         if (turn.MidTurn)
         {
+            carried = carried && live.IsNone;
+
             return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
                 (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text) { Attachments = turn.Attachments }], [Messages.User(turn, commands.Send(midTurn: true), attachments)])));
         }
@@ -81,6 +86,7 @@ internal sealed class Conversation
         "control_request" => Requested(message),
         "control_cancel_request" => desk.Cancel(message, live),
         "control_response" when RemoteBridge.Answers(message) => remote.Answered(message),
+        "control_response" when acknowledging && Acknowledges(message) => Acknowledged(),
         "system" when message.TextOr("subtype", string.Empty) == "bridge_state" => remote.Reported(message),
         "user" when RemoteBridge.FromDevice(message) => Arrived(message),
         "command_lifecycle" => Tracked(message),
@@ -100,15 +106,29 @@ internal sealed class Conversation
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Interrupt() =>
         live.ToResult(AgentError.NoTurnInProgress).Map(stamp =>
         {
-            if (!commands.Owed)
+            var background = translator.WorkingInBackground && (carried || !commands.Owed);
+            var generating = woken && !carried;
+
+            if (!commands.Owed && !background && !generating && !acknowledging)
             {
                 return (stamp.Turn, Closed(stamp, TurnOutcome.Interrupted, Reaction.None));
             }
 
             interrupting = true;
+            acknowledging = acknowledging || background || generating;
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
+
+    private static bool Acknowledges(JsonNode response) =>
+        response["response"]?.TextOr("request_id", string.Empty).StartsWith(Messages.InterruptPrefix, StringComparison.Ordinal) == true;
+
+    private Reaction Acknowledged()
+    {
+        acknowledging = false;
+
+        return live.Match(stamp => Closed(stamp, TurnOutcome.Interrupted, Reaction.None), () => Reaction.None);
+    }
 
     private Reaction Requested(JsonNode request)
     {
@@ -119,18 +139,22 @@ internal sealed class Conversation
 
     private Reaction Continued(string type, JsonNode message)
     {
-        var opening = type is "assistant" or "stream_event" ? Woken() : Reaction.None;
+        var opening = type is "assistant" or "stream_event" || Notifies(type, message) || (type == "system" && translator.Restarts(message)) ? Woken() : Reaction.None;
 
-        return opening.Then(live.Match(stamp => During(type, message, stamp), () => Reaction.None));
+        return opening.Then(live.Match(stamp => Dismissing(During(type, message, stamp), stamp), () => Reaction.None));
     }
+
+    private Reaction Dismissing(Reaction reaction, Stamp stamp) =>
+        reaction.Then(desk.Dismiss(reaction.Events.OfType<ItemCompleted>().Select(completed => completed.Item), stamp));
 
     private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
     {
         "assistant" when stale == 0 => Said(message, stamp),
         "stream_event" or "user" when stale == 0 => translator.Receive(message, stamp),
         "system" when message.TextOr("subtype", string.Empty) == "compact_boundary" => Compacted(),
+        "system" => translator.Tasked(message, stamp),
         "rate_limit_event" => Limited(message, stamp),
-        "result" => commands.Pending && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
+        "result" => !interrupting && (commands.Pending || (translator.WorkingInBackground && Outcome(message) != TurnOutcome.LimitReached)) ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
 
@@ -221,7 +245,18 @@ internal sealed class Conversation
         return started;
     }
 
-    private Reaction Woken() => live.IsNone && stale == 0 ? Started() : Reaction.None;
+    private Reaction Woken()
+    {
+        if (live.IsSome || stale != 0)
+        {
+            return Reaction.None;
+        }
+
+        var stamp = Opened();
+        woken = true;
+
+        return Reaction.Of(new TurnStarted(session, stamp.Turn) { Woken = true });
+    }
 
     private Reaction Started() => Reaction.Of(new TurnStarted(session, Opened().Turn));
 
@@ -240,11 +275,19 @@ internal sealed class Conversation
             () => Reaction.None));
     }
 
+    private bool Notifies(string type, JsonNode message) =>
+        type == "system" && message.TextOr("subtype", string.Empty) == "task_notification" && translator.Wakes(message);
+
     private Reaction Carried(JsonNode result, Stamp stamp)
     {
-        commands.Answered();
+        carried = true;
 
-        return translator.Close(stamp, interrupted: false)
+        if (commands.Pending)
+        {
+            commands.Answered();
+        }
+
+        return translator.Carry(stamp)
             .Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))))
             .Then(context.Report(session, stamp.Turn, result));
     }
@@ -282,6 +325,9 @@ internal sealed class Conversation
         var closing = desk.Release(interrupted).Then(translator.Close(stamp, interrupted));
         live = Option<Stamp>.None;
         interrupting = false;
+        acknowledging = false;
+        carried = false;
+        woken = false;
 
         return closing
             .Then(usage)

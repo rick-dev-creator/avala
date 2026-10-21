@@ -229,20 +229,20 @@ public sealed class RestartTests(PublishedPlugins plugins)
         await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 2 && delegation["Trees"].Items[0].Has("Root"),
-            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(child => child["Activity"].Text)));
+            () => delegation["Trees"].Items.Count > 0 && TreeBranches.Children(delegation["Trees"].Items[0]).Count == 2 && TreeBranches.HasRoot(delegation["Trees"].Items[0]),
+            () => string.Join(", ", TreeBranches.Children(delegation["Trees"].Items[0]).Select(child => child["Activity"].Text)));
         var workbench = await run.WorkbenchAsync();
         await workbench.ShowsInGroupAsync(orchestrator, "ReadyForReview");
         var section = Assert.Single(await workbench.InspectAsync(orchestrator, "DelegationSectionViewModel"));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
         {
-            var root = delegation["Trees"].Items[0]["Root"];
+            var root = TreeBranches.Root(delegation["Trees"].Items[0]);
 
             return
             [
                 $"root: {root["Title"].Text} ·{root["Harness"].Text} · {root["Connection"].Text} · {root["Budget"].Text} · {root["Spent"].Text} · {root["ShareNote"].Text}",
-                .. delegation["Trees"].Items[0]["Children"].Items
+                .. TreeBranches.Children(delegation["Trees"].Items[0])
                     .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spend"].Text}")
                     .Order(StringComparer.Ordinal),
                 $"refused: {delegation["Trees"].Items[0]["Refused"].Items.Count}",

@@ -28,10 +28,11 @@ internal sealed record JobWatch(JobId Job)
 
     public JobWatch Progressed(JobStatus status, DateTimeOffset at) =>
         status == JobStatus.Running
-            ? this with { Running = true, BetweenTurns = false, AwaitingHuman = Option<ItemId>.None, PendingCalls = [], LastActivity = at }
+            ? this with { Running = true, BetweenTurns = false, LastActivity = at }
             : this with { Running = false };
 
-    public JobWatch Joined(SessionId session) => this with { Session = session };
+    public JobWatch Joined(SessionId session) =>
+        Session == Option<SessionId>.Some(session) ? this : this with { Session = session, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] };
 
     public JobWatch Saw(IAgentEvent agentEvent, DateTimeOffset at) =>
         Session != Option<SessionId>.Some(agentEvent.Session) ? this
@@ -40,6 +41,7 @@ internal sealed record JobWatch(JobId Job)
             PermissionRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
             FormRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
             ToolCalled called => this with { LastActivity = at, PendingCalls = PendingCalls.Add(called.Item) },
+            ItemBackgrounded backgrounded => this with { LastActivity = at, PendingCalls = PendingCalls.Add(backgrounded.Item) },
             ToolReturned returned => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(returned.Item) },
             ItemCompleted completed => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(completed.Item) },
             PermissionResolved or FormAnswered or RequestWithdrawn => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },

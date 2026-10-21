@@ -21,7 +21,21 @@ public sealed class DiagnosticsTests(PublishedPlugins plugins)
         var log = await run.StopAndReadLogAsync();
 
         Assert.Equal(JobStatus.Failed, settled);
-        Assert.Contains("Warning Avala.Jobs.JobFiles.JobFileReader: The repository's .avala/jobs.json is rejected because its approval is not a name", log, StringComparison.Ordinal);
+        Assert.Contains(
+            ("Warning", "Avala.Jobs.JobFiles.JobFileReader", "The repository's .avala/jobs.json is rejected because its approval is not a name"),
+            LogEvents.Parse(log).Select(logged => (logged.Level, logged.Category, logged.Message)));
+    }
+
+    [Fact]
+    public async Task WhatIsLoggedWhileAvalaWorksOnAJobNamesThatJobAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "approval": 7 }"""));
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("hello"))));
+        await run.SettledAsync();
+        var rejected = LogEvents.Parse(await run.StopAndReadLogAsync()).First(logged => logged.Category == "Avala.Jobs.JobFiles.JobFileReader");
+
+        Assert.Equal(job.Value.ToString(), rejected.Property("Job"));
     }
 
     [Fact]
@@ -47,12 +61,16 @@ public sealed class DiagnosticsTests(PublishedPlugins plugins)
         await crashes.ObserveAsync(Task.FromException(new InvalidOperationException("a startup task failed")));
         await log.DisposeAsync();
         crashes.Unhandled(new UnhandledExceptionEventArgs(new InvalidOperationException("the process dies"), true));
-        var text = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(data.Path)), Cancellation);
+        var logged = LogEvents.Parse(await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(data.Path)), Cancellation))
+            .Select(entry => (entry.Level, entry.Category, entry.Message, entry.Exception.Split(Environment.NewLine)[0]));
 
-        Assert.Contains("Error Avala: A task failed and nothing observed it", text, StringComparison.Ordinal);
-        Assert.Contains("nobody awaited me", text, StringComparison.Ordinal);
-        Assert.Contains("Error Avala: An unhandled exception reached the application", text, StringComparison.Ordinal);
-        Assert.Contains($"{LogLevel.Critical} Avala: Avala's startup failed{Environment.NewLine}System.InvalidOperationException: a startup task failed", text, StringComparison.Ordinal);
-        Assert.Contains($"{LogLevel.Critical} Avala: Avala stopped on an unhandled exception{Environment.NewLine}System.InvalidOperationException: the process dies", text, StringComparison.Ordinal);
+        Assert.Equal(
+            [
+                ("Error", "Avala", "A task failed and nothing observed it", "System.AggregateException: One or more errors occurred. (nobody awaited me)"),
+                ("Error", "Avala", "An unhandled exception reached the application", "System.InvalidOperationException: a background thread failed"),
+                ("Critical", "Avala", "Avala's startup failed", "System.InvalidOperationException: a startup task failed"),
+                ("Critical", "Avala", "Avala stopped on an unhandled exception", "System.InvalidOperationException: the process dies"),
+            ],
+            logged);
     }
 }

@@ -64,6 +64,9 @@ internal sealed class ScenarioCues : IPlugin, IAgentProviderDecorator
 
         public Option<AgentAccount> Account => inner.Account;
 
+
+        public IReadOnlyList<string> OwnFolders => inner.OwnFolders;
+
         public IAsyncEnumerable<IAgentEvent> Events => inner.Events.Select(cues.Hidden);
 
         public ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) => inner.SendAsync(cues.Told(turn), cancellationToken);

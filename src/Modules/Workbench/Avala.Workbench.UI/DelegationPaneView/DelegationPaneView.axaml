@@ -19,9 +19,6 @@
     <Style Selector="Border#Surface">
       <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
     </Style>
-    <Style Selector="Border#Rail">
-      <Setter Property="Background" Value="{DynamicResource SeparatorStrongBrush}" />
-    </Style>
     <Style Selector="Border#PaneHeader, Border#PaneFooter">
       <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
     </Style>
@@ -46,48 +43,7 @@
         <TextBlock x:Name="Footer" Classes="caption" Text="{Binding Footer}" TextTrimming="CharacterEllipsis" />
       </Border>
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="16">
-          <ContentControl x:Name="Root" theme:Motion.Enter="Gentle" Content="{Binding Root}" />
-          <Grid ColumnDefinitions="20,*" IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <Border x:Name="Rail" Width="1" HorizontalAlignment="Center" />
-            <StackPanel Grid.Column="1" Margin="0,12,0,4" Spacing="2">
-              <ItemsControl x:Name="Children" ItemsSource="{Binding Children}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <StackPanel Spacing="2" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="overview:IDelegationNodeViewModel">
-                    <ContentControl Content="{Binding}" Margin="{Binding Depth, Converter={x:Static graphs:Graph.Indent}}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-              <Button x:Name="SettledFold"
-                      Classes="bare"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch"
-                      Command="{Binding ToggleSettledCommand}"
-                      IsVisible="{Binding SettledLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                <Border Classes="fold" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource EdgeBrush}" Padding="10,8">
-                  <TextBlock x:Name="SettledLabel" Classes="caption" Text="{Binding SettledLabel}" />
-                </Border>
-              </Button>
-              <ItemsControl x:Name="Settled" ItemsSource="{Binding Settled}" IsVisible="{Binding ShowsSettled}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <StackPanel Spacing="2" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="overview:IDelegationNodeViewModel">
-                    <ContentControl Content="{Binding}" Margin="{Binding Depth, Converter={x:Static graphs:Graph.Indent}}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </StackPanel>
-          </Grid>
-        </StackPanel>
+        <ContentControl x:Name="Tree" Margin="16" Content="{Binding Tree}" IsVisible="{Binding HasTree}" />
       </ScrollViewer>
     </DockPanel>
   </Border>

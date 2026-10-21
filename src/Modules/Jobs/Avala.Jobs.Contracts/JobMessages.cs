@@ -37,6 +37,7 @@ public enum HoldReason
     NotResumable,
     InvalidChecks,
     CouldNotStart,
+    TurnFailed,
 }
 
 public enum SessionHalt
@@ -63,7 +64,10 @@ public sealed record JobSubmitted(JobId Job) : IIntegrationEvent
 
 public sealed record JobHeld(JobHold Hold) : IIntegrationEvent;
 
-public sealed record JobProgressed(JobId Job, JobStatus Status) : IIntegrationEvent;
+public sealed record JobProgressed(JobId Job, JobStatus Status) : IIntegrationEvent
+{
+    public Option<JobFailure> Failure { get; init; }
+}
 
 public sealed record JobSessionStarted(JobId Job, SessionId Session) : IIntegrationEvent
 {

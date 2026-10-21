@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.BranchPlaceView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IBranchPlaceViewModel">
+  <Design.DataContext>
+    <overview:DesignBranchPlaceViewModel />
+  </Design.DataContext>
+  <Border x:Name="Chip"
+          Classes="state"
+          Classes.working="{Binding IsWorking}"
+          Classes.waiting="{Binding IsWaiting}"
+          Classes.alert="{Binding IsAlert}"
+          ToolTip.Tip="{Binding StateText, StringFormat='This {0}'}"
+          AutomationProperties.Name="{Binding StateText}">
+    <StackPanel x:Name="Mark" Orientation="Horizontal" Spacing="5" theme:Motion.Swap="{Binding State}">
+      <Panel Width="10" Height="10" VerticalAlignment="Center">
+        <Arc x:Name="Spinner"
+             Width="10"
+             Height="10"
+             StartAngle="0"
+             SweepAngle="270"
+             StrokeThickness="1.6"
+             StrokeLineCap="Round"
+             IsVisible="{Binding IsWorking}"
+             theme:Motion.Loop="Spin" />
+        <Path x:Name="Waiting" Classes="icon" Width="10" Height="10" Data="{StaticResource IconAttention}" IsVisible="{Binding IsWaiting}" />
+        <Path x:Name="Completed" Classes="icon" Width="10" Height="10" Data="{StaticResource IconCheck}" IsVisible="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Completed'}" />
+        <Path x:Name="Stopped" Classes="icon" Width="9" Height="9" Data="{StaticResource IconStop}" IsVisible="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Stopped'}" />
+        <Path x:Name="Alert" Classes="icon" Width="9" Height="9" Data="{StaticResource IconCross}" IsVisible="{Binding IsAlert}" />
+      </Panel>
+      <TextBlock x:Name="StateText" Classes="medium" Text="{Binding StateText}" VerticalAlignment="Center" />
+    </StackPanel>
+  </Border>
+</UserControl>

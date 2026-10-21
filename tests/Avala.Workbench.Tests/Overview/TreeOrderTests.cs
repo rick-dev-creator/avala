@@ -14,31 +14,21 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Overview;
 
+internal static class TreePlaces
+{
+    public static BranchPlaceViewModel Any() => new("test", _ => { });
+}
+
 public sealed class TreeOrderTests
 {
     private static readonly SessionId Session = SessionId.New();
     private static readonly TurnId Turn = TurnId.New();
 
     [Fact]
-    public void ChildrenThatNeedYouComeFirstThenRunningOnesAndSettledBranchesFoldWithTheirChildren()
-    {
-        var running = Node("Port the idempotency keys", JobStatus.Running, 1);
-        var review = Node("Regenerate the mocks", JobStatus.AwaitingReview, 1);
-        var asking = Node("Rewrite webhook tests", JobStatus.NeedsHelp, 1);
-        var done = Node("Write the release notes", JobStatus.Approved, 1);
-        var doneChild = Node("Proofread the notes", JobStatus.Approved, 2);
-
-        var arranged = TreeOrder.Arrange([running, done, doneChild, review, asking]);
-
-        Assert.Equal(["Rewrite webhook tests", "Port the idempotency keys", "Regenerate the mocks"], arranged.Active.Select(node => node.Job.Instruction));
-        Assert.Equal(["Write the release notes", "Proofread the notes"], arranged.Settled.Select(node => node.Job.Instruction));
-    }
-
-    [Fact]
     public void OpeningOneRowFoldsTheOneThatWasOpen()
     {
-        var first = new DelegationNodeViewModel(Node("Port the idempotency keys", JobStatus.Running, 1));
-        var second = new DelegationNodeViewModel(Node("Regenerate the mocks", JobStatus.Running, 1));
+        var first = new DelegationNodeViewModel(TreePlaces.Any(), Node("Port the idempotency keys", JobStatus.Running, 1));
+        var second = new DelegationNodeViewModel(TreePlaces.Any(), Node("Regenerate the mocks", JobStatus.Running, 1));
         DelegationNodeViewModel[] rows = [first, second];
         first.Toggled += (_, _) => TreeOrder.OneOpen(rows, first);
         second.Toggled += (_, _) => TreeOrder.OneOpen(rows, second);
@@ -62,17 +52,17 @@ public sealed class TreeOrderTests
             .Apply(new ContextReported(Session, Turn, 56_000, 200_000) { Compacted = true }, DateTimeOffset.UnixEpoch.AddSeconds(31));
         var node = Node("Update call sites", JobStatus.Running, 1, transcript, new TokenUsage(90_000, 6_000, 400, 0, 0));
 
-        var row = new DelegationNodeViewModel(node);
+        var row = new DelegationNodeViewModel(TreePlaces.Any(), node);
 
         Assert.Equal((true, "72%", true), (row.Context.IsShown, row.Context.Left, row.Context.Compacted));
         Assert.Equal("96.4k tokens", row.Tokens);
         Assert.Equal(["Run go test ./internal/payments/...", "Edit internal/payments/refund.go", "Run go build ./internal/payments/..."], row.Recent.Select(action => action.Text));
         Assert.Equal(DateTimeOffset.UnixEpoch.AddSeconds(30), row.Recent[0].Since);
-        Assert.Equal(("Run go test ./internal/payments/...", 1), (row.Doing, row.SubagentCount));
+        Assert.Equal("Run go test ./internal/payments/...", row.Doing);
     }
 
     [Fact]
-    public void TheOrchestratorTalliesItsChildrenThatNeedYouRunAreDoneAndWereRefusedAndSumsTheTreesTokens()
+    public void TheOrchestratorSumsTheTreesTokens()
     {
         var root = Pages.Summary("Migrate payments", JobStatus.Running);
         var refused = new DelegationRecord(Session, new ItemId("call"), "Rewrite in Svelte", DateTimeOffset.UnixEpoch) { Parent = root.Job, Depth = 1, Refusal = DelegationError.Malformed };
@@ -86,9 +76,8 @@ public sealed class TreeOrderTests
             ],
             [refused]);
 
-        var card = new OrchestratorCardViewModel(tree);
+        var card = new OrchestratorCardViewModel(TreePlaces.Any(), tree);
 
-        Assert.Equal(["1 needs you", "2 running", "1 done", "1 refused"], card.Tally.Select(tally => tally.Text));
         Assert.Equal(("3k tokens", false), (card.Tokens, card.Context.IsShown));
     }
 
@@ -126,7 +115,7 @@ public sealed class TreeOrderTests
 
     [Fact]
     public void ARowWhoseHarnessReportedNoContextShowsNone() =>
-        Assert.False(new DelegationNodeViewModel(Node("Update call sites", JobStatus.Running, 1)).Context.IsShown);
+        Assert.False(new DelegationNodeViewModel(TreePlaces.Any(), Node("Update call sites", JobStatus.Running, 1)).Context.IsShown);
 
     private static DelegationNode Node(string instruction, JobStatus status, int depth, Transcript? transcript = null, TokenUsage tokens = default, string? connection = null)
     {

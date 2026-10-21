@@ -72,13 +72,13 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
 
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 2 && delegation["Trees"].Items[0]["Children"].Items.All(child => child["Activity"].Text == "integrated into its parent"),
-            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(child => child["Activity"].Text)));
+            () => delegation["Trees"].Items.Count > 0 && TreeBranches.Children(delegation["Trees"].Items[0]).Count == 2 && TreeBranches.Children(delegation["Trees"].Items[0]).All(child => child["Activity"].Text == "integrated into its parent"),
+            () => string.Join(", ", TreeBranches.Children(delegation["Trees"].Items[0]).Select(child => child["Activity"].Text)));
 
         Assert.Equal(orchestrator, await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Job"].Value<JobId>()));
         Assert.Equal(
             [("work", 1, true), ("personal", 1, true)],
-            await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Children"].Items
+            await run.Ui.ReadAsync(() => TreeBranches.Children(delegation["Trees"].Items[0])
                 .Select(child => (child["Connection"].Text, child["Depth"].Value<int>(), child["Spend"].Text.Contains(" USD", StringComparison.Ordinal) && child["Harness"].Text.Length > 0))
                 .ToList()));
     }

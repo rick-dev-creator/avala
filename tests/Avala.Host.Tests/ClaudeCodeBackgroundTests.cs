@@ -1,0 +1,397 @@
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Testing;
+
+namespace Avala.Host.Tests;
+
+public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins) : IAsyncDisposable
+{
+    private readonly TemporaryFolder taps = new();
+
+    private const string Instruction = "[simulate: reply] Have a background agent look over billing.";
+
+    private const string Launched = "Launching a background agent for that.";
+
+    private const string Background = "Survey the billing module";
+
+    private static readonly TimeSpan PromptCache = TimeSpan.FromHours(1);
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task ABackgroundSubAgentsReportAndTheAgentsAnswerToItBelongToTheTurnThatLaunchedItAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background-woken");
+        await using var run = await StartAsync(claude);
+        var turn = await run.TurnAsync();
+        await EvaluatedAsync(run);
+        var conversation = await ShownAsync(run);
+
+        var messages = await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text"));
+
+        Assert.Equal(
+            (1, TurnOutcome.Finished, ItemOutcome.Succeeded),
+            (turn.OfType<TurnStarted>().Count(), Assert.IsType<TurnCompleted>(turn[^1]).Outcome, turn.OfType<ItemCompleted>().Single(completed => turn.OfType<ItemBackgrounded>().Any(backgrounded => backgrounded.Item == completed.Item)).Outcome));
+        Assert.Contains("The billing survey came back: three entry points, no blockers.", messages);
+    }
+
+    [Fact]
+    public async Task AnAgentWithBackgroundTasksPendingIsNotRestedOnceItsPromptCacheExpiresAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background");
+        await using var run = await StartAsync(claude);
+        var session = (await run.OpenedAsync()).Session;
+        _ = await run.RepliedAsync();
+        await EvaluatedAsync(run);
+
+        run.Clock.Advance(PromptCache + PromptCache);
+        await EvaluatedAsync(run);
+
+        Assert.True(run.Get<IAgents>().IsOpen(session), "Avala stopped the agent while its background sub-agent was still working.");
+    }
+
+    [Fact]
+    public async Task ATurnTheAgentWokeOnItsOwnThatFallsSilentHoldsItsJobForAPersonInsteadOfLeavingItInReviewAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        _ = await run.OpenedAsync();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        _ = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+
+        run.Clock.Advance(PromptCache + PromptCache);
+        await EvaluatedAsync(run);
+
+        var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary;
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Stalled)), (summary.Status, summary.Hold));
+    }
+
+    [Fact]
+    public async Task AnAgentKeptForATurnItWokeOnItsOwnEndsOnceThatTurnEndsAndItsPromptCacheExpiresAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var tapped = new TemporaryFolder();
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Tapping(tapped.Path), []);
+        var session = (await run.OpenedAsync()).Session;
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+        run.Clock.Advance(PromptCache + PromptCache);
+        await EvaluatedAsync(run);
+        Assert.True(run.Get<IAgents>().IsOpen(session));
+        var ended = run.Watch<TurnFinished>();
+        var stopped = run.Watch<SessionStopped>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await ended.UntilAsync(finished => finished.Session == session);
+        await EvaluatedAsync(run);
+        var before = await StateAsync(run, session);
+        run.Clock.Advance(PromptCache + PromptCache);
+
+        try
+        {
+            _ = await stopped.UntilAsync(found => found.Session == session);
+        }
+        catch (TimeoutException timeout)
+        {
+            throw new TimeoutException($"{timeout.Message}; before the clock moved {before}; after {await StateAsync(run, session)}; the replay's last lines {await TappedAsync(tapped.Path)}", timeout);
+        }
+    }
+
+    private static async Task<string> TappedAsync(string folder)
+    {
+        var lines = new List<string>();
+
+        foreach (var file in Directory.GetFiles(folder, "*.jsonl").Order(StringComparer.Ordinal))
+        {
+            await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            lines.AddRange((await reader.ReadToEndAsync(Cancellation)).Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        return string.Join(" | ", lines.TakeLast(6).Select(line => line.Length > 260 ? line[..260] : line));
+    }
+
+    private static async Task<string> StateAsync(SimulatedRun run, SessionId session)
+    {
+        await run.DeliveredAsync();
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        var agents = run.Get<IAgents>();
+
+        return $"job {history.Summary.Status}, hold {history.Summary.Hold}, attempts {history.Attempts.Count}, sessions {history.Sessions.Count}, open {agents.IsOpen(session)}, working {agents.IsWorking(session)}";
+    }
+
+    [Fact]
+    public async Task ATurnTheAgentWakesOnItsOwnWhileItsJobAwaitsReviewWithdrawsTheReviewAndRunsTheJobAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+
+        _ = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal((JobStatus.Running, 2, AttemptOrigin.Woken, AttemptOutcome.Running), (history.Summary.Status, history.Attempts.Count, history.Attempts[^1].Origin, history.Attempts[^1].Outcome));
+    }
+
+    [Fact]
+    public async Task AJobWhoseAgentWokeOnItsOwnIsJudgedAgainWhenThatTurnEndsAndAwaitsReviewWithItsNewWorkAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        var progressed = run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await ExplainedAsync(run, progressed, JobStatus.AwaitingReview);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal((2, AttemptOrigin.Woken, AttemptOutcome.Passed), (history.Attempts.Count, history.Attempts[^1].Origin, history.Attempts[^1].Outcome));
+    }
+
+    [Fact]
+    public async Task InterruptingATurnKeptLiveOnlyByBackgroundSubagentsEndsItInterruptedThoughTheHarnessSendsNoResultAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("interrupt-background-agents");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        _ = await run.DecisionAsync();
+        var ended = run.Watch<TurnFinished>();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        Assert.Equal(TurnOutcome.Interrupted, (await ended.UntilAsync(_ => true)).Outcome);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task BackgroundSubagentsTheHarnessStopsOnAnInterruptEndStoppedNotLostAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("interrupt-background-agents");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        var activity = run.Watch<AgentActivity>();
+        _ = await run.DecisionAsync();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+        var agents = seen.OfType<ItemBackgrounded>().Select(backgrounded => backgrounded.Item).ToHashSet();
+        Assert.Equal(2, agents.Count);
+        Assert.All(seen.OfType<ItemCompleted>().Where(completed => agents.Contains(completed.Item)), completed => Assert.Equal(ItemOutcome.Cancelled, completed.Outcome));
+        Assert.Equal(2, seen.OfType<ItemCompleted>().Count(completed => agents.Contains(completed.Item)));
+    }
+
+    [Fact]
+    public async Task ATurnStaysLiveUntilTheShellASubagentLeftInTheBackgroundEndsEvenThoughTheSubagentReportedCompletedAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("nested-background-agent");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var activity = run.Watch<AgentActivity>();
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+
+        var shell = seen.OfType<ItemStarted>().Single(started => started.Kind == ItemKind.Command && started.Parent.IsSome).Item;
+        Assert.InRange(seen.FindIndex(found => found is ItemCompleted completed && completed.Item == shell), 0, seen.Count - 2);
+        Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(seen[^1]).Outcome);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task ASubagentTheHarnessStartsAgainAfterItCompletedIsANewRunOfItThatWorksUntilItsNextNotificationAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("nested-background-agent");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var activity = run.Watch<AgentActivity>();
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+
+        var runs = seen.OfType<ItemStarted>().Where(started => started.Kind == ItemKind.Subagent).ToList();
+        Assert.Equal(["Subagent: Run delayed nested echo", "Subagent: Run delayed nested echo"], runs.Select(started => started.Title));
+        Assert.All(runs, started => Assert.Contains(seen, found => found is ItemBackgrounded backgrounded && backgrounded.Item == started.Item));
+        Assert.All(runs, started => Assert.Contains(seen, found => found is ItemCompleted { Outcome: ItemOutcome.Succeeded } completed && completed.Item == started.Item));
+    }
+
+    [Fact]
+    public async Task ATurnTheAgentWokeOnItsOwnThatFailsHoldsItsJobForAPersonInsteadOfFailingItAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-failed");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        var progressed = run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await ExplainedAsync(run, progressed, JobStatus.NeedsHelp);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal(
+            (JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.TurnFailed), AttemptOutcome.Passed),
+            (history.Summary.Status, history.Summary.Hold, history.Attempts[0].Outcome));
+    }
+
+    [Fact]
+    public async Task ATurnTheAgentWakesOnItsOwnWhileItsJobIsHeldIsInterruptedAndTheJobStaysHeldAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-after-interrupt");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        _ = await run.DecisionAsync();
+        var ended = run.Watch<TurnFinished>();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        var turns = 0;
+        var finished = await ended.CollectUntilAsync(_ => ++turns == 2);
+        await run.DeliveredAsync();
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal([TurnOutcome.Interrupted, TurnOutcome.Interrupted], finished.Select(turn => turn.Outcome));
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Interrupted), 1), (history.Summary.Status, history.Summary.Hold, history.Attempts.Count));
+    }
+
+    [Fact]
+    public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background");
+        await using var run = await StartAsync(claude);
+        _ = await run.RepliedAsync();
+        await EvaluatedAsync(run);
+
+        var status = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary.Status;
+
+        Assert.Equal(JobStatus.Running, status);
+    }
+
+    [Fact]
+    public async Task StoppingASessionWithBackgroundWorkPendingTellsTheConversationWhatWasStoppedAndWhyAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background");
+        await using var run = await StartAsync(claude);
+        var session = (await run.OpenedAsync()).Session;
+        _ = await run.RepliedAsync();
+        await EvaluatedAsync(run);
+        var conversation = await ShownAsync(run);
+        var stopped = run.Watch<SessionStopped>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().StopAsync(session, Cancellation));
+        _ = await stopped.UntilAsync(found => found.Session == session);
+        await run.DeliveredAsync();
+
+        var (told, said) = await run.Ui.ReadAsync(() => (Telling(conversation), string.Join(" | ", Said(conversation))));
+        Assert.True(told.Count > 0, $"Nothing outside the Agent call itself told the person that \"{Background}\" was stopped and why; the conversation said: {said}");
+    }
+
+    [Fact]
+    public async Task AWokenTurnThatNeverGetsItsResultIsClosedWhenItsSessionEndsAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background-woken-open");
+        await using var run = await StartAsync(claude);
+        var session = (await run.OpenedAsync()).Session;
+        await run.ProgressedAsync("The billing survey came back: ");
+
+        Outcomes.Succeeds(await run.Get<IAgents>().StopAsync(session, Cancellation));
+        await run.DeliveredAsync();
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply")) { Connection = new ConnectionName(TranscribedClaude.Simulator) }));
+        var next = await run.TurnAsync();
+
+        Assert.True(
+            next.OfType<TurnCompleted>().Any(completed => completed.Session == session),
+            $"The woken turn was left open: the next turn that ended was {next[^1]}");
+    }
+
+    [Fact]
+    public async Task AfterAvalaRestartsTheBackgroundAgentsThatDiedWithThePreviousSessionAreReportedInTheConversationAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background-resumed");
+        await using var run = await StartAsync(claude);
+        _ = await run.RepliedAsync();
+        await EvaluatedAsync(run);
+
+        await run.RestartAsync();
+        _ = await run.TurnAsync();
+        await EvaluatedAsync(run);
+        var conversation = await ShownAsync(run, "Going on with the billing module.");
+
+        var (told, said) = await run.Ui.ReadAsync(() => (Telling(conversation), string.Join(" | ", Said(conversation))));
+        Assert.True(told.Count > 0, $"Nothing told the person that \"{Background}\" died with the previous session; the conversation said: {said}");
+    }
+
+    [Fact]
+    public async Task HandingOffAJobWhoseSessionHasBackgroundWorkPendingTellsThePersonWhatIsLostAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("background-handoff");
+        await using var run = await SimulatedRun.TranscribedAsync(
+            plugins,
+            claude.Plugin,
+            new JobRequest(string.Empty, Instruction),
+            claude.Data,
+            [(".avala/jobs.json", """{ "limits": { "onLimit": "handoff-any-harness", "connections": ["claude", "sim"] } }""")]);
+        _ = await run.TurnAsync();
+        var handedOff = await run.TurnAsync();
+        await EvaluatedAsync(run);
+        var conversation = await ShownAsync(run);
+
+        var (told, said) = await run.Ui.ReadAsync(() => (Telling(conversation), string.Join(" | ", Said(conversation))));
+        var attempts = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Attempts;
+        Assert.Equal(AttemptOrigin.Handoff, attempts[^1].Origin);
+        Assert.NotEqual((await run.OpenedAsync()).Session, handedOff[^1].Session);
+        Assert.True(told.Count > 0, $"The handoff did not tell the person that \"{Background}\" is lost with the old session; the conversation said: {said}");
+    }
+
+    public ValueTask DisposeAsync() => taps.DisposeAsync();
+
+    private Task<SimulatedRun> StartAsync(TranscribedClaude claude) =>
+        SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Tapping(taps.Path), []);
+
+    private async Task<JobProgressed> ExplainedAsync(SimulatedRun run, EventWatch<JobProgressed> progressed, JobStatus expected)
+    {
+        var found = await progressed.UntilAsync(seen => seen.Job == run.Job && seen.Status is not JobStatus.Running and not JobStatus.Checking);
+        var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary;
+
+        if (found.Status == expected)
+        {
+            return found;
+        }
+
+        var tapped = await TappedAsync(taps.Path);
+        var warnings = (await run.StopAndReadLogAsync()).Split('\n').Where(line => line.Contains("Warning", StringComparison.Ordinal) || line.Contains("Error", StringComparison.Ordinal)).TakeLast(12);
+
+        throw new Xunit.Sdk.XunitException($"The job settled {found.Status}, held {summary.Hold.Match(hold => hold.ToString(), () => "for no reason")}, not {expected}; the replay's last lines {tapped}; the log's warnings {string.Join(" | ", warnings)}");
+    }
+
+    private static async Task EvaluatedAsync(SimulatedRun run)
+    {
+        for (var round = 0; round < 3; round++)
+        {
+            await run.DeliveredAsync();
+            _ = await run.Get<IJobCheckpoints>().OfAsync(run.Job, Cancellation);
+        }
+
+        await run.DeliveredAsync();
+    }
+
+    private static async Task<Bound> ShownAsync(SimulatedRun run, string message = Launched)
+    {
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(message));
+
+        return conversation;
+    }
+
+    private static List<string> Telling(Bound conversation) =>
+        [.. conversation["Entries"].Items
+            .Where(entry => entry.Kind != "ToolViewModel" && entry.Has("SearchText"))
+            .Select(entry => entry["SearchText"].Text)
+            .Where(text => text.Contains(Background, StringComparison.Ordinal))];
+
+    private static List<string> Said(Bound conversation) =>
+        [.. conversation["Entries"].Items.Select(entry => entry.Has("SearchText") ? $"{entry.Kind}: {entry["SearchText"].Text}" : entry.Kind)];
+}

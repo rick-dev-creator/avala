@@ -114,6 +114,35 @@ public sealed class MotionScripts(HeadlessUi ui)
             Assert.True(Motion.GetIsReduced(inner));
         }, Cancellation);
 
+    [Fact]
+    public Task ASwapFadesItsContentBackInWhenItsValueChangesButNotWhenFirstSetAsync() =>
+        ui.RunAsync(() =>
+        {
+            var mark = Swapping("working");
+            var view = Arrive(new StackPanel { Children = { mark } }, reduced: false);
+            var first = mark.Opacity;
+
+            Motion.SetSwap(mark, "completed");
+            view.Settle();
+            var swapping = mark.Opacity;
+            view.Elapse(TimeSpan.FromMilliseconds(180));
+
+            Assert.Equal((1d, 0d, 1d), (first, swapping, mark.Opacity));
+        }, Cancellation);
+
+    [Fact]
+    public Task WithReducedMotionASwapShowsItsNewContentAtOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var mark = Swapping("working");
+            var view = Arrive(new StackPanel { Children = { mark } }, reduced: true);
+
+            Motion.SetSwap(mark, "completed");
+            view.Settle();
+
+            Assert.Equal((1d, true), (mark.Opacity, Unmoved(mark)));
+        }, Cancellation);
+
     private static IEnumerable<string> Animated(IEnumerable<Avalonia.Styling.IStyle> styles) =>
         styles.SelectMany(style => style switch
         {
@@ -146,6 +175,14 @@ public sealed class MotionScripts(HeadlessUi ui)
         }
 
         return panel;
+    }
+
+    private static Border Swapping(string value)
+    {
+        var mark = new Border { Name = "Mark", Width = 10, Height = 10 };
+        Motion.SetSwap(mark, value);
+
+        return mark;
     }
 
     private static StackPanel Thinking() => new()

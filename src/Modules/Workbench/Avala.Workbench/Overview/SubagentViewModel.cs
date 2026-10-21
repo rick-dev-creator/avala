@@ -1,4 +1,6 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Delegation.Contracts;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Presenting;
@@ -8,25 +10,53 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
-internal enum SubagentState
+internal static class SubagentStates
 {
-    Running,
-    Waiting,
-    Done,
-    Failed,
+    public static SubagentState Of(JobStatus status, Option<HoldReason> hold, bool asking) =>
+        asking && status is JobStatus.Running or JobStatus.NeedsHelp && hold != Option<HoldReason>.Some(HoldReason.SessionLost) ? SubagentState.Waiting : Of(status, hold);
+
+    public static SubagentState Of(JobStatus status, Option<HoldReason> hold) => status switch
+    {
+        JobStatus.AwaitingReview or JobStatus.Approved => SubagentState.Completed,
+        JobStatus.Failed => SubagentState.Failed,
+        JobStatus.Discarded => SubagentState.Stopped,
+        JobStatus.NeedsHelp when hold == Option<HoldReason>.Some(HoldReason.SessionLost) => SubagentState.Lost,
+        JobStatus.NeedsHelp => SubagentState.Waiting,
+        _ => SubagentState.Working,
+    };
+
+    public static string Text(SubagentState state) => state switch
+    {
+        SubagentState.Working => "working",
+        SubagentState.Waiting => "waiting",
+        SubagentState.Completed => "completed",
+        SubagentState.Stopped => "stopped",
+        SubagentState.Lost => "lost",
+        _ => "failed",
+    };
 }
 
-internal interface ISubagentViewModel
+internal interface ISubagentViewModel : IAgentBranch
 {
+    JobId Job { get; }
+
     string Name { get; }
 
     string Activity { get; }
+
+    string Note { get; }
+
+    bool HasNote { get; }
 
     string Meter { get; }
 
     SubagentState State { get; }
 
     string StateText { get; }
+
+    DateTimeOffset Since { get; }
+
+    bool IsTiming { get; }
 
     IReadOnlyList<string> Trail { get; }
 
@@ -35,79 +65,84 @@ internal interface ISubagentViewModel
     bool IsOpen { get; }
 
     IRelayCommand ToggleCommand { get; }
+
+    IRelayCommand<JobId> OpenCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) : ISubagentViewModel
+internal sealed partial class SubagentViewModel(BranchPlaceViewModel place, JobId job) : ISubagentViewModel
 {
-    public const int Shown = 5;
+    public IBranchPlaceViewModel Place => place;
 
-    private const string Prefix = "Subagent: ";
+    public JobId Job { get; } = job;
 
-    public string Name { get; } = entry.Title.StartsWith(Prefix, StringComparison.Ordinal) ? entry.Title[Prefix.Length..] : entry.Title;
+    [ObservableProperty]
+    public partial string Name { get; private set; } = string.Empty;
 
-    public SubagentState State { get; } = entry.Outcome.Match(
-        outcome => outcome == ItemOutcome.Succeeded ? SubagentState.Done : SubagentState.Failed,
-        () => waiting ? SubagentState.Waiting : SubagentState.Running);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StateText))]
+    public partial SubagentState State { get; private set; }
 
-    public string Activity { get; } = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
+    public string StateText => SubagentStates.Text(State);
 
-    public string Meter { get; } = Metered(entry);
+    [ObservableProperty]
+    public partial string Activity { get; private set; } = string.Empty;
 
-    public IReadOnlyList<string> Trail { get; } = [.. entry.Trail.AsEnumerable().Reverse()];
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
+    public partial string Note { get; private set; } = string.Empty;
+
+    public bool HasNote => Note.Length > 0;
+
+    [ObservableProperty]
+    public partial string Meter { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial DateTimeOffset Since { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsTiming { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTrail))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCommand))]
+    public partial IReadOnlyList<string> Trail { get; private set; } = [];
 
     public bool HasTrail => Trail.Count > 0;
 
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
 
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
     [RelayCommand(CanExecute = nameof(HasTrail))]
     private void Toggle() => IsOpen = !IsOpen;
 
-    public string StateText => State switch
+    public void Show(AgentBranch branch, int depth, bool folded)
     {
-        SubagentState.Running => "running",
-        SubagentState.Waiting => "waiting",
-        SubagentState.Done => "done",
-        _ => "failed",
-    };
+        place.Show(depth, branch, folded);
+        State = branch.State;
 
-    public static IReadOnlyList<ISubagentViewModel> Of(Option<BoardJob> job) =>
-        job.Match<IReadOnlyList<ISubagentViewModel>>(
-            found =>
-            {
-                var asking = found.PendingDecisions > 0;
-
-                return
-                [
-                    .. found.Transcript.Entries.OfType<ToolEntry>()
-                        .Where(tool => tool.Kind == ItemKind.Subagent)
-                        .TakeLast(Shown)
-                        .Select(tool => new SubagentViewModel(tool, asking))
-                        .OrderBy(subagent => subagent.State is SubagentState.Done or SubagentState.Failed),
-                ];
-            },
-            () => []);
-
-    public static int Count(Option<BoardJob> job) =>
-        job.Match(found => found.Transcript.Entries.OfType<ToolEntry>().Count(tool => tool.Kind == ItemKind.Subagent), () => 0);
-
-    public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next)
-    {
-        if (current.Select(Seen).SequenceEqual(next.Select(Seen)))
+        foreach (var entry in branch.Tool.Match<ToolEntry[]>(found => [found], () => []))
         {
-            return current;
+            Name = entry.Named;
+            Activity = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
+            Meter = Metered(entry);
+            Since = entry.Started.Match(at => at, () => DateTimeOffset.MinValue);
+            IsTiming = entry.Outcome.IsNone && entry.Started.IsSome;
+            var trail = entry.Trail.AsEnumerable().Reverse().ToList();
+            Trail = Trail.SequenceEqual(trail) ? Trail : trail;
         }
 
-        foreach (var agent in next.OfType<SubagentViewModel>())
+        Note = branch.State switch
         {
-            agent.IsOpen = current.Any(shown => shown.Name == agent.Name && shown.IsOpen);
-        }
-
-        return next;
+            SubagentState.Waiting => branch.Asks.Match(target => $"asks: {target}", () => "waits for you"),
+            SubagentState.Lost => "its work was lost when its turn or session ended",
+            SubagentState.Failed => "it failed",
+            SubagentState.Stopped when branch.Tool.Match(tool => tool.Denied, () => false) => "it was denied before it ran",
+            _ => string.Empty,
+        };
     }
-
-    private static (string Name, SubagentState State, string Activity, string Meter, int Trail) Seen(ISubagentViewModel subagent) => (subagent.Name, subagent.State, subagent.Activity, subagent.Meter, subagent.Trail.Count);
 
     private static string Metered(ToolEntry entry) =>
         string.Join(

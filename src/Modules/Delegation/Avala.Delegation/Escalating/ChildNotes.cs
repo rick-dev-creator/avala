@@ -40,10 +40,13 @@ internal static class ChildNotes
             ["job"] = Job(child),
             ["outcome"] = "asking",
             ["status"] = "running",
+            ["state"] = "waiting",
+            ["kind"] = "crossHarness",
             ["asks"] = asking,
-            ["note"] = $"Your sub-agent \"{Title(child)}\" is still running and waits for your decision before it can go on. Answer with answer_child: allow it only if you would be allowed to do it yourself, deny it with an optional message saying what to do instead, or pass it to a person. Then call wait_child with this child to keep waiting for its report. Without your answer within {Seconds(escalation.Window)} seconds it goes to a person.",
+            ["note"] = $"Your sub-agent \"{Title(child)}\" is still running and waits for your decision before it can go on. Answer with answer_child: allow it only if you would be allowed to do it yourself, deny it with an optional message saying what to do instead, or pass it to a person. Then call wait_child with this child to keep waiting for its report, or stop_child to stop it instead. Without your answer within {Seconds(escalation.Window)} seconds it goes to a person.",
             ["answer_child"] = new JsonObject { ["child"] = Job(child), ["request"] = request.Value, ["decision"] = "allow" },
             ["wait_child"] = new JsonObject { ["child"] = Job(child) },
+            ["stop_child"] = new JsonObject { ["child"] = Job(child) },
         };
 
         foreach (var asked in form.Match<AgentForm[]>(found => [found], () => []))

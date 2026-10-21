@@ -14,6 +14,8 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
 
     public Option<AgentAccount> Account => inner.Account;
 
+    public IReadOnlyList<string> OwnFolders => inner.OwnFolders;
+
     public IAsyncEnumerable<IAgentEvent> Events => RecordAsync(CancellationToken.None);
 
     public ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>

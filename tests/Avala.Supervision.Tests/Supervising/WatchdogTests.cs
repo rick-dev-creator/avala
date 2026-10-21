@@ -48,7 +48,8 @@ public sealed class WatchdogTests
     [InlineData("permission")]
     [InlineData("form")]
     [InlineData("call")]
-    public async Task WaitingForAPermissionAFormOrAToolCallToBeAnsweredIsNeverSilenceAsync(string waitingFor)
+    [InlineData("background")]
+    public async Task WaitingForAPermissionAFormAToolCallOrWorkInTheBackgroundIsNeverSilenceAsync(string waitingFor)
     {
         await using var supervised = new Supervised();
         await supervised.RunningAsync();
@@ -58,6 +59,7 @@ public sealed class WatchdogTests
         {
             "form" => new FormRequested(supervised.Session, supervised.Turn, item, question),
             "call" => new ToolCalled(supervised.Session, supervised.Turn, item, "delegate", "{}"),
+            "background" => new ItemBackgrounded(supervised.Session, supervised.Turn, item),
             _ => new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"),
         });
 
@@ -68,6 +70,7 @@ public sealed class WatchdogTests
         {
             "form" => new FormAnswered(supervised.Session, supervised.Turn, item, new FormAnswer(item, [new FieldAnswer("go") { Confirmed = true }])),
             "call" => new ToolReturned(supervised.Session, supervised.Turn, item, new ToolResult(item, "Done")),
+            "background" => new ItemCompleted(supervised.Session, supervised.Turn, item, ItemOutcome.Succeeded),
             _ => new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow),
         });
         await supervised.AdvanceAsync(Window);

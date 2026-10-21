@@ -34,7 +34,7 @@ internal sealed class Desk : IAsyncDisposable
         var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionRouter([Selector]));
         reporter = new ChildReporter(
             Jobs,
-            new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, [Budgets])),
+            new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, Usage, [Budgets])),
             journal,
             NullLogger<ChildReporter>.Instance);
         desk = new DelegationDesk(new Delegator(policy, Jobs, journal, Terms), reporter, Jobs, Book);
@@ -43,6 +43,7 @@ internal sealed class Desk : IAsyncDisposable
         Briefing = new OwedReports(Book, journal);
         Notes = new ParentNotes(journal, Jobs, Answers, Clock);
         Waits = new ChildWaits(reporter, journal, Audit, Answers);
+        Stops = new ChildStops(reporter, journal, Audit);
         Parent = Jobs.Running();
     }
 
@@ -56,6 +57,8 @@ internal sealed class Desk : IAsyncDisposable
     public ParentNotes Notes { get; }
 
     public ChildWaits Waits { get; }
+
+    public ChildStops Stops { get; }
 
     public DeferredParents Parents { get; }
 
@@ -144,16 +147,35 @@ internal sealed class Desk : IAsyncDisposable
         }
     }
 
+    public async Task FinishTurnAsync(JobId child)
+    {
+        var session = SessionId.New();
+        await desk.HandleAsync(new JobSessionStarted(child, session), Cancellation);
+        await desk.HandleAsync(new AgentActivity(new TurnCompleted(session, TurnId.New(), TurnOutcome.Finished)), Cancellation);
+    }
+
     public async Task ProgressAsync(JobId job, JobStatus status) => await desk.HandleAsync(new JobProgressed(job, status), Cancellation);
+
+    public async Task WentOnAsync(ChildWentOn wentOn) => await desk.HandleAsync(wentOn, Cancellation);
 
     public async Task HeldAsync(JobId job, HoldReason reason) =>
         await desk.HandleAsync(new JobHeld(new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted)), Cancellation);
+
+    public async Task HeldMidAttemptAsync(JobId child, HoldReason reason)
+    {
+        Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        await ProgressAsync(child, JobStatus.NeedsHelp);
+        await HeldAsync(child, reason);
+    }
 
     public async Task<DelegationRecord> ReportedAsync(JobId child) =>
         (await Bus.WaitForAsync<ChildReported>(reported => reported.Delegation.Child == Option<JobId>.Some(child), Cancellation)).Delegation;
 
     public async Task WaitChildAsync(string item, JobId child) =>
         await Waits.HandleAsync(new AgentActivity(new ToolCalled(Session, Turn, new ItemId(item), WaitChildTool.Name, $$"""{ "child": "{{child.Value}}" }""")), Cancellation);
+
+    public async Task StopChildAsync(string item, JobId child) =>
+        await Stops.HandleAsync(new AgentActivity(new ToolCalled(Session, Turn, new ItemId(item), StopChildTool.Name, $$"""{ "child": "{{child.Value}}" }""")), Cancellation);
 
     public async ValueTask DisposeAsync()
     {

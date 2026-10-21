@@ -31,7 +31,7 @@ internal sealed class Watched : IAsyncDisposable
         Connections.Declared.AddRange([new DeclaredConnection(Work, Agent.Id, Option<string>.None), new DeclaredConnection(Personal, Agent.Id, Option<string>.None)]);
         Book = new HandoffBook(Store, new JobSpending(Usage, Usage), Connections, Bus);
         Briefs = new BriefGatherer(Worktrees, Audit, Audit, new JobNotes(Audit));
-        Situations = new Situations(new JobPlaces(Catalog, Worktrees, Rules), new ConnectionReadings(Connections, Usage), Clock);
+        Situations = new Situations(new JobPlaces(Catalog, Worktrees, Rules, []), new ConnectionReadings(Connections, Usage), Clock);
         Watch = new LimitWatch(
             Situations,
             new LimitActions(Jobs, Briefs, Book, Bus),

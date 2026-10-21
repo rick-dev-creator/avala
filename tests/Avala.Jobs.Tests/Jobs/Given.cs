@@ -80,5 +80,5 @@ internal static class Given
 
     private static void Discard(Job job) => Outcomes.Succeeds(job.Discard(Ended));
 
-    private static void Fail(Job job) => Outcomes.Succeeds(job.Fail(FailureReason.AgentFailed, Ended));
+    private static void Fail(Job job) => Outcomes.Succeeds(job.Fail(JobFailure.AgentFailed, Ended));
 }

@@ -15,9 +15,16 @@ internal sealed record Notes(IReadOnlyList<PlanStep> Plan, Option<string> LastMe
 
     public Option<ItemId> Speaking { get; init; }
 
+    public ImmutableList<string> Queued { get; init; } = [];
+
+    public ImmutableList<string> Unanswered { get; init; } = [];
+
     public Notes Apply(IAgentEvent activity) => activity switch
     {
         PlanUpdated plan => this with { Plan = plan.Steps },
+        TurnStarted => this with { Queued = [] },
+        MessageQueued queued => this with { Queued = Queued.Add(queued.Text) },
+        TurnCompleted completed => this with { Unanswered = completed.Outcome == TurnOutcome.Finished ? [] : Queued, Queued = [] },
         ItemStarted { Kind: ItemKind.Message } started => this with { Speaking = started.Item, LastMessage = string.Empty },
         ItemProgressed progressed when Speaking == Option<ItemId>.Some(progressed.Item) =>
             this with { LastMessage = LastMessage.Match(text => text + progressed.Text, () => progressed.Text) },

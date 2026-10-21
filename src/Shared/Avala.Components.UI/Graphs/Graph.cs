@@ -78,7 +78,7 @@ public sealed class Graph
 
     private static void Invalidate(Control control, bool layout)
     {
-        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or TreeGraphPanel or ShareBar or C4GraphPanel))
+        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or TreeGraphPanel or AgentTreePanel or ShareBar or C4GraphPanel))
         {
             if (layout)
             {
@@ -99,6 +99,7 @@ internal sealed class EdgePens(Panel panel)
         EdgeKind.Flowing => new Pen(EdgeBrushes.GetFlowing(panel), Thickness, new DashStyle([4 / Thickness, 6 / Thickness], EdgeBrushes.GetPhase(panel) / Thickness)),
         EdgeKind.Attention => new Pen(EdgeBrushes.GetAttention(panel), Thickness),
         EdgeKind.Waiting => new Pen(EdgeBrushes.GetWaiting(panel), Thickness, new DashStyle([2 / Thickness, 4 / Thickness], 0)),
+        EdgeKind.Failure => new Pen(EdgeBrushes.GetFailure(panel), Thickness),
         _ => new Pen(EdgeBrushes.GetQuiet(panel), Thickness),
     };
 }

@@ -1,13 +1,16 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
 using Avala.Delegation.Escalating;
+using Avala.Delegation.Listing;
 using Avala.Delegation.MachineFiles;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
 using Avala.Delegation.RepositoryFiles;
 using Avala.Delegation.Resuming;
 using Avala.Delegation.Storage;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -28,9 +31,13 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton(DelegationTool.Definition)
             .AddSingleton(AnswerChildTool.Definition)
             .AddSingleton(WaitChildTool.Definition)
+            .AddSingleton(StopChildTool.Definition)
+            .AddSingleton(SubagentsTool.Definition)
             .AddSingleton<IMachineDelegation, MachineDelegation>()
             .AddSingleton<DelegationRulesReader>()
             .AddForwarded<IDelegationRules, DelegationRulesReader>()
+            .AddSingleton<IHarnessToolGate, DelegationOffer>()
+            .AddSingleton<IHandoffTerms, ChildHandoffs>()
             .AddForwarded<IRoleSettings, DelegationRulesReader>()
             .AddSingleton<SqliteDelegationStore>()
             .AddForwarded<IDelegationStore, SqliteDelegationStore>()
@@ -52,6 +59,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, DelegationDesk>()
             .AddForwarded<IHandle<JobHeld>, DelegationDesk>()
             .AddForwarded<IHandle<StartupCompleted>, DelegationDesk>()
+            .AddForwarded<IHandle<ChildWentOn>, DelegationDesk>()
             .AddSingleton<ParentResumption>()
             .AddSingleton<DeferredParents>()
             .AddForwarded<IRecoveryDeferral, DeferredParents>()
@@ -66,6 +74,13 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<ChildAnswers>()
             .AddForwarded<IHandle<AgentActivity>, ChildAnswers>()
             .AddSingleton<ChildWaits>()
-            .AddForwarded<IHandle<AgentActivity>, ChildWaits>();
+            .AddForwarded<IHandle<AgentActivity>, ChildWaits>()
+            .AddSingleton<ChildStops>()
+            .AddForwarded<IHandle<AgentActivity>, ChildStops>()
+            .AddSingleton<ChildRoster>()
+            .AddSingleton<SubagentDesk>()
+            .AddForwarded<IHandle<JobSessionStarted>, SubagentDesk>()
+            .AddForwarded<IHandle<AgentActivity>, SubagentDesk>()
+            .AddForwarded<IHandle<SessionEnded>, SubagentDesk>();
     }
 }

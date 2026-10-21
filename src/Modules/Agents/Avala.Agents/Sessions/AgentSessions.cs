@@ -29,7 +29,7 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree, Capabilities = started.Capabilities },
+            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree, Capabilities = started.Capabilities, OwnFolders = session.OwnFolders },
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Capabilities, PumpAsync));
 
@@ -37,6 +37,8 @@ internal sealed partial class AgentSessions(
     }
 
     public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;
+
+    public bool IsWorking(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended && running.InTurn;
 
     public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
         SayAsync(session, new UserTurn(message), cancellationToken);
@@ -89,28 +91,31 @@ internal sealed partial class AgentSessions(
         : !running.Capabilities.Has<ControlsRemotely>() ? AgentError.NotRemoteControllable
         : await running.Session.ControlRemotelyAsync(on, cancellationToken);
 
-    public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
+    public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
+        StopAsync(session, closesItsTurn: true, cancellationToken);
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        foreach (var session in Volatile.Read(ref live).Keys)
+        {
+            await StopAsync(session, closesItsTurn: false, cancellationToken);
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
+
+    private async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, bool closesItsTurn, CancellationToken cancellationToken)
     {
         if (!ImmutableInterlocked.TryRemove(ref live, session, out var running))
         {
             return AgentError.SessionClosed;
         }
 
-        await running.DisposeAsync();
+        await (closesItsTurn ? running.StopAsync() : running.DisposeAsync());
         await bus.PublishAsync(new SessionStopped(session), cancellationToken);
 
         return session;
     }
-
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        foreach (var session in Volatile.Read(ref live).Keys)
-        {
-            await StopAsync(session, cancellationToken);
-        }
-    }
-
-    public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
 
     private async Task<Result<TurnId, AgentError>> ConfirmedAsync(LiveSession running, CancellationToken cancellationToken)
     {
@@ -131,6 +136,7 @@ internal sealed partial class AgentSessions(
         var session = running.Session;
         Turn? turn = null;
         var ending = SessionEnding.Closed;
+        using var scope = logger.BeginScope(new Dictionary<string, object?> { ["Session"] = session.Id.Value });
 
         try
         {
@@ -157,6 +163,8 @@ internal sealed partial class AgentSessions(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            await CloseStoppedAsync(turn, running);
+
             return;
         }
         catch (Exception exception)
@@ -167,6 +175,8 @@ internal sealed partial class AgentSessions(
 
         if (cancellationToken.IsCancellationRequested)
         {
+            await CloseStoppedAsync(turn, running);
+
             return;
         }
 
@@ -176,6 +186,25 @@ internal sealed partial class AgentSessions(
         {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
             await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), running, Option<UsageLimit>.None, CancellationToken.None);
+        }
+    }
+
+    private async Task CloseStoppedAsync(Turn? turn, LiveSession running)
+    {
+        if (!running.ClosesItsTurn || turn is not { IsLive: true })
+        {
+            return;
+        }
+
+        var stopped = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Interrupted);
+
+        if (turn.Apply(stopped, clock.GetUtcNow()).TryGetValue(out var progress, out _))
+        {
+            foreach (var forwarded in progress.Events)
+            {
+                running.Track(forwarded);
+                await bus.PublishAsync(new AgentActivity(forwarded), CancellationToken.None);
+            }
         }
     }
 
@@ -206,6 +235,9 @@ internal sealed partial class AgentSessions(
                             Limit = completed.Outcome == TurnOutcome.LimitReached ? limit : Option<UsageLimit>.None,
                         },
                         cancellationToken);
+                    break;
+                case TurnStarted { Woken: true } woken:
+                    await bus.PublishAsync(new TurnWoken(woken.Session, woken.Turn), cancellationToken);
                     break;
                 case RemoteMessageArrived arrived:
                     await bus.PublishAsync(new RemoteMessageReceived(arrived.Session, arrived.Turn, arrived.Text) { BeganTurn = arrived.BeganTurn }, cancellationToken);

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.WaitingAgentView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IWaitingAgentViewModel">
+  <Design.DataContext>
+    <overview:DesignWaitingAgentViewModel />
+  </Design.DataContext>
+  <Button x:Name="Open"
+          Classes="bare"
+          HorizontalAlignment="Stretch"
+          HorizontalContentAlignment="Stretch"
+          Padding="8,6"
+          AutomationProperties.Name="{Binding Name, StringFormat='Open {0}'}"
+          Command="{Binding OpenCommand}"
+          CommandParameter="{Binding Job}">
+    <StackPanel Spacing="1">
+      <TextBlock x:Name="AgentName" Classes="medium" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="What" Classes="caption" Text="{Binding What}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+  </Button>
+</UserControl>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Policy;
@@ -17,6 +18,8 @@ internal sealed record DelegationInput(string Instruction, Option<Autonomy> Auto
 
     public Option<ChildRole> Role { get; init; }
 
+    public Option<ConnectionName> Connection { get; init; }
+
     public static Result<DelegationInput, DelegationError> Parse(string input)
     {
         try
@@ -25,7 +28,7 @@ internal sealed record DelegationInput(string Instruction, Option<Autonomy> Auto
             var root = document.RootElement;
 
             if (root.ValueKind != JsonValueKind.Object
-                || root.EnumerateObject().Any(field => field.Name is not ("instruction" or "autonomy" or "model" or "effort" or "role"))
+                || root.EnumerateObject().Any(field => field.Name is not ("instruction" or "autonomy" or "model" or "effort" or "role" or "connection"))
                 || !root.TryGetProperty("instruction", out var given)
                 || given.ValueKind != JsonValueKind.String
                 || given.GetString() is not { Length: > 0 and <= LongestInstruction } instruction
@@ -34,8 +37,13 @@ internal sealed record DelegationInput(string Instruction, Option<Autonomy> Auto
                 return DelegationError.MalformedInput;
             }
 
-            return AutonomyIn(root).Bind(autonomy => Named(root, "model").Bind(model => Named(root, "effort").Bind(effort => RoleIn(root)
-                .Map(role => new DelegationInput(instruction.Trim(), autonomy) { Model = new ModelChoice(model, effort), Role = role }))));
+            return AutonomyIn(root).Bind(autonomy => Named(root, "model").Bind(model => Named(root, "effort").Bind(effort => Named(root, "connection").Bind(connection => RoleIn(root)
+                .Map(role => new DelegationInput(instruction.Trim(), autonomy)
+                {
+                    Model = new ModelChoice(model, effort),
+                    Role = role,
+                    Connection = connection.Map(name => new ConnectionName(name)),
+                })))));
         }
         catch (JsonException)
         {

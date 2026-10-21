@@ -11,8 +11,8 @@ internal static class DelegationPhrases
 
     public static string Caption(IReadOnlyList<Overview.OrchestrationViewModel> shown)
     {
-        var working = shown.Sum(tree => tree.Children.Count(child => !child.IsSettled));
-        var needing = shown.Sum(tree => tree.Children.Count(child => child.NeedsYou));
+        var working = shown.Sum(tree => tree.AtWork);
+        var needing = shown.Sum(tree => tree.Needing);
 
         return string.Join(" · ", new[]
         {
@@ -51,6 +51,7 @@ internal static class DelegationPhrases
         ChildOutcome.RetriesExhausted => "retries ran out",
         ChildOutcome.Failed => "failed",
         ChildOutcome.Reported => "reported its findings",
+        ChildOutcome.GivenUp => "given up after its retries",
         _ => "discarded",
     };
 
@@ -66,6 +67,7 @@ internal static class DelegationPhrases
         DelegationError.UnofferedEffort => "its connection does not offer the effort it asked for",
         DelegationError.MalformedInput => "the call was malformed",
         DelegationError.NoJob => "the caller is not a job",
+        DelegationError.UndeclaredConnection => "it asked for a connection its delegation section does not declare",
         _ => "the delegation rules cannot be read",
     };
 }

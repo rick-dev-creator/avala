@@ -97,27 +97,6 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
             async () => _ = await answers.PassAsync(question.Session, question.Item, PassReason.ParentUnreachable, cancellationToken));
     }
 
-    private async Task<bool> InCallAsync(JobId child, CallRef call, ToolResult asking, CancellationToken cancellationToken)
-    {
-        journal.Calls.Expect(child);
-
-        if (!await journal.ReturnAsync(call, asking, cancellationToken))
-        {
-            return false;
-        }
-
-        foreach (var (sibling, waiting) in journal.Calls.TakeAll(call.Session))
-        {
-            foreach (var record in journal.OfChild(sibling).Match<DelegationRecord[]>(found => [found], () => []))
-            {
-                journal.Calls.Expect(sibling);
-                _ = await journal.ReturnAsync(waiting, ToolAnswers.Running(waiting.Item, record), cancellationToken);
-            }
-        }
-
-        return true;
-    }
-
     private Task<Option<ParentAsked>> TellAsync(DelegationRecord child, ChildQuestion question, CancellationToken cancellationToken) =>
         child.Parent.Bind(parent => child.Escalation.Map(escalation => (Parent: parent, Escalation: escalation))).Match(
             async found =>
@@ -126,7 +105,7 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
                 var asked = new ParentAsked(child, question.Session, question.Item, question.Asking, until);
 
                 if (await child.Child.Bind(journal.Calls.Take).Match(
-                    call => InCallAsync(child.Child.Match(job => job, () => default), call, question.Result(child, found.Escalation), cancellationToken),
+                    call => journal.ReturnEarlyAsync(child.Child.Match(job => job, () => default), call, question.Result(child, found.Escalation), cancellationToken),
                     () => Task.FromResult(false)))
                 {
                     return asked with { InCall = true };

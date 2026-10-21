@@ -77,6 +77,19 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildRunsOnTheDeclaredConnectionItsParentNamedWithoutRoutingAsync()
+    {
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Routing = Routing.Capacity }));
+        desk.Selector.Chosen = new ConnectionName("work");
+        await desk.StartedAsync();
+
+        await desk.CallAsync("call", """{ "instruction": "Write the notes", "connection": "personal" }""");
+
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("personal")), Assert.Single(desk.Jobs.Submitted).Connection);
+        Assert.Empty(desk.Selector.Questions);
+    }
+
+    [Fact]
     public async Task AChildOfASectionThatListsNoConnectionsNamesNoneAndItsReportGivesTheConnectionItRanOnAsync()
     {
         await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Connections = [] }));
@@ -143,6 +156,44 @@ public sealed class DelegationDeskTests
         Assert.False(Assert.Single(desk.Agents.Results).Result.IsError);
     }
 
+    [Fact]
+    public async Task AChildThatWokeBeforeItsIntegrationIsNotReportedAndIsIntegratedOnceItIsBackInReviewAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Approval = JobRejection.NotAwaitingReview;
+
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var wentOn = await desk.Bus.WaitForAsync<ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
+        desk.Jobs.Approval = new ApprovalDelivery("merge", "avala/parent", "c0ffee");
+        await desk.WentOnAsync(wentOn);
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+
+        var reports = desk.Bus.Published.OfType<ChildReported>().Where(reported => reported.Delegation.Child == Option<JobId>.Some(child)).ToList();
+        Assert.Equal(ChildOutcome.Integrated, Outcomes.Present((await desk.ReportedAsync(child)).Report).Outcome);
+        Assert.DoesNotContain(reports, reported => reported.Delegation.Report.Match(report => report.Outcome == ChildOutcome.NotIntegrated, () => false));
+    }
+
+    [Fact]
+    public async Task AChildThatWokeBeforeItsIntegrationStillReportsWhatItRepliedOnceIntegratedAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.ReplyAsync(child, "Wrote ", "NOTES.md.");
+        desk.Jobs.Approval = JobRejection.NotAwaitingReview;
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var wentOn = await desk.Bus.WaitForAsync<ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
+        desk.Jobs.Approval = new ApprovalDelivery("merge", "avala/parent", "c0ffee");
+        await desk.WentOnAsync(wentOn);
+
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((ChildOutcome.Integrated, Option<string>.Some("Wrote NOTES.md.")), (report.Outcome, report.Summary));
+    }
+
     [Theory]
     [InlineData("held", "Held")]
     [InlineData("out of retries", "RetriesExhausted")]
@@ -161,6 +212,124 @@ public sealed class DelegationDeskTests
         Assert.Equal(Enum.Parse<ChildOutcome>(expected), report.Outcome);
         Assert.Equal(situation == "held" ? Option<HoldReason>.Some(HoldReason.BudgetExceeded) : Option<HoldReason>.None, report.Hold);
         Assert.Single(desk.Agents.Results);
+    }
+
+    [Fact]
+    public async Task AChildWhoseTurnFailedIsContinuedWithItsFailureAsFeedbackUpToTwiceAndItsParentIsToldOfEachRetryAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        Assert.Equal([child, child], desk.Jobs.Continued.Select(continued => continued.Job));
+        Assert.All(desk.Jobs.Continued, continued => Assert.Contains("Your last turn failed", continued.Message, StringComparison.Ordinal));
+        Assert.Equal([desk.Parent, desk.Parent], desk.Jobs.Steered.Select(steered => steered.Job));
+        Assert.Contains("retrying 1 of 2 after its turn failed", desk.Jobs.Steered[0].Message, StringComparison.Ordinal);
+        Assert.Contains("retrying 2 of 2 after its turn failed", desk.Jobs.Steered[1].Message, StringComparison.Ordinal);
+        Assert.Empty(desk.Agents.Results);
+    }
+
+    [Fact]
+    public async Task AChildStillHeldAfterItsTwoRetriesIsGivenUpDiscardedAndReportedStoppedWithHowOftenItWasRetriedAndWhyAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((ChildOutcome.GivenUp, JobStatus.Discarded, 2, Option<HoldReason>.Some(HoldReason.TurnFailed)), (report.Outcome, report.Status, report.Retries, report.Hold));
+        Assert.Equal([child], desk.Jobs.Discarded);
+        Assert.Equal(2, desk.Jobs.Continued.Count);
+        var answer = Assert.Single(desk.Agents.Results).Result.Content;
+        Assert.Contains("\"state\":\"stopped\"", answer, StringComparison.Ordinal);
+        Assert.Contains("Avala gave it up after retrying it 2 times, and then its turn failed again", answer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AChildAvalaCouldNotContinueIsReportedAsNeverRetriedAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true, ContinueRefusal = JobRejection.AgentUnavailable } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((0, false), (report.Retries, Assert.Single(desk.Agents.Results).Result.Content.Contains("after retrying it 1 time", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task AChildGivenUpAfterHoldsOfDifferentCausesIsNotSaidToHaveFailedTheSameWayEachTimeAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        _ = await desk.ReportedAsync(child);
+        Assert.DoesNotContain("its turn failed each time", Assert.Single(desk.Agents.Results).Result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AChildThatOnlyStartsToSpeakBeforeItsSessionIsLostAgainIsStillGivenUpAfterItsRetriesAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+            await desk.ReplyAsync(child, "Picking up where I left off.");
+        }
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((2, 1, ChildOutcome.GivenUp), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count, report.Outcome));
+    }
+
+    [Fact]
+    public async Task AChildThatRecoveredAndWorkedAfterEachRetryIsRetriedAgainWhenItIsLostLaterAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        foreach (var turn in new[] { "first", "second", "third" })
+        {
+            await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+            await desk.ProgressAsync(child, JobStatus.Running);
+            await desk.ReplyAsync(child, $"Finished the {turn} part.");
+            await desk.FinishTurnAsync(child);
+        }
+
+        Assert.Equal((3, 0), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));
+    }
+
+    [Theory]
+    [InlineData(HoldReason.Stopped)]
+    [InlineData(HoldReason.Interrupted)]
+    [InlineData(HoldReason.LimitNearlyReached)]
+    [InlineData(HoldReason.BudgetExceeded)]
+    public async Task AChildHeldForAnyReasonButALostSessionOrAFailedTurnIsNotRetriedAsync(HoldReason reason)
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, reason);
+
+        Assert.Empty(desk.Jobs.Continued);
+        Assert.Empty(desk.Jobs.Discarded);
     }
 
     [Fact]
@@ -192,6 +361,7 @@ public sealed class DelegationDeskTests
     [InlineData("writer", "RoleLoosened")]
     [InlineData("unknown role", "MalformedInput")]
     [InlineData("malformed", "MalformedInput")]
+    [InlineData("undeclared connection", "UndeclaredConnection")]
     [InlineData("no job", "NoJob")]
     [InlineData("not submitted", "NotSubmitted")]
     [InlineData("unoffered model", "UnofferedModel")]
@@ -220,7 +390,8 @@ public sealed class DelegationDeskTests
         await desk.CallAsync("call", situation switch
         {
             "looser" => """{ "instruction": "Write the notes", "autonomy": "autonomous" }""",
-            "malformed" => """{ "instruction": "Write the notes", "connection": "personal" }""",
+            "malformed" => """{ "instruction": "Write the notes", "harness": "codex" }""",
+            "undeclared connection" => """{ "instruction": "Write the notes", "connection": "elsewhere" }""",
             "writer" => """{ "instruction": "Write the notes", "role": "worker" }""",
             "unknown role" => """{ "instruction": "Write the notes", "role": "editor" }""",
             _ => """{ "instruction": "Write the notes" }""",

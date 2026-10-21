@@ -272,6 +272,26 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobWhoseTurnEndsAtItsLimitContinuesOnTheOtherConnectionInTheSameWorktreeWithItsBriefAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed("""{ "limits": { "onLimit": "handoff-same-harness", "connections": ["simulator-one", "simulator-two"] } }"""));
+        var opened = run.Watch<SessionOpened>();
+        var told = run.Watch<AgentActivity>();
+        var progress = run.Watch<JobProgressed>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("account-exhausted")) { Connection = One }));
+        var sessions = await opened.CollectUntilAsync(session => session.Connection == Two);
+        var brief = await BriefAsync(told);
+        await ReviewedAsync(progress, job);
+
+        Assert.Equal([One, Two], sessions.Select(session => session.Connection));
+        Assert.Single(sessions.Select(session => session.WorkingDirectory).Distinct(StringComparer.Ordinal));
+        Assert.StartsWith("This job was handed off to you from simulator-one", brief, StringComparison.Ordinal);
+        Assert.Contains($"## The original instruction\n{SimulatedRun.Simulate("account-exhausted")}".ReplaceLineEndings(), brief, StringComparison.Ordinal);
+        Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(sessions[0].WorkingDirectory, "calculator.txt"), Cancellation));
+    }
+
+    [Fact]
     public async Task WithNoCapacityAnywhereTheJobWaitsForTheEarliestResetAndContinuesWhereItCameFirstAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", SameHarness)]);

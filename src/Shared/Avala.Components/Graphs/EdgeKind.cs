@@ -8,6 +8,7 @@ public enum EdgeKind
     Flowing,
     Attention,
     Waiting,
+    Failure,
 }
 
 public static class EdgeKinds
@@ -17,6 +18,7 @@ public static class EdgeKinds
         StatusKind.Working or StatusKind.Checking => EdgeKind.Flowing,
         StatusKind.NeedsYou => EdgeKind.Attention,
         StatusKind.Held => EdgeKind.Waiting,
+        StatusKind.Failed => EdgeKind.Failure,
         _ => EdgeKind.Quiet,
     };
 }

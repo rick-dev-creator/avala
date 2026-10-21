@@ -80,6 +80,24 @@ public sealed class ToolViewModelScripts
             .Then(tool => Assert.Equal((phrase, failed, false, "PASS"), (tool.Outcome, tool.Failed, tool.IsRunning, tool.Output)));
 
     [Fact]
+    public void AStoppedSubagentSaysItWasStoppedAsTheTreeDoesAndIsNoFailure() =>
+        ViewModelScript.Given(Tools.Of(Running() with { Kind = ItemKind.Subagent }))
+            .When(tool => tool.Update(Running() with { Kind = ItemKind.Subagent, Outcome = ItemOutcome.Cancelled }))
+            .Then(tool => Assert.Equal(("stopped", false, true), (tool.Outcome, tool.Failed, tool.ShowsOutcome)));
+
+    [Fact]
+    public void ASubagentWhoseLaunchWasDeniedSaysItWasDeniedNotStopped() =>
+        ViewModelScript.Given(Tools.Of(Running() with { Kind = ItemKind.Subagent }))
+            .When(tool => tool.Update(Running() with { Kind = ItemKind.Subagent, Outcome = ItemOutcome.Cancelled, Denied = true }))
+            .Then(tool => Assert.Equal(("denied", false), (tool.Outcome, tool.Failed)));
+
+    [Fact]
+    public void ALostSubagentSaysItWasLostAsTheTreeDoes() =>
+        ViewModelScript.Given(Tools.Of(Running() with { Kind = ItemKind.Subagent }))
+            .When(tool => tool.Update(Running() with { Kind = ItemKind.Subagent, Outcome = ItemOutcome.Abandoned }))
+            .Then(tool => Assert.Equal(("lost", true), (tool.Outcome, tool.Failed)));
+
+    [Fact]
     public void ADeniedToolSaysItWasDeniedAndIsNoFailure() =>
         ViewModelScript.Given(Tools.Of(Running()))
             .When(tool => tool.Update(Running() with { Outcome = ItemOutcome.Cancelled, Denied = true }))

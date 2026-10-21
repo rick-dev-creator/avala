@@ -28,6 +28,8 @@ internal sealed class OpenCalls
 
     public void Expect(JobId child) => ImmutableInterlocked.Update(ref expected, waiting => waiting.Add(child));
 
+    public bool IsOpen(JobId child) => Volatile.Read(ref open).ContainsKey(child);
+
     public bool Expects(JobId child) => Volatile.Read(ref expected).Contains(child);
 
     public Option<CallRef> Take(JobId child) => ImmutableInterlocked.TryRemove(ref open, child, out var call) ? call : Option<CallRef>.None;

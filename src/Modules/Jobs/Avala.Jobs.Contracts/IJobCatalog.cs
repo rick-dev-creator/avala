@@ -26,6 +26,7 @@ public enum AttemptOrigin
     Handoff,
     Reopen,
     Device,
+    Woken,
 }
 
 public enum AttemptOutcome
@@ -35,6 +36,15 @@ public enum AttemptOutcome
     Passed,
     Rejected,
     Interrupted,
+}
+
+public enum JobFailure
+{
+    WorkspaceUnavailable,
+    AgentUnavailable,
+    ConnectionUnavailable,
+    ModelUnavailable,
+    AgentFailed,
 }
 
 public sealed record JobSummary(
@@ -54,6 +64,8 @@ public sealed record JobSummary(
     public Option<HoldReason> Hold { get; init; }
 
     public Option<string> Problem { get; init; }
+
+    public Option<JobFailure> Failure { get; init; }
 
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 

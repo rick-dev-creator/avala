@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Text.Json;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
@@ -26,18 +25,20 @@ internal sealed record Transcript
 
     private ImmutableDictionary<int, HandoffRecord> Handoffs { get; init; } = ImmutableDictionary<int, HandoffRecord>.Empty;
 
+    private ImmutableList<string> StoppedInBackground { get; init; } = [];
+
     public IEnumerable<ITimelineEntry> Awaiting =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or FormEntry { AwaitsHuman: true });
 
     public IEnumerable<ITimelineEntry> Pending =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or PermissionEntry { AwaitsParent: true } or FormEntry { AwaitsHuman: true } or FormEntry { AwaitsParent: true });
 
-    public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note)
+    public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note, Option<string> harness)
     {
         var told = Entries.OfType<InterjectionEntry>().LastOrDefault(entry => entry.Text == note);
         var key = told is null ? EntryKeys.ChildAsking(session, item) : told.Key;
 
-        return Put(new ChildAskingEntry(key, session, item, child, asking));
+        return Put(new ChildAskingEntry(key, session, item, child, asking) { Harness = harness });
     }
 
     public Transcript ChildDecided(SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change) =>
@@ -84,7 +85,7 @@ internal sealed record Transcript
     }
 
     public Transcript WithRestart(bool kept) =>
-        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart, kept));
+        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : (this with { StoppedInBackground = [] }).Add(new RestartEntry(EntryKeys.Restart, kept) { Lost = StoppedInBackground });
 
     public Transcript WithCi(Option<PullRequestWatchState> watch, IReadOnlyList<WakeUpRecord> wakeUps) =>
         watch.Bind(found => found.Last).Match(observed => WithCi(observed, wakeUps), () => this);
@@ -113,7 +114,7 @@ internal sealed record Transcript
     public Transcript KeptIn(int attempt, ITimelineEntry entry) =>
         Positions.ContainsKey(entry.Key) || !Positions.TryGetValue(EntryKeys.Attempt(attempt + 1), out var next) ? Kept(entry) : Inserted(next, entry);
 
-    public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
+    public Transcript WithEarlierRestart(int number) => (this with { StoppedInBackground = [] }).Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true) { Lost = StoppedInBackground });
 
     public Transcript Stopped(DateTimeOffset at) =>
         Entries.Aggregate(this with { LiveSince = Option<DateTimeOffset>.None }, (transcript, entry) => entry switch
@@ -122,6 +123,7 @@ internal sealed record Transcript
             FormEntry { Closed: false } form => transcript.Put(form with { Closed = true }),
             MessageEntry { Outcome.IsNone: true } message => transcript.Put(message with { Outcome = ItemOutcome.Abandoned }),
             ReasoningEntry { Outcome.IsNone: true } reasoning => transcript.Put(reasoning with { Outcome = ItemOutcome.Abandoned, Duration = at - reasoning.Started }),
+            ToolEntry { Outcome.IsNone: true, Backgrounded: true } tool => (transcript with { StoppedInBackground = transcript.StoppedInBackground.Add(tool.Named) }).Put(tool with { Outcome = ItemOutcome.Abandoned }),
             ToolEntry { Outcome.IsNone: true } tool => transcript.Put(tool with { Outcome = ItemOutcome.Abandoned }),
             CanvasEntry { Status: CanvasStatus.Streaming } canvas => transcript.Put(canvas with { Status = CanvasStatus.Abandoned }),
             _ => transcript,
@@ -135,7 +137,8 @@ internal sealed record Transcript
         ItemTokensReported reported => Change(EntryKeys.Item(reported.Turn, reported.Item), entry => entry is ToolEntry tool ? tool with { Tokens = reported.Tokens } : entry),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
-        ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
+        ItemBackgrounded backgrounded => Backgrounded(backgrounded),
+        ItemCompleted completed => Concluded(completed, now),
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
         RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
@@ -183,27 +186,13 @@ internal sealed record Transcript
 
     private ToolEntry Waiting(ToolEntry call)
     {
-        var child = call.Title == WaitChildInput.Tool ? call.Input.Bind(Waited) : Option<JobId>.None;
+        var child = ChildWaits.Of(call);
 
         return call with
         {
             WaitsFor = child,
             Awaited = Entries.OfType<ToolEntry>().Select(entry => entry.Delegation).Where(delegation => delegation.Match(found => child.IsSome && found.Child == child, () => false)).DefaultIfEmpty().Last(),
         };
-    }
-
-    private static Option<JobId> Waited(string input)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize<WaitChildInput>(input, JsonSerializerOptions.Web) is { Child: { } child } && Guid.TryParse(child, out var job)
-                ? new JobId(job)
-                : Option<JobId>.None;
-        }
-        catch (JsonException)
-        {
-            return Option<JobId>.None;
-        }
     }
 
     private Transcript Refused(TurnId turn, ItemId item) =>
@@ -237,7 +226,29 @@ internal sealed record Transcript
     }
 
     private Transcript Stepped(ItemStarted started, ItemId parent) =>
-        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title) } : entry);
+        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title), Children = tool.Children.Add(started.Item), ChildTitles = tool.ChildTitles.SetItem(started.Item, started.Title) } : entry);
+
+    private Transcript Backgrounded(ItemBackgrounded backgrounded) =>
+        Change(EntryKeys.Item(backgrounded.Turn, backgrounded.Item), entry => entry is ToolEntry tool ? tool with { Backgrounded = true } : entry)
+            .OfParent(backgrounded.Item, parent => parent.Background.Any(step => step.Item == backgrounded.Item)
+                ? parent
+                : parent with { Background = parent.Background.Add(new BackgroundStep(backgrounded.Item, parent.ChildTitles.GetValueOrDefault(backgrounded.Item, string.Empty), Option<ItemOutcome>.None)) });
+
+    private Transcript Concluded(ItemCompleted completed, DateTimeOffset now) =>
+        LostWith(completed).Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now))
+            .OfParent(completed.Item, parent => parent with { Background = [.. parent.Background.Select(step => step.Item == completed.Item ? step with { Outcome = completed.Outcome } : step)] });
+
+    private Transcript OfParent(ItemId child, Func<ToolEntry, ToolEntry> change) =>
+        Entries.OfType<ToolEntry>().LastOrDefault(tool => tool.Children.Contains(child)) is { } parent
+            ? Change(parent.Key, entry => entry is ToolEntry tool ? change(tool) : entry)
+            : this;
+
+    private Transcript LostWith(ItemCompleted completed) =>
+        Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(
+            entry => completed.Outcome == ItemOutcome.Abandoned && entry is ToolEntry { Backgrounded: true, Outcome.IsNone: true } tool
+                ? Tally(completed.Turn, tally => tally with { Lost = tally.Lost.Add(tool.Named) })
+                : this,
+            () => this);
 
     private static ImmutableList<string> Trailed(ImmutableList<string> trail, string title) =>
         trail.Count < TrailKept ? trail.Add(title) : trail.RemoveAt(0).Add(title);
@@ -288,6 +299,7 @@ internal sealed record Transcript
         return (closed with { LiveSince = Option<DateTimeOffset>.None, QuietSince = now }).Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs)
         {
             Model = Ran.Map(reported => reported.Model),
+            Lost = tally.Lost,
         });
     }
 
@@ -318,6 +330,8 @@ internal sealed record Transcript
 
     private sealed record TurnTally(DateTimeOffset Started, TokenUsage Tokens, ImmutableList<Cost> Costs)
     {
+        public ImmutableList<string> Lost { get; init; } = [];
+
         public TurnTally Add(TokenUsage tokens, Option<Cost> cost) =>
             this with
             {

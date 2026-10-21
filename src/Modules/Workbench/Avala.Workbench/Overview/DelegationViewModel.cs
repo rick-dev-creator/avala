@@ -100,7 +100,17 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
 
     public void Deactivate() => feed.Stop();
 
-    public void Dispose() => feed.Dispose();
+    public void Dispose()
+    {
+        feed.Dispose();
+
+        foreach (var orchestration in known.Values)
+        {
+            orchestration.Dispose();
+        }
+
+        known.Clear();
+    }
 
     partial void OnRepositoryChanged(string value) => Filter();
 
@@ -143,8 +153,16 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
             }
             else
             {
-                known[tree.Root.Job] = new OrchestrationViewModel(tree, OpenCommand, actions);
+                known[tree.Root.Job] = new OrchestrationViewModel(tree, OpenCommand, actions, feed.Refresh);
             }
+        }
+
+        var present = state.Trees.Select(tree => tree.Root.Job).ToHashSet();
+
+        foreach (var gone in known.Keys.Where(root => !present.Contains(root)).ToList())
+        {
+            known[gone].Dispose();
+            known.Remove(gone);
         }
 
         var all = state.Trees.Select(tree => known[tree.Root.Job]).ToList();

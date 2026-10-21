@@ -4,7 +4,10 @@ using Avala.Sdk;
 
 namespace Avala.Agents.Contracts.Events;
 
-public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent;
+public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent
+{
+    public bool Woken { get; init; }
+}
 
 public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title) : IAgentEvent
 {
@@ -20,6 +23,8 @@ public sealed record CanvasStarted(SessionId Session, TurnId Turn, ItemId Item, 
 public sealed record ItemProgressed(SessionId Session, TurnId Turn, ItemId Item, string Text) : IAgentEvent;
 
 public sealed record ItemTokensReported(SessionId Session, TurnId Turn, ItemId Item, long Tokens) : IAgentEvent;
+
+public sealed record ItemBackgrounded(SessionId Session, TurnId Turn, ItemId Item) : IAgentEvent;
 
 public sealed record ItemCompleted(SessionId Session, TurnId Turn, ItemId Item, ItemOutcome Outcome) : IAgentEvent;
 

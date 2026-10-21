@@ -53,6 +53,12 @@ public sealed class Motion
     public static readonly AttachedProperty<bool> WhenProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("When", defaultValue: true);
 
+    public static readonly AttachedProperty<object> SwapProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, object>("Swap");
+
+    private static readonly AttachedProperty<Playback?> SwappingProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Swapping");
+
     private static readonly AttachedProperty<Playback?> PlaybackProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Playback");
 
@@ -73,6 +79,7 @@ public sealed class Motion
         EnterProperty.Changed.AddClassHandler<Visual>((visual, _) => Watch(visual));
         LoopProperty.Changed.AddClassHandler<Visual>((visual, _) => Watch(visual));
         WhenProperty.Changed.AddClassHandler<Visual>((visual, _) => Refresh(visual));
+        SwapProperty.Changed.AddClassHandler<Visual>((visual, change) => Swap(visual, change.OldValue, change.NewValue));
     }
 
     private Motion()
@@ -94,6 +101,10 @@ public sealed class Motion
     public static bool GetWhen(Visual visual) => visual.GetValue(WhenProperty);
 
     public static void SetWhen(Visual visual, bool value) => visual.SetValue(WhenProperty, value);
+
+    public static object GetSwap(Visual visual) => visual.GetValue(SwapProperty);
+
+    public static void SetSwap(Visual visual, object value) => visual.SetValue(SwapProperty, value);
 
     public static void Settle(Layoutable content)
     {
@@ -182,6 +193,20 @@ public sealed class Motion
                 Loop(visual);
             }
         }
+    }
+
+    private static void Swap(Visual visual, object? before, object? after)
+    {
+        Release(visual, SwappingProperty);
+
+        if (before is null || after is null || GetIsReduced(visual) || !visual.IsAttachedToVisualTree())
+        {
+            return;
+        }
+
+        var playback = new Playback();
+        visual.SetValue(SwappingProperty, playback);
+        playback.Play(visual, MotionCatalog.SwapIn);
     }
 
     private static void Loop(Visual visual)

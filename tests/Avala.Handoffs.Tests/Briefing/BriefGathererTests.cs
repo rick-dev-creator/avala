@@ -15,6 +15,29 @@ public sealed class BriefGathererTests
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData(TurnOutcome.LimitReached, true)]
+    [InlineData(TurnOutcome.Interrupted, true)]
+    [InlineData(TurnOutcome.Finished, false)]
+    public async Task WhatThePersonSentDuringATurnThatDidNotFinishIsInTheBriefOfTheSessionThatContinuesTheJobAsync(TurnOutcome ended, bool listed)
+    {
+        const string Sent = "Also keep the old rounding for negative amounts.";
+        await using var watched = new Watched();
+        var notes = new JobNotes(watched.Audit);
+        var turn = TurnId.New();
+        await notes.HandleAsync(new JobSessionStarted(watched.Job, Session), Cancellation);
+        foreach (var activity in new IAgentEvent[] { new TurnStarted(Session, turn), new MessageQueued(Session, turn, Sent), new TurnCompleted(Session, turn, ended) })
+        {
+            await notes.HandleAsync(new Avala.Agents.Contracts.AgentActivity(activity), Cancellation);
+        }
+
+        var history = Outcomes.Present(await watched.Catalog.HistoryAsync(watched.Job, Cancellation));
+        var brief = await new BriefGatherer(watched.Worktrees, watched.Audit, watched.Audit, notes)
+            .WriteAsync(new BriefRequest(history, Watched.Work, Watched.Personal, Option<Avala.Handoffs.Contracts.LimitReason>.None, Option<string>.None), Cancellation);
+
+        Assert.Equal(listed, brief.Contains($"- {Sent}", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task TheBriefListsTheDecisionsTakenOnTheJobAndTheQuestionsStillOpenAsync()
     {

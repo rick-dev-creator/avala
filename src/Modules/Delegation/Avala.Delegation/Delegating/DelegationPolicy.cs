@@ -24,7 +24,12 @@ internal sealed record Plan(JobSummary Parent, Routed Route, Autonomy Autonomy)
     public Option<ParentEscalation> Escalation { get; init; }
 }
 
-internal sealed record Decision(string Instruction, int Depth, Result<Plan, DelegationError> Outcome);
+internal sealed record Decision(string Instruction, int Depth, Result<Plan, DelegationError> Outcome)
+{
+    public Option<ConnectionName> Asked { get; init; }
+
+    public IReadOnlyList<ConnectionName> Declared { get; init; } = [];
+}
 
 internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catalog, IPermissionAudit audit, ConnectionRouter router)
 {
@@ -55,22 +60,28 @@ internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catal
         }
 
         var granted = audit.AutonomyOf(caller.Session).Match(applied => applied.Effective, () => Autonomy.Supervised);
-        var refused = delegation.Refuses(depth, caller.Pending, asked.Autonomy, granted).Match(Option<DelegationError>.Some, () => delegation.RefusesRole(asked.Role, caller.Role));
+        var refused = delegation.Refuses(depth, caller.Pending, asked.Autonomy, granted)
+            .Match(Option<DelegationError>.Some, () => delegation.RefusesRole(asked.Role, caller.Role))
+            .Match(Option<DelegationError>.Some, () => delegation.RefusesConnection(asked.Connection));
 
         if (refused.IsSome)
         {
-            return new Decision(asked.Instruction, depth, refused.Match(error => error, () => default));
+            return new Decision(asked.Instruction, depth, refused.Match(error => error, () => default)) { Asked = asked.Connection, Declared = delegation.Connections };
         }
 
         var role = delegation.RoleOf(asked.Role, caller.Role);
-
-        var earlier = (await catalog.ChildrenAsync(history.Summary.Job, cancellationToken)).Count;
-        var routed = await router.RouteAsync(delegation, earlier, worktree, cancellationToken);
+        var routed = await asked.Connection.Match(
+            named => Task.FromResult(new Routed(named, Option<ConnectionChoice>.None)),
+            async () => await router.RouteAsync(delegation, (await catalog.ChildrenAsync(history.Summary.Job, cancellationToken)).Count, worktree, cancellationToken));
 
         return new Decision(
             asked.Instruction,
             depth,
-            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model.Or(delegation.Settings.Of(role)), Role = role, Escalation = delegation.Escalation.Kept });
+            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model.Or(delegation.Settings.Of(role)), Role = role, Escalation = delegation.Escalation.Kept })
+        {
+            Asked = asked.Connection,
+            Declared = delegation.Connections,
+        };
     }
 
     private async Task<int> DepthOfAsync(JobSummary job, CancellationToken cancellationToken)

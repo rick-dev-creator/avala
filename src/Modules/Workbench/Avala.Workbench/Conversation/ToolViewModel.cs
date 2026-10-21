@@ -207,9 +207,9 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
             Output = tool.Output;
             IsRunning = tool.Outcome.IsNone;
             var ended = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);
-            Failed = ended && !tool.Denied;
+            Failed = ended && !tool.Denied && !ConversationPhrases.Stopped(tool.Kind, tool.Outcome);
             ShowsOutcome = ended;
-            Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(outcome, tool.Denied), () => "running");
+            Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(tool.Kind, outcome, tool.Denied), () => "running");
             Fold();
             ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
             Reveal(ShowsChanges && preview.Kind != PreviewKind.None);

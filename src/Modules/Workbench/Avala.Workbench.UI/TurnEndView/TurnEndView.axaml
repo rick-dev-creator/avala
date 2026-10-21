@@ -36,6 +36,13 @@
       </StackPanel>
       <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" />
     </Grid>
+    <TextBlock x:Name="Lost"
+               Classes="caption attention"
+               Text="{Binding Lost}"
+               TextWrapping="Wrap"
+               TextAlignment="Center"
+               HorizontalAlignment="Center"
+               IsVisible="{Binding HasLost}" />
     <StackPanel x:Name="CheckpointRow"
                 Orientation="Horizontal"
                 Spacing="8"

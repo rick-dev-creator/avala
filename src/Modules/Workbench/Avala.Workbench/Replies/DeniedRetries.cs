@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -12,6 +13,8 @@ internal sealed record Retry(HumanAnswer Allowed, Option<JobRejection> Untold);
 
 internal sealed class DeniedRetries(IDeniedRequests denials, JobSteering steering, JobBoard board)
 {
+    private ImmutableDictionary<JobId, ImmutableHashSet<string>> told = ImmutableDictionary<JobId, ImmutableHashSet<string>>.Empty;
+
     public async Task<Result<Retry, PolicyError>> AllowAsync(DeniedEntry denied, CancellationToken cancellationToken)
     {
         var allowed = await denials.AllowAsync(denied.Decision.Session, denied.Decision.Item, cancellationToken);
@@ -28,12 +31,38 @@ internal sealed class DeniedRetries(IDeniedRequests denials, JobSteering steerin
         await answer.Job.Match(
             async job =>
             {
-                var shown = board.Find(job).Match(found => found.Status, () => JobStatus.Running);
-                var told = await steering.SendAsync(job, shown, Told(answer), cancellationToken);
+                var notice = Told(answer);
 
-                return Result<Retry, PolicyError>.Success(new Retry(answer, told.Match(_ => Option<JobRejection>.None, Option<JobRejection>.Some)));
+                if (!Fresh(job, notice))
+                {
+                    return Result<Retry, PolicyError>.Success(new Retry(answer, Option<JobRejection>.None));
+                }
+
+                var shown = board.Find(job).Match(found => found.Status, () => JobStatus.Running);
+                var delivered = await steering.SendAsync(job, shown, new JobMessage(notice) { Author = MessageAuthor.Avala }, cancellationToken);
+
+                if (!delivered.IsSuccess)
+                {
+                    ImmutableInterlocked.Update(ref told, all => all.SetItem(job, all.GetValueOrDefault(job, []).Remove(notice)));
+                }
+
+                return Result<Retry, PolicyError>.Success(new Retry(answer, delivered.Match(_ => Option<JobRejection>.None, Option<JobRejection>.Some)));
             },
             () => Task.FromResult(Result<Retry, PolicyError>.Success(new Retry(answer, Option<JobRejection>.None))));
+
+    private bool Fresh(JobId job, string notice)
+    {
+        var fresh = false;
+        ImmutableInterlocked.Update(ref told, all =>
+        {
+            var notices = all.GetValueOrDefault(job, []);
+            fresh = !notices.Contains(notice);
+
+            return all.SetItem(job, notices.Add(notice));
+        });
+
+        return fresh;
+    }
 
     private static string What(HumanAnswer answer)
     {

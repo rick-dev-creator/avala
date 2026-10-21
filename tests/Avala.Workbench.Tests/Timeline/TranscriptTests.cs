@@ -35,9 +35,9 @@ public sealed class TranscriptTests
         var child = SessionId.New();
         const string note = "Sub-agent \"Migrate the database\" is waiting for you: it wants to run a command: dotnet ef database update";
         var told = Played(new MessageQueued(Session, Turn, note))
-            .Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note);
+            .Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note, Option<string>.None);
         var allowed = told.ChildDecided(child, new ItemId("migrate"), asked => asked with { State = ChildAskingState.Allowed });
-        var elsewhere = Played().Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note);
+        var elsewhere = Played().Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note, Option<string>.None);
 
         var asked = Assert.IsType<ChildAskingEntry>(Assert.Single(told.Entries));
         Assert.Equal(("Migrate the database", "wants to run a command: dotnet ef database update", ChildAskingState.Waiting), (asked.Child, asked.Asking, asked.State));

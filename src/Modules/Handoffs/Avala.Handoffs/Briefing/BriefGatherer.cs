@@ -33,6 +33,7 @@ internal sealed class BriefGatherer(IWorkspaceChanges changes, IVerifications ve
             Decisions = DecisionLines.Taken(audit, job),
             Questions = DecisionLines.Open(audit, job),
             LastMessage = noted.LastMessage,
+            Unanswered = noted.Unanswered,
         });
     }
 }

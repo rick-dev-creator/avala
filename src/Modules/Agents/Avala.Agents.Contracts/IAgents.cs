@@ -9,6 +9,8 @@ public interface IAgents
 
     bool IsOpen(SessionId session);
 
+    bool IsWorking(SessionId session) => false;
+
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
 
     ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken);

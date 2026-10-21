@@ -31,6 +31,8 @@ public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, str
     public Option<ProcessTreeId> ProcessTree { get; init; }
 
     public CapabilitySet Capabilities { get; init; } = CapabilitySet.None;
+
+    public IReadOnlyList<string> OwnFolders { get; init; } = [];
 }
 
 public sealed record SessionStopped(SessionId Session) : IIntegrationEvent;
@@ -44,6 +46,8 @@ public enum SessionEnding
 public sealed record SessionEnded(SessionId Session, SessionEnding Ending) : IIntegrationEvent;
 
 public sealed record SessionResumable(SessionId Session, ResumeToken Token) : IIntegrationEvent;
+
+public sealed record TurnWoken(SessionId Session, TurnId Turn) : IIntegrationEvent;
 
 public sealed record AgentActivity(IAgentEvent Event) : IIntegrationEvent;
 

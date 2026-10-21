@@ -169,6 +169,22 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AvalasNoticeThatItNowAllowsADeniedActionReachesTheAgentWithoutThePlanBriefAsync()
+    {
+        const string Notice = "Avala now allows web requests to example.com in this job. You may retry it.";
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var activity = run.Watch<AgentActivity>();
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, PlainInstruction)));
+        _ = await written.UntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        Outcomes.Succeeds(await run.Get<IJobMessages>().SendBackAsync(job, new JobMessage(Notice) { Author = MessageAuthor.Avala }, Cancellation));
+
+        var told = await activity.UntilAsync(update => update.Event is ItemProgressed { Item.Value: "told" } progressed && progressed.Text.StartsWith(Notice, StringComparison.Ordinal));
+        Assert.Equal(Notice, ((ItemProgressed)told.Event).Text);
+    }
+
+    [Fact]
     public async Task AJobWithoutDocsIsNotAskedForATaskListAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins);

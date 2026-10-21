@@ -310,40 +310,20 @@ public sealed class AgentViewScripts(HeadlessUi ui)
 public sealed class DelegationViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task EachOrchestrationIsATreeOfItsOrchestratorAndItsChildrenWithAnEdgeToEachAsync() =>
+    public Task EachOrchestrationIsATreeWithItsOrchestratorOnTopItsFirstLevelSideBySideAndDeeperBranchesBelowTheirParentAsync() =>
         ui.RunAsync(() =>
         {
             var view = Wide(new DesignDelegationViewModel());
-            var tree = view.All<TreeGraphPanel>().First(panel => panel.IsEffectivelyVisible);
+            var tree = view.All<AgentTreePanel>().First(panel => panel.IsEffectivelyVisible);
+            var nodes = tree.Layout.Nodes;
 
             Assert.Equal(2, view.Named("OrchestrationView").Count);
-            Assert.Equal([-1, -1, -1], tree.Layout.Nodes.Select(node => node.Parent));
+            Assert.Equal(AgentTreeShape.Tree, tree.Layout.Shape);
+            Assert.Equal([-1, 0, 0, 0, 3], tree.Layout.Parents);
+            Assert.True(nodes[4].Y > nodes[3].Y + nodes[3].Height && nodes[1].Y > nodes[0].Y + nodes[0].Height);
+            Assert.Equal(nodes[3].Center.X, nodes[4].Center.X, 0.5);
             Assert.Single(view.All<StackPanel>(), panel => panel.Name == "Tree" && panel.IsEffectivelyVisible);
             Assert.False(view.Shows("NoOrchestrators"));
-        }, TestContext.Current.CancellationToken);
-
-    [Fact]
-    public Task GrandchildrenHangFromTheirParentInTheNextColumnAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Wide(new DesignDelegationViewModel
-            {
-                Trees =
-                [
-                    new DesignOrchestrationViewModel
-                    {
-                        Children =
-                        [
-                            new DesignDelegationNodeViewModel(),
-                            new DesignDelegationNodeViewModel(Presenting.SampleJobs.InvoicePdf, "Write the payment step's tests", 2, StatusKind.Working, "Claude Code", "claude", "starting", "no spend yet", false, 0),
-                        ],
-                    },
-                ],
-            });
-            var nodes = view.All<TreeGraphPanel>().Single().Layout.Nodes;
-
-            Assert.Equal([-1, 0], nodes.Select(node => node.Parent));
-            Assert.True(nodes[1].Bounds.X > nodes[0].Bounds.Right);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -351,7 +331,7 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var opened = new List<JobId>();
-            var view = Wide(new DesignDelegationViewModel { Trees = [new DesignOrchestrationViewModel { Children = [new DesignDelegationNodeViewModel { IsOpen = true, OpenCommand = new RelayCommand<JobId>(opened.Add) }] }] });
+            var view = Wide(new DesignDelegationViewModel { Trees = [new DesignOrchestrationViewModel { Tree = new DesignSubagentTreeViewModel { Branches = [new DesignOrchestratorCardViewModel(), new DesignDelegationNodeViewModel { IsOpen = true, OpenCommand = new RelayCommand<JobId>(opened.Add) }] } }] });
 
             view.Click("OpenConversation");
 
@@ -446,9 +426,7 @@ public sealed class OrchestrationViewScripts(HeadlessUi ui)
 
         public IRelayCommand ToggleCommand { get; } = new RelayCommand(toggle);
 
-        public IOrchestratorCardViewModel Root => design.Root;
-
-        public IReadOnlyList<IDelegationNodeViewModel> Children => design.Children;
+        public ISubagentTreeViewModel Tree => design.Tree;
 
         public IReadOnlyList<IDelegationRefusalViewModel> Refused => design.Refused;
     }
@@ -457,36 +435,34 @@ public sealed class OrchestrationViewScripts(HeadlessUi ui)
 public sealed class DelegationNodeViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AFoldedChildIsOneRowWithWhatItDoesItsContextLeftAndWhatItSpentAsync() =>
+    public Task AChildIsACardWithWhatItDoesWhatItSpentHowLongItTookAndItsStateAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationNodeViewModel(), ThemeVariant.Dark, 420, 120);
+            var view = Screen.Show(new DesignDelegationNodeViewModel(), ThemeVariant.Dark, 420, 220);
 
             Assert.Equal(
-                ("Update call sites in internal/payments", "Edit internal/payments/refund.go", "72%", "0.41 USD", "1 agent"),
-                (view.TextOf("Title"), view.TextOf("Doing"), view.TextOf("ContextLeft"), view.TextOf("Spent"), view.TextOf("Agents")));
-            Assert.Equal((false, false), (view.Shows("Details"), view.Shows("State")));
-            Assert.Equal(1, Graph.GetDepth(view.Named("DelegationNodeView").Single()));
+                ("Update call sites in internal/payments", "Edit internal/payments/refund.go", "0.41 USD", "4m 12s", "working", "1"),
+                (view.TextOf("Title"), view.TextOf("Doing"), view.TextOf("Spent"), view.TextOf("Took"), view.TextOf("StateText"), view.TextOf("Branches")));
+            Assert.False(view.Shows("Details"));
+            Assert.Equal((1, EdgeKind.Flowing), (Graph.GetDepth(view.Named("DelegationNodeView").Single()), Graph.GetEdge(view.Named("DelegationNodeView").Single())));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AnOpenChildShowsItsHarnessConnectionLastActionsSpendAgainstItsCarveTokensAndSubagentsAsync() =>
+    public Task AnOpenChildShowsItsHarnessConnectionContextLastActionsAndSpendAgainstItsCarveAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignDelegationNodeViewModel { IsOpen = true }, ThemeVariant.Dark, 420, 600);
 
-            Assert.Equal(("Claude Code", "claude-work", "0.41 USD of 0.80 USD", "96.4k tokens"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("Spend"), view.TextOf("Tokens")));
+            Assert.Equal(("Claude Code", "claude-work", "72% context left", "96.4k tokens"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("ContextLeft"), view.TextOf("Tokens")));
             Assert.Equal(3, view.Named("RecentActionView").Count);
-            Assert.Single(view.Named("SubagentView"));
             Assert.Equal((0.51, true, false), (view.Find<ProgressBar>("Share").Value, view.Shows("Share"), view.Shows("RoleTag")));
-            Assert.True(view.HasClass("Card", "open"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task AChildWhoseHarnessReportedNoContextShowsNoFigureForItAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationNodeViewModel { Context = ContextGlance.None });
+            var view = Screen.Show(new DesignDelegationNodeViewModel { Context = ContextGlance.None, IsOpen = true });
 
             Assert.False(view.Shows("ContextGauge"));
         }, TestContext.Current.CancellationToken);
@@ -504,12 +480,12 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AChildCarvedNoCostShowsWhatItSpentWithoutAMeterAsync() =>
+    public Task AChildCarvedNoCostShowsNoMeterAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignDelegationNodeViewModel() with { Spend = "0.005 USD spent", HasCarve = false, SpentShare = 0, IsOpen = true });
 
-            Assert.Equal(("0.005 USD spent", false), (view.TextOf("Spend"), view.Shows("Share")));
+            Assert.False(view.Shows("Share"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -522,18 +498,27 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AChildThatNeedsYouSaysSoInAmberAsync() =>
+    public Task AChildOnAnotherHarnessThatNeedsYouSaysSoInAmberAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationViewModel().Trees[0].Children[0]);
+            var view = Screen.Show(new DesignSubagentTreeViewModel().Branches[1]);
 
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("State").Foreground).Color);
+            Assert.Equal(("Codex", "waiting"), (view.TextOf("Harness"), view.TextOf("StateText")));
+            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("StateText").Foreground).Color);
             Assert.True(view.HasClass("Card", "attention"));
         }, TestContext.Current.CancellationToken);
 
     private sealed record ToggledNode(Action Toggle) : IDelegationNodeViewModel
     {
         private readonly DesignDelegationNodeViewModel design = new();
+
+        public IBranchPlaceViewModel Place => design.Place;
+
+        public DateTimeOffset Since => design.Since;
+
+        public bool IsTiming => design.IsTiming;
+
+        public string Took => design.Took;
 
         public JobId Job => design.Job;
 
@@ -542,6 +527,8 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         public int Depth => design.Depth;
 
         public JobStatus Status => design.Status;
+
+        public string StateText => design.StateText;
 
         public string Connection => design.Connection;
 
@@ -561,10 +548,6 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
 
         public IStatusDotViewModel Dot => design.Dot;
 
-        public IReadOnlyList<ISubagentViewModel> Subagents => design.Subagents;
-
-        public bool HasSubagents => design.HasSubagents;
-
         public bool IsViewing => false;
 
         public IRelayCommand<JobId> OpenCommand => design.OpenCommand;
@@ -578,10 +561,6 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         public IReadOnlyList<IRecentActionViewModel> Recent => design.Recent;
 
         public string Doing => design.Doing;
-
-        public int SubagentCount => design.SubagentCount;
-
-        public string Agents => design.Agents;
 
         public bool NeedsYou => false;
 
@@ -610,10 +589,20 @@ public sealed class OrchestratorCardViewScripts(HeadlessUi ui)
             view.Settle();
             var segments = view.Find<ItemsControl>("Shares").GetVisualDescendants().OfType<ShareBar>().Single().Children.Select(child => child.Bounds.Width).ToList();
 
-            Assert.Equal(("Migrate payments to stripe-go v79", "Budget 3 USD", "1.47 USD spent across the tree"), (view.TextOf("Title"), view.TextOf("Budget"), view.TextOf("Spent")));
+            Assert.Equal(("Migrate payments to stripe-go v79", "Budget 3 USD", "1.47 USD spent"), (view.TextOf("Title"), view.TextOf("Budget"), view.TextOf("Spent")));
             Assert.Equal(4, segments.Count);
             Assert.Equal(segments[0], segments[1], 1);
             Assert.True(segments[3] < segments[2]);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnOrchestratorWithoutABudgetCapShowsNoBudgetLinesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignOrchestratorCardViewModel { HasBudget = false });
+
+            Assert.Equal((false, false, false), (view.Shows("Budget"), view.Shows("Shares"), view.Shows("ShareNote")));
+            Assert.Equal("1.47 USD spent", view.TextOf("Spent"));
         }, TestContext.Current.CancellationToken);
 }
 

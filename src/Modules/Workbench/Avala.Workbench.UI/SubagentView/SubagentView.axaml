@@ -1,67 +1,112 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              x:Class="Avala.Workbench.UI.SubagentView"
              x:ClassModifier="internal"
-             x:DataType="overview:ISubagentViewModel">
+             x:DataType="overview:ISubagentViewModel"
+             graphs:Graph.Depth="{Binding Place.Depth}"
+             graphs:Graph.Edge="{Binding Place.Edge}">
   <Design.DataContext>
-    <overview:DesignSubagentViewModel Name="Find the refund call sites" Activity="Read internal/payments/refund.go" State="Running" Meter="6 tool uses · 18,240 tokens" />
+    <overview:DesignSubagentViewModel Meter="6 tool uses · 18.2k tokens" />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="Ellipse#Dot">
-      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+    <Style Selector="Button#Head:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Background" Value="Transparent" />
     </Style>
-    <Style Selector="Ellipse#Dot.waiting">
-      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
-    </Style>
-    <Style Selector="Ellipse#Dot.done">
-      <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
-    </Style>
-    <Style Selector="Ellipse#Dot.failed">
-      <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
-    </Style>
-    <Style Selector="TextBlock#AgentName.ended">
-      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    <Style Selector="Border#Badge Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
   </UserControl.Styles>
-  <StackPanel Spacing="4">
-    <Button x:Name="Pill"
-            Classes="bare"
-            HorizontalAlignment="Stretch"
-            HorizontalContentAlignment="Stretch"
-            Command="{Binding ToggleCommand}">
-      <Panel AutomationProperties.Name="{Binding Name, StringFormat='Sub-agent: {0}'}"
-             ToolTip.Tip="{Binding StateText, StringFormat='Sub-agent of this job, {0}'}">
-        <Rectangle x:Name="Outline" Classes="subagent" Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}" />
-        <DockPanel Margin="10,5">
-          <TextBlock x:Name="State" DockPanel.Dock="Right" Classes="hint" Margin="8,0,0,0" Text="{Binding StateText}" VerticalAlignment="Center" />
-          <TextBlock x:Name="Meter" DockPanel.Dock="Right" Classes="hint" Margin="8,0,0,0" Text="{Binding Meter}" IsVisible="{Binding Meter, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" VerticalAlignment="Center" />
-          <Ellipse x:Name="Dot"
-                   DockPanel.Dock="Left"
-                   Width="6"
-                   Height="6"
-                   Margin="0,0,7,0"
-                   VerticalAlignment="Center"
-                   Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}"
-                   Classes.done="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done'}"
-                   Classes.failed="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Failed'}" />
-          <TextBlock x:Name="AgentName" DockPanel.Dock="Left" Classes="caption medium" Classes.ended="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done,Failed'}" Margin="0,0,6,0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="160" VerticalAlignment="Center" />
-          <TextBlock x:Name="Activity" Classes="caption" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-        </DockPanel>
-      </Panel>
-    </Button>
-    <ItemsControl x:Name="Trail" Margin="23,0,0,2" ItemsSource="{Binding Trail}" IsVisible="{Binding IsOpen}">
-      <ItemsControl.ItemsPanel>
-        <ItemsPanelTemplate>
-          <StackPanel Spacing="2" />
-        </ItemsPanelTemplate>
-      </ItemsControl.ItemsPanel>
-      <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="x:String">
-          <TextBlock Classes="hint" Text="{Binding}" TextTrimming="CharacterEllipsis" />
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
-  </StackPanel>
+  <Border x:Name="Card"
+          Classes="node"
+          Classes.attention="{Binding Place.IsWaiting}"
+          Classes.alert="{Binding Place.IsAlert}"
+          Classes.settled="{Binding Place.IsSettled}"
+          Classes.inside="{Binding Place.RunsInside}"
+          Padding="12,10">
+    <StackPanel Spacing="6">
+      <Button x:Name="Head"
+              Classes="bare"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch"
+              AutomationProperties.Name="{Binding Name, StringFormat='Sub-agent: {0}'}"
+              ToolTip.Tip="Show the tools it ran"
+              Command="{Binding ToggleCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <Border x:Name="Badge" Classes="tag" Width="24" Height="24" Padding="0" VerticalAlignment="Top">
+            <Path Classes="icon" Width="12" Height="12" Data="{StaticResource IconSubagent}" />
+          </Border>
+          <StackPanel Grid.Column="1" Spacing="1">
+            <TextBlock x:Name="AgentName" Classes="medium" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock x:Name="Kind" Classes="hint" Text="{Binding Place.KindText}" VerticalAlignment="Center" />
+              <TextBlock Classes="hint" Text="inside" VerticalAlignment="Center" IsVisible="{Binding Place.Harness.IsKnown}" />
+              <Border x:Name="InsideMark"
+                      Classes="harness small"
+                      Classes.brand="{Binding Place.Harness.HasBrand}"
+                      Background="{Binding Place.Harness.Color, Converter={x:Static states:BrandColor.Brush}}"
+                      IsVisible="{Binding Place.Harness.IsKnown}"
+                      ToolTip.Tip="{Binding Place.Harness.Name}">
+                <Panel>
+                  <Path Classes="logo" Data="{Binding Place.Harness.Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding Place.Harness.HasLogo}" />
+                  <TextBlock Classes="monogram" Text="{Binding Place.Harness.Name, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
+                </Panel>
+              </Border>
+              <TextBlock x:Name="Inside" Classes="hint" Text="{Binding Place.Harness.Instance}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" />
+            </StackPanel>
+          </StackPanel>
+          <ContentControl x:Name="State" Grid.Column="2" Content="{Binding Place}" VerticalAlignment="Top" />
+        </Grid>
+      </Button>
+      <TextBlock x:Name="Activity"
+                 Classes="caption secondary"
+                 Text="{Binding Activity}"
+                 TextWrapping="Wrap"
+                 MaxLines="2"
+                 TextTrimming="CharacterEllipsis"
+                 IsVisible="{Binding Activity, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock x:Name="Note"
+                 Classes="caption note"
+                 Classes.waiting="{Binding Place.IsWaiting}"
+                 Classes.alert="{Binding Place.IsAlert}"
+                 Text="{Binding Note}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding HasNote}" />
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Place.IsAlert}">
+        <Button x:Name="Tell"
+                Classes="chip"
+                Height="24"
+                Padding="10,0"
+                IsVisible="{Binding Place.CanTell}"
+                Command="{Binding Place.TellCommand}"
+                ToolTip.Tip="Send its orchestrator what ended and why, so it starts it again or gives it up"
+                AutomationProperties.Name="Tell the orchestrator">
+          <TextBlock Classes="hint" Text="Tell the orchestrator" />
+        </Button>
+        <TextBlock x:Name="Told" Classes="hint" Text="Orchestrator told" VerticalAlignment="Center" IsVisible="{Binding Place.IsTold}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock x:Name="Meter" Classes="hint" Text="{Binding Meter}" IsVisible="{Binding Meter, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Classes="hint" Text="·" IsVisible="{Binding IsTiming}" />
+        <elapsed:ElapsedText x:Name="Elapsed" Classes="hint" Since="{Binding Since}" IsVisible="{Binding IsTiming}" />
+      </StackPanel>
+      <ItemsControl x:Name="Trail" ItemsSource="{Binding Trail}" IsVisible="{Binding IsOpen}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="hint" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
 </UserControl>

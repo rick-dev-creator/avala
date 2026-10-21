@@ -83,6 +83,7 @@ internal static class ConversationPhrases
         AttemptOrigin.Handoff => "Handed off",
         AttemptOrigin.Reopen => "Pull request feedback",
         AttemptOrigin.Device => "From your phone",
+        AttemptOrigin.Woken => "The agent went on by itself",
         _ => "Resumed after a restart",
     };
 
@@ -90,6 +91,14 @@ internal static class ConversationPhrases
 
     public static string Outcome(int attempt, AttemptOutcome outcome) =>
         string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");
+
+    public static string Outcome(ItemKind kind, ItemOutcome outcome, bool denied) =>
+        (kind, outcome, denied) switch
+        {
+            (ItemKind.Subagent, ItemOutcome.Abandoned, _) => "lost",
+            (ItemKind.Subagent, ItemOutcome.Cancelled or ItemOutcome.Expired, false) => "stopped",
+            _ => Outcome(outcome, denied),
+        };
 
     public static string Outcome(ItemOutcome outcome, bool denied) =>
         denied && outcome != ItemOutcome.Succeeded ? "denied" : Outcome(outcome);
@@ -102,6 +111,9 @@ internal static class ConversationPhrases
         ItemOutcome.Abandoned => "abandoned",
         _ => "expired",
     };
+
+    public static bool Stopped(ItemKind kind, Option<ItemOutcome> outcome) =>
+        kind == ItemKind.Subagent && outcome.Match(found => found is ItemOutcome.Cancelled or ItemOutcome.Expired, () => false);
 
     public static string Tools(IEnumerable<ItemKind> kinds) =>
         string.Join(", ", kinds.GroupBy(Tool).Select(kind => Counted(kind.Count(), kind.Key)));
@@ -196,6 +208,13 @@ internal static class ConversationPhrases
         return string.Create(CultureInfo.InvariantCulture, $"The checks of pull request #{ci.PullRequest} failed on {ci.Head[..Math.Min(7, ci.Head.Length)]}:\n{string.Join("\n", lines)}\nFix what makes them fail.");
     }
 
+    public static string Lost(IReadOnlyList<string> titles) => Lost("The turn ended", titles);
+
+    public static string Lost(string when, IReadOnlyList<string> titles) =>
+        titles.Count == 0
+            ? string.Empty
+            : $"{when} while {string.Join(", ", titles.Select(title => $"“{title}”"))} still worked in the background, so {(titles.Count == 1 ? "its" : "their")} work is lost";
+
     public static string Turn(TurnOutcome outcome, TimeSpan duration) => outcome switch
     {
         TurnOutcome.Finished => string.Create(CultureInfo.InvariantCulture, $"Worked for {Duration(duration)}"),
@@ -204,11 +223,21 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
-    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch, Option<HoldReason> hold) => status switch
+    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch, Option<HoldReason> hold, Option<JobFailure> failure) => status switch
     {
         JobStatus.Approved => watch.Bind(Watched).Match(phrase => phrase, () => Placeholder(status, takesMessagesMidTurn)),
         JobStatus.NeedsHelp => hold.Match(HeldPlaceholder, () => Placeholder(status, takesMessagesMidTurn)),
+        JobStatus.Failed => failure.Match(reason => $"This job failed · {Failed(reason)}", () => Placeholder(status, takesMessagesMidTurn)),
         _ => Placeholder(status, takesMessagesMidTurn),
+    };
+
+    public static string Failed(JobFailure failure) => failure switch
+    {
+        JobFailure.WorkspaceUnavailable => "its worktree could not be prepared or checkpointed",
+        JobFailure.ConnectionUnavailable => "no connection could run it: check its connection in Settings and the repository's .avala/jobs.json",
+        JobFailure.ModelUnavailable => "its connection does not offer the model or effort it asked for",
+        JobFailure.AgentFailed => "its agent's turn failed",
+        _ => "its agent could not take the message",
     };
 
     public static Option<string> Closed(BoardJob job) =>
@@ -351,6 +380,7 @@ internal static class ConversationPhrases
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "its conversation cannot resume",
         HoldReason.CouldNotStart => "could not start",
+        HoldReason.TurnFailed => "its agent's turn failed",
         _ => "interrupted",
     };
 
@@ -361,7 +391,7 @@ internal static class ConversationPhrases
         _ => $"The platform refused to open {link}.",
     };
 
-    private static string Duration(TimeSpan duration) =>
+    public static string Duration(TimeSpan duration) =>
         duration.TotalSeconds < 60
             ? string.Create(CultureInfo.InvariantCulture, $"{Math.Max(1, (int)Math.Round(duration.TotalSeconds))}s")
             : string.Create(CultureInfo.InvariantCulture, $"{(int)duration.TotalMinutes}m {duration.Seconds}s");

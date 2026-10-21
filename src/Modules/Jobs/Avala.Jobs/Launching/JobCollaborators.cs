@@ -13,9 +13,18 @@ internal static class JobCollaborators
         public Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, CancellationToken cancellationToken) =>
             job.Session.Match(
                 session => job.State == JobState.Running
-                    ? agents.SayAsync(session, new UserTurn(message) { Attachments = job.Attempts.Count == 0 ? [] : job.Attempts[^1].Attachments }, cancellationToken).AsTask()
+                    ? agents.SayOrJoinAsync(session, new UserTurn(message) { Attachments = job.Attempts.Count == 0 ? [] : job.Attempts[^1].Attachments }, cancellationToken)
                     : Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported)),
                 () => Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.SessionClosed)));
+
+        private async Task<Result<AgentTurn, AgentError>> SayOrJoinAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken)
+        {
+            var said = await agents.SayAsync(session, turn, cancellationToken);
+
+            return !said.TryGetValue(out _, out var error) && error == AgentError.TurnInProgress
+                ? await agents.SayAsync(session, turn with { MidTurn = true }, cancellationToken)
+                : said;
+        }
     }
 
     extension(IWorkspaces workspaces)

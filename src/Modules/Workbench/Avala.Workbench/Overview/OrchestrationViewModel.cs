@@ -1,3 +1,4 @@
+using Avala.Delegation.Contracts;
 using System.Collections.ObjectModel;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
@@ -32,34 +33,34 @@ internal interface IOrchestrationViewModel
 
     IRelayCommand ToggleCommand { get; }
 
-    IOrchestratorCardViewModel Root { get; }
-
-    IReadOnlyList<IDelegationNodeViewModel> Children { get; }
+    ISubagentTreeViewModel Tree { get; }
 
     IReadOnlyList<IDelegationRefusalViewModel> Refused { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
+internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel, IDisposable
 {
-    private readonly ObservableCollection<DelegationNodeViewModel> children = [];
     private readonly ObservableCollection<DelegationRefusalViewModel> refused = [];
-    private readonly OrchestratorCardViewModel root;
-    private readonly IRelayCommand<JobId> open;
-    private readonly RowActions actions;
+    private readonly SubagentTreeViewModel tree;
     private bool chosen;
 
     public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions)
+        : this(tree, open, actions, () => { })
+    {
+    }
+
+    public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions, Action refresh)
     {
         Job = tree.Root.Job;
-        this.open = open;
-        this.actions = actions;
-        root = new OrchestratorCardViewModel(tree) { OpenCommand = open };
+        this.tree = new SubagentTreeViewModel(open, actions, refresh);
         Show(tree);
         IsCollapsed = !IsActive;
     }
 
     public JobId Job { get; }
+
+    public void Dispose() => tree.Dispose();
 
     [ObservableProperty]
     public partial string Title { get; private set; } = string.Empty;
@@ -87,25 +88,32 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
 
     public DateTimeOffset LastActive { get; private set; }
 
+    public int AtWork { get; private set; }
+
+    public int Needing { get; private set; }
+
     public IReadOnlyList<string> Connections { get; private set; } = [];
 
-    public IOrchestratorCardViewModel Root => root;
+    public ISubagentTreeViewModel Tree => tree;
 
-    public IReadOnlyList<IDelegationNodeViewModel> Children => children;
+    public SubagentTreeViewModel Shown => tree;
 
     public IReadOnlyList<IDelegationRefusalViewModel> Refused => refused;
 
     public void Show(DelegationTree tree)
     {
-        root.Show(tree);
+        this.tree.Show(tree, Option<JobId>.None);
         Title = FactPhrases.Title(tree.Root.Instruction);
         Repository = OverviewPhrases.Repository(tree.Root.Repository);
-        var agents = SubagentViewModel.Count(tree.RootJob) + tree.Children.Sum(node => SubagentViewModel.Count(node.Seen));
+        var rooted = AgentBranches.Of(tree);
+        var branches = rooted.Descendants.ToList();
+        var agents = branches.Count(branch => branch.Kind == BranchKind.InProcess);
+        AtWork = branches.Count(branch => !branch.IsSettled);
+        Needing = branches.Prepend(rooted).Count(branch => branch.State == SubagentState.Waiting);
         Size = agents == 0
             ? OverviewPhrases.Count(tree.Children.Count + 1, "job")
             : $"{OverviewPhrases.Count(tree.Children.Count + 1, "job")} · {OverviewPhrases.Count(agents, "agent")}";
-        var needing = tree.Children.Count(node => node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status)) is StatusKind.NeedsYou or StatusKind.Held);
-        NeedsYou = needing == 0 ? string.Empty : $"{needing} needs you";
+        NeedsYou = Needing == 0 ? string.Empty : $"{Needing} needs you";
         Tokens = AgentGlance.TokensText(AgentGlance.Tokens(tree.RootSpend) + tree.Children.Sum(node => AgentGlance.Tokens(node.Spend)));
         var spent = Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent)));
         Spent = spent.Count == 0 ? string.Empty : Amounts.Costs(spent);
@@ -113,23 +121,6 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel
         IsCollapsed = chosen ? IsCollapsed : !IsActive;
         LastActive = Active(tree);
         Connections = [.. tree.Children.Select(node => node.Job.Connection).Prepend(tree.Root.Connection).SelectMany(name => name.Match<string[]>(found => [found.Value], () => [])).Distinct(StringComparer.Ordinal)];
-        var arranged = TreeOrder.Arrange(tree.Children);
-        children.ShowInPlace(
-            arranged.Active.Concat(arranged.Settled),
-            (child, node) => child.Job == node.Job.Job,
-            node =>
-            {
-                var row = new DelegationNodeViewModel(node) { OpenCommand = open };
-                row.Toggled += (_, _) => TreeOrder.OneOpen(children, row);
-                row.Peeked += (_, _) => actions.Peek(row);
-
-                return row;
-            },
-            (child, node) =>
-            {
-                child.Show(node);
-                actions.Peek(child);
-            });
         refused.ShowOnly(tree.Refused.Select(record => new DelegationRefusalViewModel(record)));
     }
 

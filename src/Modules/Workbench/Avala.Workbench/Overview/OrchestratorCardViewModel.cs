@@ -10,7 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
-internal interface IOrchestratorCardViewModel
+internal interface IOrchestratorCardViewModel : IAgentBranch
 {
     JobId Job { get; }
 
@@ -34,9 +34,13 @@ internal interface IOrchestratorCardViewModel
 
     IStatusDotViewModel Dot { get; }
 
-    IReadOnlyList<ISubagentViewModel> Subagents { get; }
+    string Doing { get; }
 
-    bool HasSubagents { get; }
+    DateTimeOffset Since { get; }
+
+    bool IsTiming { get; }
+
+    string Took { get; }
 
     bool IsViewing { get; }
 
@@ -46,27 +50,36 @@ internal interface IOrchestratorCardViewModel
 
     string Tokens { get; }
 
-    IReadOnlyList<TreeTally> Tally { get; }
 }
-
-internal sealed record TreeTally(string Text, StatusKind Kind);
 
 [INotifyPropertyChanged]
 internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewModel
 {
     private readonly StatusDotViewModel dot = new(default);
+    private readonly BranchPlaceViewModel place;
 
-    public OrchestratorCardViewModel(DelegationTree tree)
+    public OrchestratorCardViewModel(BranchPlaceViewModel place, DelegationTree tree)
     {
+        this.place = place;
         Job = tree.Root.Job;
         Show(tree);
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSubagents))]
-    public partial IReadOnlyList<ISubagentViewModel> Subagents { get; private set; } = [];
+    public IBranchPlaceViewModel Place => place;
 
-    public bool HasSubagents => Subagents.Count > 0;
+    [ObservableProperty]
+    public partial string Doing { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial DateTimeOffset Since { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsTiming { get; private set; }
+
+    [ObservableProperty]
+    public partial string Took { get; private set; } = string.Empty;
+
+    public void Locate(int depth, AgentBranch branch, bool folded) => place.Show(depth, branch, folded);
 
     [ObservableProperty]
     public partial bool IsViewing { get; set; }
@@ -110,9 +123,6 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
     [ObservableProperty]
     public partial string Tokens { get; private set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial IReadOnlyList<TreeTally> Tally { get; private set; } = [];
-
     public void Show(DelegationTree tree)
     {
         var root = tree.Root;
@@ -120,41 +130,26 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
         Title = FactPhrases.Title(root.Instruction);
         Harness = tree.RootSpend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
         Connection = root.Connection.Match(name => name.Value, () => tree.RootSpend.Session.Match(seen => seen.Connection.Value, () => "default connection"));
-        var working = children.Count(node => node.Job.Status is JobStatus.Preparing or JobStatus.Running or JobStatus.Checking or JobStatus.NeedsHelp);
+        var working = BranchPhrases.AtWork(tree);
         Detail = string.Join(
             " · ",
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }
                 .Where(part => part.Length > 0));
-        Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent across the tree";
+        Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent";
         var (hasBudget, budget, shares, shareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
             ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
-            : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "sub-agent")}, no budget to share"));
+            : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "child job")}, no budget to share"));
         HasBudget = hasBudget;
         Budget = budget;
         Shares = Shares.SequenceEqual(shares) ? Shares : shares;
         ShareNote = shareNote;
         dot.Kind = tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status));
-        Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(tree.RootJob));
+        Doing = BranchPhrases.Doing(tree);
+        Since = root.Submitted;
+        IsTiming = root.Ended.IsNone;
+        Took = BranchPhrases.Took(root);
         Context = AgentGlance.Context(tree.RootJob);
         Tokens = AgentGlance.TokensText(AgentGlance.Tokens(tree.RootSpend) + tree.Children.Sum(node => AgentGlance.Tokens(node.Spend)));
-        var tally = Tallied(tree);
-        Tally = Tally.SequenceEqual(tally) ? Tally : tally;
-    }
-
-    private static IReadOnlyList<TreeTally> Tallied(DelegationTree tree)
-    {
-        var kinds = tree.Children.Select(node => node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status))).ToList();
-        var needing = kinds.Count(kind => kind is StatusKind.NeedsYou or StatusKind.Held);
-        var running = kinds.Count(kind => kind is StatusKind.Working or StatusKind.Checking);
-        var done = kinds.Count(kind => kind is StatusKind.Done or StatusKind.ReadyForReview or StatusKind.Failed);
-
-        return
-        [
-            .. needing > 0 ? [new TreeTally($"{needing} needs you", StatusKind.NeedsYou)] : Array.Empty<TreeTally>(),
-            .. running > 0 ? [new TreeTally($"{running} running", StatusKind.Working)] : Array.Empty<TreeTally>(),
-            .. done > 0 ? [new TreeTally($"{done} done", StatusKind.Done)] : Array.Empty<TreeTally>(),
-            .. tree.Refused.Count > 0 ? [new TreeTally($"{tree.Refused.Count} refused", StatusKind.Failed)] : Array.Empty<TreeTally>(),
-        ];
     }
 
     private static (bool HasBudget, string Budget, IReadOnlyList<BudgetShare> Shares, string ShareNote) Carved(Cost cap, IReadOnlyList<IReadOnlyList<Cost>> carves)

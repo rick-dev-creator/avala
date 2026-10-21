@@ -1,12 +1,16 @@
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Navigation;
+using Avala.Workbench.Steering;
 
 namespace Avala.Workbench.Overview;
 
-internal sealed class RowActions(JobFocus focus, Conversations conversations)
+internal sealed class RowActions(JobFocus focus, Conversations conversations, JobSteering steering)
 {
     public void Open(JobId job) => focus.Select(job);
+
+    public async Task<bool> TellAsync(JobId orchestrator, JobStatus shown, string note, CancellationToken cancellationToken) =>
+        (await steering.SendAsync(orchestrator, shown, new JobMessage(note), cancellationToken)).IsSuccess;
 
     public void Peek(DelegationNodeViewModel row)
     {

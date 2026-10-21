@@ -70,6 +70,7 @@ internal sealed class JobsDbContext(string database) : DbContext
         job.Property(entity => entity.Model).HasConversion(choice => Stored.Text(choice), text => Stored.Model(text));
         job.Property(entity => entity.Held).HasColumnName("Hold").HasConversion(hold => Stored.Text(hold), text => Stored.Hold(text));
         job.Property(entity => entity.Problem).HasConversion(problem => Stored.Text(problem), text => Stored.Problem(text));
+        job.Property(entity => entity.Failure).HasConversion(failure => Stored.Text(failure), text => Stored.Failure(text));
         job.Property(entity => entity.Attachments).HasConversion(attachments => Stored.Text(attachments), text => Stored.Attachments(text), Listed);
         job.OwnsMany(entity => entity.Attempts, Configure);
     }

@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Testing;
 using HoldReason = Avala.Jobs.Contracts.HoldReason;
+using JobFailure = Avala.Jobs.Contracts.JobFailure;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -45,6 +46,8 @@ public sealed class JobTransitionTests
         [Operation.Reopen] = ([JobState.Approved], JobError.CannotReopen),
         [Operation.ReopenInNewSession] = ([JobState.Approved], JobError.CannotReopen),
         [Operation.ChooseModel] = ([JobState.NeedsHelp, JobState.AwaitingReview], JobError.CannotChooseModel),
+        [Operation.ContinueFromDevice] = ([JobState.AwaitingReview], JobError.CannotSendBack),
+        [Operation.Wake] = ([JobState.AwaitingReview], JobError.CannotSendBack),
     };
 
     [Fact]
@@ -93,7 +96,7 @@ public sealed class JobTransitionTests
         Operation.SendBackInNewSession => Outcomes.ErrorOf(job.SendBack(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.Approve => Outcomes.ErrorOf(job.Approve(Given.Ended)),
         Operation.Discard => Outcomes.ErrorOf(job.Discard(Given.Ended)),
-        Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed, Given.Ended)),
+        Operation.Fail => Outcomes.ErrorOf(job.Fail(JobFailure.AgentFailed, Given.Ended)),
         Operation.Hold => Outcomes.ErrorOf(job.Hold(HoldReason.Stalled)),
         Operation.HoldOverBudget => Outcomes.ErrorOf(job.Hold(HoldReason.BudgetExceeded)),
         Operation.HoldUnverifiable => Outcomes.ErrorOf(job.Hold(HoldReason.InvalidChecks)),
@@ -104,6 +107,8 @@ public sealed class JobTransitionTests
         Operation.Reopen => Outcomes.ErrorOf(job.Reopen(Given.Feedback)),
         Operation.ReopenInNewSession => Outcomes.ErrorOf(job.Reopen(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.ChooseModel => Outcomes.ErrorOf(job.ChooseModel(new ModelChoice("opus", "high"))),
+        Operation.ContinueFromDevice => Outcomes.ErrorOf(job.ContinueFromDevice(Given.Feedback)),
+        Operation.Wake => Outcomes.ErrorOf(job.Wake(Given.Feedback)),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 }

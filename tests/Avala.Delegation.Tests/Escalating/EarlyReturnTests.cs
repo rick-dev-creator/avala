@@ -79,6 +79,26 @@ public sealed class EarlyReturnTests
     }
 
     [Fact]
+    public async Task AChildHeldAtItsUsageLimitTellsItsParentWhyAtOnceAndIsStillReportedWhenItSettlesAsync()
+    {
+        await using var desk = await StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Attempted(child, AttemptOutcome.Interrupted);
+
+        await desk.ProgressAsync(child, JobStatus.NeedsHelp);
+        await desk.HeldAsync(child, HoldReason.LimitNearlyReached);
+        var early = await desk.Agents.ResultOfAsync("notes", Cancellation);
+        await desk.WaitChildAsync("wait", child);
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var reported = await desk.ReportedAsync(child);
+
+        Assert.Contains("\"hold\":\"limitNearlyReached\"", early.Content, StringComparison.Ordinal);
+        Assert.Contains("\"state\":\"waiting\"", early.Content, StringComparison.Ordinal);
+        Assert.Equal(ChildOutcome.Integrated, Outcomes.Present(reported.Report).Outcome);
+        Assert.Contains("\"outcome\":\"integrated\"", (await desk.Agents.ResultOfAsync("wait", Cancellation)).Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task WaitingForAJobThatIsNotOneOfYourChildrenIsRefusedAsync()
     {
         await using var desk = await StartedAsync();

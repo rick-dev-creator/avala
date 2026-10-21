@@ -40,7 +40,7 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
             await KeepRemoteControlAsync(job, cancellationToken);
         }
 
-        await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status), cancellationToken);
+        await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status) { Failure = job.Failure }, cancellationToken);
     }
 
     public async Task RecordRemoteControlAsync(Job job, JobRemoteControlChosen chosen, CancellationToken cancellationToken)

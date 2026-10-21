@@ -31,8 +31,11 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
             case TurnOutcome.LimitReached:
                 await round.HoldAsync(job, HoldReason.LimitNearlyReached, finished.Limit, cancellationToken);
                 break;
+            case var _ when job.Attempts[^1].Origin == AttemptOrigin.Woken || (job.Parent.IsSome && !job.Companion):
+                await round.HoldAsync(job, HoldReason.TurnFailed, Option<UsageLimit>.None, cancellationToken);
+                break;
             default:
-                await FailAsync(job, FailureReason.AgentFailed, cancellationToken);
+                await FailAsync(job, JobFailure.AgentFailed, cancellationToken);
                 break;
         }
     }
@@ -47,7 +50,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
                 () => verdict.Decision == GateDecision.Pass
                     ? PassAsync(job, cancellationToken)
                     : RetryAsync(job, verdict.Feedback, retry, cancellationToken)),
-            () => FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken));
+            () => FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken));
 
     private async Task<Option<GateVerdict>> EvaluateAsync(Job job, Option<FinishedTurn> turn, CancellationToken cancellationToken)
     {
@@ -84,7 +87,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
         await round.GoOnAsync(job, feedback, retry, cancellationToken);
     }
 
-    private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)
+    private async Task FailAsync(Job job, JobFailure reason, CancellationToken cancellationToken)
     {
         _ = job.Fail(reason, ledger.Now);
         await ledger.RecordAsync(job, cancellationToken);

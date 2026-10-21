@@ -6,6 +6,7 @@ using Avala.Workspaces.Changes;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
+using Avala.Workspaces.Storage;
 using Avala.Workspaces.Tests.Provisioning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -72,6 +73,32 @@ public sealed class WorkspaceCheckpointsTests
         var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
 
         Assert.Equal(WorkspaceFailure.UnknownCheckpoint, Outcomes.FailsWith(await checkpoints.RestoreAsync(workspace.Id, 7, Cancellation)));
+    }
+
+    [Fact]
+    public async Task ListingCheckpointsWhileAnotherCheckpointIsRecordedOnTheSameWorkspaceSucceedsAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        using var data = new TemporaryFolder();
+        await using var store = new SqliteWorkspaceStore(new AvalaPaths(data.Path));
+        var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
+        var settings = new WorkspaceSettings(repository.WorktreeRoot);
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var changes = new PausingChanges(new GitChangesCli(Processes));
+        var checkpoints = new WorkspaceCheckpoints(store, service, changes, git);
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "minor.go"), "one", Cancellation);
+        _ = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Attempt 1", Cancellation));
+        var listing = checkpoints.ListAsync(workspace.Id, Cancellation).AsTask();
+        await changes.Entered.WaitAsync(Cancellation);
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "docs.md"), "version 1", Cancellation);
+        _ = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Document Greeting, version 1", Cancellation));
+
+        changes.Release();
+
+        var thrown = await Record.ExceptionAsync(() => listing);
+        Assert.Null(thrown);
+        Assert.Equal("Attempt 1", Outcomes.Succeeds(await listing)[0].Label);
     }
 
     private static (WorkspaceService Service, WorkspaceCheckpoints Checkpoints) Open(TemporaryRepository repository)

@@ -3,4 +3,7 @@
     <OutputType>Exe</OutputType>
     <UseAppHost>false</UseAppHost>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avala.Sdk\Avala.Sdk.csproj" />
+  </ItemGroup>
 </Project>

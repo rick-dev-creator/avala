@@ -1,15 +1,35 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
+using Avala.Delegation.Policy;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
 
 namespace Avala.Delegation.Records;
 
 internal static class ToolAnswers
 {
-    public static ToolResult Refused(ItemId item, DelegationError error) =>
-        new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = Reason(error) }.ToJsonString()) { IsError = true };
+    public static ToolResult Refused(ItemId item, DelegationError error) => Refused(item, error, Reason(error));
+
+    public static ToolResult Refused(ItemId item, DelegationError error, Option<ConnectionName> asked, IReadOnlyList<ConnectionName> declared) =>
+        Refused(item, error, error == DelegationError.UndeclaredConnection ? Undeclared(asked, declared) : Reason(error));
+
+    private static ToolResult Refused(ItemId item, DelegationError error, string reason) =>
+        new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = reason }.ToJsonString()) { IsError = true };
+
+    private static string Undeclared(Option<ConnectionName> asked, IReadOnlyList<ConnectionName> declared)
+    {
+        var named = asked.Match(connection => connection.Value, () => string.Empty);
+
+        return declared.Count == 0
+            ? $"the connection \"{named}\" is not declared in the repository's delegation section, which declares no connections to choose from; leave connection out."
+            : $"the connection \"{named}\" is not declared in the repository's delegation section; choose one of the declared connections, {string.Join(", ", declared.Select(connection => connection.Value))}, or leave connection out.";
+    }
+
+    private const string CrossHarness = "crossHarness";
 
     public static ToolResult Reported(ItemId item, DelegationRecord delegation, ChildReport report)
     {
@@ -18,6 +38,9 @@ internal static class ToolAnswers
             ["job"] = report.Child.Value.ToString(),
             ["outcome"] = Camel(report.Outcome),
             ["status"] = Camel(report.Status),
+            ["state"] = Camel(Lifecycle.Of(report.Status, report.Hold, Asking.Nothing)),
+            ["kind"] = CrossHarness,
+            ["harness"] = report.Harness.Match(name => name, () => string.Empty),
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
             ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
             ["role"] = Camel(delegation.Role),
@@ -31,10 +54,36 @@ internal static class ToolAnswers
             ["conflicts"] = new JsonArray([.. report.Conflicts.Select(path => Node(JsonValue.Create(path)))]),
             ["hold"] = report.Hold.Match(reason => Camel(reason), () => string.Empty),
             ["refusal"] = report.Refusal.Match(rejection => Camel(rejection), () => string.Empty),
+            ["retries"] = report.Retries,
+            ["reason"] = report.Outcome == ChildOutcome.GivenUp ? GaveUp(report) : report.Failure.Match(Failed, () => string.Empty),
         };
 
         return new ToolResult(item, answer.ToJsonString());
     }
+
+    private static string Failed(JobFailure failure) => failure switch
+    {
+        JobFailure.WorkspaceUnavailable => "the child's worktree could not be prepared or checkpointed",
+        JobFailure.ConnectionUnavailable => "no connection could run the child",
+        JobFailure.ModelUnavailable => "the child's connection does not offer the model or effort it asked for",
+        JobFailure.AgentFailed => "the child's agent ended its turn in failure",
+        _ => "the child's agent could not take its message",
+    };
+
+    private static string GaveUp(ChildReport report) =>
+        report.Retries == 0
+            ? $"Avala could not continue it after {report.Hold.Match(Cause, () => "it stopped")}. Its job is discarded and none of its work reaches yours."
+            : $"Avala gave it up after retrying it {report.Retries} time{(report.Retries == 1 ? string.Empty : "s")}, and then {report.Hold.Match(Cause, () => "it could not go on")} again. Its job is discarded and none of its work reaches yours.";
+
+    public static string Retrying(JobHold hold) =>
+        hold.Reason == HoldReason.SessionLost
+            ? "Your session was lost before you finished. Continue the work where you left off."
+            : $"Your last turn failed{hold.Problem.Match(problem => $": {problem}", () => string.Empty)}. Look at what went wrong, then continue the work where you left off.";
+
+    public static string RetryNote(DelegationRecord delegation, JobId child, JobHold hold) =>
+        $"Sub-agent \"{delegation.Instruction.Split('\n', 2)[0].Trim()}\", job {child.Value}, is retrying {delegation.Retries} of {ChildRetries.Most} after {Cause(hold.Reason)}: Avala continued it {(hold.Reason == HoldReason.SessionLost ? "in a new session" : "with its failure as feedback")}, and it keeps its work. Keep waiting for its report, or call stop_child with this child to stop it.";
+
+    private static string Cause(HoldReason reason) => reason == HoldReason.SessionLost ? "its session was lost" : "its turn failed";
 
     public static ToolResult Running(ItemId item, DelegationRecord delegation)
     {
@@ -45,10 +94,51 @@ internal static class ToolAnswers
             ["job"] = child,
             ["outcome"] = "running",
             ["status"] = "running",
+            ["state"] = Camel(SubagentState.Working),
+            ["kind"] = CrossHarness,
             ["note"] = "this sub-agent is still working; its call returned early so that you can answer another sub-agent that asks you something. Call wait_child with this child to keep waiting for its report.",
             ["wait_child"] = new JsonObject { ["child"] = child },
         }.ToJsonString());
     }
+
+    public static ToolResult Held(ItemId item, JobId child, JobHold hold) =>
+        new(item, new JsonObject
+        {
+            ["job"] = child.Value.ToString(),
+            ["outcome"] = Camel(ChildOutcome.Held),
+            ["status"] = Camel(JobStatus.NeedsHelp),
+            ["state"] = Camel(SubagentState.Waiting),
+            ["kind"] = CrossHarness,
+            ["hold"] = Camel(hold.Reason),
+            ["reason"] = HeldBecause(hold),
+            ["note"] = HeldNext,
+            ["wait_child"] = new JsonObject { ["child"] = child.Value.ToString() },
+            ["stop_child"] = new JsonObject { ["child"] = child.Value.ToString() },
+        }.ToJsonString());
+
+    public static string HeldNote(DelegationRecord delegation, JobId child, JobHold hold) =>
+        $"Sub-agent \"{delegation.Instruction.Split('\n', 2)[0].Trim()}\", job {child.Value}, is held ({Camel(hold.Reason)}): {HeldBecause(hold)} {HeldNext}";
+
+    private const string HeldNext = "Avala hands it to another connection your delegation section declares when one has room, or it waits for its window to reset; it keeps its work either way. Call wait_child with this child to keep waiting for its report, or stop_child to stop it.";
+
+    private static string HeldBecause(JobHold hold) =>
+        hold.Limit.Match(
+            limit => $"its connection used {limit.UsedFraction.ToString("P0", CultureInfo.InvariantCulture)} of its {limit.Window} usage window.",
+            () => "its connection reached its usage limit.");
+
+    public static ToolResult Stopped(ItemId item, JobId child) =>
+        new(item, new JsonObject
+        {
+            ["job"] = child.Value.ToString(),
+            ["outcome"] = Camel(ChildOutcome.Discarded),
+            ["status"] = Camel(JobStatus.Discarded),
+            ["state"] = Camel(SubagentState.Stopped),
+            ["kind"] = CrossHarness,
+            ["note"] = "this sub-agent was stopped and its job discarded; none of its work reaches yours.",
+        }.ToJsonString());
+
+    public static ToolResult NotStopped(ItemId item) =>
+        new(item, new JsonObject { ["refused"] = "notRunning", ["reason"] = "that sub-agent already ended, so there is nothing to stop." }.ToJsonString()) { IsError = true };
 
     public static ToolResult AlreadyTold(ItemId item, ChildReport report) =>
         new(item, new JsonObject
@@ -113,7 +203,7 @@ internal static class ToolAnswers
 
     private static string Reason(DelegationError error) => error switch
     {
-        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, a model and an effort as non-empty text if any, and a role of worker, reviewer or research if any.",
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, a model, an effort and a connection as non-empty text if any, and a role of worker, reviewer or research if any.",
         DelegationError.UnofferedModel => "the sub-agent's connection does not offer that model; ask for one it offers or leave the model out.",
         DelegationError.UnofferedEffort => "the sub-agent's connection does not offer that effort level; ask for one it offers or leave the effort out.",
         DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",

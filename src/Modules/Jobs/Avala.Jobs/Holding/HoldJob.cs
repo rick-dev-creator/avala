@@ -27,6 +27,19 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, J
                 : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
             () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
+    public async Task HushAsync(Job job, SessionId session, CancellationToken cancellationToken)
+    {
+        if (job.State != JobState.NeedsHelp || job.Session != Option<SessionId>.Some(session))
+        {
+            return;
+        }
+
+        foreach (var turn in (await agents.InterruptAsync(session, cancellationToken)).Match<TurnId[]>(turn => [turn], _ => []))
+        {
+            ImmutableInterlocked.Update(ref interrupted, turns => turns.Add(turn));
+        }
+    }
+
     public async Task CouldNotStartAsync(Job job, string problem, CancellationToken cancellationToken)
     {
         if (!job.CouldNotStart(problem).TryGetValue(out var failed, out _))

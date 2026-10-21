@@ -1,12 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:presenting="using:Avala.Workbench.Presenting"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.OrchestratorCardView"
              x:ClassModifier="internal"
-             x:DataType="overview:IOrchestratorCardViewModel">
+             x:DataType="overview:IOrchestratorCardViewModel"
+             graphs:Graph.Depth="{Binding Place.Depth}"
+             graphs:Graph.Edge="{Binding Place.Edge}">
   <Design.DataContext>
     <overview:DesignOrchestratorCardViewModel />
   </Design.DataContext>
@@ -25,6 +28,9 @@
     <Style Selector="Arc#Ring.attention">
       <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
     </Style>
+    <Style Selector="Button#Fold Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
     <Style Selector="TextBlock.tally.attention">
       <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
     </Style>
@@ -37,25 +43,42 @@
     <Border x:Name="Card"
             Classes="node"
             Classes.viewing="{Binding IsViewing}"
+            Classes.attention="{Binding Place.IsWaiting}"
+            Classes.alert="{Binding Place.IsAlert}"
+
             CornerRadius="{DynamicResource RadiusOrchestrator}"
             BoxShadow="{DynamicResource ShadowOrchestrator}"
-            Padding="18,16">
-      <StackPanel Spacing="10">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Border Classes="tag" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" />
+            Padding="14,12">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+          <Border x:Name="HarnessMark"
+                  Classes="harness"
+                  Classes.brand="{Binding Place.Harness.HasBrand}"
+                  Background="{Binding Place.Harness.Color, Converter={x:Static states:BrandColor.Brush}}"
+                  IsVisible="{Binding Place.Harness.IsKnown}"
+                  ToolTip.Tip="{Binding Place.Harness.Name}">
+            <Panel>
+              <Path x:Name="HarnessLogo" Classes="logo" Data="{Binding Place.Harness.Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding Place.Harness.HasLogo}" />
+              <TextBlock Classes="monogram" Text="{Binding Place.Harness.Name, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
+            </Panel>
           </Border>
-          <TextBlock x:Name="Source" Classes="caption">
-            <Run Text="{Binding Harness}" />
-            <Run Text="{Binding Connection, StringFormat=' · {0} · orchestrator'}" />
-          </TextBlock>
-        </StackPanel>
+          <WrapPanel Grid.Column="1" ItemSpacing="6" LineSpacing="3" VerticalAlignment="Center">
+            <TextBlock x:Name="Source" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+              <Run Text="{Binding Place.Harness.Name}" />
+              <Run Text=" · orchestrator" />
+            </TextBlock>
+            <Border x:Name="InstanceChip" Classes="instance" IsVisible="{Binding Place.Harness.HasInstance}" ToolTip.Tip="The connection this harness runs on">
+              <TextBlock x:Name="Instance" Text="{Binding Place.Harness.Instance}" />
+            </Border>
+          </WrapPanel>
+        </Grid>
         <DockPanel>
-          <ContentControl DockPanel.Dock="Left" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,10,0" VerticalAlignment="Center" />
-          <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+          <ContentControl x:Name="State" DockPanel.Dock="Right" Content="{Binding Place}" Margin="8,0,0,0" VerticalAlignment="Center" />
+          <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
         </DockPanel>
+        <TextBlock x:Name="Doing" Classes="caption secondary" Text="{Binding Doing}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Detail" Classes="caption secondary" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-        <StackPanel x:Name="Glance" Orientation="Horizontal" Spacing="10">
+        <WrapPanel x:Name="Glance" Orientation="Horizontal" ItemSpacing="10" LineSpacing="4">
           <StackPanel x:Name="ContextGauge" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Context.IsShown}">
             <Panel Width="13" Height="13" VerticalAlignment="Center">
               <Ellipse Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="2.4" />
@@ -72,22 +95,9 @@
             </Border>
           </StackPanel>
           <TextBlock x:Name="Tokens" Classes="hint" Text="{Binding Tokens, StringFormat='{}{0} in the tree'}" VerticalAlignment="Center" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        </StackPanel>
-        <ItemsControl x:Name="Tally" ItemsSource="{Binding Tally}" IsVisible="{Binding !!Tally.Count}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="12" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="overview:TreeTally">
-              <TextBlock Classes="hint tally" Classes.attention="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='NeedsYou'}" Text="{Binding Text}" />
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        </WrapPanel>
         <StackPanel Spacing="5">
-          <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasBudget}" />
           <ItemsControl x:Name="Shares" ItemsSource="{Binding Shares}" IsVisible="{Binding HasBudget}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -100,15 +110,31 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" />
+          <DockPanel>
+            <Button x:Name="Fold"
+                    DockPanel.Dock="Right"
+                    Classes="bare"
+                    Padding="4,0"
+                    IsVisible="{Binding Place.HasBranches}"
+                    AutomationProperties.Name="Fold or unfold its sub-agents"
+                    Command="{Binding Place.FoldCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock x:Name="Branches" Classes="hint" Text="{Binding Place.Branches}" />
+                <Panel Width="9" Height="9" VerticalAlignment="Center">
+                  <Path Classes="icon" Width="9" Height="9" Data="{StaticResource IconChevronRight}" IsVisible="{Binding Place.IsFolded}" />
+                  <Path Classes="icon" Width="9" Height="9" Data="{StaticResource IconChevronDown}" IsVisible="{Binding !Place.IsFolded}" />
+                </Panel>
+              </StackPanel>
+            </Button>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="hint" Text="·" />
+            <elapsed:ElapsedText x:Name="Elapsed" Classes="hint" Since="{Binding Since}" IsVisible="{Binding IsTiming}" />
+            <TextBlock x:Name="Took" Classes="hint" Text="{Binding Took}" IsVisible="{Binding !IsTiming}" />
+          </StackPanel>
+          </DockPanel>
+          <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasBudget}" />
         </StackPanel>
-        <ItemsControl x:Name="Subagents" ItemsSource="{Binding Subagents}" IsVisible="{Binding HasSubagents}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="5" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
       </StackPanel>
     </Border>
   </Button>

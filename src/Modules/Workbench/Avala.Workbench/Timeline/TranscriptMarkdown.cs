@@ -48,6 +48,7 @@ internal static class TranscriptMarkdown
         : tool.Outcome.Match(outcome => outcome switch
         {
             ItemOutcome.Failed => " (failed)",
+            ItemOutcome.Abandoned when tool.Kind == ItemKind.Subagent => " (lost)",
             ItemOutcome.Cancelled or ItemOutcome.Abandoned or ItemOutcome.Expired => " (stopped)",
             _ => string.Empty,
         }, () => string.Empty);

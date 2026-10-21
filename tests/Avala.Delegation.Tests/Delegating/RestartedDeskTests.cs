@@ -77,6 +77,27 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AChildRetriedOnceBeforeARestartHasOneRetryLeftAfterItAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+        await using var restarted = new Desk { Jobs = { Steerable = true } };
+        restarted.Store.Earlier = [.. desk.Store.Recorded.GroupBy(record => (record.Session, record.Item)).Select(versions => versions.Last())];
+        restarted.Jobs.Knows(child, desk.Parent);
+        await restarted.Book.RunAsync(Cancellation);
+
+        await restarted.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+        await restarted.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+
+        var report = Outcomes.Present((await restarted.ReportedAsync(child)).Report);
+        Assert.Single(restarted.Jobs.Continued);
+        Assert.Contains("retrying 2 of 2 after its session was lost", Assert.Single(restarted.Jobs.Steered).Message, StringComparison.Ordinal);
+        Assert.Equal((ChildOutcome.GivenUp, 2), (report.Outcome, report.Retries));
+    }
+
+    [Fact]
     public async Task AReportBriefedInAMessageThatReachedTheParentJustBeforeARestartIsNotBriefedAgainAfterItAsync()
     {
         await using var desk = new Desk();

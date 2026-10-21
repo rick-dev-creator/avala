@@ -7,7 +7,7 @@ namespace Avala.Workspaces.Workspaces;
 
 internal sealed class Workspace : IAggregateRoot<WorkspaceId>
 {
-    private readonly List<Checkpoint> checkpoints = [];
+    private List<Checkpoint> checkpoints = [];
     private readonly StateMachine<WorkspaceState, WorkspaceTrigger> machine;
 
     private Workspace(WorkspaceId id, WorkspaceLocation location, BranchName branch, CommitSha @base)
@@ -53,7 +53,7 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
             .Map(_ =>
             {
                 var checkpoint = new Checkpoint(checkpoints.Count + 1, commit, label);
-                checkpoints.Add(checkpoint);
+                checkpoints = [.. checkpoints, checkpoint];
 
                 return new CheckpointRecorded(Id, checkpoint);
             });

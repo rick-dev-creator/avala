@@ -71,7 +71,7 @@
                      Text="When a job hands work to sub-agents, its tree appears here with the budget carved for each child." />
         </StackPanel>
       </Border>
-      <ScrollViewer x:Name="Canvas" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" IsVisible="{Binding !!Trees.Count}">
+      <ScrollViewer x:Name="Canvas" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsVisible="{Binding !!Trees.Count}">
         <ItemsControl x:Name="Trees" Margin="24,18" ItemsSource="{Binding Trees}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

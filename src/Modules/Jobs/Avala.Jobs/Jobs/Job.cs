@@ -56,6 +56,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<string> Problem { get; private set; }
 
+    public Option<JobFailure> Failure { get; private set; }
+
     public bool RemoteControlled { get; private set; }
 
     public IReadOnlyList<Attachment> Attachments { get; private init; } = [];
@@ -244,6 +246,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
             .Map(_ => Begin(AttemptOrigin.Device, message));
 
+    public Result<AttemptStarted, JobError> Wake(Feedback note) =>
+        machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
+            .Map(_ => Begin(AttemptOrigin.Woken, note));
+
     public Result<RemoteControlChosen, JobError> ControlRemotely(bool on)
     {
         if (Parent.IsSome)
@@ -302,11 +308,12 @@ internal sealed class Job : IAggregateRoot<JobId>
             });
     }
 
-    public Result<JobFailed, JobError> Fail(FailureReason reason, DateTimeOffset at) =>
+    public Result<JobFailed, JobError> Fail(JobFailure reason, DateTimeOffset at) =>
         machine.TryFire(JobTrigger.Fail, JobError.CannotFail)
             .Map(_ =>
             {
                 End(at);
+                Failure = reason;
 
                 return new JobFailed(Id, reason);
             });

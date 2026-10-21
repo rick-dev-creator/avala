@@ -52,6 +52,42 @@ public sealed class TurnTests
     }
 
     [Fact]
+    public void AnItemGoesOnInTheBackgroundUntilItCompletes()
+    {
+        var turn = Given.Turn(Given.Started("survey"));
+
+        var backgrounded = Outcomes.Succeeds(turn.Apply(Given.Backgrounded("survey"), Given.Now)).Events;
+        var working = turn.OpenItems.Concat(turn.Backgrounded).ToList();
+        Outcomes.Succeeds(turn.Apply(Given.Completed("survey"), Given.Now));
+
+        Assert.Equal([Given.Backgrounded("survey")], backgrounded);
+        Assert.Equal([Given.Item("survey"), Given.Item("survey")], working);
+        Assert.Equal((0, 0), (turn.OpenItems.Count, turn.Backgrounded.Count));
+    }
+
+    [Theory]
+    [InlineData("unknown", nameof(TurnError.UnknownItem))]
+    [InlineData("done", nameof(TurnError.ItemAlreadyCompleted))]
+    [InlineData("survey", nameof(TurnError.ItemAlreadyBackgrounded))]
+    public void RejectsBackgroundingAnItemThatIsNotOpenInTheForeground(string item, string expected)
+    {
+        var turn = Given.Turn(Given.Started("done"), Given.Completed("done"), Given.Started("survey"), Given.Backgrounded("survey"));
+
+        Assert.Equal(expected, Outcomes.FailsWith(turn.Apply(Given.Backgrounded(item), Given.Now)).ToString());
+    }
+
+    [Fact]
+    public void AnItemStillInTheBackgroundWhenItsTurnEndsIsAbandoned()
+    {
+        var turn = Given.Turn(Given.Started("survey"), Given.Backgrounded("survey"));
+
+        var ended = Outcomes.Succeeds(turn.Apply(Given.Ended(TurnOutcome.Interrupted), Given.Now)).Events;
+
+        Assert.Equal([new ItemCompleted(Given.Session, Given.TurnId, Given.Item("survey"), ItemOutcome.Abandoned), Given.Ended(TurnOutcome.Interrupted)], ended);
+        Assert.Empty(turn.Backgrounded);
+    }
+
+    [Fact]
     public void RejectsActivityOnAnItemThatNeverStarted()
     {
         var turn = Given.Turn();

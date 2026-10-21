@@ -11,6 +11,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
     private readonly Dictionary<ItemId, DateTimeOffset> openItems = [];
     private readonly HashSet<ItemId> completedItems = [];
     private readonly HashSet<ItemId> pendingCalls = [];
+    private readonly HashSet<ItemId> backgroundItems = [];
     private readonly StateMachine<TurnState, TurnTrigger> machine;
 
     private Turn(SessionId session, TurnId id)
@@ -38,6 +39,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public IReadOnlyCollection<ItemId> PendingCalls => pendingCalls;
 
+    public IReadOnlyCollection<ItemId> Backgrounded => backgroundItems;
+
     public static Result<Turn, TurnError> Begin(TurnStarted started) => new Turn(started.Session, started.Turn);
 
     public Result<TurnProgress, TurnError> Apply(IAgentEvent agentEvent, DateTimeOffset at)
@@ -59,6 +62,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             ItemDrafted drafted => Draft(drafted),
             CanvasStarted started => Open(started, started.Item, at),
             ItemProgressed progressed => Touch(progressed, progressed.Item, at),
+            ItemBackgrounded backgrounded => Background(backgrounded, at),
             ItemCompleted completed => Close(completed),
             ToolCalled called => Open(called, called.Item, at).Map(progress =>
             {
@@ -143,6 +147,21 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         return new TurnProgress([agentEvent]);
     }
 
+    private Result<TurnProgress, TurnError> Background(ItemBackgrounded backgrounded, DateTimeOffset at)
+    {
+        if (backgroundItems.Contains(backgrounded.Item))
+        {
+            return TurnError.ItemAlreadyBackgrounded;
+        }
+
+        return Touch(backgrounded, backgrounded.Item, at).Map(progress =>
+        {
+            backgroundItems.Add(backgrounded.Item);
+
+            return progress;
+        });
+    }
+
     private Result<TurnProgress, TurnError> Close(ItemCompleted completed)
     {
         if (completedItems.Contains(completed.Item))
@@ -157,6 +176,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
         completedItems.Add(completed.Item);
         pendingCalls.Remove(completed.Item);
+        backgroundItems.Remove(completed.Item);
 
         return new TurnProgress([completed]);
     }
@@ -249,7 +269,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
     }
 
     private bool IsAwaitingAnswer(ItemId item) =>
-        PendingPermission == Option<ItemId>.Some(item) || PendingForm == Option<ItemId>.Some(item) || pendingCalls.Contains(item);
+        PendingPermission == Option<ItemId>.Some(item) || PendingForm == Option<ItemId>.Some(item) || pendingCalls.Contains(item) || backgroundItems.Contains(item);
 
     private Result<TurnProgress, TurnError> End(TurnCompleted completed)
     {
@@ -266,6 +286,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             PendingPermission = Option<ItemId>.None;
             PendingForm = Option<ItemId>.None;
             pendingCalls.Clear();
+            backgroundItems.Clear();
 
             return new TurnProgress([.. abandoned.Select(item => Conclude(item, ItemOutcome.Abandoned)), completed]);
         });
@@ -275,6 +296,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
     {
         openItems.Remove(item);
         pendingCalls.Remove(item);
+        backgroundItems.Remove(item);
         completedItems.Add(item);
 
         return new ItemCompleted(Session, Id, item, outcome);

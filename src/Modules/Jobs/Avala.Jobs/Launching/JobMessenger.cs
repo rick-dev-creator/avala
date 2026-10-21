@@ -9,9 +9,9 @@ namespace Avala.Jobs.Launching;
 
 internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> briefings, ILogger<JobMessenger> logger)
 {
-    public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, CancellationToken cancellationToken)
+    public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
     {
-        if (job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
+        if (author != MessageAuthor.Person || job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
             return await agents.TellAsync(job, message, cancellationToken);
         }

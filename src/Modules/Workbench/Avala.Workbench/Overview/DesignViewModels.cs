@@ -1,5 +1,6 @@
 using Avala.Components.Privacy;
 using Avala.Components.Status;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Conversation;
@@ -126,8 +127,52 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
     }
 }
 
+internal sealed record DesignBranchPlaceViewModel(string Key, int Depth, BranchKind Kind, SubagentState State) : IBranchPlaceViewModel
+{
+    public DesignBranchPlaceViewModel()
+        : this("design", 1, BranchKind.InProcess, SubagentState.Working)
+    {
+    }
+
+    public string KindText => BranchPhrases.Kind(Kind);
+
+    public string StateText => SubagentStates.Text(State);
+
+    public Avala.Components.Graphs.EdgeKind Edge => BranchPhrases.Edge(State);
+
+    public bool IsWorking => State == SubagentState.Working;
+
+    public bool IsWaiting => State == SubagentState.Waiting;
+
+    public bool IsAlert => State is SubagentState.Failed or SubagentState.Lost;
+
+    public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped;
+
+    public int Branches { get; init; }
+
+    public bool HasBranches => Branches > 0;
+
+    public bool IsFolded { get; init; }
+
+    public HarnessMark Harness { get; init; } = new("Claude Code", "claude-work", string.Empty, "#D97757");
+
+    public bool IsCrossHarness => Kind == BranchKind.CrossHarness;
+
+    public bool RunsInside => Kind is BranchKind.InProcess or BranchKind.Command;
+
+    public bool CanTell => IsAlert && !IsTold;
+
+    public bool IsTold { get; init; }
+
+    public IAsyncRelayCommand TellCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand FoldCommand { get; } = new RelayCommand(() => { });
+}
+
 internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewModel
 {
+    public IBranchPlaceViewModel Place { get; init; } = new DesignBranchPlaceViewModel("root", 0, BranchKind.Orchestrator, SubagentState.Working) { Branches = 6 };
+
     public JobId Job => SampleJobs.CheckoutSplit;
 
     public string Title => "Migrate payments to stripe-go v79";
@@ -138,21 +183,25 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
 
     public string Detail => "ledger-api · Supervised · waiting on 2 sub-agents";
 
+    public string Doing => "Waiting for its sub-agents";
+
+    public DateTimeOffset Since => DateTimeOffset.UnixEpoch;
+
+    public bool IsTiming => false;
+
+    public string Took => "12m 40s";
+
     public string Budget => "Budget 3 USD";
 
-    public string Spent => "1.47 USD spent across the tree";
+    public string Spent => "1.47 USD spent";
 
     public IReadOnlyList<BudgetShare> Shares { get; } = [new(0.8, true), new(0.8, false), new(0.8, false), new(0.6, false)];
 
     public string ShareNote => "kept 0.80 USD · carved 0.80 USD · 0.80 USD · 0.60 USD";
 
-    public bool HasBudget => true;
+    public bool HasBudget { get; init; } = true;
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(StatusKind.Working);
-
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Plan the migration", "Listed 14 call sites", SubagentState.Done)];
-
-    public bool HasSubagents => Subagents.Count > 0;
 
     public bool IsViewing { get; init; } = true;
 
@@ -161,13 +210,28 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
     public ContextGlance Context { get; init; } = new(true, "42%", 0.58, false, true);
 
     public string Tokens { get; init; } = "1.1M tokens";
-
-    public IReadOnlyList<TreeTally> Tally { get; init; } = [new("1 needs you", StatusKind.NeedsYou), new("1 running", StatusKind.Working), new("1 done", StatusKind.Done)];
 }
 
 internal sealed record DesignSubagentViewModel(string Name, string Activity, SubagentState State) : ISubagentViewModel
 {
+    public DesignSubagentViewModel()
+        : this("Find the refund helpers", "Grep RefundParams in internal/", SubagentState.Working)
+    {
+    }
+
+    public IBranchPlaceViewModel Place { get; init; } = new DesignBranchPlaceViewModel(Name, 1, BranchKind.InProcess, State);
+
+    public JobId Job => SampleJobs.CheckoutSplit;
+
+    public string Note { get; init; } = string.Empty;
+
+    public bool HasNote => Note.Length > 0;
+
     public string Meter { get; init; } = string.Empty;
+
+    public DateTimeOffset Since => DateTimeOffset.UnixEpoch;
+
+    public bool IsTiming => false;
 
     public IReadOnlyList<string> Trail { get; init; } = [];
 
@@ -175,9 +239,11 @@ internal sealed record DesignSubagentViewModel(string Name, string Activity, Sub
 
     public bool IsOpen { get; init; }
 
-    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
 
-    public string StateText => State.ToString().ToLowerInvariant();
+    public IRelayCommand<JobId> OpenCommand { get; } = OverviewPhrases.Idle;
+
+    public string StateText => SubagentStates.Text(State);
 }
 
 internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, int Depth, StatusKind Kind, string Harness, string Connection, string Activity, string Spend, bool HasCarve, double SpentShare) : IDelegationNodeViewModel
@@ -187,17 +253,17 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     {
     }
 
+    public IBranchPlaceViewModel Place { get; init; } = new DesignBranchPlaceViewModel(Title, Depth, BranchKind.Child, SubagentState.Working) { Branches = 1 };
+
     public JobStatus Status => Kind == StatusKind.ReadyForReview ? JobStatus.AwaitingReview : Kind == StatusKind.NeedsYou ? JobStatus.NeedsHelp : JobStatus.Running;
 
     public string Role { get; init; } = string.Empty;
 
     public string State => OverviewPhrases.State(Kind);
 
+    public string StateText => Place.StateText;
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
-
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Read internal/payments/refund.go", SubagentState.Running) { Meter = "6 tool uses · 18,240 tokens" }];
-
-    public bool HasSubagents => Subagents.Count > 0;
 
     public bool IsViewing { get; init; }
 
@@ -218,11 +284,13 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
 
     public string Spent => Spend.Split(' ')[0] + " USD";
 
-    public int SubagentCount => Subagents.Count;
-
-    public string Agents => OverviewPhrases.Count(SubagentCount, "agent");
-
     public bool NeedsYou => Kind is StatusKind.NeedsYou or StatusKind.Held;
+
+    public DateTimeOffset Since => DateTimeOffset.UnixEpoch;
+
+    public bool IsTiming => false;
+
+    public string Took { get; init; } = "4m 12s";
 
     public bool IsSettled { get; init; }
 
@@ -235,6 +303,55 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     public bool IsPeeking => Peek is not null;
 
     public IRelayCommand PeekCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed record DesignWaitingAgentViewModel() : IWaitingAgentViewModel
+{
+    public JobId Job => SampleAgents.WebhookTests;
+
+    public string Name => "Rewrite webhook signature tests";
+
+    public string What => "asks: go generate ./internal/webhooks/...";
+
+    public IRelayCommand<JobId> OpenCommand { get; } = OverviewPhrases.Idle;
+}
+
+internal sealed class DesignSubagentTreeViewModel : ISubagentTreeViewModel
+{
+    public IReadOnlyList<IAgentBranch> Branches { get; init; } =
+    [
+        new DesignOrchestratorCardViewModel(),
+        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-pro", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28)
+        {
+            Place = new DesignBranchPlaceViewModel("webhooks", 1, BranchKind.CrossHarness, SubagentState.Waiting),
+            Recent = [new RecentActionViewModel("Run go generate ./internal/webhooks/...", DateTimeOffset.UnixEpoch, false)],
+            Tokens = "41k tokens",
+        },
+        new DesignSubagentViewModel("Port the idempotency keys", "Read internal/idempotency/keys.go", SubagentState.Lost)
+        {
+            Note = "its work was lost when its turn or session ended",
+            Meter = "11 tool uses · 32.1k tokens",
+        },
+        new DesignDelegationNodeViewModel(),
+        new DesignSubagentViewModel("Find the refund helpers", "Grep RefundParams in internal/", SubagentState.Working)
+        {
+            Place = new DesignBranchPlaceViewModel("helpers", 2, BranchKind.InProcess, SubagentState.Working),
+            Meter = "6 tool uses · 18.2k tokens",
+        },
+    ];
+
+    public string Agents => "6 agents";
+
+    public string Working => "2 working";
+
+    public string NeedsYou => "1 needs you";
+
+    public bool HasNeedsYou => true;
+
+    public string Spent => "1.47 USD";
+
+    public IReadOnlyList<IWaitingAgentViewModel> Waiting { get; } =
+        [new WaitingAgentViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", "Wants to run go generate ./internal/webhooks/...", OverviewPhrases.Idle)];
 }
 
 internal sealed class DesignDelegationRefusalViewModel : IDelegationRefusalViewModel
@@ -266,14 +383,7 @@ internal sealed class DesignOrchestrationViewModel : IOrchestrationViewModel
 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 
-    public IOrchestratorCardViewModel Root { get; init; } = new DesignOrchestratorCardViewModel();
-
-    public IReadOnlyList<IDelegationNodeViewModel> Children { get; init; } =
-    [
-        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Claude Code", "claude", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28) { Subagents = [] },
-        new DesignDelegationNodeViewModel(),
-        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.ReadyForReview, "Claude Code", "claude-work", "Branch ready to merge into avala/stripe-v79", "0.32 USD of 0.60 USD", true, 0.53) { Subagents = [] },
-    ];
+    public ISubagentTreeViewModel Tree { get; init; } = new DesignSubagentTreeViewModel();
 
     public IReadOnlyList<IDelegationRefusalViewModel> Refused { get; init; } = [];
 }
@@ -352,44 +462,9 @@ internal sealed class DesignOverviewViewModel : IOverviewViewModel
 
 internal sealed class DesignDelegationPaneViewModel : IDelegationPaneViewModel
 {
-    public IOrchestratorCardViewModel? Root { get; } = new DesignOrchestratorCardViewModel();
+    public ISubagentTreeViewModel Tree { get; } = new DesignSubagentTreeViewModel();
 
-    public IReadOnlyList<IDelegationNodeViewModel> Children { get; } =
-    [
-        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Claude Code", "claude", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28)
-        {
-            Subagents = [new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting)],
-            Context = new(true, "88%", 0.12, false, false),
-            Tokens = "41k tokens",
-            Recent = [new RecentActionViewModel("Run go generate ./internal/webhooks/...", DateTimeOffset.UnixEpoch, false)],
-        },
-        new DesignDelegationNodeViewModel { IsOpen = true },
-        new DesignDelegationNodeViewModel(SampleAgents.IdempotencyKeys, "Port the idempotency keys", 1, StatusKind.Working, "Claude Code", "claude-work", "Run go test ./internal/idempotency/...", "0.37 USD of 0.80 USD", true, 0.46)
-        {
-            Subagents = [],
-            Context = new(true, "64%", 0.36, false, false),
-            Tokens = "88k tokens",
-            Recent = [new RecentActionViewModel("Run go test ./internal/idempotency/...", DateTimeOffset.UnixEpoch, false)],
-        },
-        new DesignDelegationNodeViewModel(SampleAgents.PayoutScheduler, "Update the payout scheduler", 1, StatusKind.Working, "Claude Code", "claude", "Edit internal/payouts/schedule.go", "0.58 USD of 0.80 USD", true, 0.73)
-        {
-            Subagents = [],
-            Context = new(true, "22%", 0.78, true, true),
-            Tokens = "212k tokens",
-            Recent = [new RecentActionViewModel("Edit internal/payouts/schedule.go", DateTimeOffset.UnixEpoch, false)],
-        },
-    ];
-
-    public IReadOnlyList<IDelegationNodeViewModel> Settled { get; } =
-    [
-        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.Done, "Claude Code", "claude-work", "integrated into its parent", "0.32 USD of 0.60 USD", true, 0.53) { Subagents = [], IsSettled = true },
-    ];
-
-    public string SettledLabel => "1 done";
-
-    public bool ShowsSettled => false;
-
-    public IRelayCommand ToggleSettledCommand { get; } = new RelayCommand(() => { });
+    public bool HasTree => true;
 
     public string Caption => "6 jobs · 3 agents";
 

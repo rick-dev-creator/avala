@@ -10,6 +10,8 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
 {
     private const string Interrupted = "The harness interrupted the turn.";
 
+    private const string Gone = "The sub-agent that asked has ended.";
+
     private readonly AvalaServer server = new(tools.Offered);
     private readonly List<Prompt> prompts = [];
     private readonly Dictionary<ItemId, ToolCall> calls = [];
@@ -105,6 +107,23 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
                 new ItemCompleted(stamp.Session, stamp.Turn, result.Item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded)));
     }
 
+    public Reaction Dismiss(IEnumerable<ItemId> ended, Stamp stamp)
+    {
+        var parents = ended.ToHashSet();
+        var orphaned = prompts.Where(prompt => prompt.Tool.Parent.Match(parents.Contains, () => false)).ToList();
+
+        if (orphaned.Count == 0)
+        {
+            return Reaction.None;
+        }
+
+        prompts.RemoveAll(orphaned.Contains);
+
+        return Reaction.Send([.. orphaned.Select(prompt => Messages.Mcp(prompt.Call.RequestId, prompt.Call.RpcId, Messages.Deny(Gone)))])
+            .Then(Withdrawn(orphaned.Where(prompt => prompt.Announced), stamp))
+            .Then(Announce(stamp));
+    }
+
     public Reaction Release(bool interrupted)
     {
         var released = prompts
@@ -180,7 +199,14 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Deny("This tool is internal to Avala.")));
         }
 
-        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && (Granted(tool.Use) || (tool.Use with { Input = input }).WritesPlan(places)))
+        if (tool.Parent.Match(tools.Ended, () => false))
+        {
+            tool.Refused = true;
+
+            return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Deny(Gone)));
+        }
+
+        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && (Granted(tool.Use) || tool.Use.OwnWork || (tool.Use with { Input = input }).WritesPlan(places)))
         {
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Allow(input)));
         }

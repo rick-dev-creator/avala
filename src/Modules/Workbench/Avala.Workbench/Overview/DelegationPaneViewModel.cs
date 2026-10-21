@@ -20,17 +20,9 @@ internal sealed record DelegationPaneState(Option<JobId> Viewing, Option<Delegat
 
 internal interface IDelegationPaneViewModel
 {
-    IOrchestratorCardViewModel? Root { get; }
+    ISubagentTreeViewModel Tree { get; }
 
-    IReadOnlyList<IDelegationNodeViewModel> Children { get; }
-
-    IReadOnlyList<IDelegationNodeViewModel> Settled { get; }
-
-    string SettledLabel { get; }
-
-    bool ShowsSettled { get; }
-
-    IRelayCommand ToggleSettledCommand { get; }
+    bool HasTree { get; }
 
     string Caption { get; }
 
@@ -49,8 +41,7 @@ internal sealed partial class DelegationPaneViewModel
     private readonly LiveFeed feed;
     private readonly RowActions actions;
     private readonly IMessenger messenger;
-    private readonly ObservableCollection<DelegationNodeViewModel> children = [];
-    private readonly ObservableCollection<DelegationNodeViewModel> settled = [];
+    private readonly SubagentTreeViewModel tree;
     private readonly HashSet<string> started = new(StringComparer.Ordinal);
     private Option<JobId> job;
 
@@ -60,6 +51,7 @@ internal sealed partial class DelegationPaneViewModel
         this.feed = feed;
         this.actions = actions;
         this.messenger = messenger;
+        tree = new SubagentTreeViewModel(OpenCommand, actions, feed.Refresh);
         messenger.RegisterAll(this);
     }
 
@@ -73,18 +65,12 @@ internal sealed partial class DelegationPaneViewModel
 
     public Task Following => feed.Following;
 
-    public IReadOnlyList<IDelegationNodeViewModel> Children => children;
+    public ISubagentTreeViewModel Tree => tree;
 
-    public IReadOnlyList<IDelegationNodeViewModel> Settled => settled;
-
-    [ObservableProperty]
-    public partial string SettledLabel { get; private set; } = string.Empty;
+    public SubagentTreeViewModel Shown => tree;
 
     [ObservableProperty]
-    public partial bool ShowsSettled { get; private set; }
-
-    [ObservableProperty]
-    public partial IOrchestratorCardViewModel? Root { get; private set; }
+    public partial bool HasTree { get; private set; }
 
     [ObservableProperty]
     public partial string Caption { get; private set; } = string.Empty;
@@ -102,6 +88,7 @@ internal sealed partial class DelegationPaneViewModel
     public void Dispose()
     {
         feed.Dispose();
+        tree.Dispose();
         messenger.UnregisterAll(this);
     }
 
@@ -131,9 +118,6 @@ internal sealed partial class DelegationPaneViewModel
 
     [RelayCommand]
     private void Open(JobId opened) => actions.Open(opened);
-
-    [RelayCommand]
-    private void ToggleSettled() => ShowsSettled = !ShowsSettled;
 
     private void Toggle(bool open)
     {
@@ -171,43 +155,23 @@ internal sealed partial class DelegationPaneViewModel
             feed.Refresh();
         }
 
-        var viewing = state.Viewing;
-        var arranged = TreeOrder.Arrange(state.Tree.Match(tree => tree.Children, () => []));
-        Rows(children, arranged.Active, viewing);
-        Rows(settled, arranged.Settled, viewing);
-        SettledLabel = arranged.Settled.Count == 0 ? string.Empty : $"{arranged.Settled.Count(node => node.Depth == 1)} done";
-        Root = state.Tree.Match<IOrchestratorCardViewModel?>(
-            tree =>
+        state.Tree.Match(
+            shown =>
             {
-                var card = Root is OrchestratorCardViewModel shown && shown.Job == tree.Root.Job ? shown : new OrchestratorCardViewModel(tree) { OpenCommand = OpenCommand };
-                card.Show(tree);
-                card.IsViewing = viewing == Option<JobId>.Some(tree.Root.Job);
+                tree.Show(shown, state.Viewing);
 
-                return card;
+                return true;
             },
-            () => null);
+            () =>
+            {
+                tree.Clear();
+
+                return false;
+            });
+        HasTree = state.Tree.IsSome;
         Caption = state.Tree.Match(tree => DelegationPanePhrases.Caption(tree), () => string.Empty);
         Footer = state.Tree.Match(DelegationPanePhrases.Footer, () => string.Empty);
     }
-
-    private void Rows(ObservableCollection<DelegationNodeViewModel> rows, IReadOnlyList<DelegationNode> nodes, Option<JobId> viewing) =>
-        rows.ShowInPlace(
-            nodes,
-            (child, node) => child.Job == node.Job.Job,
-            node =>
-            {
-                var row = new DelegationNodeViewModel(node) { OpenCommand = OpenCommand, IsViewing = viewing == Option<JobId>.Some(node.Job.Job) };
-                row.Toggled += (_, _) => TreeOrder.OneOpen(children.Concat(settled), row);
-                row.Peeked += (_, _) => actions.Peek(row);
-
-                return row;
-            },
-            (child, node) =>
-            {
-                child.Show(node);
-                child.IsViewing = viewing == Option<JobId>.Some(node.Job.Job);
-                actions.Peek(child);
-            });
 }
 
 internal static class DelegationPanePhrases
@@ -215,7 +179,7 @@ internal static class DelegationPanePhrases
     public static string Caption(DelegationTree tree)
     {
         var jobs = tree.Children.Count + 1;
-        var agents = SubagentViewModel.Of(tree.RootJob).Count + tree.Children.Sum(node => SubagentViewModel.Of(node.Seen).Count);
+        var agents = AgentBranches.Of(tree).Descendants.Count(branch => branch.Kind == BranchKind.InProcess);
 
         return agents == 0 ? OverviewPhrases.Count(jobs, "job") : $"{OverviewPhrases.Count(jobs, "job")} · {OverviewPhrases.Count(agents, "agent")}";
     }
