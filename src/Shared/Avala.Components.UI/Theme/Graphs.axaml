@@ -75,7 +75,7 @@
     <Setter Property="JointBrush" Value="{DynamicResource NodeBrush}" />
   </Style>
 
-  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False], graphs|AgentTreePanel[(theme|Motion.IsReduced)=False], graphs|C4GraphPanel[(theme|Motion.IsReduced)=False]">
+  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False], graphs|C4GraphPanel[(theme|Motion.IsReduced)=False]">
     <Style.Animations>
       <Animation Duration="0:0:1.4" IterationCount="INFINITE">
         <KeyFrame Cue="0%">
@@ -164,12 +164,35 @@
   <Style Selector="Border.node.settled">
     <Setter Property="Opacity" Value="0.72" />
   </Style>
+  <Style Selector="Border.node[(theme|Motion.IsReduced)=False]">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="0.22,1,0.36,1" />
+        <DoubleTransition Property="Opacity" Duration="0:0:0.32" Easing="0.22,1,0.36,1" />
+      </Transitions>
+    </Setter>
+  </Style>
   <Style Selector="Border.state">
     <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Border.state[(theme|Motion.IsReduced)=False]">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.22" Easing="0.22,1,0.36,1" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="0.22,1,0.36,1" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.state TextBlock[(theme|Motion.IsReduced)=False]">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Foreground" Duration="0:0:0.22" Easing="0.22,1,0.36,1" />
+      </Transitions>
+    </Setter>
   </Style>
   <Style Selector="Border.state TextBlock">
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />

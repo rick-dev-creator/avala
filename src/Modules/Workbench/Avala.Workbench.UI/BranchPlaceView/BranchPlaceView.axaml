@@ -16,7 +16,7 @@
           Classes.alert="{Binding IsAlert}"
           ToolTip.Tip="{Binding StateText, StringFormat='This {0}'}"
           AutomationProperties.Name="{Binding StateText}">
-    <StackPanel Orientation="Horizontal" Spacing="5">
+    <StackPanel x:Name="Mark" Orientation="Horizontal" Spacing="5" theme:Motion.Swap="{Binding State}">
       <Panel Width="10" Height="10" VerticalAlignment="Center">
         <Arc x:Name="Spinner"
              Width="10"
