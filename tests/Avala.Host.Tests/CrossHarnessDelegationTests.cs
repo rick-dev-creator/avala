@@ -235,7 +235,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.Running, resumed.Status);
     }
 
-    [Fact(Skip = "Adversary round 3 finding, waiting on the owner: a child resumes at its reset because it is a child, not because handoff terms exist (see .method/docs/notes/handoff-2026-10-19-incident.md)")]
+    [Fact]
     public async Task ADelegatedChildHeldAtItsLimitWhoseDelegationListsNoConnectionsGoesOnByItselfOnceItsWindowResetsAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("cross-harness-limit");
