@@ -135,7 +135,7 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
             " · ",
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }
                 .Where(part => part.Length > 0));
-        Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent across the tree";
+        Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent";
         var (hasBudget, budget, shares, shareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
             ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
             : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "child job")}, no budget to share"));

@@ -187,13 +187,13 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
 
     public string Budget => "Budget 3 USD";
 
-    public string Spent => "1.47 USD spent across the tree";
+    public string Spent => "1.47 USD spent";
 
     public IReadOnlyList<BudgetShare> Shares { get; } = [new(0.8, true), new(0.8, false), new(0.8, false), new(0.6, false)];
 
     public string ShareNote => "kept 0.80 USD · carved 0.80 USD · 0.80 USD · 0.60 USD";
 
-    public bool HasBudget => true;
+    public bool HasBudget { get; init; } = true;
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(StatusKind.Working);
 

@@ -589,10 +589,20 @@ public sealed class OrchestratorCardViewScripts(HeadlessUi ui)
             view.Settle();
             var segments = view.Find<ItemsControl>("Shares").GetVisualDescendants().OfType<ShareBar>().Single().Children.Select(child => child.Bounds.Width).ToList();
 
-            Assert.Equal(("Migrate payments to stripe-go v79", "Budget 3 USD", "1.47 USD spent across the tree"), (view.TextOf("Title"), view.TextOf("Budget"), view.TextOf("Spent")));
+            Assert.Equal(("Migrate payments to stripe-go v79", "Budget 3 USD", "1.47 USD spent"), (view.TextOf("Title"), view.TextOf("Budget"), view.TextOf("Spent")));
             Assert.Equal(4, segments.Count);
             Assert.Equal(segments[0], segments[1], 1);
             Assert.True(segments[3] < segments[2]);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnOrchestratorWithoutABudgetCapShowsNoBudgetLinesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignOrchestratorCardViewModel { HasBudget = false });
+
+            Assert.Equal((false, false, false), (view.Shows("Budget"), view.Shows("Shares"), view.Shows("ShareNote")));
+            Assert.Equal("1.47 USD spent", view.TextOf("Spent"));
         }, TestContext.Current.CancellationToken);
 }
 

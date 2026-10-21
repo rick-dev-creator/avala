@@ -48,8 +48,8 @@
 
             CornerRadius="{DynamicResource RadiusOrchestrator}"
             BoxShadow="{DynamicResource ShadowOrchestrator}"
-            Padding="18,16">
-      <StackPanel Spacing="10">
+            Padding="14,12">
+      <StackPanel Spacing="6">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
           <Border x:Name="HarnessMark"
                   Classes="harness"
@@ -62,21 +62,21 @@
               <TextBlock Classes="monogram" Text="{Binding Place.Harness.Name, Converter={x:Static graphs:Graph.Initials}}" IsVisible="{Binding !Place.Harness.HasLogo}" />
             </Panel>
           </Border>
-          <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-            <TextBlock x:Name="Source" Classes="caption" TextTrimming="CharacterEllipsis">
+          <WrapPanel Grid.Column="1" ItemSpacing="6" LineSpacing="3" VerticalAlignment="Center">
+            <TextBlock x:Name="Source" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
               <Run Text="{Binding Place.Harness.Name}" />
               <Run Text=" · orchestrator" />
             </TextBlock>
             <Border x:Name="InstanceChip" Classes="instance" IsVisible="{Binding Place.Harness.HasInstance}" ToolTip.Tip="The connection this harness runs on">
               <TextBlock x:Name="Instance" Text="{Binding Place.Harness.Instance}" />
             </Border>
-          </StackPanel>
+          </WrapPanel>
         </Grid>
         <DockPanel>
           <ContentControl x:Name="State" DockPanel.Dock="Right" Content="{Binding Place}" Margin="8,0,0,0" VerticalAlignment="Center" />
           <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
         </DockPanel>
-        <TextBlock x:Name="Doing" Classes="caption secondary" Text="{Binding Doing}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Doing" Classes="caption secondary" Text="{Binding Doing}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Detail" Classes="caption secondary" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
         <WrapPanel x:Name="Glance" Orientation="Horizontal" ItemSpacing="10" LineSpacing="4">
           <StackPanel x:Name="ContextGauge" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Context.IsShown}">
@@ -97,8 +97,7 @@
           <TextBlock x:Name="Tokens" Classes="hint" Text="{Binding Tokens, StringFormat='{}{0} in the tree'}" VerticalAlignment="Center" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </WrapPanel>
         <StackPanel Spacing="5">
-          <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasBudget}" />
           <ItemsControl x:Name="Shares" ItemsSource="{Binding Shares}" IsVisible="{Binding HasBudget}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -128,11 +127,13 @@
               </StackPanel>
             </Button>
           <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="hint" Text="·" />
             <elapsed:ElapsedText x:Name="Elapsed" Classes="hint" Since="{Binding Since}" IsVisible="{Binding IsTiming}" />
             <TextBlock x:Name="Took" Classes="hint" Text="{Binding Took}" IsVisible="{Binding !IsTiming}" />
           </StackPanel>
           </DockPanel>
-          <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" IsVisible="{Binding HasBudget}" />
         </StackPanel>
       </StackPanel>
     </Border>

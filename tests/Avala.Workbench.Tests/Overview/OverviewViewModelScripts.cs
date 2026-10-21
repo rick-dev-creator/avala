@@ -293,7 +293,7 @@ public sealed class OrchestratorCardViewModelScripts
         };
 
         ViewModelScript.Given(new OrchestratorCardViewModel(TreePlaces.Any(), tree))
-            .Then(card => Assert.Equal(("Budget 3 USD", "1.47 USD spent across the tree", true), (card.Budget, card.Spent, card.HasBudget)))
+            .Then(card => Assert.Equal(("Budget 3 USD", "1.47 USD spent", true), (card.Budget, card.Spent, card.HasBudget)))
             .Then(card => Assert.Equal([(0.8, true), (0.8, false), (0.8, false), (0.6, false)], card.Shares.Select(share => (Math.Round(share.Weight, 3), share.IsKept))))
             .Then(card => Assert.Equal("kept 0.80 USD · carved 0.80 USD · 0.80 USD · 0.60 USD", card.ShareNote))
             .Then(card => Assert.Equal("shop · waiting on 3 sub-agents", card.Detail));
