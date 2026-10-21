@@ -8,8 +8,10 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
-public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
+public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins) : IAsyncDisposable
 {
+    private readonly TemporaryFolder taps = new();
+
     private const string Instruction = "[simulate: reply] Have a background agent look over billing.";
 
     private const string Launched = "Launching a background agent for that.";
@@ -148,7 +150,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         var progressed = run.Watch<JobProgressed>();
 
         Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
-        _ = await progressed.UntilAsync(found => found.Job == run.Job && found.Status == JobStatus.AwaitingReview);
+        _ = await ExplainedAsync(run, progressed, JobStatus.AwaitingReview);
 
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
         Assert.Equal((2, AttemptOrigin.Woken, AttemptOutcome.Passed), (history.Attempts.Count, history.Attempts[^1].Origin, history.Attempts[^1].Outcome));
@@ -227,7 +229,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         var progressed = run.Watch<JobProgressed>();
 
         Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
-        _ = await progressed.UntilAsync(found => found.Job == run.Job && found.Status is JobStatus.NeedsHelp or JobStatus.Failed);
+        _ = await ExplainedAsync(run, progressed, JobStatus.NeedsHelp);
 
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
         Assert.Equal(
@@ -343,8 +345,20 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         Assert.True(told.Count > 0, $"The handoff did not tell the person that \"{Background}\" is lost with the old session; the conversation said: {said}");
     }
 
+    public ValueTask DisposeAsync() => taps.DisposeAsync();
+
     private Task<SimulatedRun> StartAsync(TranscribedClaude claude) =>
-        SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, []);
+        SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Tapping(taps.Path), []);
+
+    private async Task<JobProgressed> ExplainedAsync(SimulatedRun run, EventWatch<JobProgressed> progressed, JobStatus expected)
+    {
+        var found = await progressed.UntilAsync(seen => seen.Job == run.Job && seen.Status is not JobStatus.Running and not JobStatus.Checking);
+        var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary;
+
+        return found.Status == expected
+            ? found
+            : throw new Xunit.Sdk.XunitException($"The job settled {found.Status}, held {summary.Hold.Match(hold => hold.ToString(), () => "for no reason")}, not {expected}; the replay's last lines {await TappedAsync(taps.Path)}");
+    }
 
     private static async Task EvaluatedAsync(SimulatedRun run)
     {
