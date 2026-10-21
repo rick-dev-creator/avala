@@ -372,6 +372,17 @@ internal sealed class TreeBench : IDisposable
         Decide(job, new Avala.Permissions.Contracts.PolicyDecision(Session, Turn, tool, Option<JobId>.None, ItemKind.Command, command, Avala.Permissions.Contracts.PolicyAnswer.Ask, Option<Avala.Permissions.Contracts.PolicyRule>.None, Avala.Permissions.Contracts.DecisionDelivery.LeftToHuman, DateTimeOffset.UnixEpoch));
     }
 
+    public JobSummary Companion(string instruction, JobId parent)
+    {
+        var companion = Pages.Summary(instruction, JobStatus.Running, "claude-work", parent) with { Companion = true };
+        catalog.Jobs.Add(companion);
+        Board.Publish(Board.Jobs.Add(companion.Job, new BoardJob(companion, Transcript.Empty)));
+
+        return companion;
+    }
+
+    public RowActions Actions() => Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs);
+
     public SubagentTreeViewModel Tree() => new(new CommunityToolkit.Mvvm.Input.RelayCommand<JobId>(job => Selected.Add(job)), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs));
 
     public async Task<DelegationTree> ReadAsync() => Outcomes.Present(await Reader().TreeAsync(Root.Job, CancellationToken.None));
