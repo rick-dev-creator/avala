@@ -105,7 +105,9 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
 
         foreach (var file in Directory.GetFiles(folder, "*.jsonl").Order(StringComparer.Ordinal))
         {
-            lines.AddRange(await File.ReadAllLinesAsync(file, Cancellation));
+            await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            lines.AddRange((await reader.ReadToEndAsync(Cancellation)).Split('\n', StringSplitOptions.RemoveEmptyEntries));
         }
 
         return string.Join(" | ", lines.TakeLast(6).Select(line => line.Length > 260 ? line[..260] : line));
