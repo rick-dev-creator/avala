@@ -135,8 +135,7 @@ internal static class BranchPhrases
         _ => EdgeKind.Quiet,
     };
 
-    public static string Name(AgentBranch branch) =>
-        branch.Tool.Match(tool => tool.Named, () => branch.Node.Match(node => Sidebar.FactPhrases.Title(node.Job.Instruction), () => string.Empty));
+    public static string Name(AgentBranch branch) => branch.Title;
 
     public static string Waits(AgentBranch branch) =>
         branch.Asks.Match(target => $"asks: {target}", () => branch.Node.Bind(node => node.Activity).Match(Sidebar.FactPhrases.Of, () => "waits for you"));

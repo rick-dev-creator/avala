@@ -26,7 +26,10 @@ public sealed record AgentTreeGraphLayout(
 
 public static class AgentTreeLayout
 {
-    public static AgentTreeGraphLayout Arrange(IReadOnlyList<TreeNodeSpec> nodes, AgentTreeSpacing spacing, double availableWidth)
+    public static AgentTreeGraphLayout Arrange(IReadOnlyList<TreeNodeSpec> nodes, AgentTreeSpacing spacing, double availableWidth) =>
+        Arrange(nodes, spacing, availableWidth, railsOnly: false);
+
+    public static AgentTreeGraphLayout Arrange(IReadOnlyList<TreeNodeSpec> nodes, AgentTreeSpacing spacing, double availableWidth, bool railsOnly)
     {
         if (nodes.Count == 0)
         {
@@ -36,7 +39,7 @@ public static class AgentTreeLayout
         var rooted = nodes[0].Depth <= 0;
         var parents = Parents(nodes);
         var levels = Levels(parents, rooted);
-        var comb = rooted ? Comb(nodes, levels, spacing) : null;
+        var comb = rooted && !railsOnly ? Comb(nodes, levels, spacing) : null;
 
         return comb is not null && Width(comb) <= availableWidth
             ? Drawn(AgentTreeShape.Comb, comb, parents, spacing)

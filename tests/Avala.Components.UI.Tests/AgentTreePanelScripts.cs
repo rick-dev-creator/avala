@@ -48,6 +48,38 @@ public sealed class AgentTreePanelScripts(HeadlessUi ui)
             Assert.Equal([0d, 132, 344, 464], tree.Children.Select(card => card.Bounds.Y));
         }, Cancellation);
 
+    [Fact]
+    public Task ATreeAlmostWideEnoughNarrowsItsCardsToStaySideBySideBeforeFallingToRailsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var tree = Sized(280);
+            var narrow = Sized(280);
+            ViewScript.Show(new Border { Width = 800, HorizontalAlignment = HorizontalAlignment.Left, Child = tree }, new object());
+            ViewScript.Show(new Border { Width = 560, HorizontalAlignment = HorizontalAlignment.Left, Child = narrow }, new object());
+
+            Assert.Equal(AgentTreeShape.Comb, tree.Layout.Shape);
+            Assert.All(tree.Children.Skip(1), card => Assert.True(card.Bounds.Width is >= 200 and < 280, $"a card {card.Bounds.Width} wide"));
+            Assert.True(tree.Children.Max(card => card.Bounds.Right) <= 800);
+            Assert.Equal(AgentTreeShape.Rail, narrow.Layout.Shape);
+        }, Cancellation);
+
+    private static AgentTreePanel Sized(double width)
+    {
+        var tree = new AgentTreePanel { CardWidth = width, RootWidth = width };
+        tree.Children.AddRange([Sizable(0), Sizable(1), Sizable(1), Sizable(1)]);
+
+        return tree;
+    }
+
+    private static Border Sizable(int depth)
+    {
+        var card = new Border { Height = 100 };
+        Graph.SetDepth(card, depth);
+        Graph.SetEdge(card, EdgeKind.Flowing);
+
+        return card;
+    }
+
     private static AgentTreePanel Tree()
     {
         var tree = new AgentTreePanel();

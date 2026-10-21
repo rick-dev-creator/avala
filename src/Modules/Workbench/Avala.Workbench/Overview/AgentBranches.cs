@@ -24,6 +24,8 @@ internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState St
 {
     public JobId Job { get; init; }
 
+    public string Title { get; init; } = string.Empty;
+
     public Option<DelegationNode> Node { get; init; }
 
     public Option<ToolEntry> Tool { get; init; }
@@ -50,6 +52,7 @@ internal static class AgentBranches
             [.. Under(tree.Root.Job, tree.RootJob, Harness(tree.RootSpend), byParent)])
         {
             Job = tree.Root.Job,
+            Title = FactPhrases.Title(tree.Root.Instruction),
         };
     }
 
@@ -82,6 +85,7 @@ internal static class AgentBranches
             [.. Under(node.Job.Job, node.Seen, harness.Length > 0 ? harness : parentHarness, byParent)])
         {
             Job = node.Job.Job,
+            Title = FactPhrases.Title(node.Job.Instruction),
             Node = node,
         };
     }
@@ -101,6 +105,7 @@ internal static class AgentBranches
                         return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [])
                         {
                             Job = job,
+                            Title = tool.Named,
                             Tool = tool,
                             Asks = asks is null ? Option<string>.None : asks,
                         };

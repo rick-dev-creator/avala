@@ -29,10 +29,15 @@ public sealed class AgentTreePanel : Panel
 
     private const double Corner = 6;
 
+    private const double MinimumCardWidth = 200;
+
+    private const double MinimumIndent = 8;
+
+    private static readonly double[] Narrower = [0.9, 0.8, 0.72];
+
     private static readonly int Kinds = Enum.GetValues<EdgeKind>().Length;
 
     private AgentTreeGraphLayout layout = AgentTreeGraphLayout.Empty;
-    private double measuredFor = double.PositiveInfinity;
     private readonly EdgeLayer edges;
     private readonly EdgeLayer joints;
 
@@ -97,22 +102,38 @@ public sealed class AgentTreePanel : Panel
 
     private void Fit(double available)
     {
-        measuredFor = available;
         var widths = Children.Select(CardWidthOf).ToList();
-        layout = Lay(widths, available);
+        layout = Lay(widths, available, Indent, railsOnly: false);
 
-        if (layout.Shape == AgentTreeShape.Rail && double.IsFinite(available))
+        if (layout.Shape != AgentTreeShape.Rail || !double.IsFinite(available) || CardWidth <= 0 || layout.Nodes.Count == 0)
         {
-            var fitted = widths.Select((width, index) => index < layout.Nodes.Count && width > 0 ? Math.Min(width, Math.Max(0, available - layout.Nodes[index].X)) : width).ToList();
+            return;
+        }
 
-            if (!fitted.SequenceEqual(widths))
+        foreach (var share in Narrower)
+        {
+            var narrower = widths.Select(width => width > 0 ? Math.Max(Math.Min(width, MinimumCardWidth), width * share) : width).ToList();
+            var tried = Lay(narrower, available, Indent, railsOnly: false);
+
+            if (tried.Shape == AgentTreeShape.Comb)
             {
-                layout = Lay(fitted, available);
+                layout = tried;
+
+                return;
             }
         }
+
+        layout = Lay(widths, available, Indent, railsOnly: true);
+
+        var steps = layout.Nodes.Max(node => node.X) / Indent;
+        var room = available - Math.Min(CardWidth, MinimumCardWidth);
+        var indent = steps > 0 && steps * Indent > room ? Math.Max(MinimumIndent, room / steps) : Indent;
+        var placed = indent < Indent ? Lay(widths, available, indent, railsOnly: true) : layout;
+        var fitted = widths.Select((width, index) => index < placed.Nodes.Count ? Math.Max(1, Math.Min(width, available - placed.Nodes[index].X)) : width).ToList();
+        layout = fitted.SequenceEqual(widths) && indent >= Indent ? layout : Lay(fitted, available, indent, railsOnly: true);
     }
 
-    private AgentTreeGraphLayout Lay(List<double> widths, double available)
+    private AgentTreeGraphLayout Lay(List<double> widths, double available, double indent, bool railsOnly)
     {
         for (var index = 0; index < Children.Count; index++)
         {
@@ -121,8 +142,9 @@ public sealed class AgentTreePanel : Panel
 
         return AgentTreeLayout.Arrange(
             [.. Children.Select((child, index) => new TreeNodeSpec(Graph.Read(child, Graph.DepthProperty), new GraphSize(widths[index] > 0 ? widths[index] : child.DesiredSize.Width, child.DesiredSize.Height)))],
-            new AgentTreeSpacing(Gap, Indent, Drop),
-            available);
+            new AgentTreeSpacing(Gap, indent, Drop),
+            available,
+            railsOnly);
     }
 
     private double CardWidthOf(Control child) =>
@@ -130,10 +152,6 @@ public sealed class AgentTreePanel : Panel
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        if (CardWidth > 0 && finalSize.Width < measuredFor - 0.5)
-        {
-            Fit(finalSize.Width);
-        }
 
         for (var index = 0; index < Children.Count && index < layout.Nodes.Count; index++)
         {
