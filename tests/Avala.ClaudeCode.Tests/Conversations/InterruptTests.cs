@@ -107,6 +107,32 @@ public sealed class InterruptTests
         Assert.Equal(new TurnCompleted(talk.Session, woken.Turn, TurnOutcome.Interrupted), talk.Events.OfType<TurnCompleted>().SingleOrDefault());
     }
 
+    [Fact]
+    public void WhatClaudeCodeStillStreamsOfAWokenTurnAfterAcknowledgingItsInterruptOpensNoNewTurn()
+    {
+        var talk = Woken(new Talk());
+        talk.Take(talk.Conversation.Interrupt().Match(begun => begun.Reaction, _ => Reaction.None));
+        talk.Receive(Acknowledgement(1));
+        talk.Drain();
+
+        talk.Receive(
+            Cli.Stopped(0),
+            Cli.Parse("""{ "type": "user", "message": { "role": "user", "content": [{ "type": "text", "text": "[Request interrupted by user]" }] }, "parent_tool_use_id": null }"""),
+            Cli.Result(0.004m, "error_during_execution", isError: true));
+
+        Assert.Empty(talk.Events.OfType<TurnStarted>());
+    }
+
+    private static Talk Woken(Talk talk)
+    {
+        talk.Begin();
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Lifecycle(talk.Command, "started"), Cli.Init(), Cli.Said("m1", "text", "Started."), Cli.Result(0.002m), Cli.Lifecycle(talk.Command, "completed"));
+        talk.Receive(Cli.Init(), Cli.Said("m2", "text", "The survey came back, going on."));
+        talk.Drain();
+
+        return talk;
+    }
+
     private static Talk Carried(Talk talk)
     {
         talk.Begin();
