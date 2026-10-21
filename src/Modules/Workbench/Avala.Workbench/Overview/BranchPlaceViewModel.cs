@@ -137,9 +137,10 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
 
     public void Show(int depth, AgentBranch branch, bool folded)
     {
+        var was = State;
         Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
         Harness = branch.Harness;
-        IsTold = IsTold && IsAlert;
+        IsTold = IsTold && IsAlert && State == was;
     }
 
 
