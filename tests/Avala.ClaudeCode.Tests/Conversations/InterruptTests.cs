@@ -92,6 +92,21 @@ public sealed class InterruptTests
             (talk.Events.OfType<ItemCompleted>().FirstOrDefault(completed => completed.Item == new ItemId("a1")), talk.Events.OfType<TurnStarted>().Count()));
     }
 
+    [Fact]
+    public void InterruptingATurnABackgroundSubagentsToolCallOpenedWhileTheAgentWasIdleEndsWhenClaudeCodeAcknowledges()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Lifecycle(talk.Command, "started"), Cli.Init(), Cli.Said("m1", "text", "Started."), Cli.Result(0.002m), Cli.Lifecycle(talk.Command, "completed"));
+        talk.Receive(Cli.Prompt("r1", "Read", """{ "file_path": "/work/README.md" }""", "t1"));
+        var woken = Assert.IsType<TurnStarted>(talk.Events.Last(agentEvent => agentEvent is TurnStarted));
+        talk.Drain();
+        talk.Take(talk.Conversation.Interrupt().Match(begun => begun.Reaction, _ => Reaction.None));
+
+        talk.Receive(Acknowledgement(1));
+
+        Assert.Equal(new TurnCompleted(talk.Session, woken.Turn, TurnOutcome.Interrupted), talk.Events.OfType<TurnCompleted>().SingleOrDefault());
+    }
+
     private static Talk Carried(Talk talk)
     {
         talk.Begin();

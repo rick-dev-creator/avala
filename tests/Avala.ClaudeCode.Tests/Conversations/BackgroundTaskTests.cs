@@ -51,6 +51,58 @@ public sealed class BackgroundTaskTests
         Assert.Equal(Option<TurnId>.None, talk.Conversation.Live);
     }
 
+    [Fact]
+    public void ASubagentClaudeCodeStartsAgainWhileNoTurnIsLiveIsShownAsANewRunThatCarriesItsSteps()
+    {
+        var talk = new Talk(PermissionMode.AllowAll).Begin();
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Started(),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Said("m1", "text", "launched"),
+            Cli.Result(0.006m),
+            Cli.Lifecycle(talk.Command, "completed"),
+            Completed(),
+            Cli.Said("m2", "text", "The survey came back."),
+            Cli.Result(0.009m));
+        talk.Drain();
+
+        talk.Receive(Started(), Cli.Nested(Cli.ToolUse("n1", "Read", """{ "file_path": "/work/billing.md" }"""), "a1"), Cli.Prompt("r1", "Read", """{ "file_path": "/work/billing.md" }""", "n1"));
+
+        Assert.Contains(talk.Events.OfType<ItemStarted>(), started => started.Item == new ItemId("a1:run2"));
+    }
+
+    [Fact]
+    public void AToolCallOfASubagentClaudeCodeStartedAgainBelongsToItsNewRun()
+    {
+        var talk = new Talk(PermissionMode.AllowAll).Begin();
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Started(),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Said("m1", "text", "launched"),
+            Cli.Result(0.006m),
+            Cli.Lifecycle(talk.Command, "completed"),
+            Completed());
+        talk.Drain();
+
+        talk.Receive(Started(), Cli.Nested(Cli.ToolUse("n1", "Read", """{ "file_path": "/work/billing.md" }"""), "a1"));
+
+        Assert.Equal("a1:run2", talk.Events.OfType<ItemStarted>().Single(started => started.Item == new ItemId("n1")).Parent.Match(parent => parent.Value, () => string.Empty));
+    }
+
+    private static System.Text.Json.Nodes.JsonNode Started() =>
+        Cli.Parse("""{ "type": "system", "subtype": "task_started", "task_id": "k1", "tool_use_id": "a1", "description": "Survey", "subagent_type": "general-purpose", "is_backgrounded": true }""");
+
+    private static System.Text.Json.Nodes.JsonNode Completed() =>
+        Cli.Parse("""{ "type": "system", "subtype": "task_notification", "task_id": "k1", "tool_use_id": "a1", "status": "completed", "summary": "Survey" }""");
+
     private static Talk Replied(Talk talk)
     {
         talk.Begin().Receive(Cli.Init(), Cli.Said("m1", "text", "Started."), Cli.Result(0.002m));
