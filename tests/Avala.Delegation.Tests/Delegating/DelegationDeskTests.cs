@@ -308,6 +308,7 @@ public sealed class DelegationDeskTests
             await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
             await desk.ProgressAsync(child, JobStatus.Running);
             await desk.ReplyAsync(child, $"Finished the {turn} part.");
+            await desk.FinishTurnAsync(child);
         }
 
         Assert.Equal((3, 0), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));

@@ -71,6 +71,11 @@ internal sealed class AgentTreeMotion
         if (!animate)
         {
             ghosts.Clear();
+
+            foreach (var track in tracks.Values)
+            {
+                track.Snap();
+            }
         }
 
         keys = next;
@@ -86,6 +91,15 @@ internal sealed class AgentTreeMotion
         }
 
         ghosts.Clear();
+        IsActive = false;
+    }
+
+    public void Forget()
+    {
+        tracks.Clear();
+        ghosts.Clear();
+        keys = [];
+        parents = [];
         IsActive = false;
     }
 

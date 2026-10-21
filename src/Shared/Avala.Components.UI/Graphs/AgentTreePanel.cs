@@ -227,6 +227,8 @@ public sealed class AgentTreePanel : Panel
     {
         base.OnDetachedFromVisualTree(e);
         Settle();
+        motion.Forget();
+        arrangedWidth = double.NaN;
     }
 
     private static object KeyOf(Control child) => child is ContentPresenter { Content: { } content } ? content : child;

@@ -147,6 +147,13 @@ internal sealed class Desk : IAsyncDisposable
         }
     }
 
+    public async Task FinishTurnAsync(JobId child)
+    {
+        var session = SessionId.New();
+        await desk.HandleAsync(new JobSessionStarted(child, session), Cancellation);
+        await desk.HandleAsync(new AgentActivity(new TurnCompleted(session, TurnId.New(), TurnOutcome.Finished)), Cancellation);
+    }
+
     public async Task ProgressAsync(JobId job, JobStatus status) => await desk.HandleAsync(new JobProgressed(job, status), Cancellation);
 
     public async Task WentOnAsync(ChildWentOn wentOn) => await desk.HandleAsync(wentOn, Cancellation);

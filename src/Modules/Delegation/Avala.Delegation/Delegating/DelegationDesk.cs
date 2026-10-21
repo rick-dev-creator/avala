@@ -54,7 +54,9 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             case ItemProgressed progressed when IsChild(progressed.Session, out var writer)
                 && replies.TryGetValue(writer, out var reply) && reply.Item == progressed.Item:
                 replies[writer] = (reply.Item, reply.Text + progressed.Text);
-                await RecoveredAsync(writer, cancellationToken);
+                break;
+            case TurnCompleted { Outcome: TurnOutcome.Finished } finished when IsChild(finished.Session, out var recovered):
+                await RecoveredAsync(recovered, cancellationToken);
                 break;
         }
     }
