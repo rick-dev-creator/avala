@@ -147,6 +147,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public void Is(JobId job, JobStatus status) =>
         histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = status } };
 
+    public void HeldFor(JobId job, HoldReason reason) =>
+        histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = JobStatus.NeedsHelp, Hold = reason } };
+
     public void Knows(JobId job, Option<JobId> parent) =>
         histories[job] = new JobHistory(Summary(job, JobStatus.Running, new ConnectionName("work")) with { Parent = parent }, [], []);
 

@@ -47,7 +47,7 @@ internal sealed class JobFlow
             Queues);
         Plans = new DeliveryPlans(ledger, approvals);
         Prepare = new PrepareJob(Queues, start, Admissions);
-        var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold));
+        var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold, Retries));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover, start);
@@ -76,6 +76,8 @@ internal sealed class JobFlow
     public List<IJobBriefing> Briefings { get; } = [];
 
     public List<IRoundRouter> Routers { get; } = [];
+
+    public List<IChildRetries> Retries { get; } = [];
 
     public InMemoryJobStore Store { get; } = new();
 

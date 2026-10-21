@@ -31,12 +31,24 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
             case TurnOutcome.LimitReached:
                 await round.HoldAsync(job, HoldReason.LimitNearlyReached, finished.Limit, cancellationToken);
                 break;
-            case var _ when job.Attempts[^1].Origin == AttemptOrigin.Woken || (job.Parent.IsSome && !job.Companion):
+            case var _ when job.Attempts[^1].Origin == AttemptOrigin.Woken:
                 await round.HoldAsync(job, HoldReason.TurnFailed, Option<UsageLimit>.None, cancellationToken);
                 break;
             default:
-                await FailAsync(job, JobFailure.AgentFailed, cancellationToken);
+                await FailedAsync(job, cancellationToken);
                 break;
+        }
+    }
+
+    private async Task FailedAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (await round.RetriedAsync(job, cancellationToken))
+        {
+            await round.HoldAsync(job, HoldReason.TurnFailed, Option<UsageLimit>.None, cancellationToken);
+        }
+        else
+        {
+            await FailAsync(job, JobFailure.AgentFailed, cancellationToken);
         }
     }
 

@@ -38,6 +38,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddForwarded<IDelegationRules, DelegationRulesReader>()
             .AddSingleton<IHarnessToolGate, DelegationOffer>()
             .AddSingleton<IHandoffTerms, ChildHandoffs>()
+            .AddSingleton<IChildRetries, ChildRecovery>()
             .AddForwarded<IRoleSettings, DelegationRulesReader>()
             .AddSingleton<SqliteDelegationStore>()
             .AddForwarded<IDelegationStore, SqliteDelegationStore>()
