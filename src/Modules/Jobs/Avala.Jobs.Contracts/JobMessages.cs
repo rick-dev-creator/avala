@@ -37,6 +37,7 @@ public enum HoldReason
     NotResumable,
     InvalidChecks,
     CouldNotStart,
+    TurnFailed,
 }
 
 public enum SessionHalt

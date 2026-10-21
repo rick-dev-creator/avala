@@ -218,6 +218,24 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ATurnTheAgentWokeOnItsOwnThatFailsHoldsItsJobForAPersonInsteadOfFailingItAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-failed");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        var progressed = run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == run.Job && found.Status is JobStatus.NeedsHelp or JobStatus.Failed);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal(
+            (JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.TurnFailed), AttemptOutcome.Passed),
+            (history.Summary.Status, history.Summary.Hold, history.Attempts[0].Outcome));
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");

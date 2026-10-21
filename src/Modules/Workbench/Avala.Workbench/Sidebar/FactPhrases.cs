@@ -94,6 +94,7 @@ internal static class FactPhrases
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "held: its conversation cannot resume",
         HoldReason.CouldNotStart => "could not start",
+        HoldReason.TurnFailed => "held: its agent's turn failed",
         _ => "interrupted",
     };
 }

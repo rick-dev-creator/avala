@@ -369,6 +369,7 @@ internal static class ConversationPhrases
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "its conversation cannot resume",
         HoldReason.CouldNotStart => "could not start",
+        HoldReason.TurnFailed => "its agent's turn failed",
         _ => "interrupted",
     };
 
