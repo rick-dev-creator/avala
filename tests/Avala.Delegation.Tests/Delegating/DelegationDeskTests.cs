@@ -165,7 +165,7 @@ public sealed class DelegationDeskTests
         desk.Jobs.Approval = JobRejection.NotAwaitingReview;
 
         await desk.ProgressAsync(child, JobStatus.AwaitingReview);
-        var wentOn = await desk.Bus.WaitForAsync<Avala.Delegation.Records.ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
+        var wentOn = await desk.Bus.WaitForAsync<ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
         desk.Jobs.Approval = new ApprovalDelivery("merge", "avala/parent", "c0ffee");
         await desk.WentOnAsync(wentOn);
         await desk.ProgressAsync(child, JobStatus.AwaitingReview);

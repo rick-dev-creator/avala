@@ -7,8 +7,6 @@ using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Records;
 
-internal sealed record ChildWentOn(DelegationRecord Delegation, JobId Child) : IIntegrationEvent;
-
 internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAgents agents, TimeProvider clock)
 {
     public DateTimeOffset Now => clock.GetUtcNow();
