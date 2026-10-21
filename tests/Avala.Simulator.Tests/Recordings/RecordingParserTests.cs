@@ -55,6 +55,16 @@ public sealed class RecordingParserTests
     }
 
     [Fact]
+    public void AHarnessRetryingIsReplayedWithItsAttemptWaitAndReason()
+    {
+        var recorded = Outcomes.Succeeds(RecordingParser.Parse(
+            Recorded.Session("""{ "at": 5, "event": { "type": "harnessRetrying", "turn": 1, "attempt": 3, "most": 10, "waitMs": 4000, "reason": "overloaded" } }"""),
+            "/work"));
+
+        Assert.Equal(new HarnessRetrying(default, default, 3, 10, TimeSpan.FromSeconds(4), "overloaded"), recorded.Steps.Cast<Emit>().Single().Event);
+    }
+
+    [Fact]
     public void AContextReportKeepsWhereItsConnectionCompactsAndOneWithoutItHasNone()
     {
         var recorded = Outcomes.Succeeds(RecordingParser.Parse(

@@ -1057,3 +1057,19 @@ public sealed class RestartViewScripts(HeadlessUi ui)
             Assert.Equal(2, view.All<Border>().Count(border => border.Classes.Contains("separator")));
         }, TestContext.Current.CancellationToken);
 }
+
+public sealed class RetryViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task ARetryIsAQuietLineWhileTheHarnessTriesAndAnAttentionLineOnceItStoppedTryingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var trying = Screen.Show(new RetryViewModel(new RetryEntry("retry", 3, 10, TimeSpan.FromSeconds(4), "overloaded")));
+            var stopped = Screen.Show(new RetryViewModel(new RetryEntry("retry", 10, 10, TimeSpan.FromSeconds(4), "overloaded") { GaveUp = true }));
+
+            Assert.Equal(
+                ("The harness is retrying · attempt 3 of 10 (overloaded)", true, false),
+                (trying.TextOf("Note"), trying.HasClass("Note", "secondary"), trying.HasClass("Note", "attention")));
+            Assert.True(stopped.HasClass("Note", "attention"));
+        }, TestContext.Current.CancellationToken);
+}
