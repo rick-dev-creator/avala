@@ -340,6 +340,73 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         Assert.Equal((false, true), (failed.Place.CanTell, failed.Place.IsTold));
     }
 
+    [Fact]
+    public async Task AChildThatIsLostAgainAfterItRecoveredCanBeToldAboutAgainAsync()
+    {
+        var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
+        var tree = bench.Tree();
+        bench.Becomes(notes, JobStatus.NeedsHelp, HoldReason.SessionLost, Option<JobFailure>.None);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        await Branch(tree, "Write the migration notes").Place.TellCommand.ExecuteAsync(null);
+        bench.Becomes(notes, JobStatus.Running, Option<HoldReason>.None, Option<JobFailure>.None);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        bench.Becomes(notes, JobStatus.NeedsHelp, HoldReason.SessionLost, Option<JobFailure>.None);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.True(Branch(tree, "Write the migration notes").Place.CanTell);
+    }
+
+    [Fact]
+    public async Task AFailedBranchOfAnOrchestrationAlreadyApprovedOffersNothingToTellAsync()
+    {
+        var root = bench.Finished();
+        bench.Starts(root, "port", "Port the idempotency keys");
+        bench.Ends(root, "port", ItemOutcome.Failed);
+        var tree = bench.Tree();
+
+        tree.Show(await bench.ReadAsync(root.Job), Option<JobId>.None);
+
+        Assert.False(Branch(tree, "Port the idempotency keys").Place.CanTell);
+    }
+
+    [Fact]
+    public async Task TheNoteAboutAFailedChildJobSaysWhyInWordsAsync()
+    {
+        var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
+        bench.Becomes(notes, JobStatus.Failed, Option<HoldReason>.None, JobFailure.AgentFailed);
+        var tree = bench.Tree();
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        await Branch(tree, "Write the migration notes").Place.TellCommand.ExecuteAsync(null);
+
+        Assert.DoesNotContain("AgentFailed", Assert.Single(bench.Jobs.Calls), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AChildAvalaGaveUpOnAfterItsRetriesStaysInTheTreeAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
+        bench.Becomes(notes, JobStatus.Discarded, HoldReason.SessionLost, Option<JobFailure>.None);
+        bench.Delegations.Records.Add(new DelegationRecord(TreeBench.Session, new ItemId("delegate"), "Write the migration notes", DateTimeOffset.UnixEpoch)
+        {
+            Parent = bench.Root.Job,
+            Child = notes.Job,
+            Retries = 2,
+            Report = new ChildReport(notes.Job, ChildOutcome.GivenUp, JobStatus.Discarded, DateTimeOffset.UnixEpoch) { Retries = 2, Hold = HoldReason.SessionLost },
+        });
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Contains("Write the migration notes", tree.Branches.Select(Name));
+    }
+
+    private static IAgentBranch Branch(SubagentTreeViewModel tree, string name) => tree.Branches.Single(branch => Name(branch) == name);
+
     public void Dispose() => bench.Dispose();
 
     private static List<(string, int, SubagentState)> Commands(SubagentTreeViewModel tree) =>

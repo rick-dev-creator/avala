@@ -410,6 +410,17 @@ internal sealed class TreeBench : IDisposable
 
     public SubagentTreeViewModel Tree() => Tree(TimeProvider.System);
 
+    public FakeDelegations Delegations { get; } = new();
+
+    public JobSummary Becomes(JobSummary job, JobStatus status, Option<HoldReason> hold, Option<JobFailure> failure)
+    {
+        var changed = job with { Status = status, Hold = hold, Failure = failure };
+        catalog.Jobs[catalog.Jobs.FindIndex(found => found.Job == job.Job)] = changed;
+        Board.Publish(Board.Jobs.SetItem(job.Job, Board.Jobs[job.Job] with { Summary = changed }));
+
+        return changed;
+    }
+
     public async Task<DelegationTree> ReadAsync() => Outcomes.Present(await Reader().TreeAsync(Root.Job, CancellationToken.None));
 
     public async Task<DelegationTree> ReadAsync(JobId root) => Outcomes.Present(await Reader().TreeAsync(root, CancellationToken.None));
@@ -469,7 +480,7 @@ internal sealed class TreeBench : IDisposable
 
     private DelegationReader Reader()
     {
-        return new DelegationReader(catalog, new FakeDelegations(), Focusing.Spending(usage, Sessions), Board);
+        return new DelegationReader(catalog, Delegations, Focusing.Spending(usage, Sessions), Board);
     }
 
     private static IAgentEvent[] Agent(string id, string name, string activity, ItemOutcome? outcome) =>

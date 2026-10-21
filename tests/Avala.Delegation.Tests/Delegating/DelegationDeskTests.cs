@@ -252,6 +252,65 @@ public sealed class DelegationDeskTests
         Assert.Contains("Avala gave it up after retrying it 2 times: its turn failed each time", answer, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task AChildAvalaCouldNotContinueIsReportedAsNeverRetriedAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true, ContinueRefusal = JobRejection.AgentUnavailable } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((0, false), (report.Retries, Assert.Single(desk.Agents.Results).Result.Content.Contains("after retrying it 1 time", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task AChildGivenUpAfterHoldsOfDifferentCausesIsNotSaidToHaveFailedTheSameWayEachTimeAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+        await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        _ = await desk.ReportedAsync(child);
+        Assert.DoesNotContain("its turn failed each time", Assert.Single(desk.Agents.Results).Result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AChildThatRecoveredAndWorkedAfterEachRetryIsRetriedAgainWhenItIsLostLaterAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        foreach (var turn in new[] { "first", "second", "third" })
+        {
+            await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+            await desk.ProgressAsync(child, JobStatus.Running);
+            await desk.ReplyAsync(child, $"Finished the {turn} part.");
+        }
+
+        Assert.Equal((3, 0), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));
+    }
+
+    [Fact]
+    public async Task AChildWhoseOrdinaryTurnFailedIsRetriedBeforeItsParentIsToldItFailedAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Is(child, JobStatus.Failed);
+
+        await desk.ProgressAsync(child, JobStatus.Failed);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((true, 1), (report.Outcome != ChildOutcome.Failed, desk.Jobs.Continued.Count));
+    }
+
     [Theory]
     [InlineData(HoldReason.Stopped)]
     [InlineData(HoldReason.Interrupted)]

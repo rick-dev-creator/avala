@@ -109,8 +109,15 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public IReadOnlyList<(JobId Job, string Message)> Continued => [.. continued];
 
+    public Option<JobRejection> ContinueRefusal { get; set; }
+
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
     {
+        if (ContinueRefusal.IsSome)
+        {
+            return ValueTask.FromResult(ContinueRefusal.Match(Result<JobContinuation, JobRejection>.Failure, () => throw new InvalidOperationException()));
+        }
+
         continued.Enqueue((job, message));
 
         return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.NewConversation)));
