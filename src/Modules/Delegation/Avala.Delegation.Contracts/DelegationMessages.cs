@@ -142,4 +142,7 @@ public sealed record WaitChildInput(string Child)
     public const string Tool = "wait_child";
 }
 
-public sealed record ChildWentOn(DelegationRecord Delegation, JobId Child) : IIntegrationEvent;
+public sealed record ChildWentOn(DelegationRecord Delegation, JobId Child) : IIntegrationEvent
+{
+    public Option<string> Summary { get; init; }
+}

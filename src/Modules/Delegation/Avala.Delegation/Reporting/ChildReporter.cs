@@ -54,7 +54,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
         if (report.Outcome == ChildOutcome.NotIntegrated && report.Refusal == Option<JobRejection>.Some(JobRejection.NotAwaitingReview))
         {
-            await journal.WentOnAsync(delegation, child, cancellationToken);
+            await journal.WentOnAsync(delegation, child, summary, cancellationToken);
 
             return;
         }

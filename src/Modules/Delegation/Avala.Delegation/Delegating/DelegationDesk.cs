@@ -119,6 +119,11 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
     {
         Hydrate();
         pending.TryAdd(integrationEvent.Child, integrationEvent.Delegation);
+
+        foreach (var summary in integrationEvent.Summary.Match<string[]>(text => [text], () => []))
+        {
+            replies.TryAdd(integrationEvent.Child, (new ItemId(string.Empty), summary));
+        }
         await SettleIfSettledAsync(integrationEvent.Child, cancellationToken);
     }
 
