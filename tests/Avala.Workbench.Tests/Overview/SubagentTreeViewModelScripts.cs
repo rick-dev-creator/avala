@@ -174,7 +174,31 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         Assert.Equal([bench.Endpoint.Job], bench.Selected);
     }
 
+    [Fact]
+    public async Task ASubagentsOwnBackgroundCommandHangsUnderItWorkingAfterTheSubagentEndsAndKeepsTheOrchestratorAtWorkUntilItEndsAsync()
+    {
+        bench.Starts(bench.Root, "nested", "Start the nested command");
+        bench.Backgrounds(bench.Root, "nested", "sleep", "sleep 20 && echo nested-done");
+        bench.Ends(bench.Root, "nested", ItemOutcome.Succeeded);
+        var tree = bench.Tree();
+
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        var running = Commands(tree);
+        var atWork = Card(tree).Detail;
+        bench.Ends(bench.Root, "sleep", ItemOutcome.Succeeded);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Equal([("Start the nested command", 1, SubagentState.Completed), ("sleep 20 && echo nested-done", 2, SubagentState.Working)], running);
+        Assert.Contains("waiting on 3 sub-agents", atWork, StringComparison.Ordinal);
+        Assert.Equal([("Start the nested command", 1, SubagentState.Completed), ("sleep 20 && echo nested-done", 2, SubagentState.Completed)], Commands(tree));
+    }
+
     public void Dispose() => bench.Dispose();
+
+    private static List<(string, int, SubagentState)> Commands(SubagentTreeViewModel tree) =>
+        [.. tree.Branches.OfType<ISubagentViewModel>().Where(agent => agent.Name is "Start the nested command" or "sleep 20 && echo nested-done").Select(agent => (agent.Name, agent.Place.Depth, agent.Place.State))];
+
+    private static IOrchestratorCardViewModel Card(SubagentTreeViewModel tree) => tree.Branches.OfType<IOrchestratorCardViewModel>().Single();
 
     private static string Name(IAgentBranch branch) => branch switch
     {

@@ -124,6 +124,7 @@ internal static class BranchPhrases
         BranchKind.Orchestrator => "orchestrator",
         BranchKind.InProcess => "sub-agent",
         BranchKind.Child => "child job",
+        BranchKind.Command => "background command",
         _ => "cross-harness",
     };
 
@@ -148,7 +149,7 @@ internal static class BranchPhrases
     }
 
     public static int AtWork(Fleet.DelegationTree tree) =>
-        AgentBranches.Of(tree).Children.Count(child => child.State is SubagentState.Working or SubagentState.Waiting);
+        AgentBranches.Of(tree).Children.Count(child => child.Descendants.Prepend(child).Any(branch => branch.State is SubagentState.Working or SubagentState.Waiting));
 
     public static string Took(Jobs.Contracts.JobSummary job) =>
         job.Ended.Match(ended => Conversation.ConversationPhrases.Duration(ended - job.Submitted), () => string.Empty);

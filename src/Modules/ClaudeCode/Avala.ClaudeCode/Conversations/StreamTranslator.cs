@@ -122,7 +122,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
         return Reaction.Of(
         [
-            .. summary.Length == 0 ? Array.Empty<IAgentEvent>() : [new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, summary)],
+            .. summary.Length == 0 || tool.Narrated ? Array.Empty<IAgentEvent>() : [new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, summary)],
             new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, Ended(notification)),
         ]);
     }

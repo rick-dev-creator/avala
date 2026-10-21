@@ -35,9 +35,8 @@ public static class TranscriptPlayer
         }
 
         var cwd = JsonSerializer.Serialize(Environment.CurrentDirectory)[1..^1];
-        var login = JsonSerializer.Serialize(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? string.Empty)[1..^1];
-        var places = await PlacesAsync(login);
-        transcript = [.. transcript.Select(entry => JsonNode.Parse(places.Aggregate(entry.ToJsonString(), (text, place) => text.Replace(place.Key, place.Value, StringComparison.Ordinal)))!)];
+        var places = await PlacesAsync(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? string.Empty);
+        transcript = [.. transcript.Select(entry => Placed(entry, places))];
         var position = 0;
         var results = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -87,9 +86,37 @@ public static class TranscriptPlayer
     {
         [ConfigurationDirectory] = login,
         [EncodedWorkingDirectory] = string.Concat(Environment.CurrentDirectory.Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-')),
-        [TemporaryDirectory] = JsonSerializer.Serialize(Scratch(Environment.CurrentDirectory))[1..^1],
-        [MainRepository] = JsonSerializer.Serialize(await MainRepositoryAsync(Environment.CurrentDirectory))[1..^1],
+        [TemporaryDirectory] = Scratch(Environment.CurrentDirectory),
+        [MainRepository] = await MainRepositoryAsync(Environment.CurrentDirectory),
     };
+
+    public static JsonNode Placed(JsonNode node, IReadOnlyDictionary<string, string> places) => node switch
+    {
+        JsonObject members => new JsonObject(members.Select(member => KeyValuePair.Create(member.Key, member.Value is null ? null : Placed(member.Value, places)))),
+        JsonArray items => new JsonArray([.. items.Select(item => item is null ? null : Placed(item, places))]),
+        JsonValue value when value.TryGetValue<string>(out var text) => JsonValue.Create(PlacedText(text, places)),
+        _ => node.DeepClone(),
+    };
+
+    private static string PlacedText(string text, IReadOnlyDictionary<string, string> places)
+    {
+        if (text.StartsWith('{') || text.StartsWith('['))
+        {
+            try
+            {
+                return JsonNode.Parse(text) is { } nested ? Placed(nested, places).ToJsonString() : text;
+            }
+            catch (JsonException)
+            {
+                return Filled(text, places);
+            }
+        }
+
+        return Filled(text, places);
+    }
+
+    private static string Filled(string text, IReadOnlyDictionary<string, string> places) =>
+        places.Aggregate(text, (filled, place) => filled.Replace(place.Key, place.Value, StringComparison.Ordinal));
 
     private static string Scratch(string workingDirectory) =>
         ScratchFolders.Of(new AvalaPaths(Path.GetDirectoryName(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(workingDirectory))) ?? workingDirectory), workingDirectory);

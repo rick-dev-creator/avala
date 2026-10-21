@@ -18,6 +18,7 @@ internal enum BranchKind
     InProcess,
     Child,
     CrossHarness,
+    Command,
 }
 
 internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState State, IReadOnlyList<AgentBranch> Children)
@@ -102,7 +103,7 @@ internal static class AgentBranches
                     {
                         var asks = asking.Where(ask => tool.Children.Contains(ask.Item)).Select(ask => ask.What).FirstOrDefault();
 
-                        return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [])
+                        return new AgentBranch($"{job}/{tool.Key}", BranchKind.InProcess, ToolState(tool, asks is not null), [.. Commands(job, tool)])
                         {
                             Job = job,
                             Title = tool.Named,
@@ -113,6 +114,19 @@ internal static class AgentBranches
                     .ToList();
             },
             () => []);
+
+    private static IEnumerable<AgentBranch> Commands(JobId job, ToolEntry subagent) =>
+        subagent.Background.Select(step =>
+        {
+            var entry = new ToolEntry($"{subagent.Key}/{step.Item.Value}", ItemKind.Command, step.Title, string.Empty, step.Outcome);
+
+            return new AgentBranch($"{job}/{entry.Key}", BranchKind.Command, ToolState(entry, asking: false), [])
+            {
+                Job = job,
+                Title = step.Title,
+                Tool = entry,
+            };
+        });
 
     private static List<(ItemId Item, string What)> Asking(BoardJob job) =>
     [

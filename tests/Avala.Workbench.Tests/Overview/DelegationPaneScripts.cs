@@ -362,6 +362,12 @@ internal sealed class TreeBench : IDisposable
         await Sessions.HandleAsync(new JobSessionStarted(job.Job, session), CancellationToken.None);
     }
 
+    public void Backgrounds(JobSummary job, string subagent, string id, string command)
+    {
+        Apply(job, new ItemStarted(Session, Turn, new ItemId(id), ItemKind.Command, command) { Parent = new ItemId(subagent) });
+        Apply(job, new ItemBackgrounded(Session, Turn, new ItemId(id)));
+    }
+
     public void Ends(JobSummary job, string id, ItemOutcome outcome) => Apply(job, new ItemCompleted(Session, Turn, new ItemId(id), outcome));
 
     public void Asks(JobSummary job, string id, string command)

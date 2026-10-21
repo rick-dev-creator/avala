@@ -84,7 +84,13 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     private const string SubagentPrefix = "Subagent: ";
 
     public ImmutableHashSet<ItemId> Children { get; init; } = [];
+
+    public ImmutableDictionary<ItemId, string> ChildTitles { get; init; } = ImmutableDictionary<ItemId, string>.Empty;
+
+    public ImmutableList<BackgroundStep> Background { get; init; } = [];
 }
+
+internal sealed record BackgroundStep(ItemId Item, string Title, Option<ItemOutcome> Outcome);
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry
 {

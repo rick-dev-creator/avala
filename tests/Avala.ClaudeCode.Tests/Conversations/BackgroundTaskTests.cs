@@ -41,6 +41,21 @@ public sealed class BackgroundTaskTests
     }
 
     [Fact]
+    public void ASubagentsReplyThatItsNotificationRepeatsAsItsSummaryIsReportedOnce()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Cli.Parse("""{ "type": "system", "subtype": "task_started", "task_id": "k1", "tool_use_id": "a1", "description": "Survey", "is_backgrounded": true }"""),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Parse("""{ "type": "assistant", "message": { "id": "s1", "role": "assistant", "content": [{ "type": "text", "text": "started" }] }, "parent_tool_use_id": "a1" }"""),
+            Cli.Parse("""{ "type": "system", "subtype": "task_notification", "task_id": "k1", "tool_use_id": "a1", "status": "completed", "summary": "started" }"""));
+
+        Assert.Equal(["started"], talk.Events.OfType<ItemProgressed>().Where(progressed => progressed.Item == new ItemId("a1")).Select(progressed => progressed.Text));
+    }
+
+    [Fact]
     public void TheServersHandshakeWhileIdleOpensNoTurn()
     {
         var talk = new Talk().Receive(

@@ -73,6 +73,16 @@ public sealed class TranscriptPlayerTests
         Assert.Empty(foreign.Distinct());
     }
 
+    [Fact]
+    public void APlaceWithBackslashesFilledIntoAJsonTextNestedInALineKeepsThatTextReadableAsJson()
+    {
+        var line = System.Text.Json.Nodes.JsonNode.Parse("""{"text":"{\"behavior\":\"allow\",\"file_path\":\"${configurationDirectory}/notes.txt\"}"}""")!;
+
+        var placed = TranscriptPlayer.Placed(line, new Dictionary<string, string>(StringComparer.Ordinal) { [TranscriptPlayer.ConfigurationDirectory] = @"C:\Users\runner" });
+
+        Assert.Equal(@"C:\Users\runner/notes.txt", (string?)System.Text.Json.Nodes.JsonNode.Parse((string)placed["text"]!)!["file_path"]);
+    }
+
     private static async Task<(int Code, string[] Output, string Error)> PlayAsync(string[] arguments, params string[] inputs)
     {
         await using var folder = new TemporaryFolder();

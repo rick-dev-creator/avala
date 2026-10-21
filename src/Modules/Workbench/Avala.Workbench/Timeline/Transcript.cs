@@ -137,8 +137,8 @@ internal sealed record Transcript
         ItemTokensReported reported => Change(EntryKeys.Item(reported.Turn, reported.Item), entry => entry is ToolEntry tool ? tool with { Tokens = reported.Tokens } : entry),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
-        ItemBackgrounded backgrounded => Change(EntryKeys.Item(backgrounded.Turn, backgrounded.Item), entry => entry is ToolEntry tool ? tool with { Backgrounded = true } : entry),
-        ItemCompleted completed => LostWith(completed).Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
+        ItemBackgrounded backgrounded => Backgrounded(backgrounded),
+        ItemCompleted completed => Concluded(completed, now),
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
         RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
@@ -226,7 +226,22 @@ internal sealed record Transcript
     }
 
     private Transcript Stepped(ItemStarted started, ItemId parent) =>
-        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title), Children = tool.Children.Add(started.Item) } : entry);
+        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title), Children = tool.Children.Add(started.Item), ChildTitles = tool.ChildTitles.SetItem(started.Item, started.Title) } : entry);
+
+    private Transcript Backgrounded(ItemBackgrounded backgrounded) =>
+        Change(EntryKeys.Item(backgrounded.Turn, backgrounded.Item), entry => entry is ToolEntry tool ? tool with { Backgrounded = true } : entry)
+            .OfParent(backgrounded.Item, parent => parent.Background.Any(step => step.Item == backgrounded.Item)
+                ? parent
+                : parent with { Background = parent.Background.Add(new BackgroundStep(backgrounded.Item, parent.ChildTitles.GetValueOrDefault(backgrounded.Item, string.Empty), Option<ItemOutcome>.None)) });
+
+    private Transcript Concluded(ItemCompleted completed, DateTimeOffset now) =>
+        LostWith(completed).Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now))
+            .OfParent(completed.Item, parent => parent with { Background = [.. parent.Background.Select(step => step.Item == completed.Item ? step with { Outcome = completed.Outcome } : step)] });
+
+    private Transcript OfParent(ItemId child, Func<ToolEntry, ToolEntry> change) =>
+        Entries.OfType<ToolEntry>().LastOrDefault(tool => tool.Children.Contains(child)) is { } parent
+            ? Change(parent.Key, entry => entry is ToolEntry tool ? change(tool) : entry)
+            : this;
 
     private Transcript LostWith(ItemCompleted completed) =>
         Find(EntryKeys.Item(completed.Turn, completed.Item)).Match(
