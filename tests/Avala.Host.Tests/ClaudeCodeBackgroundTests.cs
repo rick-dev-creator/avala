@@ -85,8 +85,26 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
         _ = await ended.UntilAsync(finished => finished.Session == session);
         await EvaluatedAsync(run);
+        var before = await StateAsync(run, session);
         run.Clock.Advance(PromptCache + PromptCache);
-        _ = await stopped.UntilAsync(found => found.Session == session);
+
+        try
+        {
+            _ = await stopped.UntilAsync(found => found.Session == session);
+        }
+        catch (TimeoutException timeout)
+        {
+            throw new TimeoutException($"{timeout.Message}; before the clock moved {before}; after {await StateAsync(run, session)}", timeout);
+        }
+    }
+
+    private static async Task<string> StateAsync(SimulatedRun run, SessionId session)
+    {
+        await run.DeliveredAsync();
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        var agents = run.Get<IAgents>();
+
+        return $"job {history.Summary.Status}, hold {history.Summary.Hold}, attempts {history.Attempts.Count}, sessions {history.Sessions.Count}, open {agents.IsOpen(session)}, working {agents.IsWorking(session)}";
     }
 
     [Fact]
