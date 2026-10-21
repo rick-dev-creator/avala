@@ -160,6 +160,8 @@ public sealed class DelegationToggleViewScripts(HeadlessUi ui)
 
 public sealed class SubagentViewScripts(HeadlessUi ui)
 {
+    private static Avalonia.Media.Color? Color(Avalonia.Media.IBrush? brush) => (brush as Avalonia.Media.ISolidColorBrush)?.Color;
+
     [Fact]
     public Task ASubagentIsACardWithItsNameKindActivityMeterAndStateAsync() =>
         ui.RunAsync(() =>
@@ -170,6 +172,16 @@ public sealed class SubagentViewScripts(HeadlessUi ui)
                 ("Find the refund call sites", "sub-agent", "Run go test ./internal/payments/...", "2 tool uses · 3,600 tokens", "working"),
                 (view.TextOf("AgentName"), view.TextOf("Kind"), view.TextOf("Activity"), view.TextOf("Meter"), view.TextOf("StateText")));
             Assert.Equal((false, 1), (view.Shows("Note"), Graph.GetDepth(view.Named("SubagentView").Single())));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ASubagentWithNoToolsToShowYetReadsItsNameAsBrightlyAsOneThatHasSomeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var quiet = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Starting", SubagentState.Working) { ToggleCommand = new RelayCommand(() => { }, () => false) });
+            var shown = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Starting", SubagentState.Working));
+
+            Assert.Equal(Color(shown.Find<TextBlock>("AgentName").Foreground), Color(quiet.Find<TextBlock>("AgentName").Foreground));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

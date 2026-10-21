@@ -239,7 +239,7 @@ internal sealed record DesignSubagentViewModel(string Name, string Activity, Sub
 
     public bool IsOpen { get; init; }
 
-    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
 
     public IRelayCommand<JobId> OpenCommand { get; } = OverviewPhrases.Idle;
 

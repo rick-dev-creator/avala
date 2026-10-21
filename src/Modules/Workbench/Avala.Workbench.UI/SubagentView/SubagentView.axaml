@@ -14,6 +14,10 @@
     <overview:DesignSubagentViewModel Meter="6 tool uses · 18.2k tokens" />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector="Button#Head:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
     <Style Selector="Border#Badge Path.icon">
       <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
