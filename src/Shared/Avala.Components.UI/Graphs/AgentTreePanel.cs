@@ -1,6 +1,8 @@
 using Avala.Components.Graphs;
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Media;
 
 namespace Avala.Components.UI.Graphs;
@@ -37,11 +39,20 @@ public sealed class AgentTreePanel : Panel
 
     private static readonly double[] Narrower = [0.9, 0.8, 0.72];
 
-    private static readonly int Kinds = Enum.GetValues<EdgeKind>().Length;
+    private static readonly AvaloniaProperty[] Strokes = [EdgeBrushes.FlowingProperty, EdgeBrushes.AttentionProperty, EdgeBrushes.WaitingProperty, EdgeBrushes.FailureProperty, EdgeBrushes.QuietProperty];
 
     private AgentTreeGraphLayout layout = AgentTreeGraphLayout.Empty;
+    private AgentTreeRoutes routes = AgentTreeRoutes.Empty;
+    private StreamGeometry?[] shapes = [];
+    private readonly List<(AgentTreeMotion.Ghost Ghost, IReadOnlyList<GraphPoint> Route, StreamGeometry? Shape)> ghosts = [];
+    private readonly AgentTreeMotion motion = new();
+    private readonly AgentTreeStrokes strokes = new();
     private readonly EdgeLayer edges;
     private readonly EdgeLayer joints;
+    private readonly Action<TimeSpan> frame;
+    private double arrangedWidth = double.NaN;
+    private bool framing;
+    private bool loops;
 
     static AgentTreePanel()
     {
@@ -53,6 +64,7 @@ public sealed class AgentTreePanel : Panel
     {
         edges = new EdgeLayer(this, DrawEdges);
         joints = new EdgeLayer(this, DrawJoints) { ZIndex = int.MaxValue };
+        frame = Frame;
         VisualChildren.Add(edges);
         VisualChildren.Add(joints);
     }
@@ -94,6 +106,8 @@ public sealed class AgentTreePanel : Panel
     }
 
     public AgentTreeGraphLayout Layout => layout;
+
+    public AgentTreeRoutes Drawn => routes with { Leaving = [.. ghosts.Select(ghost => ghost.Ghost.Rect)] };
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -156,42 +170,218 @@ public sealed class AgentTreePanel : Panel
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        var keys = new object[Math.Min(Children.Count, layout.Nodes.Count)];
 
-        for (var index = 0; index < Children.Count && index < layout.Nodes.Count; index++)
+        for (var index = 0; index < keys.Length; index++)
         {
             var bounds = layout.Nodes[index];
             Children[index].Arrange(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+            keys[index] = KeyOf(Children[index]);
         }
 
+        var animate = !Motion.GetIsReduced(this) && TopLevel.GetTopLevel(this) is not null && Math.Abs(finalSize.Width - arrangedWidth) < 0.5;
+        arrangedWidth = finalSize.Width;
+        motion.Retarget(keys, layout.Nodes, layout.Parents, animate);
+        Show();
         edges.Fit(finalSize);
         joints.Fit(finalSize);
+
+        if (motion.IsActive)
+        {
+            Request();
+        }
 
         return finalSize;
     }
 
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (Array.IndexOf(Strokes, change.Property) >= 0)
+        {
+            strokes.Reset();
+        }
+        else if (change.Property == Motion.IsReducedProperty)
+        {
+            Settle();
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Settle();
+    }
+
+    private static object KeyOf(Control child) => child is ContentPresenter { Content: { } content } ? content : child;
+
+    private void Settle()
+    {
+        motion.Snap();
+        strokes.Rest();
+        Show();
+        EdgeLayer.Refresh(this);
+    }
+
+    private void Request()
+    {
+        if (!framing && TopLevel.GetTopLevel(this) is { } top)
+        {
+            framing = true;
+            top.RequestAnimationFrame(frame);
+        }
+    }
+
+    private void Frame(TimeSpan now)
+    {
+        framing = false;
+
+        if (TopLevel.GetTopLevel(this) is null)
+        {
+            return;
+        }
+
+        if (motion.IsActive)
+        {
+            motion.Step(now);
+            Show();
+            EdgeLayer.Refresh(this);
+        }
+
+        var looping = loops && IsEffectivelyVisible && !Motion.GetIsReduced(this);
+
+        if (looping && strokes.Step(now))
+        {
+            edges.InvalidateVisual();
+        }
+
+        if (motion.IsActive || looping)
+        {
+            Request();
+        }
+    }
+
+    private void Show()
+    {
+        var shown = new GraphRect[Math.Min(Children.Count, layout.Nodes.Count)];
+        var grown = new double[shown.Length];
+
+        for (var index = 0; index < shown.Length; index++)
+        {
+            var track = motion.Of(KeyOf(Children[index]), layout.Nodes[index]);
+            Place(Children[index], track);
+            (shown[index], grown[index]) = (track.Shown, track.Grown);
+        }
+
+        routes = AgentTreeLayout.Connect(layout.Shape, shown, layout.Parents, layout.Spacing, grown);
+        shapes = [.. routes.Edges.Select(edge => edge.Points.Count > 2 ? Line(edge.Points) : null)];
+        ghosts.Clear();
+
+        foreach (var ghost in motion.Ghosts)
+        {
+            var route = ghost.IsAnchored ? AgentTreeLayout.Partial(Reach(ghost.Toward, ghost.Rect), ghost.Remaining) : [];
+            ghosts.Add((ghost, route, route.Count > 1 ? Line(route) : null));
+        }
+    }
+
+    private IReadOnlyList<GraphPoint> Reach(GraphPoint from, GraphRect to)
+    {
+        if (layout.Shape == AgentTreeShape.Rail)
+        {
+            return [from, new GraphPoint(from.X, to.Center.Y), new GraphPoint(to.X, to.Center.Y)];
+        }
+
+        var bar = to.Y - (layout.Spacing.Drop / 2);
+
+        return [from, new GraphPoint(from.X, bar), new GraphPoint(to.Center.X, bar), new GraphPoint(to.Center.X, to.Y)];
+    }
+
+    private static void Place(Control child, AgentTreeMotion.Track track)
+    {
+        var (x, y) = (track.Shown.X - track.Target.X, track.Shown.Y - track.Target.Y + track.Lift);
+
+        if (child.RenderTransform is TranslateTransform shift && child.IsSet(RenderTransformProperty))
+        {
+            (shift.X, shift.Y) = (x, y);
+        }
+        else if (child.RenderTransform is null && (x != 0 || y != 0))
+        {
+            child.RenderTransform = new TranslateTransform(x, y);
+        }
+
+        if (track.IsFading)
+        {
+            child.Opacity = track.Opacity;
+        }
+        else if (child.IsSet(OpacityProperty) && child.Opacity < 1)
+        {
+            child.ClearValue(OpacityProperty);
+        }
+    }
+
     private void DrawEdges(DrawingContext context, EdgePens pens)
     {
-        var made = new IPen?[Kinds];
+        var (flowing, waiting) = (false, false);
 
-        foreach (var edge in layout.Edges)
+        foreach (var (ghost, _, shape) in ghosts)
         {
+            using (context.PushOpacity(ghost.Remaining))
+            {
+                var rect = ghost.Rect;
+                context.DrawRectangle(JointBrush, strokes.For(this, EdgeKind.Quiet), new Rect(rect.X, rect.Y, rect.Width, rect.Height), Corner * 2, Corner * 2);
+
+                if (shape is not null)
+                {
+                    context.DrawGeometry(null, strokes.For(this, EdgeKind.Quiet), shape);
+                }
+            }
+        }
+
+        for (var index = 0; index < routes.Edges.Count; index++)
+        {
+            var edge = routes.Edges[index];
             var kind = edge.Node >= 0 && edge.Node < Children.Count ? Graph.Read(Children[edge.Node], Graph.EdgeProperty) : EdgeKind.Quiet;
-            var pen = made[(int)kind] ??= pens.For(kind);
-            context.DrawGeometry(null, pen, Line(edge.Points));
+            (flowing, waiting) = (flowing || kind == EdgeKind.Flowing, waiting || kind == EdgeKind.Attention);
+
+            using (context.PushOpacity(kind == EdgeKind.Attention ? strokes.Breathing : 1))
+            {
+                Stroke(context, strokes.For(this, kind), edge.Points, shapes[index]);
+            }
+        }
+
+        loops = flowing || waiting;
+
+        if (loops && !Motion.GetIsReduced(this))
+        {
+            Request();
+        }
+    }
+
+    private static void Stroke(DrawingContext context, IPen pen, IReadOnlyList<GraphPoint> points, StreamGeometry? shape)
+    {
+        if (shape is not null)
+        {
+            context.DrawGeometry(null, pen, shape);
+        }
+        else
+        {
+            context.DrawLine(pen, At(points[0]), At(points[^1]));
         }
     }
 
     private void DrawJoints(DrawingContext context, EdgePens pens)
     {
-        if (layout.Joints.Count == 0)
+        if (routes.Joints.Count == 0)
         {
             return;
         }
 
-        var pen = pens.For(EdgeKind.Quiet);
+        var pen = strokes.For(this, EdgeKind.Quiet);
 
-        foreach (var joint in layout.Joints)
+        for (var index = 0; index < routes.Joints.Count; index++)
         {
+            var joint = routes.Joints[index];
             context.DrawEllipse(JointBrush, pen, new Point(joint.X, joint.Y), JointRadius, JointRadius);
         }
     }

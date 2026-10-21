@@ -31,9 +31,7 @@
           Classes.settled="{Binding Place.IsSettled}"
           Classes.viewing="{Binding IsViewing}"
           Classes.cross="{Binding Place.IsCrossHarness}"
-
-          Padding="12,10"
-          theme:Motion.Enter="Gentle">
+          Padding="12,10">
     <StackPanel Spacing="6">
       <Button x:Name="Row"
               Classes="bare"

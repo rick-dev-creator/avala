@@ -24,9 +24,7 @@
           Classes.alert="{Binding Place.IsAlert}"
           Classes.settled="{Binding Place.IsSettled}"
           Classes.inside="{Binding Place.RunsInside}"
-
-          Padding="12,10"
-          theme:Motion.Enter="Gentle">
+          Padding="12,10">
     <StackPanel Spacing="6">
       <Button x:Name="Head"
               Classes="bare"

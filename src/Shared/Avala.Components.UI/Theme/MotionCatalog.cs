@@ -41,6 +41,8 @@ internal static class MotionCatalog
 
     private static readonly Move PingOut = Enter(0.9, new CubicEaseOut(), Frame(0, [.. Scale(1), Opacity(0.8)]), Frame(1, [.. Scale(2.8), Opacity(0)]));
 
+    public static Move SwapIn { get; } = Enter(0.18, Gentle, Frame(0, [.. Scale(0.92), Opacity(0)]), Frame(1, [.. Scale(1), Opacity(1)]));
+
     public static Move StageIn { get; } = Enter(0.24, Settling, Frame(0, [Y(8), .. Scale(0.985), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)]));
 
     public static Move StageOut { get; } = Enter(0.24, Settling, Frame(0, [.. Scale(1), Opacity(1)]), Frame(1, [.. Scale(0.995), Opacity(0)]));

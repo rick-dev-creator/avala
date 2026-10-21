@@ -23,6 +23,15 @@ public sealed record AgentTreeGraphLayout(
     GraphSize Size)
 {
     public static AgentTreeGraphLayout Empty { get; } = new(AgentTreeShape.Comb, [], [], [], [], new GraphSize(0, 0));
+
+    public AgentTreeSpacing Spacing { get; init; } = new();
+}
+
+public sealed record AgentTreeRoutes(IReadOnlyList<AgentTreeEdge> Edges, IReadOnlyList<GraphPoint> Joints)
+{
+    public static AgentTreeRoutes Empty { get; } = new([], []);
+
+    public IReadOnlyList<GraphRect> Leaving { get; init; } = [];
 }
 
 public static class AgentTreeLayout
@@ -185,12 +194,19 @@ public static class AgentTreeLayout
 
     private static AgentTreeGraphLayout Drawn(AgentTreeShape shape, GraphRect[] rects, int[] parents, AgentTreeSpacing spacing)
     {
+        var routes = Connect(shape, rects, parents, spacing, [.. rects.Select(_ => 1d)]);
+
+        return new AgentTreeGraphLayout(shape, rects, parents, routes.Edges, routes.Joints, new GraphSize(Width(rects), rects.Max(rect => rect.Bottom))) { Spacing = spacing };
+    }
+
+    public static AgentTreeRoutes Connect(AgentTreeShape shape, IReadOnlyList<GraphRect> rects, IReadOnlyList<int> parents, AgentTreeSpacing spacing, IReadOnlyList<double> grown)
+    {
         var edges = new List<AgentTreeEdge>();
         var joints = new List<GraphPoint>();
 
-        for (var parent = 0; parent < rects.Length; parent++)
+        for (var parent = 0; parent < rects.Count; parent++)
         {
-            var children = Enumerable.Range(parent + 1, rects.Length - parent - 1).Where(child => parents[child] == parent).ToList();
+            var children = Enumerable.Range(parent + 1, rects.Count - parent - 1).Where(child => parents[child] == parent).ToList();
 
             if (children.Count == 0)
             {
@@ -199,37 +215,94 @@ public static class AgentTreeLayout
 
             if (shape == AgentTreeShape.Tree || (shape == AgentTreeShape.Comb && parent == 0))
             {
-                Fan(rects, parent, children, spacing, edges, joints);
+                Fan(rects, parent, children, spacing, grown, edges, joints);
             }
             else
             {
-                Hang(rects, parent, children, spacing, edges, joints);
+                Hang(rects, parent, children, spacing, grown, edges, joints);
             }
         }
 
-        return new AgentTreeGraphLayout(shape, rects, parents, edges, joints, new GraphSize(Width(rects), rects.Max(rect => rect.Bottom)));
+        return new AgentTreeRoutes(edges, joints);
     }
 
-    private static void Fan(GraphRect[] rects, int parent, List<int> children, AgentTreeSpacing spacing, List<AgentTreeEdge> edges, List<GraphPoint> joints)
+    public static IReadOnlyList<GraphPoint> Partial(IReadOnlyList<GraphPoint> points, double fraction)
+    {
+        if (fraction >= 1)
+        {
+            return points;
+        }
+
+        var left = Math.Max(0, fraction) * Length(points);
+        var drawn = new List<GraphPoint> { points[0] };
+
+        for (var index = 1; index < points.Count && left > 0; index++)
+        {
+            var (from, to) = (points[index - 1], points[index]);
+            var span = Math.Abs(to.X - from.X) + Math.Abs(to.Y - from.Y);
+            var share = span <= 0 ? 1 : Math.Min(1, left / span);
+            drawn.Add(new GraphPoint(from.X + ((to.X - from.X) * share), from.Y + ((to.Y - from.Y) * share)));
+            left -= span;
+        }
+
+        return drawn.Count > 1 ? drawn : [];
+    }
+
+    private static double Length(IReadOnlyList<GraphPoint> points)
+    {
+        var length = 0.0;
+
+        for (var index = 1; index < points.Count; index++)
+        {
+            length += Math.Abs(points[index].X - points[index - 1].X) + Math.Abs(points[index].Y - points[index - 1].Y);
+        }
+
+        return length;
+    }
+
+    private static void Fan(IReadOnlyList<GraphRect> rects, int parent, List<int> children, AgentTreeSpacing spacing, IReadOnlyList<double> grown, List<AgentTreeEdge> edges, List<GraphPoint> joints)
     {
         var root = rects[parent];
         var stem = new GraphPoint(root.Center.X, root.Bottom);
         var bar = children.Min(child => rects[child].Y) - (spacing.Drop / 2);
-        var drops = children.Select(child => rects[child].Center.X).ToList();
-        var (from, to) = (Math.Min(stem.X, drops.Min()), Math.Max(stem.X, drops.Max()));
+        var rise = bar - stem.Y;
+        var (from, to, down) = (stem.X, stem.X, 0.0);
+        var drops = new List<AgentTreeEdge>();
+
+        foreach (var child in children)
+        {
+            var x = rects[child].Center.X;
+            var across = Math.Abs(x - stem.X);
+            var fall = rects[child].Y - bar;
+            var reach = grown[child] >= 1 ? double.PositiveInfinity : Math.Max(0, grown[child]) * (rise + across + fall);
+            var along = Math.Clamp(reach - rise, 0, across);
+            var dropped = Math.Min(fall, reach - rise - across);
+            down = Math.Max(down, Math.Min(rise, reach));
+            from = Math.Min(from, x < stem.X ? stem.X - along : from);
+            to = Math.Max(to, x > stem.X ? stem.X + along : to);
+
+            if (dropped > 0)
+            {
+                drops.Add(new AgentTreeEdge(child, [new GraphPoint(x, bar), new GraphPoint(x, bar + dropped)]));
+            }
+        }
 
         joints.Add(stem);
-        edges.Add(new AgentTreeEdge(AgentTreeEdge.Shared, [stem, new GraphPoint(stem.X, bar)]));
+
+        if (down > 0)
+        {
+            edges.Add(new AgentTreeEdge(AgentTreeEdge.Shared, [stem, new GraphPoint(stem.X, stem.Y + down)]));
+        }
 
         if (to > from)
         {
             edges.Add(new AgentTreeEdge(AgentTreeEdge.Shared, [new GraphPoint(from, bar), new GraphPoint(to, bar)]));
         }
 
-        edges.AddRange(children.Select(child => new AgentTreeEdge(child, [new GraphPoint(rects[child].Center.X, bar), new GraphPoint(rects[child].Center.X, rects[child].Y)])));
+        edges.AddRange(drops);
     }
 
-    private static void Hang(GraphRect[] rects, int parent, List<int> children, AgentTreeSpacing spacing, List<AgentTreeEdge> edges, List<GraphPoint> joints)
+    private static void Hang(IReadOnlyList<GraphRect> rects, int parent, List<int> children, AgentTreeSpacing spacing, IReadOnlyList<double> grown, List<AgentTreeEdge> edges, List<GraphPoint> joints)
     {
         var rail = rects[parent].X + (spacing.Indent / 2);
         var above = rects[parent].Bottom;
@@ -239,7 +312,13 @@ public static class AgentTreeLayout
         foreach (var child in children)
         {
             var tick = rects[child].Center.Y;
-            edges.Add(new AgentTreeEdge(child, [new GraphPoint(rail, above), new GraphPoint(rail, tick), new GraphPoint(rects[child].X, tick)]));
+            var drawn = Partial([new GraphPoint(rail, above), new GraphPoint(rail, tick), new GraphPoint(rects[child].X, tick)], grown[child]);
+
+            if (drawn.Count > 1)
+            {
+                edges.Add(new AgentTreeEdge(child, drawn));
+            }
+
             above = tick;
         }
     }
