@@ -18,7 +18,9 @@ if (init is null)
 }
 
 var account = lines.Select(line => line["out"]?["response"]?["response"]?["account"] ?? line["out"]?["account"]).FirstOrDefault(found => found is not null);
-var replacements = Anonymizer.Replacements(header, init, account);
+var commands = lines.Select(line => line["in"]).Where(sent => sent?["type"]?.GetValue<string>() == "user").Select(sent => sent?["uuid"]?.GetValue<string>()).OfType<string>().Distinct(StringComparer.Ordinal)
+    .Select((command, index) => (command, $"${{command:{index + 1}}}"));
+IReadOnlyList<(string From, string To)> replacements = [.. Anonymizer.Replacements(header, init, account), .. commands];
 var anonymized = lines.Skip(1).Select(line => Anonymizer.Clean(line, replacements)).ToList();
 Anonymizer.Replace(header, replacements);
 var folder = Path.Combine(Repository.Root().FullName, "tests", "transcripts", "claude-code", name);

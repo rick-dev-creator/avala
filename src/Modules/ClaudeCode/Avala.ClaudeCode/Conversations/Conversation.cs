@@ -22,6 +22,7 @@ internal sealed class Conversation
     private bool modelReported;
     private bool interrupting;
     private bool carried;
+    private bool woken;
     private bool acknowledging;
     private bool rejected;
     private bool unsaid;
@@ -106,20 +107,21 @@ internal sealed class Conversation
         live.ToResult(AgentError.NoTurnInProgress).Map(stamp =>
         {
             var background = translator.WorkingInBackground && (carried || !commands.Owed);
+            var generating = woken && !carried;
 
-            if (!commands.Owed && !background)
+            if (!commands.Owed && !background && !generating && !acknowledging)
             {
                 return (stamp.Turn, Closed(stamp, TurnOutcome.Interrupted, Reaction.None));
             }
 
             interrupting = true;
-            acknowledging = background;
+            acknowledging = acknowledging || background;
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
 
-    private bool Acknowledges(JsonNode response) =>
-        response["response"]?.TextOr("request_id", string.Empty) == $"avala-interrupt-{interruptions}";
+    private static bool Acknowledges(JsonNode response) =>
+        response["response"]?.TextOr("request_id", string.Empty).StartsWith(Messages.InterruptPrefix, StringComparison.Ordinal) == true;
 
     private Reaction Acknowledged()
     {
@@ -240,7 +242,18 @@ internal sealed class Conversation
         return started;
     }
 
-    private Reaction Woken() => live.IsNone && stale == 0 ? Reaction.Of(new TurnStarted(session, Opened().Turn) { Woken = true }) : Reaction.None;
+    private Reaction Woken()
+    {
+        if (live.IsSome || stale != 0)
+        {
+            return Reaction.None;
+        }
+
+        var stamp = Opened();
+        woken = true;
+
+        return Reaction.Of(new TurnStarted(session, stamp.Turn) { Woken = true });
+    }
 
     private Reaction Started() => Reaction.Of(new TurnStarted(session, Opened().Turn));
 
@@ -259,8 +272,8 @@ internal sealed class Conversation
             () => Reaction.None));
     }
 
-    private static bool Notifies(string type, JsonNode message) =>
-        type == "system" && message.TextOr("subtype", string.Empty) == "task_notification";
+    private bool Notifies(string type, JsonNode message) =>
+        type == "system" && message.TextOr("subtype", string.Empty) == "task_notification" && translator.Wakes(message);
 
     private Reaction Carried(JsonNode result, Stamp stamp)
     {
@@ -311,6 +324,7 @@ internal sealed class Conversation
         interrupting = false;
         acknowledging = false;
         carried = false;
+        woken = false;
 
         return closing
             .Then(usage)

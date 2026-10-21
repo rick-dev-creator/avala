@@ -40,17 +40,17 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
     public Reaction Tasked(JsonNode system, Stamp stamp) => system.TextOr("subtype", string.Empty) switch
     {
-        "task_started" when system.Flag("is_backgrounded") => tools.Find(system.TextOr("tool_use_id", string.Empty)).Match(tool => Backgrounded(tool, system.TextOr("task_id", string.Empty), stamp), () => Reaction.None),
+        "task_started" when system.Flag("is_backgrounded") => Started(system, stamp),
         "task_notification" => Notifying(system).Match(
             tool => tool.Backgrounded && !tool.Closed ? Notified(tool, system, stamp) : Reaction.None,
-            () => Orphaned(system, stamp)),
+            () => tools.Finished(system.TextOr("tool_use_id", string.Empty), system.TextOr("task_id", string.Empty)) ? Reaction.None : Orphaned(system, stamp)),
         _ => Reaction.None,
     };
 
     private Reaction Close(Stamp stamp, bool interrupted, bool ending)
     {
         var closing = open.Select(item => new ItemCompleted(stamp.Session, stamp.Turn, item, interrupted ? ItemOutcome.Cancelled : ItemOutcome.Succeeded))
-            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed && (ending ? !tool.Backgrounded : !tools.Carries(tool))).Select(tool =>
+            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed && (ending ? !tool.Backgrounded || interrupted : !tools.Carries(tool))).Select(tool =>
             {
                 tool.Closed = true;
 
@@ -73,6 +73,24 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         }
 
         return Reaction.Of(closing);
+    }
+
+    public bool Wakes(JsonNode notification) =>
+        !tools.Finished(notification.TextOr("tool_use_id", string.Empty), notification.TextOr("task_id", string.Empty))
+        || tools.Find(notification.TextOr("tool_use_id", string.Empty)).Match(tool => !tool.Closed, () => false);
+
+    private Reaction Started(JsonNode system, Stamp stamp)
+    {
+        var id = system.TextOr("tool_use_id", string.Empty);
+        var task = system.TextOr("task_id", string.Empty);
+
+        return tools.Find(id).Match(tool => !tool.Closed, () => false)
+            ? tools.Find(id).Match(tool => Backgrounded(tool, task, stamp), () => Reaction.None)
+            : tools.Rerun(id).Match(
+                again => Reaction.Of(
+                    new ItemStarted(stamp.Session, stamp.Turn, again.Item, again.Use.KindIn(places), again.Use.Heading(places)) { Input = again.Use.Details(places.WorkingDirectory) },
+                    new ItemBackgrounded(stamp.Session, stamp.Turn, again.Item)),
+                () => Reaction.None);
     }
 
     private Option<TrackedTool> Notifying(JsonNode notification) =>

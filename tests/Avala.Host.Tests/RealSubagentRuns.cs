@@ -13,11 +13,18 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
-    private const string Instruction =
+    private const string Interrupted =
         "Use the Agent tool twice with run_in_background set to true to launch two general-purpose sub-agents. "
         + "Sub-agent A: run the Bash command `sleep 20 && echo A-done` and report its output. "
         + "Sub-agent B: run the Bash command `sleep 35 && echo B-done` and report its output. "
         + "After launching both, reply with the single word launched and end your turn without waiting for them.";
+
+    private const string Nested =
+        "Use the Agent tool once with run_in_background set to true to launch one general-purpose sub-agent with this task: "
+        + "start the Bash command `sleep 30 && echo nested-done` with run_in_background set to true, then end your own work at once by replying started, without waiting for the command. "
+        + "After launching the sub-agent, reply with the single word launched and end your turn. When you learn that the command finished, reply with its output.";
+
+    private static readonly TimeSpan Guard = TimeSpan.FromMinutes(6);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -30,31 +37,69 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
         : Path.Combine(Path.GetTempPath(), "avala-real-subagents");
 
     [Fact]
-    public async Task BackgroundSubagentsInterruptedByAPersonAreRecordedWithWhatAvalaMadeOfThemAsync()
+    public Task BackgroundSubagentsInterruptedByAPersonAreRecordedWithWhatAvalaMadeOfThemAsync() =>
+        RecordAsync("interrupted", Interrupted, async (run, conversation, activity) =>
+        {
+            _ = await activity.CollectUntilAsync(seen => seen.Event is ItemStarted { Parent.IsSome: true });
+            await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+        });
+
+    [Fact]
+    public Task ASubagentThatEndsWhileItsOwnBackgroundCommandRunsIsRecordedWithWhatAvalaMadeOfItAsync() =>
+        RecordAsync("nested", Nested, (_, _, _) => Task.CompletedTask);
+
+    private async Task RecordAsync(string name, string instruction, Func<SimulatedRun, Bound, EventWatch<AgentActivity>, Task> act)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1, and AVALA_REAL_CLAUDE_LOGIN to a Claude Code login folder, to run real Claude Code.");
-        var transcripts = Path.Combine(Output, "transcripts");
+        var folder = Path.Combine(Output, name);
+        var transcripts = Path.Combine(folder, "transcripts");
         Directory.CreateDirectory(transcripts);
         await using var run = await SimulatedRun.PreparedAsync(plugins, [("connections.json", Connections(transcripts))], [(".avala/permissions.json", Autonomous)], harnesses: true);
         var activity = run.Watch<AgentActivity>();
-        var progressed = run.Watch<JobProgressed>();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Instruction)));
-        var workbench = await run.WorkbenchAsync();
-        var conversation = await workbench.SelectAsync(job);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, instruction)));
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(job);
+        var seen = new List<string>();
+        using var guard = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        guard.CancelAfter(Guard);
 
-        var before = await activity.CollectUntilAsync(seen => seen.Event is ItemStarted { Parent.IsSome: true });
-        var states = new List<string> { $"before the interrupt: {await StateAsync(run, job)}" };
-        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
-        var after = await activity.CollectUntilAsync(seen => seen.Event is TurnCompleted { Outcome: TurnOutcome.Finished });
-        states.Add($"after the woken turn: {await StateAsync(run, job)}");
-        var statuses = await progressed.CollectUntilAsync(found => found.Job == job && found.Status != JobStatus.Running);
+        try
+        {
+            await act(run, conversation, activity).WaitAsync(guard.Token);
+            seen.AddRange((await SettledAsync(run, job, guard.Token)).Select(status => $"job {status}"));
+        }
+        catch (OperationCanceledException) when (guard.IsCancellationRequested && !Cancellation.IsCancellationRequested)
+        {
+            seen.Add($"the job never settled within {Guard}");
+        }
 
-        await File.WriteAllTextAsync(
-            Path.Combine(Output, "avala-view.txt"),
-            string.Join('\n', before.Concat(after).Select(seen => Describe(seen.Event)))
-                + "\n\n" + string.Join('\n', statuses.Select(found => $"job {found.Status}"))
-                + "\n\n" + string.Join('\n', states),
-            Cancellation);
+        seen.Add(await StateAsync(run, job));
+        await File.WriteAllTextAsync(Path.Combine(folder, "avala-view.txt"), string.Join('\n', seen), Cancellation);
+    }
+
+    private static async Task<IReadOnlyList<JobStatus>> SettledAsync(SimulatedRun run, JobId job, CancellationToken guard)
+    {
+        var seen = new List<JobStatus>();
+
+        while (true)
+        {
+            var progressed = run.Watch<JobProgressed>();
+            var status = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, guard)).Summary.Status;
+            seen.Add(status);
+
+            if (status is not JobStatus.Running and not JobStatus.Preparing and not JobStatus.Checking)
+            {
+                return seen;
+            }
+
+            try
+            {
+                _ = await progressed.UntilAsync(found => found.Job == job && found.Status is not JobStatus.Running and not JobStatus.Preparing and not JobStatus.Checking).WaitAsync(guard);
+            }
+            catch (TimeoutException)
+            {
+                guard.ThrowIfCancellationRequested();
+            }
+        }
     }
 
     private static string Connections(string transcripts) => new JsonObject
@@ -73,16 +118,6 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
         await run.DeliveredAsync();
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
 
-        return $"{history.Summary.Status} hold {history.Summary.Hold.Match(hold => hold.ToString(), () => "none")} attempts {string.Join(", ", history.Attempts.Select(attempt => $"{attempt.Origin}:{attempt.Outcome}"))}";
+        return $"{history.Summary.Status} hold {history.Summary.Hold.Match(hold => hold.ToString(), () => "none")} attempts {string.Join(", ", history.Attempts.Select(attempt => $"{attempt.Origin}:{attempt.Outcome}"))} sessions open {run.Get<IAgents>().IsOpen(history.Sessions[^1].Session)} working {run.Get<IAgents>().IsWorking(history.Sessions[^1].Session)}";
     }
-
-    private static string Describe(IAgentEvent happened) => happened switch
-    {
-        TurnStarted started => $"turn started {started.Turn.Value} woken {started.Woken}",
-        TurnCompleted completed => $"turn ended {completed.Turn.Value} {completed.Outcome}",
-        ItemStarted started => $"item {started.Item.Value} {started.Kind} {started.Title} parent {started.Parent.Match(parent => parent.Value, () => "-")}",
-        ItemBackgrounded backgrounded => $"backgrounded {backgrounded.Item.Value}",
-        ItemCompleted completed => $"item ended {completed.Item.Value} {completed.Outcome}",
-        _ => happened.GetType().Name,
-    };
 }

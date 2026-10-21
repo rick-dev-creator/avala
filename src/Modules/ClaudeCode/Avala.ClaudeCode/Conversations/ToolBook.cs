@@ -20,7 +20,9 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public ToolRole Role { get; } = role;
 
-    public ItemId Item => new(Use.Id);
+    public ItemId Item => Run == 0 ? new(Use.Id) : new($"{Use.Id}:run{Run + 1}");
+
+    public int Run { get; init; }
 
     public bool Opened { get; set; }
 
@@ -61,6 +63,7 @@ internal sealed class SketchedTool(ToolUse use)
 internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 {
     private readonly Dictionary<string, TrackedTool> tools = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TrackedTool> finished = new(StringComparer.Ordinal);
 
     public IReadOnlyList<HarnessTool> Offered { get; } = offered;
 
@@ -79,6 +82,27 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 
     public Option<TrackedTool> Find(string id) => tools.TryGetValue(id, out var tracked) ? tracked : Option<TrackedTool>.None;
 
+    public bool Finished(string id, string task) =>
+        (id.Length > 0 && finished.ContainsKey(id)) || (task.Length > 0 && finished.Values.Any(tool => tool.Task == task));
+
+    public Option<TrackedTool> Rerun(string id)
+    {
+        var earlier = tools.TryGetValue(id, out var tracked) && tracked.Closed && tracked.Backgrounded ? tracked
+            : finished.TryGetValue(id, out var ended) ? ended
+            : null;
+
+        if (earlier is null)
+        {
+            return Option<TrackedTool>.None;
+        }
+
+        finished.Remove(id);
+        var again = new TrackedTool(earlier.Use, earlier.Role) { Run = earlier.Run + 1, Opened = true, Backgrounded = true, Task = earlier.Task };
+        tools[id] = again;
+
+        return again;
+    }
+
     public Option<TrackedTool> OfTask(string task) => tools.Values.FirstOrDefault(tool => task.Length > 0 && tool.Task == task).ToOption();
 
     public Option<HarnessTool> Harness(string qualifiedName) =>
@@ -92,11 +116,25 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
     {
         foreach (var id in tools.Where(tool => tool.Value.Closed || !(tool.Value.Backgrounded || tool.Value.Nested)).Select(tool => tool.Key).ToList())
         {
-            tools.Remove(id);
+            Archive(id);
         }
     }
 
-    public void ForgetAll() => tools.Clear();
+    public void ForgetAll()
+    {
+        foreach (var id in tools.Keys.ToList())
+        {
+            Archive(id);
+        }
+    }
+
+    private void Archive(string id)
+    {
+        if (tools.Remove(id, out var tool) && tool.Backgrounded && tool.Closed)
+        {
+            finished[id] = tool;
+        }
+    }
 
     private ToolRole RoleOf(string name) =>
         Harness(name).Match(

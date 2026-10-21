@@ -188,6 +188,36 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ATurnStaysLiveUntilTheShellASubagentLeftInTheBackgroundEndsEvenThoughTheSubagentReportedCompletedAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("nested-background-agent");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var activity = run.Watch<AgentActivity>();
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+
+        var shell = seen.OfType<ItemStarted>().Single(started => started.Kind == ItemKind.Command && started.Parent.IsSome).Item;
+        Assert.InRange(seen.FindIndex(found => found is ItemCompleted completed && completed.Item == shell), 0, seen.Count - 2);
+        Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(seen[^1]).Outcome);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task ASubagentTheHarnessStartsAgainAfterItCompletedIsANewRunOfItThatWorksUntilItsNextNotificationAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("nested-background-agent");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var activity = run.Watch<AgentActivity>();
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+
+        var runs = seen.OfType<ItemStarted>().Where(started => started.Kind == ItemKind.Subagent).ToList();
+        Assert.Equal(["Subagent: Run delayed nested echo", "Subagent: Run delayed nested echo"], runs.Select(started => started.Title));
+        Assert.All(runs, started => Assert.Contains(seen, found => found is ItemBackgrounded backgrounded && backgrounded.Item == started.Item));
+        Assert.All(runs, started => Assert.Contains(seen, found => found is ItemCompleted { Outcome: ItemOutcome.Succeeded } completed && completed.Item == started.Item));
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");

@@ -66,7 +66,7 @@ public sealed class TranscriptPlayerTests
             var sent = lines.Select(line => line["in"]).Where(line => (string?)line?["type"] == "user").Select(line => (string?)line?["uuid"]).OfType<string>().ToHashSet(StringComparer.Ordinal);
             foreign.AddRange(lines
                 .Select(line => line["out"])
-                .Where(line => (string?)line?["type"] == "command_lifecycle" && sent.Contains((string?)line?["command_uuid"] ?? string.Empty))
+                .Where(line => (string?)line?["type"] == "command_lifecycle" && sent.Contains((string?)line?["command_uuid"] ?? string.Empty) && !((string?)line?["command_uuid"] ?? string.Empty).StartsWith("${", StringComparison.Ordinal))
                 .Select(line => $"{Path.GetFileName(path)}: {(string?)line?["command_uuid"]}"));
         }
 
