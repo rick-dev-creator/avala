@@ -279,6 +279,26 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
             tree.Branches.OfType<ISubagentViewModel>().Where(agent => agent.Name is "Delete the fixtures" or "Wait for the build").Select(agent => (agent.Name, agent.Place.State, agent.Note)));
     }
 
+    [Fact]
+    public async Task AFailedBranchTellsItsOrchestratorOnceWhatEndedAndWhyWhileAWorkingOneHasNothingToTellAsync()
+    {
+        bench.Starts(bench.Endpoint, "failed", "Port the idempotency keys");
+        bench.Ends(bench.Endpoint, "failed", ItemOutcome.Failed);
+        var tree = bench.Tree();
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        var failed = tree.Branches.OfType<ISubagentViewModel>().Single(agent => agent.Name == "Port the idempotency keys");
+        var working = tree.Branches.OfType<ISubagentViewModel>().Single(agent => agent.Name == "Find the refund call sites");
+        var before = (failed.Place.CanTell, working.Place.CanTell);
+
+        await failed.Place.TellCommand.ExecuteAsync(null);
+        await failed.Place.TellCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, false), before);
+        var told = Assert.Single(bench.Jobs.Calls);
+        Assert.Contains("\"Port the idempotency keys\" failed", told, StringComparison.Ordinal);
+        Assert.Equal((false, true), (failed.Place.CanTell, failed.Place.IsTold));
+    }
+
     public void Dispose() => bench.Dispose();
 
     private static List<(string, int, SubagentState)> Commands(SubagentTreeViewModel tree) =>

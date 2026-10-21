@@ -466,7 +466,12 @@ internal static class Focusing
 {
     public static Avala.Workbench.Navigation.JobFocus Focus() => new(new TestRegions(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
 
-    public static RowActions Actions(Avala.Workbench.Navigation.JobFocus focus, FakeJobs? jobs = null) => new(focus, Conversations(jobs ?? new FakeJobs()));
+    public static RowActions Actions(Avala.Workbench.Navigation.JobFocus focus, FakeJobs? jobs = null)
+    {
+        var used = jobs ?? new FakeJobs();
+
+        return new(focus, Conversations(used), new Avala.Workbench.Steering.JobSteering(used, new Avala.Workbench.Steering.QueuedMessages(used)));
+    }
 
     public static RowActions Actions() => Actions(Focus());
 

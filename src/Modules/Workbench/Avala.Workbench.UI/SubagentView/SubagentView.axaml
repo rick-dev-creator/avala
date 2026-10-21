@@ -75,6 +75,19 @@
                  Text="{Binding Note}"
                  TextWrapping="Wrap"
                  IsVisible="{Binding HasNote}" />
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Place.IsAlert}">
+        <Button x:Name="Tell"
+                Classes="chip"
+                Height="24"
+                Padding="10,0"
+                IsVisible="{Binding Place.CanTell}"
+                Command="{Binding Place.TellCommand}"
+                ToolTip.Tip="Send its orchestrator what ended and why, so it starts it again or gives it up"
+                AutomationProperties.Name="Tell the orchestrator">
+          <TextBlock Classes="hint" Text="Tell the orchestrator" />
+        </Button>
+        <TextBlock x:Name="Told" Classes="hint" Text="Orchestrator told" VerticalAlignment="Center" IsVisible="{Binding Place.IsTold}" />
+      </StackPanel>
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock x:Name="Meter" Classes="hint" Text="{Binding Meter}" IsVisible="{Binding Meter, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <TextBlock Classes="hint" Text="·" IsVisible="{Binding IsTiming}" />

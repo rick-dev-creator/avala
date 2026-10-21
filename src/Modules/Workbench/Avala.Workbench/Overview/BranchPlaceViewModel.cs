@@ -46,12 +46,23 @@ internal interface IBranchPlaceViewModel
 
     bool RunsInside { get; }
 
+    bool CanTell { get; }
+
+    bool IsTold { get; }
+
+    IAsyncRelayCommand TellCommand { get; }
+
     IRelayCommand FoldCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class BranchPlaceViewModel(string key, Action<string> fold) : IBranchPlaceViewModel
+internal sealed partial class BranchPlaceViewModel(string key, Action<string> fold, Func<string, Task<bool>> tell) : IBranchPlaceViewModel
 {
+    public BranchPlaceViewModel(string key, Action<string> fold)
+        : this(key, fold, _ => Task.FromResult(false))
+    {
+    }
+
     public string Key { get; } = key;
 
     [ObservableProperty]
@@ -72,7 +83,7 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     public string KindText => BranchPhrases.Kind(Kind);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StateText), nameof(Edge), nameof(IsWorking), nameof(IsWaiting), nameof(IsAlert), nameof(IsSettled))]
+    [NotifyPropertyChangedFor(nameof(StateText), nameof(Edge), nameof(IsWorking), nameof(IsWaiting), nameof(IsAlert), nameof(IsSettled), nameof(CanTell))]
     public partial SubagentState State { get; private set; }
 
     public string StateText => SubagentStates.Text(State);
@@ -96,8 +107,27 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     [ObservableProperty]
     public partial bool IsFolded { get; private set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTell))]
+    public partial bool IsTold { get; private set; }
+
+    public bool CanTell => IsAlert && !IsTold;
+
+    IAsyncRelayCommand IBranchPlaceViewModel.TellCommand => TellCommand;
+
     [RelayCommand]
     private void Fold() => fold(Key);
+
+    [RelayCommand]
+    private async Task TellAsync()
+    {
+        if (!CanTell)
+        {
+            return;
+        }
+
+        IsTold = await tell(Key);
+    }
 
     IRelayCommand IBranchPlaceViewModel.FoldCommand => FoldCommand;
 
@@ -119,6 +149,13 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
 
 internal static class BranchPhrases
 {
+    public static string Told(AgentBranch branch)
+    {
+        var why = branch.Node.Bind(node => node.Job.Failure.Map(failure => failure.ToString())).Match(found => $" ({found})", () => branch.State == SubagentState.Lost ? " (its work was lost when its turn or session ended)" : string.Empty);
+
+        return $"Your {Kind(branch.Kind)} \"{Name(branch)}\" {SubagentStates.Text(branch.State)}{why}. Decide whether to start it again or give it up, and say which.";
+    }
+
     public static string Kind(BranchKind kind) => kind switch
     {
         BranchKind.Orchestrator => "orchestrator",

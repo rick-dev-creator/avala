@@ -69,6 +69,19 @@
           <TextBlock x:Name="Doing" Classes="caption secondary" Text="{Binding Doing}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </Button>
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Place.IsAlert}">
+        <Button x:Name="Tell"
+                Classes="chip"
+                Height="24"
+                Padding="10,0"
+                IsVisible="{Binding Place.CanTell}"
+                Command="{Binding Place.TellCommand}"
+                ToolTip.Tip="Send its orchestrator what ended and why, so it starts it again or gives it up"
+                AutomationProperties.Name="Tell the orchestrator">
+          <TextBlock Classes="hint" Text="Tell the orchestrator" />
+        </Button>
+        <TextBlock x:Name="Told" Classes="hint" Text="Orchestrator told" VerticalAlignment="Center" IsVisible="{Binding Place.IsTold}" />
+      </StackPanel>
       <DockPanel>
         <Button x:Name="Fold"
                 DockPanel.Dock="Right"

@@ -160,6 +160,12 @@ internal sealed record DesignBranchPlaceViewModel(string Key, int Depth, BranchK
 
     public bool RunsInside => Kind is BranchKind.InProcess or BranchKind.Command;
 
+    public bool CanTell => IsAlert && !IsTold;
+
+    public bool IsTold { get; init; }
+
+    public IAsyncRelayCommand TellCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     public IRelayCommand FoldCommand { get; } = new RelayCommand(() => { });
 }
 

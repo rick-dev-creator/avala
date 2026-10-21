@@ -30,6 +30,10 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
         + "When you are told that the command finished, use the Read tool to read nested.txt and reply with its content. "
         + "After launching the sub-agent, reply with the single word launched and end your turn. When the sub-agent reports the content, reply with it.";
 
+    private const string Restarted =
+        "Use the Agent tool once with run_in_background set to true to launch one general-purpose sub-agent with this task: run the Bash command `sleep 60 && echo survived` and report its output. "
+        + "After launching it, reply with the single word launched and end your turn. If you are told the sub-agent stopped or was lost, say so plainly and name it.";
+
     private static readonly TimeSpan Guard = TimeSpan.FromMinutes(6);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -57,6 +61,38 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
     [Fact]
     public Task ASubagentClaudeCodeStartsAgainThatUsesToolsInItsSecondRunIsRecordedWithWhatAvalaMadeOfItAsync() =>
         RecordAsync("rerun-tools", RerunWithTools, (_, _, _) => Task.CompletedTask);
+
+    [Fact]
+    public async Task ABackgroundSubagentStillWorkingWhenAvalaRestartsIsRecordedWithWhatTheResumedConversationSaysAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1, and AVALA_REAL_CLAUDE_LOGIN to a Claude Code login folder, to run real Claude Code.");
+        var folder = Path.Combine(Output, "restarted");
+        var transcripts = Path.Combine(folder, "transcripts");
+        Directory.CreateDirectory(transcripts);
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [("connections.json", Connections(transcripts))], [(".avala/permissions.json", Autonomous)], harnesses: true);
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Restarted)));
+        _ = await activity.CollectUntilAsync(seen => seen.Event is ItemStarted { Parent.IsSome: true });
+
+        await run.RestartAsync();
+        var resumed = run.Watch<AgentActivity>();
+        var seen = new List<string>();
+        using var guard = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        guard.CancelAfter(Guard);
+
+        try
+        {
+            seen.AddRange((await SettledAsync(run, job, guard.Token)).Select(status => $"job {status}"));
+        }
+        catch (OperationCanceledException) when (guard.IsCancellationRequested && !Cancellation.IsCancellationRequested)
+        {
+            seen.Add($"the job never settled within {Guard}");
+        }
+
+        seen.Add(await StateAsync(run, job));
+        await File.WriteAllTextAsync(Path.Combine(folder, "avala-view.txt"), string.Join('\n', seen), Cancellation);
+        _ = resumed;
+    }
 
     private async Task RecordAsync(string name, string instruction, Func<SimulatedRun, Bound, EventWatch<AgentActivity>, Task> act)
     {

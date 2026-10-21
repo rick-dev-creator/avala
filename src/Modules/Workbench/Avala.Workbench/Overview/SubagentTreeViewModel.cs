@@ -185,7 +185,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private IAgentBranch Create(DelegationTree tree, ShownBranch next)
     {
-        var place = new BranchPlaceViewModel(next.Key, Fold);
+        var place = new BranchPlaceViewModel(next.Key, Fold, TellAsync);
         var created = next.Branch.Kind switch
         {
             BranchKind.Orchestrator => (IAgentBranch)new OrchestratorCardViewModel(place, tree) { OpenCommand = open },
@@ -231,6 +231,30 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
                 agent.Show(branch, next.Depth, next.Folded);
                 break;
         }
+    }
+
+    private Task<bool> TellAsync(string key)
+    {
+        var tree = shown.Match(found => found, () => throw new InvalidOperationException("No tree is shown."));
+        var root = AgentBranches.Of(tree);
+        var branch = root.Descendants.FirstOrDefault(found => found.Key == key);
+
+        if (branch is null)
+        {
+            return Task.FromResult(false);
+        }
+
+        var (orchestrator, status) = Orchestrator(tree, branch);
+
+        return actions.TellAsync(orchestrator, status, BranchPhrases.Told(branch), CancellationToken.None);
+    }
+
+    private static (JobId Job, JobStatus Status) Orchestrator(DelegationTree tree, AgentBranch branch)
+    {
+        var parent = branch.Node.Bind(node => node.Job.Parent).Match(found => found, () => branch.Job);
+        var status = parent == tree.Root.Job ? tree.Root.Status : tree.Children.FirstOrDefault(node => node.Job.Job == parent)?.Job.Status ?? tree.Root.Status;
+
+        return (parent, status);
     }
 
     private void Fold(string key)
