@@ -413,6 +413,11 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
         var known = tools.Find(use.Id);
 
+        foreach (var tracked in parent.IsSome ? known.Match<TrackedTool[]>(found => [found], () => []) : [])
+        {
+            tracked.Parent = parent;
+        }
+
         if (known.IsSome)
         {
             return known.Match(tracked => tracked.Role == ToolRole.Canvas ? Drawn(tracked, Final(use.Input), stamp) : Reaction.None, () => Reaction.None);
@@ -420,6 +425,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
         var tool = tools.Track(use);
         tool.Nested = parent.IsSome;
+        tool.Parent = parent;
 
         switch (tool.Role)
         {

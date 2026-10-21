@@ -36,6 +36,8 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public bool Nested { get; set; }
 
+    public Option<ItemId> Parent { get; set; }
+
     public string Task { get; set; } = string.Empty;
 
     public long Tokens { get; set; }
@@ -107,6 +109,9 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
 
         return again;
     }
+
+    public bool Ended(ItemId item) =>
+        tools.Values.Any(tool => tool.Item == item && tool.Closed) || finished.Values.Any(tool => tool.Item == item);
 
     public Option<TrackedTool> OfTask(string task) => tools.Values.FirstOrDefault(tool => task.Length > 0 && tool.Task == task).ToOption();
 

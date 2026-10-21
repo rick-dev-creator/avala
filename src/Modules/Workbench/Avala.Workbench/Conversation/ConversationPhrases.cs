@@ -93,7 +93,12 @@ internal static class ConversationPhrases
         string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");
 
     public static string Outcome(ItemKind kind, ItemOutcome outcome, bool denied) =>
-        !denied && Stopped(kind, outcome) ? "stopped" : Outcome(outcome, denied);
+        (kind, outcome, denied) switch
+        {
+            (ItemKind.Subagent, ItemOutcome.Abandoned, _) => "lost",
+            (ItemKind.Subagent, ItemOutcome.Cancelled or ItemOutcome.Expired, false) => "stopped",
+            _ => Outcome(outcome, denied),
+        };
 
     public static string Outcome(ItemOutcome outcome, bool denied) =>
         denied && outcome != ItemOutcome.Succeeded ? "denied" : Outcome(outcome);
@@ -108,7 +113,7 @@ internal static class ConversationPhrases
     };
 
     public static bool Stopped(ItemKind kind, Option<ItemOutcome> outcome) =>
-        kind == ItemKind.Subagent && outcome == Option<ItemOutcome>.Some(ItemOutcome.Cancelled);
+        kind == ItemKind.Subagent && outcome.Match(found => found is ItemOutcome.Cancelled or ItemOutcome.Expired, () => false);
 
     public static string Tools(IEnumerable<ItemKind> kinds) =>
         string.Join(", ", kinds.GroupBy(Tool).Select(kind => Counted(kind.Count(), kind.Key)));

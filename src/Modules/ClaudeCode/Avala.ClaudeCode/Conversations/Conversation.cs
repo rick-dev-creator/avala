@@ -141,8 +141,11 @@ internal sealed class Conversation
     {
         var opening = type is "assistant" or "stream_event" || Notifies(type, message) || (type == "system" && translator.Restarts(message)) ? Woken() : Reaction.None;
 
-        return opening.Then(live.Match(stamp => During(type, message, stamp), () => Reaction.None));
+        return opening.Then(live.Match(stamp => Dismissing(During(type, message, stamp), stamp), () => Reaction.None));
     }
+
+    private Reaction Dismissing(Reaction reaction, Stamp stamp) =>
+        reaction.Then(desk.Dismiss(reaction.Events.OfType<ItemCompleted>().Select(completed => completed.Item), stamp));
 
     private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
     {
@@ -151,7 +154,7 @@ internal sealed class Conversation
         "system" when message.TextOr("subtype", string.Empty) == "compact_boundary" => Compacted(),
         "system" => translator.Tasked(message, stamp),
         "rate_limit_event" => Limited(message, stamp),
-        "result" => !interrupting && (commands.Pending || (translator.WorkingInBackground && Outcome(message) == TurnOutcome.Finished)) ? Carried(message, stamp) : Ended(message, stamp),
+        "result" => !interrupting && (commands.Pending || (translator.WorkingInBackground && Outcome(message) != TurnOutcome.LimitReached)) ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
 
