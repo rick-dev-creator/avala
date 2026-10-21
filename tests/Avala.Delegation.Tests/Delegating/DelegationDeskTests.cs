@@ -281,6 +281,22 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildThatOnlyStartsToSpeakBeforeItsSessionIsLostAgainIsStillGivenUpAfterItsRetriesAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            await desk.HeldMidAttemptAsync(child, HoldReason.SessionLost);
+            await desk.ReplyAsync(child, "Picking up where I left off.");
+        }
+
+        Assert.Equal((2, 1), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));
+    }
+
+    [Fact]
     public async Task AChildThatRecoveredAndWorkedAfterEachRetryIsRetriedAgainWhenItIsLostLaterAsync()
     {
         await using var desk = new Desk { Jobs = { Steerable = true } };

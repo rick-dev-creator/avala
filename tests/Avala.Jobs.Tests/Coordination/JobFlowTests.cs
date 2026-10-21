@@ -170,6 +170,18 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ACompanionsFailedTurnFailsItBecauseNoDelegationRetriesItAsync()
+    {
+        var flow = JobFlow.With();
+        var parent = await flow.RunningAsync();
+        var companion = await flow.RunningAsync(JobFlow.Request() with { Parent = parent.Id, Companion = true });
+
+        await flow.FinishTurnAsync(companion, TurnOutcome.Failed);
+
+        Assert.Equal(JobState.Failed, companion.State);
+    }
+
+    [Fact]
     public async Task ATurnThatRanOutOfItsUsageWindowHoldsTheJobNearItsLimitWithThatWindowInsteadOfFailingItAsync()
     {
         var flow = JobFlow.With();

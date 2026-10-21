@@ -132,6 +132,39 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
             Assert.Equal((true, false), (working, ViewScript.IsAnimating));
         }, Cancellation);
 
+    [Fact]
+    public Task ACardStillArrivingWhenThePaneIsResizedEndsFullyShownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, tree) = Shown(reduced: false);
+            var card = Card(1);
+
+            tree.Children.Add(card);
+            view.Settle();
+            ((Border)tree.Parent!).Width = 780;
+            view.Settle();
+            view.Elapse(Arrival);
+            view.Elapse(Arrival);
+
+            Assert.Equal(1d, card.Opacity);
+        }, Cancellation);
+
+    [Fact]
+    public Task ABranchThatLeftWhileTheTreeWasHiddenDoesNotCollapseAgainOnceItIsShownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, tree) = Shown(reduced: false);
+            var holder = (Border)tree.Parent!;
+
+            holder.Child = null;
+            view.Settle();
+            tree.Children.RemoveAt(3);
+            holder.Child = tree;
+            view.Settle();
+
+            Assert.Empty(tree.Drawn.Leaving);
+        }, Cancellation);
+
     private static (ViewScript View, AgentTreePanel Tree) Shown(bool reduced)
     {
         var tree = new AgentTreePanel();
