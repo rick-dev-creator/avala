@@ -387,7 +387,7 @@ public sealed class DelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AParentWhoseDelegatedChildFailsIsToldTheChildFailedAndWhyAsync()
+    public async Task AParentWhoseDelegatedChildsTurnFailsEveryTimeIsToldItWasGivenUpAfterItsRetriesAndWhyAsync()
     {
         var child = new DogfoodScript("failing-child").Turn().Say("Starting on the notes.").Bill(0.0030m, 0.20).End("failed");
         var parent = new DogfoodScript("delegating-parent")
@@ -409,8 +409,8 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         var answer = await ReturnedAsync(activity, call);
 
         Assert.Equal(Option<JobId>.Some(job), reported.Parent);
-        Assert.Equal((JobStatus.Failed, ChildOutcome.Failed), (Outcomes.Present(reported.Report).Status, Outcomes.Present(reported.Report).Outcome));
-        Assert.Equal("failed", Field(answer, "outcome"));
+        Assert.Equal((JobStatus.Discarded, ChildOutcome.GivenUp, 2), (Outcomes.Present(reported.Report).Status, Outcomes.Present(reported.Report).Outcome, Outcomes.Present(reported.Report).Retries));
+        Assert.Equal("givenUp", Field(answer, "outcome"));
         Assert.False(
             string.IsNullOrWhiteSpace(Optional(answer, "reason")),
             $"The parent was told its child failed without the reason it failed: {answer.Content}");
@@ -435,7 +435,7 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         var reported = await run.ChildReportedAsync();
         var queued = (MessageQueued)(await activity.UntilAsync(update => update.Event is MessageQueued)).Event;
 
-        Assert.Equal((ChildOutcome.Integrated, 1), (Outcomes.Present(reported.Report).Outcome, reported.Retries));
+        Assert.Equal((ChildOutcome.Integrated, 0), (Outcomes.Present(reported.Report).Outcome, reported.Retries));
         Assert.Contains("retrying 1 of 2 after its session was lost", queued.Text, StringComparison.Ordinal);
     }
 

@@ -15,7 +15,7 @@ internal enum Asking
 internal static class Lifecycle
 {
     public static SubagentState Of(JobStatus status, Option<HoldReason> hold, Asking asking) =>
-        asking != Asking.Nothing && status is JobStatus.Running or JobStatus.NeedsHelp ? SubagentState.Waiting : status switch
+        asking != Asking.Nothing && status is JobStatus.Running or JobStatus.NeedsHelp && hold != Option<HoldReason>.Some(HoldReason.SessionLost) ? SubagentState.Waiting : status switch
         {
             JobStatus.AwaitingReview or JobStatus.Approved => SubagentState.Completed,
             JobStatus.Failed => SubagentState.Failed,

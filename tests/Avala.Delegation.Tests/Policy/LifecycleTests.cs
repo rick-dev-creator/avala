@@ -14,6 +14,7 @@ public sealed class LifecycleTests
     [InlineData(JobStatus.NeedsHelp, "", "Answer", "Waiting", "awaitingAnswer")]
     [InlineData(JobStatus.NeedsHelp, "LimitNearlyReached", "Nothing", "Waiting", "limitNearlyReached")]
     [InlineData(JobStatus.NeedsHelp, "SessionLost", "Nothing", "Lost", "lost")]
+    [InlineData(JobStatus.NeedsHelp, "SessionLost", "Permission", "Lost", "lost")]
     [InlineData(JobStatus.AwaitingReview, "", "Permission", "Completed", "completed")]
     [InlineData(JobStatus.Approved, "", "Nothing", "Completed", "completed")]
     [InlineData(JobStatus.Failed, "", "Nothing", "Failed", "failed")]

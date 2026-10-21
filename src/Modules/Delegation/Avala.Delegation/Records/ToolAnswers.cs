@@ -71,7 +71,9 @@ internal static class ToolAnswers
     };
 
     private static string GaveUp(ChildReport report) =>
-        $"Avala gave it up after retrying it {report.Retries} time{(report.Retries == 1 ? string.Empty : "s")}: {report.Hold.Match(Cause, () => "it could not go on")} each time. Its job is discarded and none of its work reaches yours.";
+        report.Retries == 0
+            ? $"Avala could not continue it after {report.Hold.Match(Cause, () => "it stopped")}. Its job is discarded and none of its work reaches yours."
+            : $"Avala gave it up after retrying it {report.Retries} time{(report.Retries == 1 ? string.Empty : "s")}, and then {report.Hold.Match(Cause, () => "it could not go on")} again. Its job is discarded and none of its work reaches yours.";
 
     public static string Retrying(JobHold hold) =>
         hold.Reason == HoldReason.SessionLost

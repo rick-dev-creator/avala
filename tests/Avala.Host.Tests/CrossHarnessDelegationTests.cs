@@ -137,7 +137,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
 
         Assert.Equal((ChildOutcome.GivenUp, JobStatus.Discarded, 2), (Outcomes.Present(reported.Report).Outcome, history.Summary.Status, Outcomes.Present(reported.Report).Retries));
         Assert.Contains("\"state\":\"stopped\"", report, StringComparison.Ordinal);
-        Assert.Contains("Avala gave it up after retrying it 2 times: its session was lost each time", report, StringComparison.Ordinal);
+        Assert.Contains("Avala gave it up after retrying it 2 times, and then its session was lost again", report, StringComparison.Ordinal);
         var notes = Told(recordings).Where(text => text.StartsWith("Sub-agent \"", StringComparison.Ordinal)).ToList();
         Assert.Equal(2, notes.Count);
         Assert.Contains("retrying 1 of 2 after its session was lost", notes[0], StringComparison.Ordinal);

@@ -137,6 +137,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
     private bool Gone(AgentBranch branch) =>
         branch.IsSettled
+        && !branch.GivenUp
         && !Finished
         && viewing != Option<JobId>.Some(branch.Job)
         && settledSince.TryGetValue(branch.Key, out var since)
@@ -221,6 +222,11 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     private void Update(DelegationTree tree, IAgentBranch shownBranch, ShownBranch next)
     {
         var branch = next.Branch;
+
+        if (shownBranch.Place is BranchPlaceViewModel place)
+        {
+            place.Reach(Orchestrator(tree, branch).Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed));
+        }
 
         switch (shownBranch)
         {

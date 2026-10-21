@@ -111,7 +111,11 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     [NotifyPropertyChangedFor(nameof(CanTell))]
     public partial bool IsTold { get; private set; }
 
-    public bool CanTell => IsAlert && !IsTold;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanTell))]
+    public partial bool CanReach { get; private set; } = true;
+
+    public bool CanTell => IsAlert && !IsTold && CanReach;
 
     IAsyncRelayCommand IBranchPlaceViewModel.TellCommand => TellCommand;
 
@@ -135,7 +139,9 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
     {
         Show(depth, branch.Kind, branch.State, branch.Children.Count, folded);
         Harness = branch.Harness;
+        IsTold = IsTold && IsAlert;
     }
+
 
     public void Show(int depth, BranchKind kind, SubagentState state, int branches, bool folded)
     {
@@ -145,13 +151,15 @@ internal sealed partial class BranchPlaceViewModel(string key, Action<string> fo
         Branches = branches;
         IsFolded = folded;
     }
+
+    public void Reach(bool open) => CanReach = open;
 }
 
 internal static class BranchPhrases
 {
     public static string Told(AgentBranch branch)
     {
-        var why = branch.Node.Bind(node => node.Job.Failure.Map(failure => failure.ToString())).Match(found => $" ({found})", () => branch.State == SubagentState.Lost ? " (its work was lost when its turn or session ended)" : string.Empty);
+        var why = branch.Node.Bind(node => node.Job.Failure.Map(Conversation.ConversationPhrases.Failed)).Match(found => $" ({found})", () => branch.State == SubagentState.Lost ? " (its work was lost when its turn or session ended)" : string.Empty);
 
         return $"Your {Kind(branch.Kind)} \"{Name(branch)}\" {SubagentStates.Text(branch.State)}{why}. Decide whether to start it again or give it up, and say which.";
     }

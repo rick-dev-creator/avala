@@ -249,7 +249,7 @@ public sealed class DelegationDeskTests
         Assert.Equal(2, desk.Jobs.Continued.Count);
         var answer = Assert.Single(desk.Agents.Results).Result.Content;
         Assert.Contains("\"state\":\"stopped\"", answer, StringComparison.Ordinal);
-        Assert.Contains("Avala gave it up after retrying it 2 times: its turn failed each time", answer, StringComparison.Ordinal);
+        Assert.Contains("Avala gave it up after retrying it 2 times, and then its turn failed again", answer, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -295,20 +295,6 @@ public sealed class DelegationDeskTests
         }
 
         Assert.Equal((3, 0), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));
-    }
-
-    [Fact]
-    public async Task AChildWhoseOrdinaryTurnFailedIsRetriedBeforeItsParentIsToldItFailedAsync()
-    {
-        await using var desk = new Desk { Jobs = { Steerable = true } };
-        await desk.StartedAsync();
-        var child = await desk.DelegateAsync("notes");
-        desk.Jobs.Is(child, JobStatus.Failed);
-
-        await desk.ProgressAsync(child, JobStatus.Failed);
-
-        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
-        Assert.Equal((true, 1), (report.Outcome != ChildOutcome.Failed, desk.Jobs.Continued.Count));
     }
 
     [Theory]

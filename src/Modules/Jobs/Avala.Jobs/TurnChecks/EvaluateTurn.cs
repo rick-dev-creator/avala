@@ -31,7 +31,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
             case TurnOutcome.LimitReached:
                 await round.HoldAsync(job, HoldReason.LimitNearlyReached, finished.Limit, cancellationToken);
                 break;
-            case var _ when job.Attempts[^1].Origin == AttemptOrigin.Woken:
+            case var _ when job.Attempts[^1].Origin == AttemptOrigin.Woken || job.Parent.IsSome:
                 await round.HoldAsync(job, HoldReason.TurnFailed, Option<UsageLimit>.None, cancellationToken);
                 break;
             default:

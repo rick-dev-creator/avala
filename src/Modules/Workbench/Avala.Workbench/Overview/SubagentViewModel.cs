@@ -13,7 +13,7 @@ namespace Avala.Workbench.Overview;
 internal static class SubagentStates
 {
     public static SubagentState Of(JobStatus status, Option<HoldReason> hold, bool asking) =>
-        asking && status is JobStatus.Running or JobStatus.NeedsHelp ? SubagentState.Waiting : Of(status, hold);
+        asking && status is JobStatus.Running or JobStatus.NeedsHelp && hold != Option<HoldReason>.Some(HoldReason.SessionLost) ? SubagentState.Waiting : Of(status, hold);
 
     public static SubagentState Of(JobStatus status, Option<HoldReason> hold) => status switch
     {

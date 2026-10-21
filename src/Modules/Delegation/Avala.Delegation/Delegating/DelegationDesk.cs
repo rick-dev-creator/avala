@@ -54,6 +54,7 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             case ItemProgressed progressed when IsChild(progressed.Session, out var writer)
                 && replies.TryGetValue(writer, out var reply) && reply.Item == progressed.Item:
                 replies[writer] = (reply.Item, reply.Text + progressed.Text);
+                await RecoveredAsync(writer, cancellationToken);
                 break;
         }
     }
@@ -182,6 +183,16 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         }
     }
 
+    private async Task RecoveredAsync(JobId child, CancellationToken cancellationToken)
+    {
+        if (pending.TryGetValue(child, out var delegation) && delegation.Retries > 0)
+        {
+            var recovered = delegation with { Retries = 0 };
+            pending[child] = recovered;
+            await book.KeepAsync(recovered, cancellationToken);
+        }
+    }
+
     private async Task RetryAsync(DelegationRecord delegation, JobHold hold, CancellationToken cancellationToken)
     {
         var givenUp = new Settlement(JobStatus.NeedsHelp, hold.Reason) { GivenUp = true };
@@ -194,11 +205,14 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         }
 
         var retried = delegation with { Retries = delegation.Retries + 1 };
-        pending[hold.Job] = retried;
-        await book.KeepAsync(retried, cancellationToken);
         var refusal = await reporter.RetryAsync(retried, hold.Job, hold, cancellationToken);
 
-        if (refusal.Match(refused => refused != JobRejection.NotHeld, () => false))
+        if (refusal.IsNone)
+        {
+            pending[hold.Job] = retried;
+            await book.KeepAsync(retried, cancellationToken);
+        }
+        else if (refusal != Option<JobRejection>.Some(JobRejection.NotHeld))
         {
             Settle(hold.Job, givenUp, cancellationToken);
         }

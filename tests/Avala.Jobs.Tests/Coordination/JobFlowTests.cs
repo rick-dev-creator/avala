@@ -158,6 +158,18 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ADelegatedChildsFailedTurnHoldsItAsTurnFailedSoItsDelegationCanRetryItInsteadOfFailingItAsync()
+    {
+        var flow = JobFlow.With();
+        var parent = await flow.RunningAsync();
+        var child = await flow.RunningAsync(JobFlow.Request() with { Parent = parent.Id });
+
+        await flow.FinishTurnAsync(child, TurnOutcome.Failed);
+
+        Assert.Equal((JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.TurnFailed)), (child.State, child.Held));
+    }
+
+    [Fact]
     public async Task ATurnThatRanOutOfItsUsageWindowHoldsTheJobNearItsLimitWithThatWindowInsteadOfFailingItAsync()
     {
         var flow = JobFlow.With();
