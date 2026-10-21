@@ -293,7 +293,8 @@ public sealed class DelegationDeskTests
             await desk.ReplyAsync(child, "Picking up where I left off.");
         }
 
-        Assert.Equal((2, 1), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count));
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((2, 1, ChildOutcome.GivenUp), (desk.Jobs.Continued.Count, desk.Jobs.Discarded.Count, report.Outcome));
     }
 
     [Fact]
