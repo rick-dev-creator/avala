@@ -175,6 +175,25 @@ public sealed class DelegationDeskTests
         Assert.DoesNotContain(reports, reported => reported.Delegation.Report.Match(report => report.Outcome == ChildOutcome.NotIntegrated, () => false));
     }
 
+    [Fact]
+    public async Task AChildThatWokeBeforeItsIntegrationStillReportsWhatItRepliedOnceIntegratedAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await desk.ReplyAsync(child, "Wrote ", "NOTES.md.");
+        desk.Jobs.Approval = JobRejection.NotAwaitingReview;
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var wentOn = await desk.Bus.WaitForAsync<ChildWentOn>(found => found.Child == child, TestContext.Current.CancellationToken);
+        desk.Jobs.Approval = new ApprovalDelivery("merge", "avala/parent", "c0ffee");
+        await desk.WentOnAsync(wentOn);
+
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((ChildOutcome.Integrated, Option<string>.Some("Wrote NOTES.md.")), (report.Outcome, report.Summary));
+    }
+
     [Theory]
     [InlineData("held", "Held")]
     [InlineData("out of retries", "RetriesExhausted")]
