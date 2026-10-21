@@ -155,6 +155,39 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task InterruptingATurnKeptLiveOnlyByBackgroundSubagentsEndsItInterruptedThoughTheHarnessSendsNoResultAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("interrupt-background-agents");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        _ = await run.DecisionAsync();
+        var ended = run.Watch<TurnFinished>();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        Assert.Equal(TurnOutcome.Interrupted, (await ended.UntilAsync(_ => true)).Outcome);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task BackgroundSubagentsTheHarnessStopsOnAnInterruptEndStoppedNotLostAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("interrupt-background-agents");
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
+        var conversation = await (await run.WorkbenchAsync()).SelectAsync(run.Job);
+        var activity = run.Watch<AgentActivity>();
+        _ = await run.DecisionAsync();
+
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+
+        var seen = (await activity.CollectUntilAsync(found => found.Event is TurnCompleted)).Select(found => found.Event).ToList();
+        var agents = seen.OfType<ItemBackgrounded>().Select(backgrounded => backgrounded.Item).ToHashSet();
+        Assert.Equal(2, agents.Count);
+        Assert.All(seen.OfType<ItemCompleted>().Where(completed => agents.Contains(completed.Item)), completed => Assert.Equal(ItemOutcome.Cancelled, completed.Outcome));
+        Assert.Equal(2, seen.OfType<ItemCompleted>().Count(completed => agents.Contains(completed.Item)));
+    }
+
+    [Fact]
     public async Task AJobWhoseAgentStillHasBackgroundWorkAfterItsResultShowsAsWorkingAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("background");

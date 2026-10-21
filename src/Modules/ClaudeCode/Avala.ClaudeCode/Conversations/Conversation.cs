@@ -21,6 +21,8 @@ internal sealed class Conversation
     private bool tokenIssued;
     private bool modelReported;
     private bool interrupting;
+    private bool carried;
+    private bool acknowledging;
     private bool rejected;
     private bool unsaid;
     private int interruptions;
@@ -59,6 +61,8 @@ internal sealed class Conversation
     {
         if (turn.MidTurn)
         {
+            carried = carried && live.IsNone;
+
             return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
                 (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text) { Attachments = turn.Attachments }], [Messages.User(turn, commands.Send(midTurn: true), attachments)])));
         }
@@ -81,6 +85,7 @@ internal sealed class Conversation
         "control_request" => Requested(message),
         "control_cancel_request" => desk.Cancel(message, live),
         "control_response" when RemoteBridge.Answers(message) => remote.Answered(message),
+        "control_response" when acknowledging && Acknowledges(message) => Acknowledged(),
         "system" when message.TextOr("subtype", string.Empty) == "bridge_state" => remote.Reported(message),
         "user" when RemoteBridge.FromDevice(message) => Arrived(message),
         "command_lifecycle" => Tracked(message),
@@ -100,15 +105,28 @@ internal sealed class Conversation
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Interrupt() =>
         live.ToResult(AgentError.NoTurnInProgress).Map(stamp =>
         {
-            if (!commands.Owed)
+            var background = translator.WorkingInBackground && (carried || !commands.Owed);
+
+            if (!commands.Owed && !background)
             {
                 return (stamp.Turn, Closed(stamp, TurnOutcome.Interrupted, Reaction.None));
             }
 
             interrupting = true;
+            acknowledging = background;
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
+
+    private bool Acknowledges(JsonNode response) =>
+        response["response"]?.TextOr("request_id", string.Empty) == $"avala-interrupt-{interruptions}";
+
+    private Reaction Acknowledged()
+    {
+        acknowledging = false;
+
+        return live.Match(stamp => Closed(stamp, TurnOutcome.Interrupted, Reaction.None), () => Reaction.None);
+    }
 
     private Reaction Requested(JsonNode request)
     {
@@ -246,6 +264,8 @@ internal sealed class Conversation
 
     private Reaction Carried(JsonNode result, Stamp stamp)
     {
+        carried = true;
+
         if (commands.Pending)
         {
             commands.Answered();
@@ -289,6 +309,8 @@ internal sealed class Conversation
         var closing = desk.Release(interrupted).Then(translator.Close(stamp, interrupted));
         live = Option<Stamp>.None;
         interrupting = false;
+        acknowledging = false;
+        carried = false;
 
         return closing
             .Then(usage)
