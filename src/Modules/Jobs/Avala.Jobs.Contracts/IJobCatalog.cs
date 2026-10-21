@@ -26,6 +26,7 @@ public enum AttemptOrigin
     Handoff,
     Reopen,
     Device,
+    Woken,
 }
 
 public enum AttemptOutcome

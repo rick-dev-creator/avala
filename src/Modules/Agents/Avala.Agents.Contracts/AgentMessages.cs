@@ -47,6 +47,8 @@ public sealed record SessionEnded(SessionId Session, SessionEnding Ending) : IIn
 
 public sealed record SessionResumable(SessionId Session, ResumeToken Token) : IIntegrationEvent;
 
+public sealed record TurnWoken(SessionId Session, TurnId Turn) : IIntegrationEvent;
+
 public sealed record AgentActivity(IAgentEvent Event) : IIntegrationEvent;
 
 public sealed record RemoteControlReported(SessionId Session, RemoteControl Control) : IIntegrationEvent;

@@ -10,8 +10,10 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.TurnChecks;
 
 internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn evaluate, HoldJob hold)
-    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>
+    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>, IHandle<TurnWoken>
 {
+    public const string WokenNote = "The agent went on by itself, woken by work it had started in the background.";
+
     public async ValueTask HandleAsync(TurnFinished integrationEvent, CancellationToken cancellationToken) =>
         await OnJobOfAsync(
             integrationEvent.Session,
@@ -41,6 +43,20 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
         if (integrationEvent.BeganTurn && Feedback.Create(integrationEvent.Text).TryGetValue(out var message, out _))
         {
             await OnJobOfAsync(integrationEvent.Session, (found, token) => ContinueFromDeviceAsync(found, integrationEvent.Session, message, token), cancellationToken);
+        }
+    }
+
+    public async ValueTask HandleAsync(TurnWoken integrationEvent, CancellationToken cancellationToken) =>
+        await OnJobOfAsync(integrationEvent.Session, (found, token) => WakeAsync(found, integrationEvent.Session, token), cancellationToken);
+
+    private async Task WakeAsync(Job job, SessionId session, CancellationToken cancellationToken)
+    {
+        if (job.State == JobState.AwaitingReview
+            && job.Session == Option<SessionId>.Some(session)
+            && Feedback.Create(WokenNote).TryGetValue(out var note, out _)
+            && job.Wake(note).IsSuccess)
+        {
+            await ledger.RecordAsync(job, cancellationToken);
         }
     }
 

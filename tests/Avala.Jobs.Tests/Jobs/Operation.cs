@@ -30,4 +30,6 @@ internal enum Operation
     Reopen,
     ReopenInNewSession,
     ChooseModel,
+    ContinueFromDevice,
+    Wake,
 }

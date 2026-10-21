@@ -46,6 +46,8 @@ public sealed class JobTransitionTests
         [Operation.Reopen] = ([JobState.Approved], JobError.CannotReopen),
         [Operation.ReopenInNewSession] = ([JobState.Approved], JobError.CannotReopen),
         [Operation.ChooseModel] = ([JobState.NeedsHelp, JobState.AwaitingReview], JobError.CannotChooseModel),
+        [Operation.ContinueFromDevice] = ([JobState.AwaitingReview], JobError.CannotSendBack),
+        [Operation.Wake] = ([JobState.AwaitingReview], JobError.CannotSendBack),
     };
 
     [Fact]
@@ -105,6 +107,8 @@ public sealed class JobTransitionTests
         Operation.Reopen => Outcomes.ErrorOf(job.Reopen(Given.Feedback)),
         Operation.ReopenInNewSession => Outcomes.ErrorOf(job.Reopen(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.ChooseModel => Outcomes.ErrorOf(job.ChooseModel(new ModelChoice("opus", "high"))),
+        Operation.ContinueFromDevice => Outcomes.ErrorOf(job.ContinueFromDevice(Given.Feedback)),
+        Operation.Wake => Outcomes.ErrorOf(job.Wake(Given.Feedback)),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 }

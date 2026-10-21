@@ -83,6 +83,7 @@ internal static class ConversationPhrases
         AttemptOrigin.Handoff => "Handed off",
         AttemptOrigin.Reopen => "Pull request feedback",
         AttemptOrigin.Device => "From your phone",
+        AttemptOrigin.Woken => "The agent went on by itself",
         _ => "Resumed after a restart",
     };
 

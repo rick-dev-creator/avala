@@ -28,10 +28,11 @@ internal sealed record JobWatch(JobId Job)
 
     public JobWatch Progressed(JobStatus status, DateTimeOffset at) =>
         status == JobStatus.Running
-            ? this with { Running = true, BetweenTurns = false, AwaitingHuman = Option<ItemId>.None, PendingCalls = [], LastActivity = at }
+            ? this with { Running = true, BetweenTurns = false, LastActivity = at }
             : this with { Running = false };
 
-    public JobWatch Joined(SessionId session) => this with { Session = session };
+    public JobWatch Joined(SessionId session) =>
+        Session == Option<SessionId>.Some(session) ? this : this with { Session = session, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] };
 
     public JobWatch Saw(IAgentEvent agentEvent, DateTimeOffset at) =>
         Session != Option<SessionId>.Some(agentEvent.Session) ? this

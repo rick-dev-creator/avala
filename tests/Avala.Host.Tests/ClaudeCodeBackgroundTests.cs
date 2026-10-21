@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Host.Tests;
@@ -52,11 +53,11 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AnAgentInATurnItWokeOnItsOwnIsNotRestedOnceItsPromptCacheExpiresAsync()
+    public async Task ATurnTheAgentWokeOnItsOwnThatFallsSilentHoldsItsJobForAPersonInsteadOfLeavingItInReviewAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Instruction), claude.Data, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
-        var session = (await run.OpenedAsync()).Session;
+        _ = await run.OpenedAsync();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         _ = await run.DecisionAsync();
         await EvaluatedAsync(run);
@@ -64,7 +65,8 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         run.Clock.Advance(PromptCache + PromptCache);
         await EvaluatedAsync(run);
 
-        Assert.True(run.Get<IAgents>().IsOpen(session), "Avala stopped the agent while a turn it woke on its own was live.");
+        var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation)).Summary;
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Stalled)), (summary.Status, summary.Hold));
     }
 
     [Fact]
@@ -120,6 +122,36 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins)
         var agents = run.Get<IAgents>();
 
         return $"job {history.Summary.Status}, hold {history.Summary.Hold}, attempts {history.Attempts.Count}, sessions {history.Sessions.Count}, open {agents.IsOpen(session)}, working {agents.IsWorking(session)}";
+    }
+
+    [Fact]
+    public async Task ATurnTheAgentWakesOnItsOwnWhileItsJobAwaitsReviewWithdrawsTheReviewAndRunsTheJobAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+
+        _ = await run.DecisionAsync();
+        await EvaluatedAsync(run);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal((JobStatus.Running, 2, AttemptOrigin.Woken, AttemptOutcome.Running), (history.Summary.Status, history.Attempts.Count, history.Attempts[^1].Origin, history.Attempts[^1].Outcome));
+    }
+
+    [Fact]
+    public async Task AJobWhoseAgentWokeOnItsOwnIsJudgedAgainWhenThatTurnEndsAndAwaitsReviewWithItsNewWorkAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("woken-idle");
+        await using var run = await StartAsync(claude);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var asked = await run.DecisionAsync();
+        var progressed = run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == run.Job && found.Status == JobStatus.AwaitingReview);
+
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal((2, AttemptOrigin.Woken, AttemptOutcome.Passed), (history.Attempts.Count, history.Attempts[^1].Origin, history.Attempts[^1].Outcome));
     }
 
     [Fact]

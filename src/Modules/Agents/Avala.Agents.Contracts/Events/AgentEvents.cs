@@ -4,7 +4,10 @@ using Avala.Sdk;
 
 namespace Avala.Agents.Contracts.Events;
 
-public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent;
+public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent
+{
+    public bool Woken { get; init; }
+}
 
 public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title) : IAgentEvent
 {

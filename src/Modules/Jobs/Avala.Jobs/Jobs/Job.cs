@@ -246,6 +246,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
             .Map(_ => Begin(AttemptOrigin.Device, message));
 
+    public Result<AttemptStarted, JobError> Wake(Feedback note) =>
+        machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
+            .Map(_ => Begin(AttemptOrigin.Woken, note));
+
     public Result<RemoteControlChosen, JobError> ControlRemotely(bool on)
     {
         if (Parent.IsSome)

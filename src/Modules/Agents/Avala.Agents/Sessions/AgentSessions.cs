@@ -236,6 +236,9 @@ internal sealed partial class AgentSessions(
                         },
                         cancellationToken);
                     break;
+                case TurnStarted { Woken: true } woken:
+                    await bus.PublishAsync(new TurnWoken(woken.Session, woken.Turn), cancellationToken);
+                    break;
                 case RemoteMessageArrived arrived:
                     await bus.PublishAsync(new RemoteMessageReceived(arrived.Session, arrived.Turn, arrived.Text) { BeganTurn = arrived.BeganTurn }, cancellationToken);
                     break;

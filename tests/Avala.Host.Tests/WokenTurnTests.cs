@@ -38,7 +38,7 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AllowingADenialWhileATurnTheAgentWokeOnItsOwnIsLiveTellsTheAgentInThatTurnAndTheJobGoesOnAsync()
+    public async Task AllowingADenialWhileATurnTheAgentWokeOnItsOwnIsLiveTellsTheAgentInThatTurnWhichRunsItsJobAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Survey), claude.Data, [(".avala/permissions.json", Autonomous)]);
@@ -46,7 +46,7 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
         var conversation = await workbench.SelectAsync(run.Job);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() =>
-            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.Running
             && OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
 
         await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));

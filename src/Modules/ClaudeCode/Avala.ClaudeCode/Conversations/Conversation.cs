@@ -222,7 +222,7 @@ internal sealed class Conversation
         return started;
     }
 
-    private Reaction Woken() => live.IsNone && stale == 0 ? Started() : Reaction.None;
+    private Reaction Woken() => live.IsNone && stale == 0 ? Reaction.Of(new TurnStarted(session, Opened().Turn) { Woken = true }) : Reaction.None;
 
     private Reaction Started() => Reaction.Of(new TurnStarted(session, Opened().Turn));
 

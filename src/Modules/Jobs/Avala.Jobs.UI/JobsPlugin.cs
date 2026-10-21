@@ -72,6 +72,7 @@ public sealed class JobsPlugin : IPlugin
             .AddForwarded<IHandle<SessionEnded>, CheckTurn>()
             .AddForwarded<IHandle<SessionResumable>, CheckTurn>()
             .AddForwarded<IHandle<RemoteMessageReceived>, CheckTurn>()
+            .AddForwarded<IHandle<TurnWoken>, CheckTurn>()
             .AddSingleton<IEndedJobs, EndedJobs>()
             .AddSingleton<IdleSessions>()
             .AddForwarded<IHandle<SessionOpened>, IdleSessions>()
