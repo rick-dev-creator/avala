@@ -115,6 +115,18 @@ public sealed class AgentTreeAdversaryScripts : IDisposable
         Assert.True(back.IsOpen);
     }
 
+    [Fact]
+    public async Task TheWaitingListNamesAnOrchestratorThatAsksAPersonByItsTitleAsync()
+    {
+        AsksItself(bench.Root, "npm publish");
+        var tree = bench.Tree();
+
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        var root = tree.Waiting.Single(waiting => waiting.Job == bench.Root.Job);
+        Assert.Equal("Ship the refunds flow", root.Name);
+    }
+
     public void Dispose() => bench.Dispose();
 
     private void AsksItself(JobSummary job, string command)
