@@ -54,7 +54,8 @@ internal static class ToolAnswers
             ["conflicts"] = new JsonArray([.. report.Conflicts.Select(path => Node(JsonValue.Create(path)))]),
             ["hold"] = report.Hold.Match(reason => Camel(reason), () => string.Empty),
             ["refusal"] = report.Refusal.Match(rejection => Camel(rejection), () => string.Empty),
-            ["reason"] = report.Failure.Match(Failed, () => string.Empty),
+            ["retries"] = report.Retries,
+            ["reason"] = report.Outcome == ChildOutcome.GivenUp ? GaveUp(report) : report.Failure.Match(Failed, () => string.Empty),
         };
 
         return new ToolResult(item, answer.ToJsonString());
@@ -68,6 +69,19 @@ internal static class ToolAnswers
         JobFailure.AgentFailed => "the child's agent ended its turn in failure",
         _ => "the child's agent could not take its message",
     };
+
+    private static string GaveUp(ChildReport report) =>
+        $"Avala gave it up after retrying it {report.Retries} time{(report.Retries == 1 ? string.Empty : "s")}: {report.Hold.Match(Cause, () => "it could not go on")} each time. Its job is discarded and none of its work reaches yours.";
+
+    public static string Retrying(JobHold hold) =>
+        hold.Reason == HoldReason.SessionLost
+            ? "Your session was lost before you finished. Continue the work where you left off."
+            : $"Your last turn failed{hold.Problem.Match(problem => $": {problem}", () => string.Empty)}. Look at what went wrong, then continue the work where you left off.";
+
+    public static string RetryNote(DelegationRecord delegation, JobId child, JobHold hold) =>
+        $"Sub-agent \"{delegation.Instruction.Split('\n', 2)[0].Trim()}\", job {child.Value}, is retrying {delegation.Retries} of {ChildRetries.Most} after {Cause(hold.Reason)}: Avala continued it {(hold.Reason == HoldReason.SessionLost ? "in a new session" : "with its failure as feedback")}, and it keeps its work. Keep waiting for its report, or call stop_child with this child to stop it.";
+
+    private static string Cause(HoldReason reason) => reason == HoldReason.SessionLost ? "its session was lost" : "its turn failed";
 
     public static ToolResult Running(ItemId item, DelegationRecord delegation)
     {

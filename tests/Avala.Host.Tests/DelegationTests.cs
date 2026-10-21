@@ -416,6 +416,29 @@ public sealed class DelegationTests(PublishedPlugins plugins)
             $"The parent was told its child failed without the reason it failed: {answer.Content}");
     }
 
+    [Fact]
+    public async Task ADelegatedChildWhoseSessionIsLostResumesByItselfAndItsParentIsToldOfTheRetryAsync()
+    {
+        var parent = new DogfoodScript("delegating-parent")
+            .Turn()
+            .Call("delegate", new System.Text.Json.Nodes.JsonObject { ["instruction"] = "[simulate: crash] Migrate the database" }.ToJsonString(), refused: false)
+            .Say("The sub-agent reported back.")
+            .Bill(0.0040m, 0.20)
+            .Finish();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [($"recordings/{parent.Name}.json", parent.Json)],
+            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }""")]);
+        var activity = run.Watch<AgentActivity>();
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{parent.Tag} Ship the migration")));
+
+        var reported = await run.ChildReportedAsync();
+        var queued = (MessageQueued)(await activity.UntilAsync(update => update.Event is MessageQueued)).Event;
+
+        Assert.Equal((ChildOutcome.Integrated, 1), (Outcomes.Present(reported.Report).Outcome, reported.Retries));
+        Assert.Contains("retrying 1 of 2 after its session was lost", queued.Text, StringComparison.Ordinal);
+    }
+
     private static async Task<ToolResult> ReturnedAsync(EventWatch<AgentActivity> activity, string item) =>
         ((ToolReturned)(await activity.UntilAsync(update => update.Event is ToolReturned returned && returned.Item.Value == item)).Event).Result;
 
