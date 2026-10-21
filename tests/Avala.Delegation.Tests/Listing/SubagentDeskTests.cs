@@ -52,6 +52,20 @@ public sealed class SubagentDeskTests
             JsonNode.Parse(answer.Content)!["subagents"]!.AsArray().Select(entry => entry!.ToJsonString()));
     }
 
+    [Fact]
+    public async Task AnInProcessSubagentWhoseItemExpiredIsListedStoppedAsThePersonSeesItAsync()
+    {
+        var listing = new Listing();
+        var session = SessionId.New();
+        await listing.StartedAsync(listing.Jobs.Running(), session);
+        await listing.ActedAsync(new ItemStarted(session, Turn, new ItemId("build"), ItemKind.Subagent, "Subagent: Wait for the build"));
+        await listing.ActedAsync(new ItemCompleted(session, Turn, new ItemId("build"), ItemOutcome.Expired));
+
+        var answer = await listing.AskAsync(session, "{}");
+
+        Assert.Equal("stopped", JsonNode.Parse(answer.Content)!["subagents"]![0]!["state"]!.GetValue<string>());
+    }
+
     [Theory]
     [InlineData(true, """{ "job": "mine" }""", "malformedInput")]
     [InlineData(false, "{}", "noJob")]

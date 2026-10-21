@@ -173,6 +173,47 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AFinishedOrchestrationStillShowsTheSubagentsItRanOnceItsBranchesHaveSettledAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var root = bench.Finished();
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(root.Job), Option<JobId>.None);
+
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(root.Job), Option<JobId>.None);
+
+        Assert.Equal(["Write the release notes", "Write the to-do list"], tree.Branches.Select(Name));
+    }
+
+    [Fact]
+    public async Task TheChildJobThePersonIsViewingStaysInTheTreeAfterItSettlesAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var docs = bench.Child("Write the migration notes", JobStatus.Approved, bench.Root.Job);
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), docs.Job);
+
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(), docs.Job);
+
+        Assert.Contains("Write the migration notes", tree.Branches.Select(Name));
+    }
+
+    [Fact]
+    public async Task TheHeaderCountsTheAgentsTheTreeStillShowsOnceSettledOnesHaveLeftAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Equal((3, "3 agents"), (tree.Branches.Count(branch => branch.Place.Depth > 0), tree.Agents));
+    }
+
+    [Fact]
     public async Task ASettledSubagentWhoseBackgroundCommandStillRunsStaysUntilTheCommandEndsAndThenLeavesAsync()
     {
         var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);

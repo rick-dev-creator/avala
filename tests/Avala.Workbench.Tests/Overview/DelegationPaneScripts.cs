@@ -412,6 +412,8 @@ internal sealed class TreeBench : IDisposable
 
     public async Task<DelegationTree> ReadAsync() => Outcomes.Present(await Reader().TreeAsync(Root.Job, CancellationToken.None));
 
+    public async Task<DelegationTree> ReadAsync(JobId root) => Outcomes.Present(await Reader().TreeAsync(root, CancellationToken.None));
+
     private void Apply(JobSummary job, IAgentEvent happened)
     {
         var shown = Board.Jobs[job.Job];
