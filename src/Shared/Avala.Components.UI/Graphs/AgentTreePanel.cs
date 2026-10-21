@@ -33,6 +33,8 @@ public sealed class AgentTreePanel : Panel
 
     private const double MinimumIndent = 8;
 
+    private const double ReadableCardWidth = 240;
+
     private static readonly double[] Narrower = [0.9, 0.8, 0.72];
 
     private static readonly int Kinds = Enum.GetValues<EdgeKind>().Length;
@@ -112,8 +114,7 @@ public sealed class AgentTreePanel : Panel
 
         foreach (var share in Narrower)
         {
-            var narrower = widths.Select(width => width > 0 ? Math.Max(Math.Min(width, MinimumCardWidth), width * share) : width).ToList();
-            var tried = Lay(narrower, available, Indent, railsOnly: false);
+            var tried = Lay(Narrowed(widths, share), available, Indent, railsOnly: false);
 
             if (tried.Shape == AgentTreeShape.Comb)
             {
@@ -146,6 +147,9 @@ public sealed class AgentTreePanel : Panel
             available,
             railsOnly);
     }
+
+    private List<double> Narrowed(List<double> widths, double share) =>
+        [.. widths.Select((width, index) => width > 0 && Graph.Read(Children[index], Graph.DepthProperty) > 0 ? Math.Max(Math.Min(width, ReadableCardWidth), width * share) : width)];
 
     private double CardWidthOf(Control child) =>
         Graph.Read(child, Graph.DepthProperty) == 0 && RootWidth > 0 ? RootWidth : CardWidth;
