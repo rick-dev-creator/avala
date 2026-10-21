@@ -30,6 +30,20 @@ public sealed class SubagentAdversaryTests
     }
 
     [Fact]
+    public void APermissionPromptOfASubagentThatArrivesAfterTheSubagentWasStoppedIsDeniedWithoutAskingThePerson()
+    {
+        var talk = Launched(new Talk(), "a1", "k1", "a2", "k2");
+        talk.Receive(Cli.Nested(Cli.ToolUse("n1", "Bash", """{ "command": "rm -rf build" }"""), "a1"), Notification("k1", "a1", "stopped"));
+        talk.Drain();
+
+        talk.Receive(Cli.Prompt("r1", "Bash", """{ "command": "rm -rf build" }""", "n1"));
+
+        Assert.Equal(
+            (false, "deny"),
+            (talk.Events.OfType<PermissionRequested>().Any(), talk.Sent.Any(sent => (string?)sent["response"]?["request_id"] == "r1") ? (string?)talk.Decision("r1")["behavior"] : "unanswered"));
+    }
+
+    [Fact]
     public void ABackgroundSubagentStillWorkingWhenItsTurnFailsIsEndedByItsOwnNotificationAndNotShownAgainAsAnotherTask()
     {
         var talk = new Talk().Begin();
