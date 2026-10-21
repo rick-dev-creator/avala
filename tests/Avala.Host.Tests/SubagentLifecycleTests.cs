@@ -77,6 +77,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         using var claude = await TranscribedClaude.PrepareAsync("background-lost");
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Survey the greeting in the background."), claude.Data, []);
         _ = await run.RepliedAsync();
+        await run.ResumableAsync();
         await run.DeliveredAsync();
 
         await run.RestartAsync();
@@ -94,6 +95,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         await using var tapped = new TemporaryFolder();
         await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Survey the greeting in the background."), claude.Tapping(tapped.Path), []);
         _ = await run.RepliedAsync();
+        await run.ResumableAsync();
         await run.DeliveredAsync();
         await run.RestartAsync();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
