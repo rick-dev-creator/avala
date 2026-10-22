@@ -5,11 +5,53 @@ using Avala.Workbench.Usage;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace Avala.Workbench.Tests.Views;
 
 public sealed class UsageViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] Headers = ["Title", "Scope", "JobsTitle", "JobsHint", "RangeTitle", "Caption", "Label", "Tokens"];
+
+    private static readonly int[] PageWidths = [400, 519, 520, 521, 522, 568, 569, 600];
+
+    private static readonly string[] CardParts = ["ConnectionName", "Provider", "Cost", "Tokens"];
+
+    private static IEnumerable<bool> Reflowed(Visual page)
+    {
+        var texts = page.GetVisualDescendants().OfType<TextBlock>().ToList();
+        var named = (string name) => texts.First(text => text.Name == name && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text));
+
+        yield return DockPanel.GetDock(named("Scope")) == Dock.Bottom;
+        yield return DockPanel.GetDock(named("JobsHint")) == Dock.Bottom;
+        yield return DockPanel.GetDock(page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Segments")) == Dock.Bottom;
+        yield return DockPanel.GetDock(page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter").GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "Cost")) == Dock.Bottom;
+        yield return DockPanel.GetDock(texts.First(text => text.Name == "Interventions" && text.IsEffectivelyVisible)) == Dock.Bottom;
+        yield return Grid.GetRow(page.GetVisualDescendants().OfType<WrapPanel>().First(panel => panel.Name == "What")) == 1;
+        yield return Grid.GetRow(texts.First(text => text.Name == "Tokens" && text.GetVisualAncestors().Any(parent => parent.GetType().Name == "UsageDayView"))) == 1;
+    }
+
+    private static bool ReadWhole(TextBlock text, Visual page)
+    {
+        var typeface = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight);
+        var longest = (text.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(word => new Avalonia.Media.TextFormatting.TextLayout(word, typeface, text.FontSize, null).Width).DefaultIfEmpty(0).Max();
+        var end = text.TranslatePoint(new Point(text.Bounds.Width, 0), page)!.Value.X;
+
+        return text.Bounds.Width + 0.5 >= longest && end <= page.Bounds.Width && text.TextLayout.TextLines.All(line => !line.HasCollapsed && line.Width <= text.Bounds.Width + 0.5);
+    }
+
+    private static bool Save(ViewScript view, string name)
+    {
+        if (Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is not { Length: > 0 } folder || Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(view.Window) is not { } frame)
+        {
+            return false;
+        }
+
+        frame.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, $"{name}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+
+        return true;
+    }
+
     [Fact]
     public Task ThePageShowsConnectionsJobsTokenWindowsAndInterventionsAsync() =>
         ui.RunAsync(() =>
@@ -18,6 +60,158 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
             Assert.Equal((2, 7, 6, 2), (view.Find<ItemsControl>("Connections").ItemCount, view.Find<ItemsControl>("Days").ItemCount, view.Find<ItemsControl>("Jobs").ItemCount, view.Find<ItemsControl>("InterventionList").ItemCount));
             Assert.Equal((false, false, true, "All recorded usage, kept across restarts"), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup"), view.TextOf("Scope")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestThePagesHeadersAreReadWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+
+            var clipped = Headers
+                .Select(name => view.Window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == name && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text)))
+                .Where(text => !ReadWhole(text, view.Window))
+                .Select(text => $"{text.Name} '{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(clipped);
+        }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData("Dark", 272)]
+    [InlineData("Light", 272)]
+    [InlineData("Dark", 600)]
+    [InlineData("Light", 600)]
+    public Task ThePageAtANarrowWidthAsync(string variant, double width)
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 }, "Set AVALA_FEATURE_SCREENS to a folder and AVALA_HEADLESS_RENDER=1 to capture the page.");
+
+        return ui.RunAsync(() =>
+        {
+            var view = Screen.ShowStill(new DesignUsageViewModel(), variant == "Dark" ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light, width, 2300);
+            view.Settle();
+
+            Assert.True(Save(view, $"usage-{width}-{variant}"));
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task AtItsNarrowestAConnectionsNameProviderCostAndTokensStayApartAndInsideItsCardAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var parts = CardParts
+                .Select(name => card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == name))
+                .Select(text => (text.Name, Box: new Rect(text.TranslatePoint(default, card)!.Value, new Size(Math.Max(text.Bounds.Width, text.TextLayout.WidthIncludingTrailingWhitespace), text.Bounds.Height))))
+                .ToList();
+
+            var faults = parts.SelectMany(part => parts.Where(other => string.CompareOrdinal(part.Name, other.Name) < 0 && part.Box.Intersects(other.Box)).Select(other => $"{part.Name} {part.Box} overlaps {other.Name} {other.Box}"))
+                .Concat(parts.Where(part => part.Box.Right > card.Bounds.Width - card.Padding.Right + 0.5).Select(part => $"{part.Name} ends at {part.Box.Right:0} in a card {card.Bounds.Width:0} wide"));
+
+            Assert.Empty(faults);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestAConnectionPricedAtApiPricesShowsItsWholeCostAsync() =>
+        ui.RunAsync(() =>
+        {
+            var cost = Avala.Workbench.Presenting.Amounts.Costs([new Avala.Agents.Contracts.Events.Cost(9.86m, "USD") { Basis = Avala.Agents.Contracts.Events.CostBasis.ApiEquivalent }]);
+            var view = Screen.Show(new Connection("Claude Code", cost), Avalonia.Styling.ThemeVariant.Dark, 224, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var shown = view.Find<TextBlock>("Cost");
+
+            Assert.True(ReadWhole(shown, card) && shown.TranslatePoint(new Point(shown.TextLayout.WidthIncludingTrailingWhitespace, 0), card)!.Value.X <= card.Bounds.Width - card.Padding.Right + 0.5, $"'{shown.Text}' needs {shown.TextLayout.WidthIncludingTrailingWhitespace:0} and is given {shown.Bounds.Width:0}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestALongProviderNameStaysInsideItsCardAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Connection("OpenAI Codex CLI through Azure OpenAI Service", "0.42 USD"), Avalonia.Styling.ThemeVariant.Dark, 224, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var provider = view.Find<TextBlock>("Provider");
+            var end = provider.TranslatePoint(new Point(provider.TextLayout.WidthIncludingTrailingWhitespace, 0), card)!.Value.X;
+
+            Assert.True(end <= card.Bounds.Width - card.Padding.Right + 0.5, $"'{provider.Text}' ends at {end:0} in a card {card.Bounds.Width:0} wide");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtSixHundredPixelsAConnectionsCostStaysBesideItsNameAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 600, 1600);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var name = card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "ConnectionName");
+            var cost = card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "Cost");
+            var at = cost.TranslatePoint(default, name)!.Value;
+
+            Assert.True(at.X >= name.Bounds.Width && at.Y < name.Bounds.Height, $"the cost sits at {at} from a name {name.Bounds.Size}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task EveryPartOfThePageReflowsAtTheSamePageWidthAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 640, 2300);
+            var seen = new List<string>();
+
+            foreach (var width in PageWidths)
+            {
+                view.Window.Width = width;
+                view.Settle();
+                seen.Add($"{width}: {string.Join(' ', Reflowed(view.Window).Select(narrow => narrow ? "narrow" : "wide").Distinct())}");
+            }
+
+            Assert.Equal(["400: narrow", "519: narrow", "520: narrow", "521: wide", "522: wide", "568: wide", "569: wide", "600: wide"], seen);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ATokensLineTooLongForItsCardWrapsInsteadOfBeingCutAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Connection("Claude Code", "9.86 USD at API prices") { Caps = "3 USD per job, 40 USD per day across every job of this connection, holds at 90% of a limit" }, Avalonia.Styling.ThemeVariant.Dark, 592, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var tokens = view.Find<TextBlock>("Tokens");
+            var end = tokens.TranslatePoint(new Point(tokens.TextLayout.TextLines.Max(line => line.Width), 0), card)!.Value.X;
+
+            Assert.True(tokens.TextLayout.TextLines.Count > 1 && end <= card.Bounds.Width - card.Padding.Right + 0.5, $"the tokens line takes {tokens.TextLayout.TextLines.Count} lines and ends at {end:0} in a card {card.Bounds.Width:0} wide");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestEveryJobsTitleShowsAtLeastItsFirstWordAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var jobs = view.Window.GetVisualDescendants().OfType<ItemsControl>().First(list => list.Name == "Jobs");
+
+            var cut = jobs.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "Title" && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text))
+                .Where(text => text.Bounds.Width + 0.5 < new Avalonia.Media.TextFormatting.TextLayout(text.Text!.Split(' ')[0], new Typeface(text.FontFamily, text.FontStyle, text.FontWeight), text.FontSize, null).Width)
+                .Select(text => $"'{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(cut);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestEveryInterventionsReasonReadsWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var interventions = view.Window.GetVisualDescendants().OfType<ItemsControl>().First(list => list.Name == "InterventionList");
+
+            var clipped = interventions.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "Reason" && text.IsEffectivelyVisible && !ReadWhole(text, view.Window))
+                .Select(text => $"'{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(clipped);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -67,8 +261,31 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         public bool IsToday => true;
     }
 
+    private sealed class Connection(string provider, string cost) : IConnectionMeterViewModel
+    {
+        public string Name => "claude-work";
+
+        public string Provider => provider;
+
+        public string Cost => cost;
+
+        public string Tokens => "1,412,880 tokens";
+
+        public string Unpriced => string.Empty;
+
+        public string Caps { get; init; } = "3 USD per job, holds at 90% of a limit";
+
+        public bool IsFocused => false;
+
+        public IReadOnlyList<ILimitViewModel> Limits { get; } = [new DesignLimitViewModel()];
+
+        public string Shared => UsagePhrases.Shared(Name);
+    }
+
     private sealed class EmptyUsage : IUsageViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         public string Title => "Usage";
 
         public string Scope => "All recorded usage, kept across restarts";
@@ -151,7 +368,7 @@ public sealed class ConnectionMeterViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignConnectionMeterViewModel());
 
-            Assert.Equal(("claude-work", "9.86 USD in total", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
+            Assert.Equal(("claude-work", "9.86 USD at API prices in total", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
             Assert.Equal((false, false), (view.Shows("Unpriced"), view.Shows("NoLimits")));
         }, TestContext.Current.CancellationToken);
 

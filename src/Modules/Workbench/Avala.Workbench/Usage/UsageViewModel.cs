@@ -11,6 +11,8 @@ internal sealed record UsageState(SpendingState Spending, UsageRange Range);
 
 internal interface IUsageViewModel
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     string Title { get; }
 
     string Scope { get; }
@@ -40,6 +42,7 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
         this.reader = reader;
         this.windows = windows;
         this.feed = feed;
+        ReadProblem = new ReadProblemViewModel(feed);
         range.Chosen += (_, _) => feed.Refresh();
     }
 
@@ -66,6 +69,8 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
     public IReadOnlyList<IInterventionViewModel> Interventions => interventions;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; }
 
     public void Focus(string connection)
     {

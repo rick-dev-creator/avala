@@ -17,6 +17,8 @@ namespace Avala.Workbench.Overview;
 
 internal interface IConnectionsViewModel : IActivatable, IPresentation
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     IReadOnlyList<IConnectionCardViewModel> Connections { get; }
 
     string FileNote { get; }
@@ -48,6 +50,8 @@ internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed 
     public partial string Caption { get; private set; } = string.Empty;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
 
     public void Activate() => feed.Start(reader.ReadAsync, Show);
 

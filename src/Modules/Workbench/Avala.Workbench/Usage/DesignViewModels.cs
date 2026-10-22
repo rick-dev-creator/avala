@@ -26,7 +26,7 @@ internal sealed record DesignLimitViewModel(string Window, string Label, double 
 internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, IReadOnlyList<ILimitViewModel> limits) : IConnectionMeterViewModel
 {
     public DesignConnectionMeterViewModel()
-        : this("claude-work", "9.86 USD", "1,412,880 tokens", [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)])
+        : this("claude-work", "9.86 USD at API prices", "1,412,880 tokens", [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)])
     {
     }
 
@@ -134,6 +134,8 @@ internal sealed record DesignInterventionViewModel(JobId Job, string Title, stri
 
 internal sealed class DesignUsageViewModel : IUsageViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public string Title => "Usage";
 
     public string Scope => Scopes.Usage;
@@ -143,7 +145,7 @@ internal sealed class DesignUsageViewModel : IUsageViewModel
         new DesignConnectionMeterViewModel(),
         new DesignConnectionMeterViewModel(
             "claude-personal",
-            "4.21 USD",
+            "4.21 USD at API prices",
             "548,120 tokens",
             [
                 new DesignLimitViewModel("5h", "5-hour window", 0.31, "31%", "resets 2026-10-09 17:05", 0.9, false),

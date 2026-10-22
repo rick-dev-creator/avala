@@ -13,6 +13,8 @@ namespace Avala.Workbench.Archive;
 
 internal interface IArchivedViewModel
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     string Title { get; }
 
     string Summary { get; }
@@ -39,6 +41,8 @@ internal sealed partial class ArchivedViewModel(ArchivedReader reader, LiveFeed 
     public long Revision => feed.Revision;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
 
     public string Title => "Archived";
 

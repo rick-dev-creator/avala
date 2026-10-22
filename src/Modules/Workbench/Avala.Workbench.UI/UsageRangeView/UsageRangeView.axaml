@@ -8,9 +8,21 @@
   <Design.DataContext>
     <usage:DesignUsageRangeViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="10">
+  <UserControl.Styles>
+    <Style Selector="Border#Segments">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+    </Style>
+    <ContainerQuery Name="Range" Query="max-width:472">
+      <Style Selector="Border#Segments">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,10,0,0" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <StackPanel Spacing="10" Container.Name="Range" Container.Sizing="Width">
     <DockPanel>
-      <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+      <Border x:Name="Segments" Classes="segments" VerticalAlignment="Center">
         <StackPanel Orientation="Horizontal">
           <Button x:Name="ShowToday"
                   Classes="segment"
@@ -30,7 +42,7 @@
         </StackPanel>
       </Border>
       <StackPanel Spacing="2" VerticalAlignment="Center">
-        <TextBlock Classes="section" Text="Usage by day" />
+        <TextBlock x:Name="RangeTitle" Classes="section" Text="Usage by day" />
         <TextBlock x:Name="Caption" Classes="caption" Text="{Binding Caption, Converter={x:Static states:Texts.Unbroken}}" TextWrapping="Wrap" />
       </StackPanel>
     </DockPanel>

@@ -11,6 +11,8 @@ namespace Avala.Workbench.Triggers;
 
 internal interface ITriggersViewModel
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     string Title { get; }
 
     string Scope { get; }
@@ -98,6 +100,8 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     public ILoopsViewModel Loops { get; } = loops;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
 
     public void Activate() => feed.Start(controls.ReadAsync, Show);
 

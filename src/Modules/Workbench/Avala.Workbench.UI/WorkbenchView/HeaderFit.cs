@@ -36,17 +36,14 @@ internal sealed class HeaderFit
 
         Forget();
         Remember();
-        var needed = TitleRoom + parts.Row.Children.Where(child => child != parts.Title && child != parts.Chips && child != parts.Pill && child.IsVisible).Sum(child => child.DesiredSize.Width);
-        var stackedCompact = fullChips > available;
-        var (compact, stacked, quiet) =
-            needed + pillWidth + fullChips <= available ? (false, false, false)
-            : needed + pillWidth + compactChips <= available ? (true, false, false)
-            : needed + pillWidth <= available ? (stackedCompact, true, false)
-            : (stackedCompact, true, true);
+        var needed = TitleRoom + parts.Row.Children.Where(child => child != parts.Title && child != parts.Side && child.IsVisible).Sum(child => child.DesiredSize.Width);
+        var (compact, stacked) =
+            needed + pillWidth + fullChips <= available ? (false, false)
+            : needed + pillWidth + compactChips <= available ? (true, false)
+            : (pillWidth + fullChips > available, true);
 
         parts.Header.Classes.Set("compact", compact);
         parts.Header.Classes.Set("stacked", stacked);
-        parts.Header.Classes.Set("quiet", quiet);
     }
 
     private void Forget()
@@ -67,7 +64,7 @@ internal sealed class HeaderFit
 
     private void Remember()
     {
-        if (!Is("quiet") && parts.Pill.IsMeasureValid)
+        if (parts.Pill.IsMeasureValid)
         {
             pillWidth = parts.Pill.DesiredSize.Width;
         }
@@ -85,4 +82,4 @@ internal sealed class HeaderFit
     }
 }
 
-internal sealed record HeaderParts(Border Header, Grid Row, Control Title, ItemsControl Chips, Control Pill);
+internal sealed record HeaderParts(Border Header, Grid Row, Control Title, Control Side, ItemsControl Chips, Control Pill);

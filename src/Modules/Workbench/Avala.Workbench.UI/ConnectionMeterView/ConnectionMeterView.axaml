@@ -12,18 +12,29 @@
     <Style Selector="Border#Meter.focused">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
+    <Style Selector="TextBlock#Cost">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <ContainerQuery Name="Meter" Query="max-width:472">
+      <Style Selector="TextBlock#Cost">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
-  <Border x:Name="Meter" Classes="grouped" Classes.focused="{Binding IsFocused}" theme:Motion.Enter="Arrive" Padding="22,20">
+  <Border x:Name="Meter" Classes="grouped" Classes.focused="{Binding IsFocused}" theme:Motion.Enter="Arrive" Padding="22,20" Container.Name="Meter" Container.Sizing="Width">
     <StackPanel Spacing="18">
       <StackPanel Spacing="2">
         <DockPanel>
-          <TextBlock x:Name="Cost" DockPanel.Dock="Right" Text="{Binding Cost, StringFormat='{}{0} in total'}" VerticalAlignment="Bottom" Margin="12,0,0,0" />
-          <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock x:Name="Cost" Text="{Binding Cost, StringFormat='{}{0} in total'}" VerticalAlignment="Bottom" />
+          <WrapPanel ItemSpacing="10">
             <TextBlock x:Name="ConnectionName" Classes="heading" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
-            <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Bottom" Margin="0,0,0,2" />
-          </StackPanel>
+            <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Bottom" Margin="0,0,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Provider}" />
+          </WrapPanel>
         </DockPanel>
-        <TextBlock x:Name="Tokens" Classes="caption">
+        <TextBlock x:Name="Tokens" Classes="caption" TextWrapping="Wrap">
           <Run Text="{Binding Tokens}" />
           <Run Text=" · " />
           <Run Text="{Binding Caps}" />

@@ -93,6 +93,8 @@ public sealed class OverviewViewModelScripts : IDisposable
 
         private sealed class ActivatedConnections(List<string> calls) : IConnectionsViewModel
         {
+            public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
             public IReadOnlyList<IConnectionCardViewModel> Connections => [];
 
             public string FileNote => string.Empty;
@@ -116,6 +118,8 @@ public sealed class OverviewViewModelScripts : IDisposable
 
         private sealed class ActivatedDelegation(List<string> calls) : IDelegationViewModel
         {
+            public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
             public IReadOnlyList<IOrchestrationViewModel> Trees => [];
 
             public DelegationScope Scope => DelegationScope.Active;

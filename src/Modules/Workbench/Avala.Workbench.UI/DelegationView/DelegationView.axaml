@@ -55,6 +55,7 @@
                   SelectedItem="{Binding Connection, Converter={x:Static states:Kept.Selection}}" />
       </WrapPanel>
     </Border>
+    <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="24,12,24,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
     <Panel>
       <Border x:Name="NoOrchestrators"
               Classes="empty"

@@ -84,6 +84,20 @@ public sealed class LiveFeedTests : IDisposable
     }
 
     [Fact]
+    public async Task AFailedReadIsTheFeedsFailureUntilAReadSucceedsAgainAsync()
+    {
+        var reads = 0;
+        feed.Start(_ => Interlocked.Increment(ref reads) == 1 ? throw new IOException("The usage store is locked") : ValueTask.FromResult(reads), _ => { });
+        await ui.PresentedAsync(feed, () => feed.Revision == 1, () => $"revision {feed.Revision}");
+        var failed = await ui.ReadAsync(() => feed.Failure);
+
+        await pulse.HandleAsync(new UsageRecorded(SessionId.New(), Avala.Sdk.Option<JobId>.None), CancellationToken.None);
+
+        await ui.PresentedAsync(feed, () => feed.Revision == 2, () => $"revision {feed.Revision}");
+        Assert.Equal((Avala.Sdk.Option<string>.Some("The usage store is locked"), Avala.Sdk.Option<string>.None), (failed, await ui.ReadAsync(() => feed.Failure)));
+    }
+
+    [Fact]
     public async Task AFailureIsLoggedWithTheComponentItBelongsToEvenWithoutAFailCallbackAsync()
     {
         var shown = 0;

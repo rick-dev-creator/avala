@@ -57,6 +57,8 @@ public sealed class ResourcesViewScripts(HeadlessUi ui)
 
     private sealed class Recording : IResourcesViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         private readonly DesignResourcesViewModel design = new();
 
         public Recording() => ReapCommand = new AsyncRelayCommand<IOrphanViewModel>(orphan =>

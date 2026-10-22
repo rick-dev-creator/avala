@@ -45,6 +45,8 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
 
     private sealed class ClosablePane(Action close) : IDelegationPaneViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         public ISubagentTreeViewModel Tree { get; } = new DesignSubagentTreeViewModel { Branches = [new DesignOrchestratorCardViewModel()] };
 
         public bool HasTree => true;

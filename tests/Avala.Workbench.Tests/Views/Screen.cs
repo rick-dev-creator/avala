@@ -45,6 +45,16 @@ internal static class Screen
         return ViewScript.Present(window, viewModel);
     }
 
+    public static ViewScript ShowStill(object viewModel, ThemeVariant variant, double width, double height)
+    {
+        Register();
+        var window = new Window { Width = width, Height = height, RequestedThemeVariant = variant, Content = viewModel };
+        window.Bind(Window.BackgroundProperty, window.GetResourceObservable("SurfaceWindowBrush"));
+        Components.UI.Theme.Motion.SetIsReduced(window, true);
+
+        return ViewScript.Present(window, viewModel);
+    }
+
     private static void Register()
     {
         if (!registered)
