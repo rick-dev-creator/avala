@@ -255,6 +255,28 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
         Assert.Single(run.Get<IDelegations>().OfParent(parent));
     }
 
+    [Fact]
+    public async Task AQuestionAskedAgainAfterARestartWhileThePersonHoldsItsParentWaitsUntilThePersonContinuesTheParentAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var told = run.Watch<ParentAsked>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
+        var before = await told.UntilAsync(_ => true);
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(parent, HoldReason.Interrupted, Cancellation));
+
+        await run.RestartAsync(() => told = run.Watch<ParentAsked>());
+        var after = await told.UntilAsync(update => update.Session != before.Session);
+        await run.DeliveredAsync();
+        var waiting = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(parent, Cancellation)).Summary;
+        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(parent, "Carry on with the orders.", Cancellation));
+        var steered = await told.UntilAsync(update => update.Session == after.Session && update.Item == after.Item && !ReferenceEquals(update, after));
+
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Interrupted)), (waiting.Status, waiting.Hold));
+        Assert.False(after.Woken, "A parent the person held was woken by its child's question after a restart");
+        Assert.False(steered.Woken, "The question was told to the parent as a wake instead of in the round the person started");
+        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", steered.Note, StringComparison.Ordinal);
+    }
+
     private static string ChildFact(OpenWorkbench workbench, JobId parent) =>
         SidebarRows.In(workbench.Sidebar, "Running")
             .Where(row => row["Job"].Value<JobId>() == parent)

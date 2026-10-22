@@ -81,6 +81,8 @@ public sealed class ParentEscalationTests
     [Theory]
     [InlineData(HoldReason.BudgetExceeded)]
     [InlineData(HoldReason.Stopped)]
+    [InlineData(HoldReason.TurnFailed)]
+    [InlineData(HoldReason.InvalidChecks)]
     public async Task AParentHeldOverItsBudgetOrStoppedByThePersonIsNotContinuedByItsChildsQuestionAsync(HoldReason reason)
     {
         await DelegatedAsync();
@@ -89,6 +91,19 @@ public sealed class ParentEscalationTests
         await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
 
         Assert.Empty(jobs.Continued);
+    }
+
+    [Fact]
+    public async Task AParentThatRanOutOfAttemptsIsLeftToThePersonInsteadOfBeingContinuedByItsChildsQuestionAsync()
+    {
+        await DelegatedAsync();
+        jobs.Is(parent, JobStatus.NeedsHelp);
+        jobs.Attempted(parent, AttemptOutcome.Rejected);
+
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+
+        Assert.Empty(jobs.Continued);
+        Assert.False(Assert.Single(bus.Published.OfType<ParentAsked>()).Woken, "A parent that ran out of attempts was woken by its child's question");
     }
 
     [Fact]

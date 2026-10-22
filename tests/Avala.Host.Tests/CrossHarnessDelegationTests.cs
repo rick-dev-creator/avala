@@ -89,6 +89,18 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AChildWaitingForItsOrchestratorsAnswerReadsWaitingInTheDelegationTreeAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }"""));
+        var told = run.Watch<ParentAsked>();
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
+        _ = await told.UntilAsync(_ => true);
+        await run.DeliveredAsync();
+
+        Assert.Equal("waiting", await ChildStateAsync(run, child => child["StateText"].Text == "waiting"));
+    }
+
+    [Fact]
     public async Task APermissionAskedByACrossHarnessChildIsAttributedToItsJobAndHarnessInTheClaudeCodeParentsConversationWhichLearnsItAwaitsPermissionAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("delegate-asks-parent");
