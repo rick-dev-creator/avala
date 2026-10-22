@@ -101,6 +101,20 @@ public sealed class DraftBookTests
     }
 
     [Fact]
+    public async Task AMessageThatCameBackUndeliveredStillSaysWhyAfterARestartAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var discarded = new WaitingMessage(MessageId.New(), "Keep the alias", [], true) { Why = new UndeliveredMessage(JobStatus.Discarded, Option<JobRejection>.None) };
+        var refused = new WaitingMessage(MessageId.New(), "And the changelog", [], true) { Why = new UndeliveredMessage(JobStatus.Approved, JobRejection.WorkspaceUnavailable) };
+        await new DraftFile(new AvalaPaths(folder.Path)).WriteAsync(new Dictionary<JobId, Draft> { [Job] = Draft.Empty with { Waiting = [discarded, refused] } }, Cancellation);
+        var book = new DraftBook(new DraftFile(new AvalaPaths(folder.Path)), new JobBoard(), new FakeTimeProvider());
+
+        await book.RunAsync(Cancellation);
+
+        Assert.Equal([discarded.Why, refused.Why], book.TakeReturned(Job).Select(message => message.Why));
+    }
+
+    [Fact]
     public async Task AnUnreadableDraftFileStartsWithNoDraftsAsync()
     {
         await using var folder = new TemporaryFolder();

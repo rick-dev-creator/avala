@@ -359,7 +359,6 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
 
-        var why = steering.TakeBack(Job);
         var returned = drafts.TakeReturned(Job);
 
         if (returned.Count > 0)
@@ -367,7 +366,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
             var text = string.Join("\n\n", returned.Select(message => message.Text));
             Edit(string.IsNullOrWhiteSpace(Draft) ? text : $"{text}\n\n{Draft}");
             attachments.Restore([.. returned.SelectMany(message => message.Attachments)]);
-            Error = why.Match(ConversationPhrases.Undelivered, () => ConversationPhrases.UndeliveredWhenAvalaClosed);
+            Error = ConversationPhrases.Undelivered(returned.Select(message => message.Why).LastOrDefault(why => why.IsSome));
         }
     }
 

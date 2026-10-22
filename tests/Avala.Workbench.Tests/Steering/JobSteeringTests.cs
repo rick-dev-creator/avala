@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workbench.Drafting;
 using Avala.Workbench.Steering;
 
 namespace Avala.Workbench.Tests.Steering;
@@ -284,5 +285,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
     public ValueTask DisposeAsync() => queue.DisposeAsync();
 
     private (string Text, JobStatus Status, Option<JobRejection> Rejection)[] Back(JobId of) =>
-        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(drafts.Of(of).Match(draft => string.Join("\n\n", draft.Waiting.Where(message => message.Returned).Select(message => message.Text)), () => string.Empty), back.Status, back.Rejection)], () => []);
+        drafts.Of(of).Match<List<WaitingMessage>>(draft => [.. draft.Waiting.Where(message => message.Returned)], () => []) is { Count: > 0 } back
+            ? back[^1].Why.Match<(string, JobStatus, Option<JobRejection>)[]>(why => [(string.Join("\n\n", back.Select(message => message.Text)), why.Status, why.Rejection)], () => [])
+            : [];
 }

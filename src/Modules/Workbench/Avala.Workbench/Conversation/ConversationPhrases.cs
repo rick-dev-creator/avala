@@ -7,6 +7,7 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
+using Avala.Workbench.Drafting;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Steering;
 using Avala.Workbench.ModelChoices;
@@ -369,14 +370,14 @@ internal static class ConversationPhrases
 
     public static string ThoughtUnshared(TimeSpan duration) => $"{Thought(duration)} · content not shared by the harness";
 
-    public static string UndeliveredWhenAvalaClosed => "Your queued message was not delivered, so it is back here: Avala closed before the job could take it.";
-
-    public static string Undelivered(UndeliveredMessage message) =>
-        message.Rejection.Match(
-            rejection => $"Your queued message was not delivered, so it is back here. {Rejection(rejection)}",
-            () => message.Status == JobStatus.Discarded
+    public static string Undelivered(Option<UndeliveredMessage> why) =>
+        why.Match(
+            message => message.Status == JobStatus.Discarded
                 ? "Your queued message was not delivered, so it is back here: the job was discarded."
-                : "Your queued message was not delivered, so it is back here: the job failed.");
+                : message.Rejection.Match(
+                    rejection => $"Your queued message was not delivered, so it is back here. {Rejection(rejection)}",
+                    () => "Your queued message was not delivered, so it is back here: the job failed."),
+            () => "Your queued message was not delivered, so it is back here: Avala closed before the job could take it.");
 
     public static string Rejection(JobRejection rejection) => rejection switch
     {
