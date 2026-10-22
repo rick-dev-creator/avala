@@ -29,13 +29,9 @@ public sealed class ChildAskingViewScripts(HeadlessUi ui)
             var asked = new ChildAskingViewModel(entry);
             var view = Screen.Show(asked);
 
-            asked.Update(entry with { State = ChildAskingState.Passed, Passed = PassReason.BeyondParent });
-            view.Settle();
-            var passed = view.TextOf("Status");
-            asked.Update(entry with { State = ChildAskingState.Allowed });
+            asked.Update(entry with { State = ChildAskingState.Answered });
             view.Settle();
 
-            Assert.Equal("Went to you: its parent's own rules do not allow it", passed);
-            Assert.Equal(("Allowed by this job", false), (view.TextOf("Status"), asked.IsWaiting));
+            Assert.Equal(("Answered by this job", false), (view.TextOf("Status"), asked.IsWaiting));
         }, Cancellation);
 }

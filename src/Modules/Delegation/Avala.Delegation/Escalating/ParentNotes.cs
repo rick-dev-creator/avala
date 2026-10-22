@@ -8,119 +8,76 @@ using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Escalating;
 
-internal sealed record ChildQuestion(SessionId Session, ItemId Item, Option<JobId> Child, bool Escalates, string Asking, Func<DelegationRecord, ParentEscalation, string> Note)
+internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking) : IHandle<FormDecided>, IHandle<JobProgressed>
 {
-    public Func<DelegationRecord, ParentEscalation, ToolResult> Result { get; init; } = (child, _) => new ToolResult(child.Item, string.Empty);
-}
+    private readonly Dictionary<(SessionId Session, ItemId Item), (JobId Parent, ParentAsked Asked)> untold = [];
 
-internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParentAnswers answers, TimeProvider clock)
-    : IHandle<PermissionDecided>, IHandle<FormDecided>, IAsyncDisposable
-{
-    private readonly Dictionary<(SessionId Session, ItemId Item), ITimer> windows = [];
-    private readonly SerialExecutor passing = new();
-
-    public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken)
+    public async ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
     {
         var decision = integrationEvent.Decision;
+        var key = (decision.Session, decision.Item);
 
-        return DecidedAsync(
-            new ChildQuestion(
-                decision.Session,
-                decision.Item,
-                decision.Job,
-                Escalates(decision.Delivery, decision.Passed),
-                ChildNotes.Asking(decision),
-                (child, escalation) => ChildNotes.Permission(child, decision, escalation))
-            {
-                Result = (child, escalation) => ChildNotes.PermissionResult(child, decision, escalation),
-            },
-            cancellationToken);
-    }
-
-    public ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
-    {
-        var decision = integrationEvent.Decision;
-
-        return DecidedAsync(
-            new ChildQuestion(
-                decision.Session,
-                decision.Item,
-                decision.Job,
-                Escalates(decision.Delivery, decision.Passed),
-                ChildNotes.Asking(decision),
-                (child, escalation) => ChildNotes.Form(child, decision, escalation))
-            {
-                Result = (child, escalation) => ChildNotes.FormResult(child, decision, escalation),
-            },
-            cancellationToken);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        foreach (var window in windows.Values)
+        if (decision.Delivery != DecisionDelivery.LeftToParent)
         {
-            await window.DisposeAsync();
-        }
-
-        windows.Clear();
-        await passing.DisposeAsync();
-    }
-
-    private static bool Escalates(DecisionDelivery delivery, Option<PassReason> passed) => delivery == DecisionDelivery.LeftToParent && passed.IsNone;
-
-    private async ValueTask DecidedAsync(ChildQuestion question, CancellationToken cancellationToken)
-    {
-        var key = (question.Session, question.Item);
-
-        if (!question.Escalates)
-        {
-            if (windows.Remove(key, out var closed))
-            {
-                await closed.DisposeAsync();
-            }
+            untold.Remove(key);
 
             return;
         }
 
-        var told = await question.Child.Bind(journal.OfChild).Match(
-            record => TellAsync(record, question, cancellationToken),
-            () => Task.FromResult(Option<ParentAsked>.None));
-
-        await told.Match(
-            async asked =>
-            {
-                windows[key] = clock.CreateAlarm(
-                    () => _ = passing.RunAsync(token => answers.PassAsync(question.Session, question.Item, PassReason.ParentTimedOut, token).AsTask(), CancellationToken.None),
-                    asked.Until);
-                await journal.AskedAsync(asked, cancellationToken);
-            },
-            async () => _ = await answers.PassAsync(question.Session, question.Item, PassReason.ParentUnreachable, cancellationToken));
+        foreach (var child in decision.Job.Bind(journal.OfChild).Match<DelegationRecord[]>(record => [record], () => []))
+        {
+            await AskAsync(child, decision, cancellationToken);
+        }
     }
 
-    private Task<Option<ParentAsked>> TellAsync(DelegationRecord child, ChildQuestion question, CancellationToken cancellationToken) =>
-        child.Parent.Bind(parent => child.Escalation.Map(escalation => (Parent: parent, Escalation: escalation))).Match(
-            async found =>
+    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Status is not (JobStatus.AwaitingReview or JobStatus.NeedsHelp))
+        {
+            return;
+        }
+
+        foreach (var (key, waiting) in untold.Where(pending => pending.Value.Parent == integrationEvent.Job).ToList())
+        {
+            if (await waking.WakeIdleAsync(waiting.Parent, integrationEvent.Status, waiting.Asked.Note, cancellationToken) == ParentReach.Woken)
             {
-                var until = clock.GetUtcNow() + found.Escalation.Window;
-                var asked = new ParentAsked(child, question.Session, question.Item, question.Asking, until);
+                untold.Remove(key);
+                await journal.AskedAsync(waiting.Asked with { Woken = true }, cancellationToken);
+            }
+        }
+    }
 
-                if (await child.Child.Bind(journal.Calls.Take).Match(
-                    call => journal.ReturnEarlyAsync(child.Child.Match(job => job, () => default), call, question.Result(child, found.Escalation), cancellationToken),
-                    () => Task.FromResult(false)))
-                {
-                    return asked with { InCall = true };
-                }
+    private async Task AskAsync(DelegationRecord child, FormDecision decision, CancellationToken cancellationToken)
+    {
+        var asked = new ParentAsked(child, decision.Session, decision.Item, ChildNotes.Asking(decision));
+        var job = child.Child.Match(found => found, () => default);
 
-                foreach (var waiting in child.Child.Match<JobId[]>(job => [job], () => []))
-                {
-                    journal.Calls.Queue(waiting, new QueuedAsking(question.Session, question.Item, question.Result(child, found.Escalation)));
-                }
+        if (await child.Child.Bind(journal.Calls.Take).Match(
+            call => journal.ReturnEarlyAsync(job, call, ChildNotes.FormResult(child, decision), cancellationToken),
+            () => Task.FromResult(false)))
+        {
+            await journal.AskedAsync(asked with { InCall = true }, cancellationToken);
 
-                var note = question.Note(child, found.Escalation);
+            return;
+        }
 
-                return (await jobs.NoteAsync(found.Parent, note, cancellationToken)).IsSuccess
-                    ? asked with { Note = note }
-                    : Option<ParentAsked>.None;
-            },
-            () => Task.FromResult(Option<ParentAsked>.None));
+        journal.Calls.Queue(job, new QueuedAsking(decision.Session, decision.Item, ChildNotes.FormResult(child, decision)));
+        var noted = asked with { Note = ChildNotes.Form(child, decision) };
+
+        foreach (var parent in child.Parent.Match<JobId[]>(found => [found], () => []))
+        {
+            switch (await waking.ReachAsync(parent, job, noted.Note, cancellationToken))
+            {
+                case ParentReach.Told:
+                    await journal.AskedAsync(noted, cancellationToken);
+                    break;
+                case ParentReach.Woken:
+                    await journal.AskedAsync(noted with { Woken = true }, cancellationToken);
+                    break;
+                case ParentReach.Later:
+                    untold[(decision.Session, decision.Item)] = (parent, noted);
+                    break;
+            }
+        }
+    }
 }

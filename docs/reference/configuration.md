@@ -90,7 +90,6 @@ Your own harness connections, beside the ones found on their own: `~/.claude`, e
 | `budgets.json` | `runningJobs`: how many jobs run at once, unlimited by default. `spendPerDay`: an amount per currency. `connections`: the same per connection. |
 | `limits.json` | The `limits` section below, for every repository. |
 | `autopilot.json` | The loop limits of the `autopilot` section below, for every repository; a repository can only tighten them. |
-| `delegation.json` | `escalation` and `parentWindowSeconds` for every repository; a repository's values win. |
 | `supervision.json` | `silenceSeconds`: how long a silent job runs before it is held, above 0 and at most a day; 900 by default. |
 | `resources.json` | `sampleSeconds`: 5 by default. `diskSeconds`: 60 by default. `orphans`: `kill` (default) or `report`, for processes a session leaves behind. `ports`: `first` 24000, `last` 24999 and `perWorktree` 10 by default. `worktrees`: `keepDiscardedHours` 0, `keepFailedHours` 168 and `keepApprovedHours` kept by default, `null` keeps, and `reconcile`: `report` (default) or `clean`. |
 | `notifications.json` | `enabled`. `channel`: `ntfy` (default) or `webhook`. `ntfy`: `server` (`https://ntfy.sh` by default), `topic` (a private random topic by default) and `tokenEnv`. `webhook`: `url` and `secretEnv`. `events`: `decision`, `held`, `budget`, `failed`, `loopEnded` on and `review` off by default. `detail`: `minimal` (default) or `detailed`. `quietHours`: `from`, `to` and `days`, every day by default. |
@@ -122,9 +121,8 @@ One JSON object; each module reads its own section, and Jobs rejects a field the
 | `delegation.routing` | `capacity` (also `leastUsed`) or `roundRobin`. | `capacity`. |
 | `delegation.maxDepth` | 1 to 8. | 1. |
 | `delegation.maxChildren` | 1 to 16. | 2. |
-| `delegation.escalation` | `parent` or `human`. | From `delegation.json`. |
-| `delegation.parentWindowSeconds` | 10 to 3600. | 120. |
 | `delegation.role`, `delegation.roles` | The default role, and per role (`worker`, `reviewer`, `research`) its `model`, `effort` and `compactAt` (20000 to 1000000). | None. |
+| `delegation.escalation`, `delegation.parentWindowSeconds` | Retired: a child's question always goes to its parent and its permission to you. An older section that still sets them stays valid, and they are ignored. | None. |
 | `limits.onLimit` | `hold`, `handoff-same-harness` or `handoff-any-harness`. | `hold`. |
 | `limits.threshold` | The share of a usage window at which a job moves. | 0.9. |
 | `limits.connections` | The connections a job may move to. | None. |

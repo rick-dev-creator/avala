@@ -51,7 +51,7 @@ internal sealed class Asking
             })
             .Entries));
 
-    public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PassReason> passed, Option<PermissionAnswer> resolution)
+    public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PermissionAnswer> resolution)
     {
         var decided = Transcript.Empty
             .Apply(new TurnStarted(Session, Turn), Now)
@@ -59,11 +59,21 @@ internal sealed class Asking
             .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now)
             {
                 Parent = parent,
-                Passed = passed,
             });
         var resolved = resolution.Match(answer => decided.Apply(new PermissionResolved(Session, Turn, new ItemId("run"), answer), Now), () => decided);
 
         return Assert.IsType<PermissionEntry>(Assert.Single(resolved.Entries));
+    }
+
+    public FormEntry AskingParent(JobId parent)
+    {
+        var form = new AgentForm(FormPurpose.Question, "Add invoice PDF endpoint", "The service stores invoices.", Database);
+
+        return Assert.IsType<FormEntry>(Assert.Single(Transcript.Empty
+            .Apply(new TurnStarted(Session, Turn), Now)
+            .Apply(new FormRequested(Session, Turn, new ItemId("question"), form), Now)
+            .Apply(new FormDecision(Session, Turn, new ItemId("question"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToParent, Now) { Parent = parent })
+            .Entries));
     }
 
     public FormEntry Form(params FormField[] fields) => Form(FormPurpose.Question, fields.Length == 0 ? Database : fields);

@@ -53,8 +53,8 @@ internal sealed class SessionGovernor(GovernanceBook book, SessionTerms terms, P
         {
             case PermissionRequested requested:
                 var governed = book.Of(requested.Session);
-                var (decision, request) = await responder.DecideAsync(governed, requested, book.RulesOf(governed), cancellationToken);
-                await book.DecidedAsync(decision, request, cancellationToken);
+                var decision = await responder.DecideAsync(governed, requested, book.RulesOf(governed), cancellationToken);
+                await book.DecidedAsync(decision, cancellationToken);
                 await bus.PublishAsync(new PermissionDecided(decision), cancellationToken);
                 break;
             case PermissionResolved resolved:

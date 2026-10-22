@@ -29,5 +29,5 @@ internal sealed class ChildTerms(DelegationBook book, IJobCatalog catalog) : IJo
     }
 
     private static JobTerms Of(DelegationRecord record) =>
-        new(record.ReadOnly, record.Escalation.IsSome ? record.Parent : Option<JobId>.None);
+        new(record.ReadOnly, record.Parent);
 }

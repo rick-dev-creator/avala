@@ -15,20 +15,11 @@ public interface IJobTerms
     ValueTask<JobTerms> OfAsync(JobId job, CancellationToken cancellationToken);
 }
 
-public sealed record ParentReply(ItemId Item, SessionId Parent, PermissionAnswer Answer)
-{
-    public Option<string> Message { get; init; }
-}
-
 public sealed record ParentFormReply(SessionId Parent, FormAnswer Answer);
 
 public interface IParentAnswers
 {
-    ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId child, ParentReply reply, CancellationToken cancellationToken);
-
     ValueTask<Result<FormDecision, PolicyError>> AnswerFormAsync(SessionId child, ParentFormReply reply, CancellationToken cancellationToken);
-
-    ValueTask<bool> PassAsync(SessionId child, ItemId item, PassReason reason, CancellationToken cancellationToken);
 
     bool Waits(SessionId child, ItemId item);
 }

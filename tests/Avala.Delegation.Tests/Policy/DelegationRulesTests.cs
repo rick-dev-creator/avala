@@ -37,30 +37,19 @@ public sealed class DelegationRulesTests
             Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse($$"""{ "delegation": { "routing": "{{routing}}" } }"""))).Routing);
 
     [Fact]
-    public void TheSectionDeclaresEscalationItsWindowAndTheRoleOfChildrenWhichOtherwiseFallToTheMachineThenTheBuiltIns()
+    public void TheSectionDeclaresTheRoleOfChildrenWhichOtherwiseFallsToWorker()
     {
-        var declared = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse(
-            """{ "delegation": { "escalation": "parent", "parentWindowSeconds": 30, "role": "reviewer" } }""")));
+        var declared = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": { "role": "reviewer" } }""")));
         var bare = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": {} }""")));
-        var machine = Outcomes.Succeeds(DelegationRulesParser.ParseMachine("""{ "escalation": "parent", "parentWindowSeconds": 45 }"""));
-        var human = new EscalationTerms(false, Option<TimeSpan>.None);
 
-        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(30))), declared.Escalation.Over(human).Kept);
-        Assert.Equal(Option<ChildRole>.Some(ChildRole.Reviewer), declared.Role);
-        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(45))), bare.Escalation.Over(machine).Kept);
-        Assert.Equal(Option<ParentEscalation>.None, bare.Escalation.Over(EscalationTerms.Undeclared).Kept);
-        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(EscalationTerms.DefaultWindow)), (bare.Escalation with { AsksParent = true }).Over(EscalationTerms.Undeclared).Kept);
-        Assert.Equal(Option<ParentEscalation>.None, (bare.Escalation with { AsksParent = false }).Over(machine).Kept);
-        Assert.Equal(Option<ChildRole>.None, bare.Role);
+        Assert.Equal((Option<ChildRole>.Some(ChildRole.Reviewer), Option<ChildRole>.None), (declared.Role, bare.Role));
     }
 
     [Theory]
-    [InlineData("""{ "escalation": "parent", "maxDepth": 2 }""", "UnknownField")]
-    [InlineData("""{ "escalation": "nobody" }""", "UnknownEscalation")]
-    [InlineData("""{ "parentWindowSeconds": 0 }""", "InvalidWindow")]
-    [InlineData("[]", "Malformed")]
-    public void TheMachinesDelegationFileDeclaresOnlyEscalationAndItsWindow(string text, string expected) =>
-        Assert.Equal(Enum.Parse<DelegationError>(expected), Outcomes.FailsWith(DelegationRulesParser.ParseMachine(text)));
+    [InlineData("""{ "delegation": { "maxDepth": 2, "escalation": "human", "parentWindowSeconds": 120 } }""")]
+    [InlineData("""{ "delegation": { "maxDepth": 2, "escalation": "nobody", "parentWindowSeconds": "soon" } }""")]
+    public void TheRetiredEscalationAndParentWindowOfAnOlderSectionAreIgnored(string text) =>
+        Assert.Equal(2, Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse(text))).MaxDepth);
 
     [Theory]
     [InlineData(null, ChildRole.Worker, null, ChildRole.Worker, null)]
@@ -117,11 +106,6 @@ public sealed class DelegationRulesTests
     [InlineData("""{ "delegation": { "maxChildren": 0 } }""", "InvalidChildren")]
     [InlineData("""{ "delegation": { "maxChildren": 1.5 } }""", "InvalidChildren")]
     [InlineData("""{ "delegation": { "maxChildren": 17 } }""", "InvalidChildren")]
-    [InlineData("""{ "delegation": { "escalation": "agent" } }""", "UnknownEscalation")]
-    [InlineData("""{ "delegation": { "escalation": true } }""", "Malformed")]
-    [InlineData("""{ "delegation": { "parentWindowSeconds": 9 } }""", "InvalidWindow")]
-    [InlineData("""{ "delegation": { "parentWindowSeconds": 3601 } }""", "InvalidWindow")]
-    [InlineData("""{ "delegation": { "parentWindowSeconds": 30.5 } }""", "InvalidWindow")]
     [InlineData("""{ "delegation": { "role": "editor" } }""", "UnknownRole")]
     [InlineData("""{ "delegation": { "roles": { "editor": { "model": "small" } } } }""", "UnknownRole")]
     [InlineData("""{ "delegation": { "roles": ["research"] } }""", "Malformed")]

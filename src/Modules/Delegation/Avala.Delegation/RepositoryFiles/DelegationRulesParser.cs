@@ -14,23 +14,19 @@ internal static class DelegationRulesParser
     private const string RoutingField = "routing";
     private const string DepthField = "maxDepth";
     private const string ChildrenField = "maxChildren";
-    private const string EscalationField = "escalation";
-    private const string WindowField = "parentWindowSeconds";
+    private const string RetiredEscalationField = "escalation";
+    private const string RetiredWindowField = "parentWindowSeconds";
     private const string RoleField = "role";
     private const string RolesField = "roles";
     private const string ModelField = "model";
     private const string EffortField = "effort";
     private const string CompactAtField = "compactAt";
 
-    private static readonly string[] Fields = [ConnectionsField, RoutingField, DepthField, ChildrenField, EscalationField, WindowField, RoleField, RolesField];
+    private static readonly string[] Fields = [ConnectionsField, RoutingField, DepthField, ChildrenField, RetiredEscalationField, RetiredWindowField, RoleField, RolesField];
 
     private static readonly string[] RoleFields = [ModelField, EffortField, CompactAtField];
 
-    private static readonly string[] MachineFields = [EscalationField, WindowField];
-
     private const int SectionDepth = 3;
-
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
     public static Result<Option<DelegationRules>, DelegationError> Parse(string jobFile) =>
         JsonSections.Read(
@@ -56,50 +52,10 @@ internal static class DelegationRulesParser
             .Bind(connections => RoutingIn(section)
                 .Bind(routing => Whole(section, DepthField, DelegationRules.DefaultDepth, DelegationRules.DeepestDepth, DelegationError.InvalidDepth)
                     .Bind(depth => Whole(section, ChildrenField, DelegationRules.DefaultChildren, DelegationRules.MostChildren, DelegationError.InvalidChildren)
-                        .Bind(children => EscalationIn(section)
-                            .Bind(escalation => RoleIn(section)
-                                .Bind(role => SettingsIn(section)
-                                    .Map(settings => new DelegationRules(connections, routing, depth, children) { Escalation = escalation, Role = role, Settings = settings })))))));
+                        .Bind(children => RoleIn(section)
+                            .Bind(role => SettingsIn(section)
+                                .Map(settings => new DelegationRules(connections, routing, depth, children) { Role = role, Settings = settings }))))));
     }
-
-    public static Result<EscalationTerms, DelegationError> ParseMachine(string machineFile)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(machineFile, Options);
-            var root = document.RootElement;
-
-            return root.ValueKind != JsonValueKind.Object ? DelegationError.Malformed
-                : root.EnumerateObject().Any(field => !MachineFields.Contains(field.Name, StringComparer.Ordinal)) ? DelegationError.UnknownField
-                : EscalationIn(root);
-        }
-        catch (JsonException)
-        {
-            return DelegationError.Malformed;
-        }
-    }
-
-    private static Result<EscalationTerms, DelegationError> EscalationIn(JsonElement section) =>
-        AsksParentIn(section).Bind(asks => WindowIn(section).Map(window => new EscalationTerms(asks, window)));
-
-    private static Result<Option<bool>, DelegationError> AsksParentIn(JsonElement section) =>
-        !section.TryGetProperty(EscalationField, out var escalation) ? Option<bool>.None
-        : escalation.ValueKind != JsonValueKind.String ? DelegationError.Malformed
-        : escalation.GetString() switch
-        {
-            "human" => Option<bool>.Some(false),
-            "parent" => Option<bool>.Some(true),
-            _ => DelegationError.UnknownEscalation,
-        };
-
-    private static Result<Option<TimeSpan>, DelegationError> WindowIn(JsonElement section) =>
-        !section.TryGetProperty(WindowField, out var window) ? Option<TimeSpan>.None
-        : window.ValueKind != JsonValueKind.Number ? DelegationError.Malformed
-        : window.TryGetInt32(out var seconds)
-            && seconds >= EscalationTerms.ShortestWindow.TotalSeconds
-            && seconds <= EscalationTerms.LongestWindow.TotalSeconds
-            ? Option<TimeSpan>.Some(TimeSpan.FromSeconds(seconds))
-            : DelegationError.InvalidWindow;
 
     private static Result<Option<ChildRole>, DelegationError> RoleIn(JsonElement section) =>
         !section.TryGetProperty(RoleField, out var role) ? Option<ChildRole>.None

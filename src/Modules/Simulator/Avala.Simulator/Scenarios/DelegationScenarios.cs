@@ -92,6 +92,72 @@ internal static class DelegationScenarios
         Resumed("The migration came back after the restart."),
     ]);
 
+    public static Scenario DelegatedQuestion { get; } = new("delegate-question",
+    [
+        [
+            Thought("The orders need a database. ", "A sub-agent will find out which."),
+            Delegation("delegate-database", """{ "instruction": "[simulate: question] Choose the orders database" }"""),
+            Message("The sub-agent asked which database to use."),
+            .. Bill(1_700, 120, 0.0065m, 0.22),
+            new Finish(),
+        ],
+        [
+            Thought("The sub-agent waits for my answer."),
+            .. Bill(1_000, 60, 0.0040m, 0.24),
+            new Finish(),
+        ],
+        Resumed("The database question came back after the restart."),
+    ]);
+
+    public static Scenario DelegatedQuestionBlocked { get; } = new("delegate-question-blocked",
+    [
+        [
+            Thought("The orders need a database. ", "A sub-agent will ask me which one, and I will think it over."),
+            new CallTools([Delegation("delegate-database", """{ "instruction": "[simulate: question] Choose the orders database" }""")]),
+            Message("The database question came back."),
+            .. Bill(1_700, 120, 0.0065m, 0.22),
+            new Finish(),
+        ],
+        Resumed("Back after the restart."),
+        [
+            Thought("My sub-agent still waits for my answer."),
+            .. Bill(1_000, 60, 0.0040m, 0.24),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario FixOrchestrated { get; } = new("fix-orchestrated",
+    [
+        [
+            Thought("A sub-agent picks the storage; ", "then I ask the person to approve the plan."),
+            new CallTools([Delegation("delegate-database", """{ "instruction": "[simulate: question] Choose the orders database" }""")])
+            {
+                AnswersChildren = "allow",
+            },
+            new Ask(new ItemId("plan"), new AgentForm(
+                FormPurpose.PlanApproval,
+                "Approve the plan",
+                "1. Fix the sum\n2. Run the tests",
+                [new FormField("approve", "Plan", "Proceed with this plan?", FieldKind.Confirmation, [], AcceptsFreeText: true)])),
+            new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),
+            Message("The sum is fixed."),
+            .. Bill(2_400, 170, 0.0090m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario FixWithChildPermission { get; } = new("fix-child-permission",
+    [
+        [
+            Thought("The fix needs a migration. ", "A sub-agent will run it."),
+            Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database" }"""),
+            new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),
+            Message("The sum is fixed and the database migrated."),
+            .. Bill(2_300, 160, 0.0085m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedPaused { get; } = new("delegate-paused",
     [
         [
@@ -246,8 +312,8 @@ internal static class DelegationScenarios
     public static Scenario DelegatedAsking { get; } = new("delegate-asks-parent",
     [
         [
-            Thought("The migration is routine. ", "A supervised sub-agent will run it and ask me first."),
-            new CallTools([Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database", "autonomy": "supervised" }""")])
+            Thought("The orders need a database. ", "A sub-agent will ask me which one."),
+            new CallTools([Delegation("delegate-migrate", """{ "instruction": "[simulate: question] Choose the orders database" }""")])
             {
                 AnswersChildren = "allow",
             },
@@ -260,11 +326,11 @@ internal static class DelegationScenarios
     public static Scenario DelegatedAskingAlongside { get; } = new("delegate-asks-parent-alongside",
     [
         [
-            Thought("Two pieces of work at once. ", "Each sub-agent will ask me first."),
+            Thought("Two pieces of work at once. ", "Each sub-agent will ask me something."),
             new CallTools(
             [
-                Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database", "autonomy": "supervised" }"""),
-                Delegation("delegate-seed", """{ "instruction": "[simulate: permission] Seed the database", "autonomy": "supervised" }"""),
+                Delegation("delegate-migrate", """{ "instruction": "[simulate: question] Choose the orders database" }"""),
+                Delegation("delegate-seed", """{ "instruction": "[simulate: question] Choose the seed database" }"""),
             ])
             {
                 AnswersChildren = "allow",
@@ -278,8 +344,8 @@ internal static class DelegationScenarios
     public static Scenario DelegatedAskingThenReviewed { get; } = new("delegate-asks-parent-then-review",
     [
         [
-            Thought("A supervised sub-agent writes mul and asks me first; ", "a reviewer reads it afterwards."),
-            new CallTools([Delegation("delegate-worker", """{ "instruction": "[simulate: mul-asks] Implement mul(a, b) in calc.js with a test, and run node demo.js once", "autonomy": "supervised" }""")])
+            Thought("A sub-agent writes mul and asks me how first; ", "a reviewer reads it afterwards."),
+            new CallTools([Delegation("delegate-worker", """{ "instruction": "[simulate: mul-asks] Implement mul(a, b) in calc.js with a test, and run node demo.js once" }""")])
             {
                 AnswersChildren = "allow",
             },
@@ -295,9 +361,14 @@ internal static class DelegationScenarios
     [
         [
             Thought("Adding mul with its test, ", "then showing the demo."),
+            new Ask(new ItemId("rounding"), new AgentForm(
+                FormPurpose.Question,
+                "Round the product?",
+                "mul(a, b) can return the exact product or round it.",
+                [new FormField("rounding", "Rounding", "Should mul round its result?", FieldKind.SingleChoice, [new FormOption("No", "Return the exact product.", Recommended: true), new FormOption("Yes", "Round to an integer.")])])),
             new WriteFile(new ItemId("mul"), "calc.js", "module.exports = { add: (a, b) => a + b, mul: (a, b) => a * b };\n"),
             new WriteFile(new ItemId("mul-test"), "test/mul.test.js", "const test = require('node:test');\nconst assert = require('node:assert');\nconst { mul } = require('../calc');\n\ntest('multiplies', () => assert.strictEqual(mul(2, 3), 6));\n"),
-            new RunCommand(new ItemId("demo"), "node demo.js", "5", AsksPermission: true),
+            new RunCommand(new ItemId("demo"), "node demo.js", "5", AsksPermission: false),
             Message("Added mul with a test; node demo.js prints 5."),
             .. Bill(1_500, 100, 0.0055m, 0.20),
             new Finish(),
@@ -328,7 +399,7 @@ internal static class DelegationScenarios
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Delegated, DelegatedWithAgents, NotesWithAgents, Subagents, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
+        Delegated, DelegatedWithAgents, NotesWithAgents, Subagents, DelegatedConflict, DelegatedWaiting, DelegatedQuestion, DelegatedQuestionBlocked, FixOrchestrated, FixWithChildPermission, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
         DelegatedAsking, DelegatedAskingAlongside, DelegatedAskingThenReviewed, DelegatedReview,
         Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review, MulAsking,
     ];

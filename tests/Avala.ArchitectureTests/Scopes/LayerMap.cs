@@ -281,7 +281,6 @@ internal static class LayerMap
             ["Escalating"] = Layer.Application,
             ["Listing"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
-            ["MachineFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),

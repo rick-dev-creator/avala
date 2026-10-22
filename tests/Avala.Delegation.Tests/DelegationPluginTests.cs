@@ -59,9 +59,9 @@ public sealed class DelegationPluginTests
         Assert.Contains(composition.Get<SubagentDesk>(), composition.All<IHandle<JobSessionStarted>>());
         Assert.Same(composition.Get<SubagentDesk>(), composition.Get<IHandle<SessionEnded>>());
         Assert.Same(composition.Get<ChildTerms>(), composition.Get<IJobTerms>());
-        Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<PermissionDecided>>());
         Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<FormDecided>>());
-        Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobProgressed>>());
+        Assert.Contains(composition.Get<ParentNotes>(), composition.All<IHandle<JobProgressed>>());
+        Assert.Contains(composition.Get<DelegationDesk>(), composition.All<IHandle<JobProgressed>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobHeld>>());
     }
 
@@ -72,6 +72,7 @@ public sealed class DelegationPluginTests
         return PluginComposition.Of(new DelegationPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IJobs>(jobs)
             .AddSingleton<IJobCatalog>(jobs)
+            .AddSingleton<IJobMessages>(jobs)
             .AddSingleton<IAgents>(new ReturningAgents())
             .AddSingleton<IPermissionAudit>(new FixedAudit())
             .AddSingleton<IParentAnswers>(new RecordingParentAnswers())

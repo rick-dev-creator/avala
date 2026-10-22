@@ -42,114 +42,61 @@ public sealed class ParentAnswersTests
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task ARequestASupervisedChildWouldLeaveToAPersonIsLeftToItsParentInsteadAsync()
+    public async Task AChildsPermissionRequestGoesToAPersonAndNeverToItsParentAsync()
     {
         var asked = await AskedAsync();
 
-        Assert.Equal((DecisionDelivery.LeftToParent, Option<JobId>.Some(parentJob), PolicyAnswer.Ask), (asked.Delivery, asked.Parent, asked.Answer));
-        Assert.Empty(agents.Responses);
-    }
-
-    [Fact]
-    public async Task AParentAllowsWhatItsOwnPolicyAllowsItselfAndTheAnswerIsAuditedAsTheParentsAsync()
-    {
-        await AskedAsync();
-        await ParentAsync(Autonomy.Autonomous);
-
-        var answer = Outcomes.Succeeds(await answers.AnswerAsync(child, Reply(PermissionAnswer.Allow), Cancellation));
-
-        Assert.Equal((child, PermissionAnswer.Allow), (Assert.Single(agents.Responses).Item1, agents.Responses[0].Item2.Answer));
-        Assert.Equal((Option<JobId>.Some(parentJob), Option<JobId>.Some(childJob), Migration), (answer.Parent, answer.Job, answer.Target));
-        Assert.Equal([answer], book.AnswersOfJob(childJob));
-        Assert.Equal([answer], book.AnswersGivenBy(parentJob));
-        var decided = Assert.IsType<PermissionDecided>(bus.Published[^2]).Decision;
-        Assert.Equal((DecisionDelivery.Answered, Option<JobId>.Some(parentJob)), (decided.Delivery, decided.Parent));
-    }
-
-    [Theory]
-    [InlineData(Autonomy.Supervised)]
-    [InlineData(null)]
-    public async Task AParentCannotAllowWhatItsOwnPolicyWouldNotAllowItselfSoItGoesToAPersonAsync(Autonomy? level)
-    {
-        await AskedAsync();
-        await ParentAsync(level ?? Autonomy.Autonomous, deniesMigrations: level is null);
-
-        Assert.Equal(PolicyError.BeyondParent, Outcomes.FailsWith(await answers.AnswerAsync(child, Reply(PermissionAnswer.Allow), Cancellation)));
-
-        Assert.Empty(agents.Responses);
-        Assert.Empty(book.AnswersOfJob(childJob));
-        var passed = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
-        Assert.Equal((DecisionDelivery.LeftToHuman, Option<PassReason>.Some(PassReason.BeyondParent)), (passed.Delivery, passed.Passed));
-    }
-
-    [Fact]
-    public async Task AParentMayDenyWithAMessageWhateverItsOwnPolicySaysAsync()
-    {
-        await AskedAsync();
-        await ParentAsync(Autonomy.Supervised);
-
-        var answer = Outcomes.Succeeds(await answers.AnswerAsync(child, Reply(PermissionAnswer.Deny) with { Message = "Use the staging database." }, Cancellation));
-
-        Assert.Equal((PermissionAnswer.Deny, Option<string>.Some("Use the staging database.")), (agents.Responses[0].Item2.Answer, agents.Responses[0].Item2.Message));
-        Assert.Equal(Option<JobId>.Some(parentJob), answer.Parent);
-    }
-
-    [Fact]
-    public async Task ARequestPassedToAPersonIsNoLongerTheParentsToAnswerAndIsPassedOnlyOnceAsync()
-    {
-        await AskedAsync();
-        await ParentAsync(Autonomy.Autonomous);
-
-        var first = await answers.PassAsync(child, new ItemId("migrate"), PassReason.ParentTimedOut, Cancellation);
-        var second = await answers.PassAsync(child, new ItemId("migrate"), PassReason.PassedByParent, Cancellation);
-
-        Assert.Equal((true, false), (first, second));
-        Assert.Equal(PolicyError.NotAwaitingAnswer, Outcomes.FailsWith(await answers.AnswerAsync(child, Reply(PermissionAnswer.Allow), Cancellation)));
-        Assert.Empty(agents.Responses);
-        Assert.Equal(Option<PassReason>.Some(PassReason.ParentTimedOut), Assert.Single(book.OfSession(child)).Passed);
+        Assert.Equal((DecisionDelivery.LeftToHuman, Option<JobId>.None, PolicyAnswer.Ask), (asked.Delivery, asked.Parent, asked.Answer));
         Outcomes.Succeeds(await people.AnswerAsync(child, new PermissionReply(new ItemId("migrate"), PermissionAnswer.Allow), Cancellation));
+        Assert.Equal((child, PermissionAnswer.Allow), (Assert.Single(agents.Responses).Item1, agents.Responses[0].Item2.Answer));
     }
 
     [Fact]
-    public async Task APersonMayAnswerARequestLeftToTheParentAndThenTheParentCannotAsync()
+    public async Task AChildsQuestionGoesToItsParentAndAPermissionAskedThroughAFormGoesToAPersonAsync()
     {
-        await AskedAsync();
-        await ParentAsync(Autonomy.Autonomous);
+        var question = await FormAsync("database", FormPurpose.Question);
+        var permission = await FormAsync("grant", FormPurpose.Permission);
 
-        Outcomes.Succeeds(await people.AnswerAsync(child, new PermissionReply(new ItemId("migrate"), PermissionAnswer.Deny), Cancellation));
-        await governor.HandleAsync(new AgentActivity(new PermissionResolved(child, TurnId.New(), new ItemId("migrate"), PermissionAnswer.Deny)), Cancellation);
-
-        Assert.Equal(PolicyError.NotAwaitingAnswer, Outcomes.FailsWith(await answers.AnswerAsync(child, Reply(PermissionAnswer.Allow), Cancellation)));
-        Assert.False(await answers.PassAsync(child, new ItemId("migrate"), PassReason.ParentTimedOut, Cancellation));
-        Assert.Single(agents.Responses);
+        Assert.Equal((DecisionDelivery.LeftToParent, Option<JobId>.Some(parentJob)), (question.Delivery, question.Parent));
+        Assert.Equal((DecisionDelivery.LeftToHuman, Option<JobId>.None), (permission.Delivery, permission.Parent));
     }
 
     [Fact]
-    public async Task AJobThatIsNotTheChildsParentCannotAnswerItAsync()
+    public async Task AChildsQuestionGoesToItsParentEvenWhereItsAutonomyWouldHaveAnsweredItAsync()
     {
-        await AskedAsync();
-        var stranger = SessionId.New();
-        book.Keep(book.Of(stranger).WorkingOn(JobId.New()) with { Policy = new PermissionPolicy([], Autonomy.Autonomous, FormStrategy.Recommended) });
+        await governor.HandleAsync(new JobSessionStarted(childJob, child), Cancellation);
+        book.Keep(book.Of(child) with { Policy = new PermissionPolicy([], Autonomy.Autonomous, FormStrategy.Recommended) });
 
-        Assert.Equal(PolicyError.NotAwaitingAnswer, Outcomes.FailsWith(await answers.AnswerAsync(child, Reply(PermissionAnswer.Allow) with { Parent = stranger }, Cancellation)));
-        Assert.Empty(agents.Responses);
+        var question = await FormAsync("database", FormPurpose.Question);
+
+        Assert.Equal(DecisionDelivery.LeftToParent, question.Delivery);
+        Assert.Empty(agents.Answers);
     }
 
     [Fact]
-    public async Task AParentAnswersAQuestionOfItsChildButCanOnlyDeclineAPermissionFormAsync()
+    public async Task AParentAnswersAQuestionOfItsChildOnceAsync()
     {
         await ParentAsync(Autonomy.Supervised);
         var question = await FormAsync("database", FormPurpose.Question);
-        var permission = await FormAsync("grant", FormPurpose.Permission);
         var chosen = new FormAnswer(question.Item, [new FieldAnswer("choice") { Chosen = ["PostgreSQL"] }]) { AnsweredBy = MessageAuthor.Avala };
 
         var answered = Outcomes.Succeeds(await answers.AnswerFormAsync(child, new ParentFormReply(parent, chosen with { AnsweredBy = MessageAuthor.Person }), Cancellation));
-        var refused = Outcomes.FailsWith(await answers.AnswerFormAsync(child, new ParentFormReply(parent, new FormAnswer(permission.Item, [new FieldAnswer("choice") { Chosen = ["PostgreSQL"] }])), Cancellation));
+        var again = Outcomes.FailsWith(await answers.AnswerFormAsync(child, new ParentFormReply(parent, chosen), Cancellation));
 
         Assert.Equal((DecisionDelivery.Answered, Option<FormAnswer>.Some(chosen), Option<JobId>.Some(parentJob)), (answered.Delivery, answered.Answer, answered.Parent));
-        Assert.Equal(PolicyError.BeyondParent, refused);
+        Assert.Equal(PolicyError.NotAwaitingAnswer, again);
         Assert.Equal([chosen], agents.Answers.Select(found => found.Item2));
-        Assert.Equal(Option<PassReason>.Some(PassReason.BeyondParent), book.FormsOfSession(child).Single(form => form.Item == permission.Item).Passed);
+    }
+
+    [Fact]
+    public async Task AJobThatIsNotTheChildsParentCannotAnswerItsQuestionAsync()
+    {
+        var question = await FormAsync("database", FormPurpose.Question);
+        var stranger = SessionId.New();
+        book.Keep(book.Of(stranger).WorkingOn(JobId.New()));
+
+        Assert.Equal(PolicyError.NotAwaitingAnswer, Outcomes.FailsWith(await answers.AnswerFormAsync(child, new ParentFormReply(stranger, new FormAnswer(question.Item, [new FieldAnswer("choice") { Chosen = ["SQLite"] }])), Cancellation)));
+        Assert.Empty(agents.Answers);
     }
 
     [Fact]
@@ -165,8 +112,6 @@ public sealed class ParentAnswersTests
         Assert.Equal(PolicyError.InvalidAnswer, refused);
         Assert.Equal(DecisionDelivery.Answered, Outcomes.Succeeds(await answers.AnswerFormAsync(child, new ParentFormReply(parent, new FormAnswer(question.Item, [new FieldAnswer("choice") { Chosen = ["SQLite"] }])), Cancellation)).Delivery);
     }
-
-    private ParentReply Reply(PermissionAnswer answer) => new(new ItemId("migrate"), parent, answer);
 
     private async Task<PolicyDecision> AskedAsync()
     {

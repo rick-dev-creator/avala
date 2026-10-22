@@ -168,11 +168,6 @@ internal sealed class DogfoodScene(DogfoodStage stage, DogfoodApp app, DogfoodAc
             return;
         }
 
-        if (decision.Parent.IsSome && decision.Passed.IsNone)
-        {
-            evidence.Find($"A request of the sub-agent {evidence.Name(decision.Job)} went to a person without a pass reason: {decision.Kind} {decision.Target}");
-        }
-
         if (Answering is { } answering && await answering(decision))
         {
             return;

@@ -19,7 +19,7 @@ public sealed class StopChildTests
     {
         await using var desk = await StartedAsync();
         var child = await desk.DelegateAsync("migrate", "Migrate the database");
-        await desk.Notes.HandleAsync(new PermissionDecided(Asked(desk, child)), Cancellation);
+        await desk.Notes.HandleAsync(new FormDecided(desk.Question(child)), Cancellation);
 
         await desk.StopChildAsync("stop", child);
         await desk.ProgressAsync(child, JobStatus.Discarded);
@@ -54,16 +54,10 @@ public sealed class StopChildTests
 
     private static async Task<Desk> StartedAsync()
     {
-        var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Escalation = new EscalationTerms(true, TimeSpan.FromSeconds(60)) }));
+        var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared));
         await desk.StartedAsync();
         desk.Audit.Working[desk.Session] = desk.Parent;
 
         return desk;
     }
-
-    private static PolicyDecision Asked(Desk desk, JobId child) =>
-        new(SessionId.New(), TurnId.New(), new ItemId("run"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, desk.Clock.GetUtcNow())
-        {
-            Parent = desk.Parent,
-        };
 }

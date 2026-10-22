@@ -124,42 +124,44 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AChildsRequestWaitingOnItsParentAndThenGroupedUnderItInTheDecisionsAsync()
+    public async Task AChildsQuestionWaitingOnItsParentAndAChildsPermissionGroupedUnderItInTheDecisionsAsync()
     {
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
         var asked = run.Watch<Avala.Delegation.Contracts.ParentAsked>();
-        var decided = run.Watch<PermissionDecided>();
         var workbench = await run.WorkbenchAsync();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
         var waiting = await asked.UntilAsync(_ => true);
         var conversation = await workbench.SelectAsync(parent);
-        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "ToolViewModel") == 2 && ChildRow(workbench, Outcomes.Present(waiting.Delegation.Child)) is not null);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null && ChildRow(workbench, Outcomes.Present(waiting.Delegation.Child)) is not null);
 
         await Camera.ShootAsync(run, "14-parent-conversation-while-subagent-waits-for-it-dark");
 
-        run.AdvanceTo(waiting.Until);
-        _ = await decided.UntilAsync(update => update.Decision.Passed.IsSome);
-        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
-        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1);
-        await run.Ui.InvokeAsync(() => workbench.Toolbar.Execute("ToggleDecisionsCommand"), Cancellation);
-        await Camera.ShootAsync(run, "15-decisions-popover-child-request-under-its-parent-dark");
+        await using var permission = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        var decided = permission.Watch<PermissionDecided>();
+        var bench = await permission.WorkbenchAsync();
+        var waits = Outcomes.Succeeds(await permission.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        _ = await decided.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(waits) && update.Decision.Delivery == DecisionDelivery.LeftToHuman);
+        var decisions = await permission.Ui.ReadAsync(() => bench.Toolbar["Decisions"]);
+        await bench.ShowsAsync(() => decisions["Items"].Items.Count == 1);
+        await permission.Ui.InvokeAsync(() => bench.Toolbar.Execute("ToggleDecisionsCommand"), Cancellation);
+        await Camera.ShootAsync(permission, "15-decisions-popover-child-request-under-its-parent-dark");
     }
 
     [Fact]
-    public async Task AChildsCardAllowedByItsParentAndAReadOnlyReviewerChildAsync()
+    public async Task AChildsQuestionAnsweredByItsParentAndAReadOnlyReviewerChildAsync()
     {
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", AsksParent));
-        var decided = run.Watch<PermissionDecided>();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Migrate the orders database")));
+        var decided = run.Watch<FormDecided>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Choose the orders database")));
         var asked = (await decided.UntilAsync(update => update.Decision.Delivery == DecisionDelivery.LeftToParent)).Decision;
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(parent));
         var child = Outcomes.Present(asked.Job);
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(parent);
         var conversation = await SelectChildAsync(run, workbench, child);
-        await workbench.ShowsAsync(() => Card(conversation) is { } card && card["Verdict"].Text.Contains("by its parent", StringComparison.Ordinal));
+        await workbench.ShowsAsync(() => FormCard(conversation) is { } card && card["Verdict"].Text.Contains("by its parent", StringComparison.Ordinal));
         await Camera.ShootAsync(run, "16-child-card-allowed-by-its-parent-dark", window => FeatureCamera.ScrollTo(window, "by its parent"));
 
         await using var review = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "delegation": {} }"""));
@@ -463,7 +465,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
-    private const string AsksParent = """{ "delegation": { "escalation": "parent", "parentWindowSeconds": 600 } }""";
+    private const string AsksParent = """{ "delegation": {} }""";
 
     private static async Task<Bound> SelectChildAsync(SimulatedRun run, OpenWorkbench workbench, JobId child)
     {
@@ -569,6 +571,6 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    private static Bound? Card(Bound conversation) =>
-        conversation["Entries"].Items.Cast<Bound?>().FirstOrDefault(entry => entry!.Value.Kind == "PermissionCardViewModel");
+    private static Bound? FormCard(Bound conversation) =>
+        conversation["Entries"].Items.Cast<Bound?>().FirstOrDefault(entry => entry!.Value.Kind == "FormCardViewModel");
 }

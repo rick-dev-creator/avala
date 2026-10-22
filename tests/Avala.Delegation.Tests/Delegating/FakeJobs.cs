@@ -7,7 +7,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Delegation.Tests.Delegating;
 
-internal sealed class FakeJobs : IJobs, IJobCatalog
+internal sealed class FakeJobs : IJobs, IJobCatalog, IJobMessages
 {
     public const string Repository = "/repos/shop";
 
@@ -19,6 +19,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentQueue<MessageAuthor> steeredBy = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> continued = new();
     private readonly ConcurrentQueue<MessageAuthor> continuedBy = new();
+    private readonly ConcurrentQueue<(JobId Job, JobMessage Message)> sentBack = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
 
@@ -140,6 +141,15 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    public IReadOnlyList<(JobId Job, JobMessage Message)> SentBack => [.. sentBack];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        sentBack.Enqueue((job, message));
+
+        return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.ResumedConversation)));
+    }
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

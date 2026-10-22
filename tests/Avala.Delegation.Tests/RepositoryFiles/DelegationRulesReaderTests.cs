@@ -20,7 +20,7 @@ public sealed class DelegationRulesReaderTests
     {
         var committed = new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, """{ "delegation": { "maxDepth": 2 } }""", editedInWorktree: true);
 
-        var rules = Outcomes.Present(Outcomes.Succeeds(await new DelegationRulesReader(committed, new FixedMachine()).OfWorktreeAsync(Worktree, Cancellation)));
+        var rules = Outcomes.Present(Outcomes.Succeeds(await new DelegationRulesReader(committed).OfWorktreeAsync(Worktree, Cancellation)));
 
         Assert.Equal(2, rules.MaxDepth);
         Assert.Equal([(Worktree, DelegationRulesReader.JobFile)], committed.Reads);
@@ -30,13 +30,13 @@ public sealed class DelegationRulesReaderTests
     public async Task ABaseCommitWithoutAJobFileDeclaresNoDelegationAsync() =>
         Assert.Equal(
             Option<DelegationRules>.None,
-            Outcomes.Succeeds(await new DelegationRulesReader(new CommittedFiles().Workspace(Worktree), new FixedMachine()).OfWorktreeAsync(Worktree, Cancellation)));
+            Outcomes.Succeeds(await new DelegationRulesReader(new CommittedFiles().Workspace(Worktree)).OfWorktreeAsync(Worktree, Cancellation)));
 
     [Fact]
     public async Task AJobFileThatCannotBeReadOrIsTooLargeIsRejectedAsync()
     {
-        var failing = new DelegationRulesReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed), new FixedMachine());
-        var large = new DelegationRulesReader(new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, new string(' ', DelegationRulesReader.MaximumBytes + 1)), new FixedMachine());
+        var failing = new DelegationRulesReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed));
+        var large = new DelegationRulesReader(new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, new string(' ', DelegationRulesReader.MaximumBytes + 1)));
 
         Assert.Equal(DelegationError.Unreadable, Outcomes.FailsWith(await failing.OfWorktreeAsync(Worktree, Cancellation)));
         Assert.Equal(DelegationError.TooLarge, Outcomes.FailsWith(await large.OfWorktreeAsync(Worktree, Cancellation)));
@@ -46,10 +46,9 @@ public sealed class DelegationRulesReaderTests
     public async Task ARolesModelEffortAndWindowAreOfferedFromTheRulesCommitAndUndeclaredOrUnreadableRulesOfferTheDefaultAsync()
     {
         var declared = new DelegationRulesReader(
-            new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, """{ "delegation": { "roles": { "research": { "model": "small", "effort": "low", "compactAt": 90000 } } } }"""),
-            new FixedMachine());
-        var undeclared = new DelegationRulesReader(new CommittedFiles().Workspace(Worktree), new FixedMachine());
-        var unreadable = new DelegationRulesReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed), new FixedMachine());
+            new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, """{ "delegation": { "roles": { "research": { "model": "small", "effort": "low", "compactAt": 90000 } } } }"""));
+        var undeclared = new DelegationRulesReader(new CommittedFiles().Workspace(Worktree));
+        var unreadable = new DelegationRulesReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed));
 
         Assert.Equal(new ModelChoice(Option<string>.Some("small"), Option<string>.Some("low")) { CompactAt = 90_000L }, await declared.OfRoleAsync(Worktree, ChildRole.Research, Cancellation));
         Assert.Equal(ModelChoice.Default, await declared.OfRoleAsync(Worktree, ChildRole.Worker, Cancellation));

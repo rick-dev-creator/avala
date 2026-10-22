@@ -23,6 +23,11 @@ public sealed class FormCardViewModelScripts
             });
 
     [Fact]
+    public void ASubAgentsQuestionWaitingForItsOrchestratorIsNotYoursToAnswer() =>
+        ViewModelScript.Given(new FormCardViewModel(asking.AskingParent(Jobs.Contracts.JobId.New()), Replying.With(new FakePermissionAnswers(), agents)))
+            .Then(card => Assert.Equal(("Waiting for its parent", false, false, false), (card.Verdict, card.AwaitsYou, card.SubmitCommand.CanExecute(null), card.DeclineCommand.CanExecute(null))));
+
+    [Fact]
     public async Task AFormIsAnsweredWithItsRecommendedOptionsByDefault()
     {
         await Card().SubmitCommand.ExecuteAsync(null);

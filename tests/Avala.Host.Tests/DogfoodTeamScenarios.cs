@@ -14,8 +14,8 @@ internal static class DogfoodTeamScenarios
 {
     private const string Orchestration =
         "Work as an orchestrator, in this order. "
-        + "1) Delegate to one sub-agent with `autonomy: \"supervised\"`: implement `mul(a, b)` in calc.js with a `node:test` test in test/mul.test.js, and run `node demo.js` once to show the result. "
-        + "2) While you wait, if the `delegate` call returns with outcome `asking`, decide it with `answer_child` (allow ordinary development actions inside the repository), then call `wait_child`. "
+        + "1) Delegate to one sub-agent with `autonomy: \"supervised\"`: implement `mul(a, b)` in calc.js with a `node:test` test in test/mul.test.js, and run `node demo.js` once to show the result; tell it to ask you first, with its question tool, whether mul should round its result. "
+        + "2) While you wait, if the `delegate` call returns with outcome `asking`, answer its question with `answer_child` (allow, with a choice for each field), then call `wait_child`. "
         + "3) After it is integrated, run `node --test`. "
         + "4) Then delegate one review with `role: \"reviewer\"`: it reviews calc.js and its tests and writes REVIEW.md (or reports its findings in its final message if it cannot write). "
         + "5) Finish with a short summary. Do not start servers, install anything or use the network.";
@@ -36,7 +36,7 @@ internal static class DogfoodTeamScenarios
                     {
                       "connection": "{{Lead}}",
                       "approval": "keep",
-                      "delegation": { "connections": ["{{Main}}"], "maxDepth": 1, "maxChildren": 2, "escalation": "parent", "parentWindowSeconds": 180, "role": "worker" }
+                      "delegation": { "connections": ["{{Main}}"], "maxDepth": 1, "maxChildren": 2, "role": "worker" }
                     }
                     """),
             ],
@@ -66,15 +66,16 @@ internal static class DogfoodTeamScenarios
             OfJob("The parent calls answer_child with allow and the answer names the parent", "s11", (evidence, parent) =>
             {
                 var called = evidence.AgentOf(parent).OfType<ToolCalled>().Where(call => call.Tool.EndsWith("answer_child", StringComparison.Ordinal)).ToList();
-                var answered = evidence.All<PermissionAnswered>(found => found.Answer.Parent == Option<JobId>.Some(parent)).ToList();
+                var answered = evidence.All<FormDecided>(found => found.Decision.Delivery == DecisionDelivery.Answered && found.Decision.Parent == Option<JobId>.Some(parent)).ToList();
 
                 return Expect(evidence, called.Any(call => call.Input.Contains("allow", StringComparison.Ordinal)) && answered.Count > 0, $"answer_child calls [{string.Join(" | ", called.Select(call => call.Input))}], answers by the parent {answered.Count}");
             }),
-            OfJob("The child's audit holds the answer given by its parent", "s11", (evidence, parent) =>
+            OfJob("The child's question is answered by its parent", "s11", (evidence, parent) =>
             {
                 var children = Children(evidence, parent);
+                var questions = evidence.All<FormDecided>(found => found.Decision.Job.Match(children.Contains, () => false)).Select(found => found.Decision).ToList();
 
-                return Expect(evidence, evidence.All<PermissionAnswered>(found => found.Answer.Parent == Option<JobId>.Some(parent) && found.Answer.Job.Match(children.Contains, () => false) && found.Answer.Answer == PermissionAnswer.Allow).Any(), $"answers of the children [{string.Join(", ", evidence.All<PermissionAnswered>(found => found.Answer.Job.Match(children.Contains, () => false)).Select(found => $"{found.Answer.Target} {found.Answer.Answer} by {evidence.Name(found.Answer.Parent)}"))}]");
+                return Expect(evidence, questions.Any(decision => decision.Delivery == DecisionDelivery.Answered && decision.Parent == Option<JobId>.Some(parent)), $"questions of the children [{string.Join(", ", questions.Select(decision => $"{decision.Form.Title} {decision.Delivery} by {evidence.Name(decision.Parent)}"))}]");
             }),
             new("wait_child returns the report: ChildReported Integrated, ReportDelivered through the tool result", evidence =>
             {
@@ -110,12 +111,12 @@ internal static class DogfoodTeamScenarios
                     : Expect(evidence, reviewer.Report.Match(report => report.Outcome == ChildOutcome.Reported && report.Status == JobStatus.Discarded, () => false) && evidence.Fact("parent:review-file") == "absent", $"edit denied by the read-only rule {denied}, report {reviewer.Report.Match(report => $"{report.Outcome} {report.Status}", () => "none")}, REVIEW.md in the parent {evidence.Fact("parent:review-file")}");
             }),
             Journey("The parent reaches review and approval keeps it", "s11", JobStatus.AwaitingReview, JobStatus.Approved),
-            OfJob("No request of a child is left to a person without a reason", "s11", (evidence, parent) =>
+            OfJob("No question of a child goes to a person", "s11", (evidence, parent) =>
             {
                 var children = Children(evidence, parent);
-                var passed = evidence.All<PermissionDecided>(found => found.Decision.Delivery == DecisionDelivery.LeftToHuman && found.Decision.Job.Match(children.Contains, () => false)).Select(found => found.Decision).ToList();
+                var asked = evidence.All<FormDecided>(found => found.Decision.Delivery == DecisionDelivery.LeftToHuman && found.Decision.Job.Match(children.Contains, () => false)).Select(found => found.Decision).ToList();
 
-                return Expect(evidence, children.Count > 0 && passed.All(decision => decision.Passed.IsSome), $"{passed.Count} child requests went to a person: [{string.Join(", ", passed.Select(decision => $"{decision.Target} ({decision.Passed.Match(reason => reason.ToString(), () => "no reason")})"))}]");
+                return Expect(evidence, children.Count > 0 && asked.Count == 0, $"{asked.Count} child questions went to a person: [{string.Join(", ", asked.Select(decision => decision.Form.Title))}]");
             }),
         ],
     };

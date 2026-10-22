@@ -159,7 +159,6 @@ public sealed class InspectorPhrasesTests
             [
                 "Asked its parent: run dotnet ef database update · waiting for its parent",
                 "Asked its parent: run dotnet ef database update",
-                "Asked its parent: run dotnet ef database update · went to you, its parent did not answer in time · unanswered",
                 "Its parent allowed: run dotnet ef database update",
                 "Allowed for a sub-agent: run dotnet ef database update",
                 " · 1 answered by its parent · 2 answers given to its sub-agents",
@@ -167,7 +166,6 @@ public sealed class InspectorPhrasesTests
             [
                 InspectorPhrases.Decision(decision, [], asked),
                 InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.Answered }, [answer], asked),
-                InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.LeftToHuman, Passed = PassReason.ParentTimedOut }, [], asked),
                 InspectorPhrases.Answer(answer),
                 InspectorPhrases.Given(answer),
                 InspectorPhrases.ByParent(1, 2),

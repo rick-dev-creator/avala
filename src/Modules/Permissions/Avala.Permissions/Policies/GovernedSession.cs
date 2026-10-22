@@ -30,7 +30,7 @@ internal sealed record GovernedSession(
 
     public Option<JobId> AsksParent { get; init; }
 
-    public ImmutableDictionary<ItemId, Option<PermissionRequest>> Escalated { get; init; } = ImmutableDictionary<ItemId, Option<PermissionRequest>>.Empty;
+    public ImmutableHashSet<ItemId> Escalated { get; init; } = [];
 
     public GovernedSession OpenedIn(string workingDirectory, PermissionPolicy policy, SessionPolicy report) =>
         this with { WorkingDirectory = workingDirectory, Policy = policy, Report = report };
@@ -64,25 +64,20 @@ internal sealed record GovernedSession(
 
     public GovernedSession Asked(FormDecision decision) => this with { Forms = [.. Forms, decision] };
 
-    public GovernedSession Escalating(ItemId item, Option<PermissionRequest> request) => this with { Escalated = Escalated.SetItem(item, request) };
+    public GovernedSession Escalating(ItemId item) => this with { Escalated = Escalated.Add(item) };
 
-    public GovernedSession Settled(ItemId item) => Escalated.ContainsKey(item) ? this with { Escalated = Escalated.Remove(item) } : this;
+    public GovernedSession Settled(ItemId item) => Escalated.Contains(item) ? this with { Escalated = Escalated.Remove(item) } : this;
 
     public Option<PolicyDecision> WaitingPermission(ItemId item) =>
-        Decisions.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToHuman or DecisionDelivery.Undelivered or DecisionDelivery.LeftToParent } waiting
+        Decisions.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToHuman or DecisionDelivery.Undelivered } waiting
             ? waiting
             : Option<PolicyDecision>.None;
 
     public Option<FormDecision> WaitingForm(ItemId item) =>
         Forms.LastOrDefault(decision => decision.Item == item) is { Answer.IsNone: true, Delivery: not DecisionDelivery.Withdrawn } waiting ? waiting : Option<FormDecision>.None;
 
-    public Option<PolicyDecision> WaitingParent(ItemId item) =>
-        Escalated.ContainsKey(item) && Decisions.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToParent } waiting
-            ? waiting
-            : Option<PolicyDecision>.None;
-
     public Option<FormDecision> FormWaitingParent(ItemId item) =>
-        Escalated.ContainsKey(item) && Forms.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToParent } waiting
+        Escalated.Contains(item) && Forms.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToParent } waiting
             ? waiting
             : Option<FormDecision>.None;
 
