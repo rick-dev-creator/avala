@@ -24,24 +24,24 @@ internal sealed partial class ReadProblemViewModel : IReadProblemViewModel
 
     private void Show(Option<string> failure)
     {
-        Text = failure.Match(ReadProblemPhrases.Problem, () => string.Empty);
+        Text = failure.IsSome ? ReadProblemPhrases.Problem : string.Empty;
         IsShown = failure.IsSome;
     }
 }
 
-internal sealed class DesignReadProblemViewModel(string reason) : IReadProblemViewModel
+internal sealed class DesignReadProblemViewModel(bool failing) : IReadProblemViewModel
 {
     public DesignReadProblemViewModel()
-        : this(string.Empty)
+        : this(false)
     {
     }
 
-    public bool IsShown => reason.Length > 0;
+    public bool IsShown => failing;
 
-    public string Text => IsShown ? ReadProblemPhrases.Problem(reason) : string.Empty;
+    public string Text => failing ? ReadProblemPhrases.Problem : string.Empty;
 }
 
 internal static class ReadProblemPhrases
 {
-    public static string Problem(string reason) => $"Could not read what this shows, so it may be out of date. It updates again once a read succeeds. {reason}";
+    public const string Problem = "Avala could not read what this shows, so it may be out of date. It updates again once a read succeeds, and the details are in Avala's log.";
 }

@@ -8,9 +8,20 @@
     <usage:DesignJobMeterViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector="TextBlock#Carve, TextBlock#Interventions">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+    </Style>
+    <Style Selector="TextBlock#Carve">
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
     <ContainerQuery Name="JobMeter" Query="max-width:520">
       <Style Selector="TextBlock#Connection, Border#BarSlot">
         <Setter Property="IsVisible" Value="False" />
+      </Style>
+      <Style Selector="TextBlock#Carve, TextBlock#Interventions">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,2,0,0" />
       </Style>
     </ContainerQuery>
   </UserControl.Styles>
@@ -23,9 +34,8 @@
         <ColumnDefinition Width="Auto" SharedSizeGroup="Cost" />
       </Grid.ColumnDefinitions>
       <DockPanel>
-        <TextBlock x:Name="Carve" DockPanel.Dock="Right" Classes="caption" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Carve}" IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock x:Name="Carve" Classes="caption" VerticalAlignment="Center" Text="{Binding Carve}" IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <TextBlock x:Name="Interventions"
-                   DockPanel.Dock="Right"
                    Classes="caption attention"
                    VerticalAlignment="Center"
                    Text="{Binding Held}"

@@ -11,17 +11,15 @@ namespace Avala.Workbench.Tests.Views;
 
 public sealed class ReadProblemViewScripts(HeadlessUi ui)
 {
-    private const string Reason = "The usage store is locked";
-
     public static TheoryData<string> Followers => ["Usage", "Triggers", "Resources", "Archived", "Connections", "Delegation", "DelegationPane"];
 
     [Fact]
-    public Task AReadProblemIsShownWithItsReasonAsync() =>
+    public Task AReadProblemSaysInPlainWordsThatWhatIsShownMayBeOutOfDateAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignReadProblemViewModel(Reason));
+            var view = Screen.Show(new DesignReadProblemViewModel(true));
 
-            Assert.Equal((true, ReadProblemPhrases.Problem(Reason)), (view.Shows("Problem"), view.TextOf("Problem")));
+            Assert.Equal((true, ReadProblemPhrases.Problem), (view.Shows("Problem"), view.TextOf("Problem")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -38,9 +36,9 @@ public sealed class ReadProblemViewScripts(HeadlessUi ui)
     public Task EveryPageAndPaneFollowingALiveFeedSaysWhenItCannotReadAsync(string follower) =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(Failing(follower, new DesignReadProblemViewModel(Reason)), ThemeVariant.Dark, 1000, 700);
+            var view = Screen.Show(Failing(follower, new DesignReadProblemViewModel(true)), ThemeVariant.Dark, 1000, 700);
 
-            Assert.Equal((true, ReadProblemPhrases.Problem(Reason)), (view.Shows("ReadProblem") && view.Shows("Problem"), view.TextOf("Problem")));
+            Assert.Equal((true, ReadProblemPhrases.Problem), (view.Shows("ReadProblem") && view.Shows("Problem"), view.TextOf("Problem")));
         }, TestContext.Current.CancellationToken);
 
     private static object Failing(string follower, IReadProblemViewModel problem) =>

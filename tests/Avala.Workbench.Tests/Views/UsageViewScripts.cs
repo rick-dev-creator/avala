@@ -24,12 +24,16 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         return text.Bounds.Width + 0.5 >= longest && end <= page.Bounds.Width && text.TextLayout.TextLines.All(line => !line.HasCollapsed && line.Width <= text.Bounds.Width + 0.5);
     }
 
-    private static void Save(ViewScript view, string name)
+    private static bool Save(ViewScript view, string name)
     {
-        if (Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 } folder)
+        if (Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is not { Length: > 0 } folder || Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(view.Window) is not { } frame)
         {
-            Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(view.Window)?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, $"{name}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            return false;
         }
+
+        frame.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, $"{name}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+
+        return true;
     }
 
     [Fact]
@@ -48,7 +52,6 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
             view.Settle();
-            Save(view, "usage-272-dark");
 
             var clipped = Headers
                 .Select(name => view.Window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == name && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text)))
@@ -57,6 +60,22 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
             Assert.Empty(clipped);
         }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData("Dark")]
+    [InlineData("Light")]
+    public Task ThePageAtItsNarrowestAsync(string variant)
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 }, "Set AVALA_FEATURE_SCREENS to a folder and AVALA_HEADLESS_RENDER=1 to capture the page.");
+
+        return ui.RunAsync(() =>
+        {
+            var view = Screen.ShowStill(new DesignUsageViewModel(), variant == "Dark" ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light, 272, 2300);
+            view.Settle();
+
+            Assert.True(Save(view, $"usage-272-{variant}"));
+        }, TestContext.Current.CancellationToken);
+    }
 
     [Fact]
     public Task AtItsNarrowestAConnectionsNameProviderCostAndTokensStayApartAndInsideItsCardAsync() =>
@@ -90,6 +109,21 @@ public sealed class UsageViewScripts(HeadlessUi ui)
                 .Select(text => $"'{text.Text}' is given {text.Bounds.Width:0}");
 
             Assert.Empty(cut);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestEveryInterventionsReasonReadsWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var interventions = view.Window.GetVisualDescendants().OfType<ItemsControl>().First(list => list.Name == "InterventionList");
+
+            var clipped = interventions.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "Reason" && text.IsEffectivelyVisible && !ReadWhole(text, view.Window))
+                .Select(text => $"'{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(clipped);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

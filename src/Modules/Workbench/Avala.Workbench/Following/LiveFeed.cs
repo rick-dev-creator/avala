@@ -48,6 +48,12 @@ internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<Li
         active?.Cancel();
         active?.Dispose();
         active = null;
+
+        if (Failure.IsSome)
+        {
+            Failure = Option<string>.None;
+            Presented?.Invoke(this, new Presented(Revision));
+        }
     }
 
     public void Dispose() => Stop();

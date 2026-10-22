@@ -9,6 +9,6 @@
     <presenting:DesignReadProblemViewModel />
   </Design.DataContext>
   <Border x:Name="Banner" Classes="quiet" Padding="12,8">
-    <TextBlock x:Name="Problem" Classes="caption failure" Text="{Binding Text}" TextWrapping="Wrap" />
+    <TextBlock x:Name="Problem" Classes="caption failure" Text="{Binding Text}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
   </Border>
 </UserControl>

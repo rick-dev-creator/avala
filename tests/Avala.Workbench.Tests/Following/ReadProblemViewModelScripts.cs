@@ -29,7 +29,7 @@ public sealed class ReadProblemViewModelScripts : IDisposable
         await pulse.HandleAsync(new UsageRecorded(SessionId.New(), Avala.Sdk.Option<JobId>.None), CancellationToken.None);
 
         await ui.PresentedAsync(feed, () => !problem.IsShown, () => $"shown {problem.IsShown}");
-        Assert.Equal(((true, ReadProblemPhrases.Problem("The usage store is locked")), (false, string.Empty)), (failed, await ui.ReadAsync(() => (problem.IsShown, problem.Text))));
+        Assert.Equal(((true, ReadProblemPhrases.Problem), (false, string.Empty)), (failed, await ui.ReadAsync(() => (problem.IsShown, problem.Text))));
     }
 
     [Fact]
@@ -42,6 +42,18 @@ public sealed class ReadProblemViewModelScripts : IDisposable
         await ui.PresentedAsync(feed, () => problem.IsShown, () => $"shown {problem.IsShown}");
 
         Assert.DoesNotContain(Secret, await ui.ReadAsync(() => problem.Text), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AStoppedFeedLeavesNoReadProblemBehindAsync()
+    {
+        var problem = new ReadProblemViewModel(feed);
+        feed.Start<int>(_ => throw new IOException("The usage store is locked"), _ => { });
+        await ui.PresentedAsync(feed, () => problem.IsShown, () => $"shown {problem.IsShown}");
+
+        await ui.InvokeAsync(feed.Stop, CancellationToken.None);
+
+        Assert.Equal((false, string.Empty), await ui.ReadAsync(() => (problem.IsShown, problem.Text)));
     }
 
     public void Dispose()

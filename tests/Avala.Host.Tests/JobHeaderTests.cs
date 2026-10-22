@@ -75,31 +75,32 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
 
         Assert.True(end <= width, $"Run ends at {end:0} in a header {width:0} wide beside '{script["Problem"].Text}'");
     }
+
     [Fact]
     public async Task BesideAnOpenInspectorAtTheNarrowestWindowTheHeaderKeepsTheJobsStatusInSightAsync()
     {
-        var (status, header, _) = await NarrowestHeaderAsync("98-header-status-720-inspector");
+        var (status, header, title, _) = await NarrowestHeaderAsync("98-header-status-720-inspector");
 
-        Assert.True(status.Width > 0 && status.Right <= header.Width && status.Bottom <= header.Height, $"the status is drawn at {status} in a header {header}");
+        Assert.True(status.Width > 0 && status.Right <= header.Width && status.Bottom <= header.Height && !status.Intersects(title), $"the status is drawn at {status} beside a title at {title} in a header {header}");
     }
 
     [Fact]
     public async Task BesideAnOpenInspectorAtTheNarrowestWindowALongTitleTakesASecondLineAndOffersItselfWholeAsync()
     {
-        var (_, _, title) = await NarrowestHeaderAsync("98-header-title-720-inspector");
+        var (_, _, _, title) = await NarrowestHeaderAsync("98-header-title-720-inspector");
 
         Assert.Equal((2, true), (title.Lines, title.Tip is string tip && tip == title.Text && Title.StartsWith(tip.TrimEnd('…'), StringComparison.Ordinal)));
     }
 
     private const string Title = "[simulate: two-windows-spent] Rewrite the importer for the new CSV export format of the bank and keep the old one working";
 
-    private async Task<(Avalonia.Rect Status, Avalonia.Size Header, (int Lines, object? Tip, string? Text) Title)> NarrowestHeaderAsync(string shot)
+    private async Task<(Avalonia.Rect Status, Avalonia.Size Header, Avalonia.Rect TitleBox, (int Lines, object? Tip, string? Text) Title)> NarrowestHeaderAsync(string shot)
     {
         await using var run = await SimulatedRun.InstructedAsync(plugins, Title, [], []);
         _ = await run.SettledAsync();
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.InspectAsync(run.Job);
-        var measured = (Status: default(Avalonia.Rect), Header: default(Avalonia.Size), Title: (Lines: 0, Tip: (object?)null, Text: (string?)null));
+        var measured = (Status: default(Avalonia.Rect), Header: default(Avalonia.Size), TitleBox: default(Avalonia.Rect), Title: (Lines: 0, Tip: (object?)null, Text: (string?)null));
 
         await FeatureCamera.InWindowAsync(ui, run, ThemeVariant.Dark, async (window, drain) =>
         {
@@ -110,7 +111,9 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
             var pill = header.GetVisualDescendants().OfType<ContentControl>().First(found => found.Name == "Pill");
             var title = header.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "JobTitle");
             var origin = Avalonia.VisualExtensions.TranslatePoint(pill, default, header) ?? new Avalonia.Point(double.MaxValue, double.MaxValue);
-            measured = (pill.IsEffectivelyVisible ? new Avalonia.Rect(origin, pill.Bounds.Size) : default, header.Bounds.Size, (title.TextLayout.TextLines.Count, ToolTip.GetTip(title), title.Text));
+            var heading = header.GetVisualDescendants().OfType<StackPanel>().First(found => found.Name == "HeaderTitle");
+            var headingAt = Avalonia.VisualExtensions.TranslatePoint(heading, default, header) ?? default;
+            measured = (pill.IsEffectivelyVisible ? new Avalonia.Rect(origin, pill.Bounds.Size) : default, header.Bounds.Size, new Avalonia.Rect(headingAt, heading.Bounds.Size), (title.TextLayout.TextLines.Count, ToolTip.GetTip(title), title.Text));
 
             if (FeatureCamera.Folder is { } folder)
             {

@@ -58,7 +58,7 @@ public sealed class TriggersViewModelScripts : IDisposable
         board.Publish(board.Jobs);
 
         await ui.PresentedAsync(page, () => !page.ReadProblem.IsShown && page.Triggers.Count == 2, () => $"{page.Triggers.Count} triggers, problem '{page.ReadProblem.Text}'");
-        Assert.Equal(Avala.Workbench.Presenting.ReadProblemPhrases.Problem("triggers.json is being written"), failed);
+        Assert.Equal(Avala.Workbench.Presenting.ReadProblemPhrases.Problem, failed);
     }
 
     [Fact]
