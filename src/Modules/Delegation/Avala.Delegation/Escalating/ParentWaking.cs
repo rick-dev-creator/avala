@@ -15,8 +15,6 @@ internal enum ParentReach
 
 internal sealed class ParentWaking(IJobs jobs, IJobMessages messages, IJobCatalog catalog)
 {
-    private static readonly HoldReason[] KeptForThePerson = [HoldReason.BudgetExceeded, HoldReason.LimitNearlyReached, HoldReason.InvalidBudget, HoldReason.MemoryExceeded, HoldReason.Stopped, HoldReason.Interrupted, HoldReason.CouldNotStart];
-
     public async Task<ParentReach> ReachAsync(JobId parent, JobId child, string note, CancellationToken cancellationToken)
     {
         if (await TellAsync(parent, note, cancellationToken))
@@ -40,7 +38,6 @@ internal sealed class ParentWaking(IJobs jobs, IJobMessages messages, IJobCatalo
     private async Task<ParentReach> WakeIdleAsync(JobSummary parent, string note, CancellationToken cancellationToken) =>
         parent.Status switch
         {
-            JobStatus.NeedsHelp when !parent.Hold.Match(KeptForThePerson.Contains, () => false) => Reached((await jobs.ContinueAsync(parent.Job, Avalas(note), cancellationToken)).IsSuccess),
             JobStatus.AwaitingReview => Reached((await messages.SendBackAsync(parent.Job, Avalas(note), cancellationToken)).IsSuccess),
             _ => ParentReach.Later,
         };

@@ -274,7 +274,9 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
         Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Interrupted)), (waiting.Status, waiting.Hold));
         Assert.False(after.Woken, "A parent the person held was woken by its child's question after a restart");
         Assert.False(steered.Woken, "The question was told to the parent as a wake instead of in the round the person started");
-        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", steered.Note, StringComparison.Ordinal);
+        Assert.Matches("^Sub-agent \".*Choose the orders database\" is waiting for you", steered.Note);
+        var continued = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(parent, Cancellation)).Attempts[^1];
+        Assert.Equal((Option<string>.Some("Carry on with the orders."), MessageAuthor.Person, MessageAuthor.Person), (continued.Guidance, continued.Author, continued.CausedBy));
     }
 
     private static string ChildFact(OpenWorkbench workbench, JobId parent) =>

@@ -37,6 +37,10 @@ internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState St
 
     public bool GivenUp { get; init; }
 
+    public bool WaitsForParent { get; init; }
+
+    public bool NeedsYou => State == SubagentState.Waiting && !WaitsForParent;
+
     public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped && Children.All(child => child.IsSettled);
 
     public int Urgency => Children.Select(child => child.Urgency).Append(AgentBranches.Rank(State)).Min();
@@ -96,6 +100,7 @@ internal static class AgentBranches
             Title = FactPhrases.Title(node.Job.Instruction),
             Node = node,
             GivenUp = node.Report.Match(report => report.Outcome == ChildOutcome.GivenUp, () => false),
+            WaitsForParent = WaitsForParent(node.Seen),
         };
     }
 
@@ -156,7 +161,9 @@ internal static class AgentBranches
             () => asking ? SubagentState.Waiting : SubagentState.Working);
 
     private static SubagentState JobState(JobSummary job, Option<BoardJob> seen) =>
-        SubagentStates.Of(job.Status, job.Hold, seen.Match(found => FactPhrases.Dot(found) is StatusKind.NeedsYou && !OnlyItsSubagentsAsk(found), () => false));
+        SubagentStates.Of(job.Status, job.Hold, seen.Match(found => FactPhrases.Dot(found) is StatusKind.NeedsYou && !OnlyItsSubagentsAsk(found), () => false) || WaitsForParent(seen));
+
+    public static bool WaitsForParent(Option<BoardJob> seen) => seen.Match(found => found.Fact.Kind == FactKind.WaitsForParent, () => false);
 
     private static bool OnlyItsSubagentsAsk(BoardJob job)
     {

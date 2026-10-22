@@ -109,7 +109,7 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel, 
         var branches = rooted.Descendants.ToList();
         var agents = branches.Count(branch => branch.Kind == BranchKind.InProcess);
         AtWork = branches.Count(branch => !branch.IsSettled);
-        Needing = branches.Prepend(rooted).Count(branch => branch.State == SubagentState.Waiting);
+        Needing = branches.Prepend(rooted).Count(branch => branch.NeedsYou);
         Size = agents == 0
             ? OverviewPhrases.Count(tree.Children.Count + 1, "job")
             : $"{OverviewPhrases.Count(tree.Children.Count + 1, "job")} · {OverviewPhrases.Count(agents, "agent")}";

@@ -1,26 +1,20 @@
-using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Records;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
-using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Escalating;
 
-internal sealed record UntoldQuestion(JobId Parent, JobId Child, ParentAsked Asked);
-
-internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking) : IHandle<FormDecided>, IHandle<JobProgressed>
+internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking, UntoldQuestions untold) : IHandle<FormDecided>, IHandle<JobProgressed>
 {
-    private readonly Dictionary<(SessionId Session, ItemId Item), UntoldQuestion> untold = [];
-
     public async ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
     {
         var decision = integrationEvent.Decision;
 
         if (decision.Delivery != DecisionDelivery.LeftToParent)
         {
-            untold.Remove((decision.Session, decision.Item));
+            untold.Forget(decision.Session, decision.Item);
 
             return;
         }
@@ -35,36 +29,31 @@ internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking
     {
         if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
         {
-            foreach (var ended in untold.Where(pending => pending.Value.Child == integrationEvent.Job).Select(pending => pending.Key).ToList())
-            {
-                untold.Remove(ended);
-            }
+            _ = untold.Claim(question => question.Child == integrationEvent.Job);
 
             return;
         }
 
-        var waiting = untold.Where(pending => pending.Value.Parent == integrationEvent.Job).ToList();
-
-        if (waiting.Count == 0 || integrationEvent.Status is not (JobStatus.Running or JobStatus.AwaitingReview or JobStatus.NeedsHelp))
+        if (integrationEvent.Status != JobStatus.AwaitingReview)
         {
             return;
         }
 
-        var note = string.Join("\n\n", waiting.Select(pending => pending.Value.Asked.Note));
-        var reached = integrationEvent.Status == JobStatus.Running
-            ? await waking.TellAsync(integrationEvent.Job, note, cancellationToken) ? ParentReach.Told : ParentReach.Later
-            : await waking.WakeIdleAsync(integrationEvent.Job, note, cancellationToken);
+        var waiting = untold.Claim(question => question.Parent == integrationEvent.Job);
 
-        if (reached == ParentReach.Later)
+        if (waiting.Count == 0)
         {
             return;
         }
 
-        foreach (var (key, question) in waiting)
+        if (await waking.WakeIdleAsync(integrationEvent.Job, UntoldQuestions.Folded(waiting), cancellationToken) == ParentReach.Woken)
         {
-            untold.Remove(key);
-            await journal.AskedAsync(question.Asked with { Woken = reached == ParentReach.Woken }, cancellationToken);
+            await untold.ToldAsync(waiting, woken: true, cancellationToken);
+
+            return;
         }
+
+        untold.Release(waiting);
     }
 
     private async Task AskAsync(DelegationRecord child, FormDecision decision, CancellationToken cancellationToken)
@@ -90,7 +79,7 @@ internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking
 
             if (reached == ParentReach.Later)
             {
-                untold[(decision.Session, decision.Item)] = new UntoldQuestion(parent, job, noted);
+                untold.Keep(new UntoldQuestion(parent, job, noted));
             }
 
             if (reached != ParentReach.Gone)

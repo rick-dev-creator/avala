@@ -42,7 +42,7 @@ internal sealed class Desk : IAsyncDisposable
         Parents = new DeferredParents(Book);
         Resumption = new ParentResumption(Parents, Jobs);
         Briefing = new OwedReports(Book, journal);
-        Notes = new ParentNotes(journal, new ParentWaking(Jobs, Jobs, Jobs));
+        Notes = new ParentNotes(journal, new ParentWaking(Jobs, Jobs, Jobs), new UntoldQuestions(journal));
         Waits = new ChildWaits(reporter, journal, Audit, Answers);
         Stops = new ChildStops(reporter, journal, Audit);
         Parent = Jobs.Running();

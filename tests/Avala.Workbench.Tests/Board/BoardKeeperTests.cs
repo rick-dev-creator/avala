@@ -160,6 +160,37 @@ public sealed class BoardKeeperTests
     }
 
     [Theory]
+    [InlineData(JobStatus.Approved)]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task WhatAChildThatEndedStillAskedNoLongerWaitsInItsParentsConversation(JobStatus ended)
+    {
+        var parent = catalog.Add("Ship the release").Summary.Job;
+        var child = catalog.Add("Migrate the database").Summary.Job;
+        var other = catalog.Add("Seed the database").Summary.Job;
+        catalog.Change(child, history => history with { Summary = history.Summary with { Parent = parent } });
+        catalog.Change(other, history => history with { Summary = history.Summary with { Parent = parent } });
+        var (childSession, otherSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
+        foreach (var (job, session) in new[] { (parent, SessionId.New()), (child, childSession), (other, otherSession) })
+        {
+            await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+            await keeper.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+        }
+
+        foreach (var (job, session) in new[] { (child, childSession), (other, otherSession) })
+        {
+            await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+            await keeper.HandleAsync(new AgentActivity(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update")), Cancellation);
+            await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(session, turn, new ItemId("migrate"), job, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+        }
+
+        await keeper.HandleAsync(new JobProgressed(child, ended), Cancellation);
+
+        var states = Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>().ToDictionary(entry => entry.Session, entry => entry.State);
+        Assert.Equal((ChildAskingState.Withdrawn, ChildAskingState.Waiting), (states[childSession], states[otherSession]));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task AJobKnowsWhetherTheSessionItRunsInTakesMessagesMidTurn(bool declared)

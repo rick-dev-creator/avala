@@ -23,6 +23,8 @@ public sealed class ParentEscalationTests
     private readonly RecordingParentAnswers answers = new();
     private readonly DelegationBook book = new(new Records.InMemoryDelegations());
     private readonly ParentNotes notes;
+    private readonly DelegationJournal journal;
+    private readonly UntoldQuestions untold;
     private readonly ChildAnswers tool;
     private readonly JobId parent;
     private readonly JobId child;
@@ -31,7 +33,9 @@ public sealed class ParentEscalationTests
 
     public ParentEscalationTests()
     {
-        notes = new ParentNotes(new DelegationJournal(book, bus, agents, clock), new ParentWaking(jobs, jobs, jobs));
+        journal = new DelegationJournal(book, bus, agents, clock);
+        untold = new UntoldQuestions(journal);
+        notes = new ParentNotes(journal, new ParentWaking(jobs, jobs, jobs), untold);
         tool = new ChildAnswers(answers, audit, agents);
         parent = jobs.Running();
         child = jobs.Running(parent);
@@ -59,23 +63,18 @@ public sealed class ParentEscalationTests
         Assert.Equal([MessageAuthor.Avala], jobs.SteeredBy);
     }
 
-    [Theory]
-    [InlineData(JobStatus.AwaitingReview)]
-    [InlineData(JobStatus.NeedsHelp)]
-    public async Task AnIdleParentIsWokenWithItsChildsQuestionAsAvalasOwnMessageAsync(JobStatus status)
+    [Fact]
+    public async Task AParentWaitingForReviewIsWokenWithItsChildsQuestionAsAvalasOwnMessageAsync()
     {
         await DelegatedAsync();
-        jobs.Is(parent, status);
+        jobs.Is(parent, JobStatus.AwaitingReview);
 
         await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
 
-        var woken = status == JobStatus.AwaitingReview
-            ? jobs.SentBack.Select(sent => (sent.Job, sent.Message.Text, sent.Message.CausedBy)).ToList()
-            : jobs.Continued.Zip(jobs.ContinuedBy, (continued, by) => (continued.Job, continued.Message, by)).ToList();
-        var (job, text, causedBy) = Assert.Single(woken);
-        Assert.Equal((parent, MessageAuthor.Avala), (job, causedBy));
-        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", text, StringComparison.Ordinal);
-        Assert.True(Assert.Single(bus.Published.OfType<ParentAsked>()).Woken, "The idle parent was not said to be woken by its child's question");
+        var (job, message) = Assert.Single(jobs.SentBack);
+        Assert.Equal((parent, MessageAuthor.Avala, MessageAuthor.Avala), (job, message.Author, message.CausedBy));
+        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", message.Text, StringComparison.Ordinal);
+        Assert.True(Assert.Single(bus.Published.OfType<ParentAsked>()).Woken, "The parent waiting for review was not said to be woken by its child's question");
     }
 
     [Theory]
@@ -83,7 +82,7 @@ public sealed class ParentEscalationTests
     [InlineData(HoldReason.Stopped)]
     [InlineData(HoldReason.TurnFailed)]
     [InlineData(HoldReason.InvalidChecks)]
-    public async Task AParentHeldOverItsBudgetOrStoppedByThePersonIsNotContinuedByItsChildsQuestionAsync(HoldReason reason)
+    public async Task AHeldParentIsNeverContinuedByItsChildsQuestionWhateverItsHoldAsync(HoldReason reason)
     {
         await DelegatedAsync();
         jobs.HeldFor(parent, reason);
@@ -150,7 +149,7 @@ public sealed class ParentEscalationTests
     }
 
     [Fact]
-    public async Task AQuestionWaitingForAParentThePersonHeldIsShownAndToldOnceThePersonContinuesItAsync()
+    public async Task AQuestionWaitingForAHeldParentIsShownAndJoinsTheMessageThatContinuesItOnceAsync()
     {
         await DelegatedAsync();
         jobs.HeldFor(parent, HoldReason.Stopped);
@@ -158,15 +157,29 @@ public sealed class ParentEscalationTests
         await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
         var shown = Assert.Single(bus.Published.OfType<ParentAsked>());
         await notes.HandleAsync(new JobProgressed(parent, JobStatus.NeedsHelp), Cancellation);
-        jobs.Is(parent, JobStatus.Running);
-        jobs.Steerable = true;
-        await notes.HandleAsync(new JobProgressed(parent, JobStatus.Running), Cancellation);
+        var brief = Outcomes.Present(await untold.BriefAsync(parent, Cancellation));
+        var again = await untold.BriefAsync(parent, Cancellation);
+        await brief.Delivered(Cancellation);
 
         Assert.Empty(jobs.Continued);
         Assert.Equal((child, false), (Outcomes.Present(shown.Delegation.Child), shown.Woken));
-        var (told, note) = Assert.Single(jobs.Steered);
-        Assert.Equal(parent, told);
-        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", note, StringComparison.Ordinal);
+        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", brief.Text, StringComparison.Ordinal);
+        Assert.True(again.IsNone, "The waiting question joined two messages");
+        var told = bus.Published.OfType<ParentAsked>().Last();
+        Assert.Equal((false, brief.Text), (told.Woken, told.Note));
+    }
+
+    [Fact]
+    public async Task AQuestionWhoseMessageCouldNotBeDeliveredWaitsForTheNextOneAsync()
+    {
+        await DelegatedAsync();
+        jobs.HeldFor(parent, HoldReason.Stopped);
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+
+        var brief = Outcomes.Present(await untold.BriefAsync(parent, Cancellation));
+        await brief.Undelivered(Cancellation);
+
+        Assert.Equal(brief.Text, Outcomes.Present(await untold.BriefAsync(parent, Cancellation)).Text);
     }
 
     [Fact]

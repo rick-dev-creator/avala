@@ -68,6 +68,8 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<ChildTerms>()
             .AddForwarded<IJobTerms, ChildTerms>()
             .AddSingleton<ParentWaking>()
+            .AddSingleton<UntoldQuestions>()
+            .AddForwarded<IJobBriefing, UntoldQuestions>()
             .AddSingleton<ParentNotes>()
             .AddForwarded<IHandle<FormDecided>, ParentNotes>()
             .AddForwarded<IHandle<JobProgressed>, ParentNotes>()
