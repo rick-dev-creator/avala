@@ -414,6 +414,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         Ui.Dispose();
     }
 
+    public Task<IReadOnlyList<string>> BrokenInvariantsAsync() => application.BrokenAsync();
+
     public Task<OpenWorkbench> WorkbenchAsync() => OpenWorkbench.ActivateAsync(this);
 
     public Bound Page(string title) => new(Assert.Single(Get<IEnumerable<IPage>>(), page => page.Title == title));
@@ -424,6 +426,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         {
             stopped = true;
             surroundings.Board.Release();
+            InvariantsKeptAttribute.Report(await application.BrokenAsync());
             await application.DisposeAsync();
         }
     }
@@ -480,11 +483,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
+                RealNotifier ? [new TurnLedger(), Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [new TurnLedger(), Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
     }
 
     private sealed class Application : IAsyncDisposable
     {
+        private const int SettlingRounds = 4;
+
         private readonly CancellationTokenSource subscriptions = new();
         private readonly ProcessesInFlight processes;
 
@@ -555,6 +560,19 @@ internal sealed class SimulatedRun : IAsyncDisposable
         public EventWatch<BudgetIntervened> Budgets { get; }
 
         public EventWatch<UsageRecorded> Usage { get; }
+
+        public async Task<IReadOnlyList<string>> BrokenAsync()
+        {
+            IReadOnlyList<string> broken = [];
+
+            for (var round = 0; round < SettlingRounds && (round == 0 || broken.Count > 0) && !Cancellation.IsCancellationRequested; round++)
+            {
+                await Feed.DeliveredAsync(Cancellation).WaitAsync(HangGuard, Cancellation);
+                broken = Invariants.BrokenIn(await Scene.ReadAsync(Root.Services, Root.Services.GetRequiredService<TurnLedger>(), Cancellation));
+            }
+
+            return broken;
+        }
 
         public async ValueTask DisposeAsync()
         {
