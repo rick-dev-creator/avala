@@ -191,6 +191,39 @@ public sealed class DocumentationDeskTests
     }
 
     [Fact]
+    public async Task AWriterHeldAtItsUsageLimitStillWritesTheVersionOfItsPlanOnceTheLimitResetsAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        var held = documented.LastWriter;
+        documented.Jobs.Held(held, HoldReason.LimitNearlyReached);
+        await documented.Desk.HandleAsync(new JobProgressed(held, JobStatus.NeedsHelp), Cancellation);
+
+        await documented.TurnEndsAsync(session);
+        var writer = documented.LastWriter;
+        documented.Files.Draft(FakeJobs.Worktree(writer), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\nThe C4.\n");
+        await documented.ProgressAsync(writer, JobStatus.AwaitingReview);
+
+        Assert.Equal([(job, VersionKind.Proposed)], documented.Published<VersionWritten>().Select(written => (written.Job, written.Version.Kind)));
+    }
+
+    [Fact]
+    public async Task AWriterTheJobsRefuseLeavesOneUnwrittenLineForItsPlanNotOneEachTimeThePlanMovesOrATurnEndsAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        documented.Jobs.Rejection = JobRejection.InvalidRequest;
+
+        await documented.PlanAsync(session, "Add a Webhooks container", "Write the refund to the ledger");
+        await documented.PlanAsync(session, "Add a Webhooks container", "Write the refund to the ledger");
+        await documented.TurnEndsAsync(session);
+
+        Assert.Single(documented.Published<VersionNotWritten>());
+        Assert.Single(Outcomes.Present(documented.Book.Of(job)).Unwritten);
+    }
+
+    [Fact]
     public async Task AtStartupAWriterStillPreparingIsLeftToFinishAndOneTheCatalogNoLongerKnowsIsReportedStoppedAsync()
     {
         var documented = Documented.With();

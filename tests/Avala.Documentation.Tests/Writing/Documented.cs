@@ -155,6 +155,9 @@ internal sealed class Documented
         private static Option<WorkspaceId> WorkspaceOf(JobId job, JobStatus status) =>
             status == JobStatus.Preparing ? Option<WorkspaceId>.None : new WorkspaceId(job.Value);
 
+        public void Held(JobId job, HoldReason reason) =>
+            histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = JobStatus.NeedsHelp, Hold = reason } };
+
         public void Forget(JobId job) => histories.TryRemove(job, out _);
 
         public void Attempt(JobId job, AttemptOrigin origin, string guidance)
