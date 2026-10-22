@@ -1,3 +1,4 @@
+using Avala.Documentation.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -26,6 +27,24 @@ public sealed class BudgetTests(PublishedPlugins plugins)
         var raise = Assert.Single(run.Get<IBudgets>().RaisesOf(run.Job));
         Assert.Equal(0.014m, raise.By.Cost.Single().Amount);
         Assert.Equal(string.Empty, await run.Ui.ReadAsync(() => usage["Notice"].Text));
+    }
+
+    [Fact]
+    public async Task TheNoteThatABudgetRaiseContinuesADocumentedJobWithIsNoChangeRequestOfThePersonAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns", (".avala/budget.json", """{ "costPerJob": { "USD": 0.012 } }"""), (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        _ = await run.BudgetInterventionAsync();
+        var workbench = await run.WorkbenchAsync();
+        var usage = Assert.Single(await workbench.InspectAsync(run.Job, "UsageSectionViewModel"));
+        await run.Ui.PresentedAsync(usage.Presentation, () => usage["CanRaise"].Value<bool>(), () => "Raise was not offered");
+
+        await run.Ui.RunAsync(() => usage.ExecuteAsync("RaiseCommand"));
+
+        _ = await run.SettledAsync();
+        await run.DeliveredAsync();
+        Assert.Single(run.Get<IBudgets>().RaisesOf(run.Job));
+        Assert.Empty(run.Get<IDocumentation>().OfJob(run.Job).Match(documented => documented.Requests, () => []));
     }
 
     [Fact]
