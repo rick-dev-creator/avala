@@ -54,6 +54,18 @@ public sealed class DecisionsViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void AQuestionASubAgentAsksItsOrchestratorIsNotADecisionOfThePerson()
+    {
+        var decisions = bench.Decisions();
+        var parent = Bench.OnBoard(bench.Job("Add invoice PDF endpoint", JobStatus.Running));
+        var child = Questioning(DecisionDelivery.LeftToParent, parent.Job) with { Summary = bench.Job("Choose the PDF route", JobStatus.Running) with { Parent = parent.Job } };
+
+        decisions.Show(Bench.Of(parent, child));
+
+        Assert.Equal((true, "all answered"), (decisions.IsEmpty, decisions.Pending));
+    }
+
+    [Fact]
     public async Task TheKeyboardMovesBetweenDecisionsChoosesAnOptionAndAnswers()
     {
         var decisions = bench.Decisions();
@@ -306,7 +318,9 @@ public sealed class DecisionsViewModelScripts : IDisposable
         };
     }
 
-    private BoardJob Questioning()
+    private BoardJob Questioning() => Questioning(DecisionDelivery.LeftToHuman, Option<JobId>.None);
+
+    private BoardJob Questioning(DecisionDelivery delivery, Option<JobId> parent)
     {
         var turn = TurnId.New();
         var asked = bench.Time.GetUtcNow().AddSeconds(-20);
@@ -321,7 +335,7 @@ public sealed class DecisionsViewModelScripts : IDisposable
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(formSession, turn), asked)
                 .Apply(new FormRequested(formSession, turn, new ItemId("question"), form), asked)
-                .Apply(new FormDecision(formSession, turn, new ItemId("question"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToHuman, asked)),
+                .Apply(new FormDecision(formSession, turn, new ItemId("question"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], delivery, asked) { Parent = parent }),
         };
     }
 }
