@@ -31,6 +31,7 @@ public sealed class RealDocsTour(HeadlessUi ui, PublishedPlugins plugins)
         Assert.SkipUnless(HeadlessApp.Renders, "Set AVALA_HEADLESS_RENDER=1 so the tour can take screenshots.");
         var connections = new JsonObject
         {
+            ["default"] = "claude",
             ["connections"] = new JsonArray(new JsonObject
             {
                 ["name"] = "claude",

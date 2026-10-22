@@ -154,6 +154,7 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
 
     private static string Connections(string transcripts) => new JsonObject
     {
+        ["default"] = "claude",
         ["connections"] = new JsonArray(new JsonObject
         {
             ["name"] = "claude",

@@ -276,7 +276,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(Composing.Of(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
+        var conversation = new Conversations(Composing.Of(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs(), Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -505,7 +505,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var connections = new FakeConnections("claude-work", "claude-personal");
             connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.None.With(new Avala.Agents.Contracts.Capabilities.Resumable(), new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "medium", "high"]) { DefaultModel = "opus", DefaultEffort = "high" });
             var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Summary with { Connection = new Avala.Agents.Contracts.Connections.ConnectionName("claude-work") };
-            var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
+            var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
             var conversation = new Conversations(composers, new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
             conversation.Show(new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, []).Apply(new ModelReported(SessionId.New(), TurnId.New(), "claude-opus-5-5") { Effort = "medium" }, DateTimeOffset.UnixEpoch)));
             var view = Screen.Show(conversation, Avalonia.Styling.ThemeVariant.Dark, 460, 480);
@@ -523,7 +523,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var connections = new FakeConnections("claude-work", "claude-personal");
             connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.None.With(new Avala.Agents.Contracts.Capabilities.Resumable(), new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "medium", "high"]) { DefaultModel = "opus", DefaultEffort = "high" });
             var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Summary with { Connection = new Avala.Agents.Contracts.Connections.ConnectionName("claude-work") };
-            var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
+            var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
             var conversation = new Conversations(composers, new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
             conversation.Show(new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, []).Apply(new ModelReported(SessionId.New(), TurnId.New(), "claude-opus-5-5") { Effort = "medium" }, DateTimeOffset.UnixEpoch)));
             var view = Screen.Show(conversation, Avalonia.Styling.ThemeVariant.Dark, 400, 480);
@@ -545,7 +545,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
                 ? new PullRequestWatchState(summary.Job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3)
                 : Option<PullRequestWatchState>.None,
         };
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), Composing.Tools(keys ?? new SendKeys(), summary.Job), Composing.Harness(summary.Job));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), Composing.Tools(keys ?? new SendKeys(), summary.Job), Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return (composer, jobs);

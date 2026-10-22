@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
@@ -171,6 +172,105 @@ public sealed class SteeringTests(PublishedPlugins plugins)
             conversation["Composer"]["Queued"].Text));
         Assert.Equal(["Instruction", "You"], origins);
         Assert.Equal((Steering, string.Empty), (texts[1], queued));
+    }
+
+    [Fact]
+    public async Task AMessageQueuedForAJobThatIsThenDiscardedComesBackIntoTheComposerSayingItWasNotDeliveredAsync()
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "hang",
+            new ConnectionName("plain"),
+            [("connections.json", """{ "connections": [ { "name": "plain", "provider": "simulator", "settings": { "withoutCapabilities": "acceptsMessagesMidTurn" } } ] }""")]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "This agent takes no message mid-turn · queue one for when it stops…");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(Steering, await run.Ui.ReadAsync(() => conversation["Composer"]["Queued"].Text));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));
+
+        await workbench.ShowsAsync(() => conversation["Composer"]["Draft"].Text == Steering);
+        Assert.Equal(
+            (string.Empty, "Your queued message was not delivered, so it is back here: the job was discarded."),
+            await run.Ui.ReadAsync(() => (conversation["Composer"]["Queued"].Text, conversation["Composer"]["Error"].Text)));
+    }
+
+    [Fact]
+    public async Task AQueuedMessageThatCameBackUndeliveredWhileThePersonLookedAtAnotherJobIsInItsComposerAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "hang",
+            new ConnectionName("plain"),
+            [("connections.json", """{ "connections": [ { "name": "plain", "provider": "simulator", "settings": { "withoutCapabilities": "acceptsMessagesMidTurn" } } ] }""")]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "This agent takes no message mid-turn · queue one for when it stops…");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(Steering, await run.Ui.ReadAsync(() => conversation["Composer"]["Queued"].Text));
+        var other = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        _ = await workbench.SelectAsync(other);
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));
+
+        await run.RestartAsync();
+
+        var reopened = await OpenWorkbench.ActivateAsync(run);
+        var back = await reopened.SelectAsync(run.Job);
+        await reopened.ShowsAsync(() => back["Composer"]["Draft"].Text == Steering);
+    }
+
+    [Fact]
+    public async Task AMessageStillQueuedWhenAvalaClosesIsNotLostAcrossARestartAsync()
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "hang",
+            new ConnectionName("plain"),
+            [("connections.json", """{ "connections": [ { "name": "plain", "provider": "simulator", "settings": { "withoutCapabilities": "acceptsMessagesMidTurn" } } ] }""")]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "This agent takes no message mid-turn · queue one for when it stops…");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(Steering, await run.Ui.ReadAsync(() => conversation["Composer"]["Queued"].Text));
+
+        await run.RestartAsync();
+
+        var reopened = await OpenWorkbench.ActivateAsync(run);
+        var back = await reopened.SelectAsync(run.Job);
+        await reopened.ShowsAsync(() => back["Entries"].Items.Any(entry => entry.Kind == "TurnEndViewModel"));
+        Assert.Contains(await run.Ui.ReadAsync(() => (IReadOnlyList<string>)[back["Composer"]["Draft"].Text, back["Composer"]["Queued"].Text, .. back["Entries"].Items.Where(entry => entry.Has("SearchText")).Select(entry => entry["SearchText"].Text)]), seen => seen.Contains(Steering, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AMessageSentBeforeARestartIsStillWatchedByTheMessageLedgerAfterItAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "hang");
+        await run.ResumableAsync();
+        var message = new JobMessage(Steering);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SteerAsync(run.Job, message, TestContext.Current.CancellationToken));
+
+        await run.RestartAsync();
+
+        Assert.Contains(run.Get<MessageLedger>().Messages, sent => sent.Message == message.Messages[0]);
     }
 
     [Fact]

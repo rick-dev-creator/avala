@@ -22,6 +22,8 @@ internal sealed class JobSteering(IJobs jobs, QueuedMessages queue)
 
     public bool Withdraw(JobId job) => queue.Withdraw(job);
 
+    public Option<UndeliveredMessage> TakeBack(JobId job) => queue.TakeBack(job);
+
     public async Task<Result<JobId, JobRejection>> InterruptAsync(JobId job, CancellationToken cancellationToken) =>
         (await jobs.HoldAsync(job, HoldReason.Interrupted, cancellationToken)).Map(hold => hold.Job);
 

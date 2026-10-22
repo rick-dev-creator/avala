@@ -7,11 +7,17 @@ using Avala.Workbench.Mentioning;
 
 namespace Avala.Workbench.Drafting;
 
+internal sealed record WaitingMessage(MessageId Id, string Text, IReadOnlyList<Attachment> Attachments, bool Returned);
+
 internal sealed record Draft(string Text, IReadOnlyList<Attachment> Attachments, IReadOnlyList<Mention> Mentions)
 {
     public static Draft Empty { get; } = new(string.Empty, [], []);
 
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Text) && Attachments.Count == 0;
+    public IReadOnlyList<WaitingMessage> Waiting { get; init; } = [];
+
+    public bool IsEmpty => string.IsNullOrWhiteSpace(Text) && Attachments.Count == 0 && !Waiting.Any(message => message.Returned);
+
+    public bool IsGone => IsEmpty && Waiting.Count == 0;
 }
 
 internal interface IDraftStore
@@ -39,16 +45,50 @@ internal sealed class DraftBook(IDraftStore store, JobBoard board, TimeProvider 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         var kept = await store.ReadAsync(cancellationToken);
-        ImmutableInterlocked.Update(ref drafts, current => kept.Where(pair => !current.ContainsKey(pair.Key) && !pair.Value.IsEmpty).Aggregate(current, (all, pair) => all.SetItem(pair.Key, pair.Value)));
+        ImmutableInterlocked.Update(ref drafts, current => kept.Where(pair => !current.ContainsKey(pair.Key) && !pair.Value.IsGone).Aggregate(current, (all, pair) => all.SetItem(pair.Key, pair.Value.Waiting.All(message => message.Returned) ? pair.Value : pair.Value with { Waiting = [.. pair.Value.Waiting.Select(message => message with { Returned = true })] })));
         Show();
     }
 
-    public void Keep(JobId job, Draft draft)
+    public void Keep(JobId job, Draft draft) => Change(job, kept => draft with { Waiting = kept.Waiting });
+
+    public void Wait(JobId job, IEnumerable<JobMessage> messages) =>
+        Change(job, kept => kept with { Waiting = [.. kept.Waiting, .. messages.Select(message => new WaitingMessage(Id(message), message.Text, message.Attachments, false))] });
+
+    public void Unwait(JobId job, IEnumerable<JobMessage> messages)
+    {
+        var ids = messages.Select(Id).ToHashSet();
+        Change(job, kept => kept with { Waiting = [.. kept.Waiting.Where(message => message.Returned || !ids.Contains(message.Id))] });
+    }
+
+    public void Return(JobId job, IEnumerable<JobMessage> messages)
+    {
+        var back = messages.Select(message => new WaitingMessage(Id(message), message.Text, message.Attachments, true)).ToList();
+        var ids = back.Select(message => message.Id).ToHashSet();
+        Change(job, kept => kept with { Waiting = [.. kept.Waiting.Where(message => !ids.Contains(message.Id)), .. back] });
+    }
+
+    public IReadOnlyList<WaitingMessage> TakeReturned(JobId job)
+    {
+        IReadOnlyList<WaitingMessage> taken = [];
+        Change(job, kept =>
+        {
+            taken = [.. kept.Waiting.Where(message => message.Returned)];
+
+            return kept with { Waiting = [.. kept.Waiting.Where(message => !message.Returned)] };
+        });
+
+        return taken;
+    }
+
+    private static MessageId Id(JobMessage message) => message.Messages.Count > 0 ? message.Messages[0] : MessageId.New();
+
+    private void Change(JobId job, Func<Draft, Draft> change)
     {
         var changed = false;
         ImmutableInterlocked.Update(ref drafts, current =>
         {
-            var next = draft.IsEmpty ? current.Remove(job) : current.SetItem(job, draft);
+            var draft = change(current.GetValueOrDefault(job, Draft.Empty));
+            var next = draft.IsGone ? current.Remove(job) : current.SetItem(job, draft);
             changed = !ReferenceEquals(next, current);
 
             return next;
@@ -75,7 +115,7 @@ internal sealed class DraftBook(IDraftStore store, JobBoard board, TimeProvider 
         await writes.DisposeAsync();
     }
 
-    private void Show() => board.Publish(Volatile.Read(ref drafts).Keys.ToImmutableHashSet());
+    private void Show() => board.Publish(Volatile.Read(ref drafts).Where(pair => !pair.Value.IsEmpty).Select(pair => pair.Key).ToImmutableHashSet());
 
     private void Schedule()
     {

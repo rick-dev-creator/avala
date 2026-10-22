@@ -155,6 +155,9 @@ internal sealed class Documented
         private static Option<WorkspaceId> WorkspaceOf(JobId job, JobStatus status) =>
             status == JobStatus.Preparing ? Option<WorkspaceId>.None : new WorkspaceId(job.Value);
 
+        public void Held(JobId job, HoldReason reason) =>
+            histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = JobStatus.NeedsHelp, Hold = reason } };
+
         public void Forget(JobId job) => histories.TryRemove(job, out _);
 
         public void Attempt(JobId job, AttemptOrigin origin, string guidance)
@@ -208,7 +211,7 @@ internal sealed class Documented
 
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
@@ -350,6 +353,9 @@ internal sealed class Documented
 
         public Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = plan });
+
+        public Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, Option<string> plan, CancellationToken cancellationToken) =>
+            ChangeAsync(job, found => found with { Unwritten = found.Unwritten.Add(unwritten), LastPlan = plan.Match(kept => kept, () => found.LastPlan) });
 
         private Task ChangeAsync(JobId job, Func<DocumentedJob, DocumentedJob> change)
         {

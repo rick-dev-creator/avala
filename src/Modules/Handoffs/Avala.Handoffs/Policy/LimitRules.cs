@@ -18,6 +18,8 @@ internal sealed record LimitRules(OnLimit OnLimit, double Threshold, IReadOnlyLi
 
     public static LimitRules Rejected(HandoffError error) => Default with { Error = error, Declared = true };
 
+    public LimitRules ForCompanion() => this with { OnLimit = OnLimit.Hold, Connections = [], Resume = ResumeAtReset.Auto };
+
     public LimitRules Under(Option<HandoffTerms> terms) =>
         terms.Match(given => (Declared || given.Connections.Count == 0 ? this : this with { OnLimit = OnLimit.HandOffAnyHarness, Connections = given.Connections }) with { Resume = ResumeAtReset.Auto }, () => this);
 }

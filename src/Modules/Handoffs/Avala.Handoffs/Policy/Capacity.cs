@@ -35,11 +35,27 @@ internal static class Capacity
 
     public static Availability Held(IEnumerable<UsageLimit> limits, double threshold, DateTimeOffset now)
     {
-        var counting = Counting(limits, now);
+        var read = limits.ToList();
+        var counting = Counting(read, now);
+
+        if (read.Count > 0 && counting.Count == 0)
+        {
+            return Availability.Now;
+        }
+
         var mostUsed = counting.Count == 0 ? 0 : counting.Max(limit => limit.UsedFraction);
 
-        return mostUsed <= 0 ? Availability.Now : Of(counting, Math.Min(threshold, mostUsed), now);
+        if (mostUsed > 0)
+        {
+            return Of(counting, Math.Min(threshold, mostUsed), now);
+        }
+
+        var spent = (counting.Count == 0 ? Unread : counting.MaxBy(limit => limit.ResetsAt.Match(resets => resets, () => DateTimeOffset.MinValue))) with { UsedFraction = 1 };
+
+        return new Availability(spent, spent.ResetsAt) { Binding = spent };
     }
+
+    private static UsageLimit Unread { get; } = new(string.Empty, 1, Option<DateTimeOffset>.None);
 
     public static CandidateCapacity Measure(ConnectionName connection, IEnumerable<UsageLimit> limits, double threshold, DateTimeOffset now)
     {

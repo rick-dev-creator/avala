@@ -185,7 +185,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         var previous = job.Session;
         _ = job.ContinueOn(guidance, opened.Session, opened.Connection);
-        await BeginAsync(job, opened.Session, $"{job.Instruction.Text}\n\n{guidance.Text}", cancellationToken);
+        await BeginAsync(job, opened.Session, new Told($"{job.Instruction.Text}\n\n{guidance.Text}", job.Attempts[^1].Author) { Messages = guidance.Messages }, cancellationToken);
         await previous.Match(
             async session => _ = await agents.StopAsync(session, cancellationToken),
             () => Task.CompletedTask);
@@ -291,9 +291,15 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         _ = round.InSameSession(job, guidance);
         await ledger.RecordAsync(job, cancellationToken);
-        await TellAsync(job, guidance.Text, guidance.Author, cancellationToken);
 
-        return new JobContinuation(job.Id, session, ContinuedIn.SameSession);
+        if ((await messenger.TellAsync(job, new Told(guidance.Text, guidance.Author) { Messages = guidance.Messages }, cancellationToken)).IsSuccess)
+        {
+            return new JobContinuation(job.Id, session, ContinuedIn.SameSession);
+        }
+
+        return await LostAsync(job, cancellationToken)
+            ? await ContinueInNewSessionAsync(job, guidance, Round.Hint, cancellationToken)
+            : JobRejection.AgentUnavailable;
     }
 
     private async Task<Result<JobContinuation, JobRejection>> ContinueInNewSessionAsync(
@@ -314,9 +320,33 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
         await ledger.RecordSessionAsync(job, opened.Session, cancellationToken);
-        await TellAsync(job, new Told(opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author) { Fresh = !opened.Resumed }, cancellationToken);
+
+        if (!(await messenger.TellAsync(job, new Told(opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author) { Fresh = !opened.Resumed, Messages = guidance.Messages }, cancellationToken)).IsSuccess)
+        {
+            _ = await LostAsync(job, cancellationToken);
+
+            return JobRejection.AgentUnavailable;
+        }
 
         return new JobContinuation(job.Id, opened.Session, opened.Resumed ? ContinuedIn.ResumedConversation : ContinuedIn.NewConversation);
+    }
+
+    private async Task<bool> LostAsync(Job job, CancellationToken cancellationToken)
+    {
+        var session = job.Session;
+
+        if (!job.Hold(HoldReason.SessionLost).TryGetValue(out var held, out _))
+        {
+            return false;
+        }
+
+        await ledger.RecordAsync(job, cancellationToken);
+        var halt = await session.Match(
+            async lost => (await agents.StopAsync(lost, cancellationToken)).Match(_ => SessionHalt.Stopped, _ => SessionHalt.AlreadyClosed),
+            () => Task.FromResult(SessionHalt.AlreadyClosed));
+        await ledger.AnnounceHoldAsync(new JobHold(job.Id, session, HoldReason.SessionLost, halt) { Attempt = held.Attempt.Value }, cancellationToken);
+
+        return true;
     }
 
     private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
@@ -361,6 +391,12 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         await ledger.RecordSessionAsync(job, session, cancellationToken);
         await TellAsync(job, message, cancellationToken);
+    }
+
+    private async Task BeginAsync(Job job, SessionId session, Told told, CancellationToken cancellationToken)
+    {
+        await ledger.RecordSessionAsync(job, session, cancellationToken);
+        await TellAsync(job, told, cancellationToken);
     }
 
     private Task TellAsync(Job job, string message, CancellationToken cancellationToken) =>

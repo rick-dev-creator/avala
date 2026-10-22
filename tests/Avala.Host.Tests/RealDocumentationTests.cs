@@ -36,6 +36,7 @@ public sealed class RealDocumentationTests(PublishedPlugins plugins)
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
         var connections = new JsonObject
         {
+            ["default"] = "claude",
             ["connections"] = new JsonArray(new JsonObject
             {
                 ["name"] = "claude",

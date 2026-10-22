@@ -12,6 +12,8 @@ internal sealed class DocumentationDbContext(string database) : DbContext
 
     public DbSet<StoredRequest> Requests => Set<StoredRequest>();
 
+    public DbSet<StoredUnwritten> Unwritten => Set<StoredUnwritten>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -36,6 +38,11 @@ internal sealed class DocumentationDbContext(string database) : DbContext
         {
             request.ToTable("Requests");
             request.HasKey(row => new { row.Job, row.Number });
+        });
+        modelBuilder.Entity<StoredUnwritten>(unwritten =>
+        {
+            unwritten.ToTable("Unwritten");
+            unwritten.HasKey(row => row.Key);
         });
     }
 }

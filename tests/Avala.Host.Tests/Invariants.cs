@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workbench.Contracts.Presentation;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +19,8 @@ internal sealed record Scene(
     IReadOnlyList<UsageSummary> Usage,
     IReadOnlyList<OpenTurn> TurnsOpenAfterTheirSession,
     IReadOnlyList<OpenItem> ItemsOpenAfterTheirTurn,
-    IReadOnlyList<string> RestsWhileWorking)
+    IReadOnlyList<string> RestsWhileWorking,
+    IReadOnlyList<SentMessage> Messages)
 {
     public static async Task<Scene> ReadAsync(IServiceProvider services, TurnLedger turns, CancellationToken cancellationToken)
     {
@@ -47,7 +49,8 @@ internal sealed record Scene(
             [.. jobs.SelectMany(job => usage.OfJob(job.Summary.Job).Match<UsageSummary[]>(used => [used], () => [])), .. usage.ByProvider().Select(provider => provider.Usage)],
             turns.OpenAfterTheirSession,
             turns.OpenAfterTheirTurn,
-            turns.RestedWhileWorking);
+            turns.RestedWhileWorking,
+            services.GetRequiredService<MessageLedger>().Messages);
     }
 }
 
@@ -65,6 +68,7 @@ internal static class Invariants
         .. EndsEveryChildOfAnEndedParent(scene),
         .. ClosesEveryTurnOfAnEndedSession(scene),
         .. ClosesEveryItemOfAnEndedTurn(scene),
+        .. DeliversEveryMessageOnceOrReportsItUndelivered(scene),
     ];
 
     public static IReadOnlyList<string> InstantlyBrokenIn(Scene scene) =>
@@ -127,6 +131,16 @@ internal static class Invariants
 
     private static IEnumerable<string> ClosesEveryItemOfAnEndedTurn(Scene scene) =>
         scene.ItemsOpenAfterTheirTurn.Select(item => $"No item stays open once its turn ended: item {item.Item.Value} of turn {item.Turn.Value} in session {item.Session.Value}.");
+
+    private static IEnumerable<string> DeliversEveryMessageOnceOrReportsItUndelivered(Scene scene) =>
+        from message in scene.Messages
+        let job = scene.Jobs.FirstOrDefault(found => found.Summary.Job == message.Job)
+        let failedOnIt = job is { Summary.Status: JobStatus.Failed, Attempts: [.., var last] } && last.Number - message.Attempt is 0 or 1
+        let ended = job is { Summary.Status: JobStatus.Discarded or JobStatus.Failed }
+        where message.Reached != (message.Accepted ? 1 : 0) && !(message.Accepted && failedOnIt && message.Reached == 0)
+            || (message.Queue == Option<QueueChange>.Some(QueueChange.Taken) && !message.Accepted)
+            || (message.Queue == Option<QueueChange>.Some(QueueChange.Queued) && ended)
+        select $"Every message reaches the agent once, or is reported undelivered: message {message.Message.Value} to job {message.Job.Value} was {(message.Accepted ? "accepted" : "refused")}{message.Queue.Match(change => $", last {change} in the Workbench's queue", () => string.Empty)} and reached the agent {message.Reached} times.";
 
     private static IEnumerable<string> NeverCountsNegativeUsage(Scene scene) =>
         from usage in scene.Usage

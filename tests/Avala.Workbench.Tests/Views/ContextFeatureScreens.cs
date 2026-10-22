@@ -113,7 +113,7 @@ public sealed class ContextFeatureScreens(HeadlessUi ui)
         board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(other.Job, new BoardJob(other, Transcript.Empty)));
         var jobs = new FakeJobs { Status = JobStatus.NeedsHelp };
         var parts = new ComposerParts(new AttachmentTrays(new ScreenAttachments(scratch), new FakeFilePicker(), new PictureCache()), new MentionSource(worked, index, board, TimeProvider.System), Composing.Drafts(), new FakeJobCheckpoints());
-        var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), new FakeConnections()), parts);
+        var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), new FakeConnections()), parts);
         var items = new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), new FileViewing(worked, FakeLinks.Opening, new PictureCache(), Tools.Replies(FakeLinks.Opening)));
         var conversation = new Conversations(composers, items, new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(worktree.Job);
         var summary = new FakeCatalog().Add(Instruction, JobStatus.NeedsHelp).Summary with { Job = worktree.Job };

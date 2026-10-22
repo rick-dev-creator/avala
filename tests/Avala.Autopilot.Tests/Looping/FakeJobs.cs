@@ -86,7 +86,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         JobId job,
         Avala.Agents.Contracts.Connections.ConnectionName connection,
-        string message,
+        JobMessage message,
         CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 

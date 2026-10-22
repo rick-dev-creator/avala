@@ -121,6 +121,22 @@ public sealed class ConnectionTests
     }
 
     [Fact]
+    public async Task ACompanionWhoseJobsConnectionWasRemovedRunsOnAUsableConnectionInsteadOfFailingAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Selectors.Add(new FakeSelector(Personal));
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+        var parent = await flow.RunningAsync(JobFlow.Request() with { Connection = Work });
+        flow.Connections.Declared.RemoveAt(0);
+        flow.Connections.Refused[Work.Value] = ConnectionError.UnknownConnection;
+        flow.Agents.UnknownConnections.Add(Work.Value);
+
+        var companion = await flow.RunningAsync(JobFlow.Request() with { Parent = parent.Id, Companion = true });
+
+        Assert.Equal((JobState.Running, Option<ConnectionName>.Some(Personal)), (companion.State, companion.Connection));
+    }
+
+    [Fact]
     public async Task AJobWithoutAnyPreferenceKeepsTheDefaultConnectionItsSessionOpenedOnWhenNothingSelectsByCapacityAsync()
     {
         var flow = JobFlow.With();

@@ -12,6 +12,10 @@ namespace Avala.Documentation.Writing;
 internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher launcher, VersionKeeper keeper, DocumentationBook book)
     : IHandle<JobSessionStarted>, IHandle<AgentActivity>, IHandle<JobProgressed>, IHandle<StartupCompleted>
 {
+    private static readonly HoldReason[] Passing = [HoldReason.LimitNearlyReached];
+
+    private static readonly JobStatus[] Ended = [JobStatus.Approved, JobStatus.Discarded, JobStatus.Failed];
+
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed, JobStatus.Discarded, JobStatus.Approved];
 
     private readonly Dictionary<SessionId, JobId> sessions = [];
@@ -45,11 +49,12 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken) =>
         await book.OfWriter(integrationEvent.Job).Match(
-            documented => SettleAsync(documented, integrationEvent.Status, cancellationToken),
+            documented => integrationEvent.Status == JobStatus.Running ? ResumedAsync(documented, cancellationToken) : SettleAsync(documented, integrationEvent.Status, cancellationToken),
             () => integrationEvent.Status switch
             {
                 JobStatus.AwaitingReview => AsBuiltAsync(integrationEvent.Job, cancellationToken),
                 JobStatus.Running => AskedAsync(integrationEvent.Job, cancellationToken),
+                JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed => EndedAsync(integrationEvent.Job, cancellationToken),
                 _ => Task.CompletedTask,
             });
 
@@ -57,10 +62,17 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
     {
         foreach (var documented in book.Pending())
         {
+            if (await EndedJobAsync(documented.Job, cancellationToken))
+            {
+                await EndedAsync(documented.Job, cancellationToken);
+
+                continue;
+            }
+
             await documented.Writer.Match(
                 async pending => await (await subjects.StatusAsync(pending.Writer, cancellationToken)).Match(
                     status => SettleAsync(documented, status, cancellationToken),
-                    () => book.NotWrittenAsync(documented.Job, pending.Kind, VersionFailure.WriterStopped, cancellationToken)),
+                    () => StoppedAsync(documented.Job, pending, cancellationToken)),
                 () => Task.CompletedTask);
         }
     }
@@ -119,7 +131,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
         await (await launcher.StartAsync(subject, plan, kind, cancellationToken)).Match(
             launched => book.WritingAsync(job, new PendingWriter(launched.Writer, launched.Number, kind, signature), cancellationToken),
-            _ => book.NotWrittenAsync(job, kind, VersionFailure.WriterRefused, cancellationToken));
+            _ => NotWrittenAsync(job, kind, VersionFailure.WriterRefused, Option<HoldReason>.None, cancellationToken, signature));
     }
 
     private async Task SettleAsync(DocumentedJob documented, JobStatus status, CancellationToken cancellationToken)
@@ -132,7 +144,16 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         await documented.Writer.Match(
             async pending =>
             {
-                await (status == JobStatus.AwaitingReview ? KeepAsync(documented, pending, cancellationToken) : book.NotWrittenAsync(documented.Job, pending.Kind, VersionFailure.WriterStopped, cancellationToken));
+                var hold = status == JobStatus.NeedsHelp ? await subjects.HoldAsync(pending.Writer, cancellationToken) : Option<HoldReason>.None;
+
+                if (hold.Match(reason => Passing.Contains(reason), () => false) && !await EndedJobAsync(documented.Job, cancellationToken))
+                {
+                    await WaitingAsync(documented.Job, pending, hold, cancellationToken);
+
+                    return;
+                }
+
+                await (status == JobStatus.AwaitingReview ? KeepAsync(documented, pending, cancellationToken) : StoppedAsync(documented.Job, pending, cancellationToken));
 
                 if (status is JobStatus.AwaitingReview or JobStatus.NeedsHelp)
                 {
@@ -154,9 +175,40 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
                     () => Task.FromResult(Result<FeatureVersion, VersionFailure>.Failure(VersionFailure.NoDraft))))
                 .Match(
                     version => WrittenAsync(subject, version, pending.Plan, cancellationToken),
-                    failure => book.NotWrittenAsync(documented.Job, pending.Kind, failure, cancellationToken)),
-            () => book.NotWrittenAsync(documented.Job, pending.Kind, VersionFailure.Unwritable, cancellationToken));
+                    failure => NotWrittenAsync(documented.Job, pending.Kind, failure, Option<HoldReason>.None, cancellationToken)),
+            () => NotWrittenAsync(documented.Job, pending.Kind, VersionFailure.Unwritable, Option<HoldReason>.None, cancellationToken));
     }
+
+    private async Task StoppedAsync(JobId job, PendingWriter pending, CancellationToken cancellationToken) =>
+        await NotWrittenAsync(job, pending.Kind, VersionFailure.WriterStopped, await subjects.HoldAsync(pending.Writer, cancellationToken), cancellationToken);
+
+    private async Task WaitingAsync(JobId job, PendingWriter pending, Option<HoldReason> hold, CancellationToken cancellationToken) =>
+        await book.WaitingAsync(job, await UnwrittenAsync(job, pending.Kind, VersionFailure.WriterStopped, hold, cancellationToken), cancellationToken);
+
+    private async Task<bool> EndedJobAsync(JobId job, CancellationToken cancellationToken) =>
+        (await subjects.StatusAsync(job, cancellationToken)).Match(status => Ended.Contains(status), () => true);
+
+    private async Task EndedAsync(JobId job, CancellationToken cancellationToken) =>
+        await book.Of(job).Match(
+            documented => documented.Writer.Match(
+                async pending =>
+                {
+                    await StoppedAsync(job, pending, cancellationToken);
+                    await launcher.DiscardAsync(pending.Writer, cancellationToken);
+                },
+                () => Task.CompletedTask),
+            () => Task.CompletedTask);
+
+    private async Task ResumedAsync(DocumentedJob documented, CancellationToken cancellationToken) =>
+        await documented.Writer.Match(
+            pending => documented.Waiting.IsSome ? book.ResumedAsync(documented.Job, pending, cancellationToken) : Task.CompletedTask,
+            () => Task.CompletedTask);
+
+    private async Task NotWrittenAsync(JobId job, VersionKind kind, VersionFailure failure, Option<HoldReason> hold, CancellationToken cancellationToken, Option<string> plan = default) =>
+        await book.NotWrittenAsync(job, await UnwrittenAsync(job, kind, failure, hold, cancellationToken), plan, cancellationToken);
+
+    private async Task<UnwrittenVersion> UnwrittenAsync(JobId job, VersionKind kind, VersionFailure failure, Option<HoldReason> hold, CancellationToken cancellationToken) =>
+        new(kind, failure, default, Math.Max(1, (await subjects.AttemptsAsync(job, cancellationToken)).Count)) { Hold = hold };
 
     private async Task WrittenAsync(Subject subject, FeatureVersion version, string plan, CancellationToken cancellationToken)
     {
@@ -185,7 +237,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
                 await (await keeper.AsBuiltAsync(subject, cancellationToken)).Match(
                     version => WrittenAsync(subject, version, subject.Documented.LastPlan, cancellationToken),
-                    failure => book.NotWrittenAsync(job, VersionKind.AsBuilt, failure, cancellationToken));
+                    failure => NotWrittenAsync(job, VersionKind.AsBuilt, failure, Option<HoldReason>.None, cancellationToken));
             },
             () => Task.CompletedTask);
 }

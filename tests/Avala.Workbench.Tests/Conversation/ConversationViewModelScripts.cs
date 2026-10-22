@@ -447,7 +447,7 @@ public sealed class ConversationViewModelScripts
             new JobCheckpoint(1, 1, [new FileChange("minor.go", ChangeKind.Modified, 3, 1)]),
             new JobCheckpoint(2, 2, [new FileChange("total.go", ChangeKind.Added, 9, Option<int>.None)]),
         ]);
-        var conversation = new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Parts(checkpoints)), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(JobId.New());
+        var conversation = new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys(), Composing.Parts(checkpoints)), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(JobId.New());
         var second = TurnId.New();
         var transcript = Job().WithPrompts("Fix the rounding", [Attempt(1, AttemptOrigin.Initial)]).Apply(new TurnStarted(session, turn), Now).Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Now)
             .WithPrompts("Fix the rounding", [Attempt(1, AttemptOrigin.Initial), Attempt(2, AttemptOrigin.SendBack)]).Apply(new TurnStarted(session, second), Now).Apply(new TurnCompleted(session, second, TurnOutcome.Finished), Now);
@@ -507,5 +507,5 @@ public sealed class ConversationViewModelScripts
     private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
 
     private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver, FakeAppearance? appearance = null) =>
-        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), clipboard, Tools.Viewing()), new TranscriptExport(clipboard, saver, appearance ?? new FakeAppearance())).Open(JobId.New());
+        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), clipboard, Tools.Viewing()), new TranscriptExport(clipboard, saver, appearance ?? new FakeAppearance())).Open(JobId.New());
 }

@@ -12,10 +12,14 @@ public sealed class JobSteeringTests : IAsyncDisposable
     private readonly QueuedMessages queue;
     private readonly JobSteering steering;
     private readonly JobId job = JobId.New();
+    private readonly Avala.Workbench.Board.JobBoard board = new();
+    private readonly Avala.Workbench.Drafting.DraftBook drafts;
+    private readonly CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger messenger = new();
 
     public JobSteeringTests()
     {
-        queue = new QueuedMessages(jobs);
+        drafts = new Avala.Workbench.Drafting.DraftBook(new FakeDraftStore(), board, TimeProvider.System);
+        queue = new QueuedMessages(jobs, drafts, messenger);
         steering = new JobSteering(jobs, queue);
     }
 
@@ -144,7 +148,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AMessageWaitingWhenTheJobIsApprovedAgainReopensItAndOneWaitingWhenItIsDiscardedIsDropped()
+    public async Task AMessageWaitingWhenTheJobIsApprovedAgainReopensItAndOneWaitingWhenItIsDiscardedComesBackUndelivered()
     {
         var discarded = JobId.New();
         jobs.Status = JobStatus.Checking;
@@ -157,6 +161,60 @@ public sealed class JobSteeringTests : IAsyncDisposable
 
         Assert.Equal(["continue Keep the alias"], jobs.Calls);
         Assert.Equal((true, true), (steering.Queued(job).IsNone, steering.Queued(discarded).IsNone));
+        Assert.Equal([("Drop it", JobStatus.Discarded, Option<JobRejection>.None)], Back(discarded));
+    }
+
+    [Theory]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task AMessageSentFromAScreenThatStillShowsTheJobRunningAfterItEndedIsNotLeftQueuedForAJobThatWillNeverTakeIt(JobStatus ended)
+    {
+        jobs.Status = ended;
+        await queue.HandleAsync(new JobProgressed(job, ended), Cancellation);
+
+        var sent = await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation);
+
+        Assert.Equal((false, true), (sent.Match(delivery => delivery == MessageDelivery.Queued, _ => false), steering.Queued(job).IsNone));
+    }
+
+    [Fact]
+    public async Task AQueuedMessageThatComesBackIsAnnouncedAsQueuedAndThenReturned()
+    {
+        List<Avala.Workbench.Contracts.Presentation.QueueChange> changes = [];
+        CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<Avala.Workbench.Contracts.Presentation.QueuedMessageChanged>(messenger, this, (_, changed) => changes.Add(changed.Change));
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
+
+        Assert.Equal([Avala.Workbench.Contracts.Presentation.QueueChange.Queued, Avala.Workbench.Contracts.Presentation.QueueChange.Returned], changes);
+    }
+
+    [Fact]
+    public async Task AMessageTakenFromTheQueueGoesBackIntoItWhenSendingItThrows()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+        (jobs.Status, jobs.Fault) = (JobStatus.NeedsHelp, new InvalidOperationException("The job store is unavailable."));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation));
+
+        Assert.Equal(Option<string>.Some("Keep the alias"), steering.Queued(job));
+    }
+
+    [Fact]
+    public async Task AMessageThatComesBackUndeliveredRefreshesWhatThePersonSees()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+        using var watching = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        await using var changes = board.ChangesAsync(watching.Token).GetAsyncEnumerator(Cancellation);
+        Assert.True(await changes.MoveNextAsync());
+
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
+
+        Assert.True(await changes.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), Cancellation));
+        await watching.CancelAsync();
     }
 
     [Fact]
@@ -172,7 +230,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AMessageWaitingForAJobApprovedWithoutItsWorktreeIsDropped()
+    public async Task AMessageWaitingForAJobApprovedWithoutItsWorktreeComesBackUndeliveredSayingWhy()
     {
         jobs.Status = JobStatus.Checking;
         Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
@@ -181,10 +239,11 @@ public sealed class JobSteeringTests : IAsyncDisposable
         await queue.HandleAsync(new JobProgressed(job, JobStatus.Approved), Cancellation);
 
         Assert.True(steering.Queued(job).IsNone);
+        Assert.Equal([("Keep the alias", JobStatus.Approved, Option<JobRejection>.Some(JobRejection.WorkspaceUnavailable))], Back(job));
     }
 
     [Fact]
-    public async Task AMessageToAnIntegratedChildIsRefusedAndOneWaitingWhenItIsIntegratedIsDropped()
+    public async Task AMessageToAnIntegratedChildIsRefusedAndOneWaitingWhenItIsIntegratedComesBackUndeliveredSayingWhy()
     {
         jobs.Status = JobStatus.Checking;
         Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
@@ -194,6 +253,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
 
         Assert.Equal(JobRejection.NotRoot, Outcomes.FailsWith(await steering.SendAsync(job, JobStatus.Approved, "And another", Cancellation)));
         Assert.True(steering.Queued(job).IsNone);
+        Assert.Equal([("Keep the alias", JobStatus.Approved, Option<JobRejection>.Some(JobRejection.NotRoot))], Back(job));
     }
 
     [Fact]
@@ -222,4 +282,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     public ValueTask DisposeAsync() => queue.DisposeAsync();
+
+    private (string Text, JobStatus Status, Option<JobRejection> Rejection)[] Back(JobId of) =>
+        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(drafts.Of(of).Match(draft => string.Join("\n\n", draft.Waiting.Where(message => message.Returned).Select(message => message.Text)), () => string.Empty), back.Status, back.Rejection)], () => []);
 }

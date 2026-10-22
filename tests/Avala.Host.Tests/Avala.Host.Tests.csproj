@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Notifications\Avala.Notifications.Contracts\Avala.Notifications.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench.Contracts\Avala.Workbench.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Contests\Avala.Contests.Contracts\Avala.Contests.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Projects\Avala.Projects.Contracts\Avala.Projects.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Preview\Avala.Preview.Contracts\Avala.Preview.Contracts.csproj" Private="false" ExcludeAssets="runtime" />

@@ -5,6 +5,7 @@
              xmlns:navigation="using:Avala.Workbench.Navigation"
              xmlns:ui="using:Avala.Components.UI"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:trimming="using:Avala.Components.UI.Trimming"
              xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
@@ -67,7 +68,7 @@
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
           <Grid x:Name="HeaderRow" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" Margin="{DynamicResource ChromeLeading}">
             <StackPanel x:Name="HeaderTitle" VerticalAlignment="Center">
-              <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Conversation.Title}" />
+              <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
             <DockPanel x:Name="HeaderSide" VerticalAlignment="Center">

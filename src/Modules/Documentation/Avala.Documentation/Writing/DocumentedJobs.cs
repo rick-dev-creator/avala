@@ -19,6 +19,8 @@ internal sealed class DocumentedJobs(JobPlaces places, IDocsRules rules, Feature
 
     public Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) => places.StatusAsync(job, cancellationToken);
 
+    public Task<Option<HoldReason>> HoldAsync(JobId job, CancellationToken cancellationToken) => places.HoldAsync(job, cancellationToken);
+
     public async Task<Option<Subject>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await places.OfAsync(job, cancellationToken)).Match(
             place => place.Parent.IsSome ? Task.FromResult(Option<Subject>.None) : DocumentedAsync(place, cancellationToken),

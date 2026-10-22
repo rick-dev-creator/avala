@@ -30,6 +30,11 @@ internal sealed class ConnectionChooser(IConnections connections, IEnumerable<IC
             () => Task.FromResult(Option<ConnectionName>.None));
     }
 
+    public async Task<Option<ConnectionName>> UsableAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+        await connection.Match(
+            async named => (await connections.CheckAsync(named, cancellationToken)).IsSuccess ? connection : Option<ConnectionName>.None,
+            () => Task.FromResult(Option<ConnectionName>.None));
+
     public async Task<Option<ConnectionChoice>> PreviewAsync(ConnectionCatalog catalog, string repository, CancellationToken cancellationToken) =>
         await AskAsync(new ConnectionQuestion(repository, await CandidatesAsync(catalog, cancellationToken)) { AtHead = true }, cancellationToken);
 

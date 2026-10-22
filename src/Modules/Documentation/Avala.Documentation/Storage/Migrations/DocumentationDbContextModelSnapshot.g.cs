@@ -73,6 +73,38 @@ namespace Avala.Documentation.Storage.Migrations
                     b.ToTable("Requests", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Documentation.Storage.StoredUnwritten", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Failure")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Hold")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Job")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Unwritten", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Documentation.Storage.StoredVersion", b =>
                 {
                     b.Property<Guid>("Job")

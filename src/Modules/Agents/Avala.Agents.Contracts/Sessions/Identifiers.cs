@@ -11,3 +11,8 @@ public readonly record struct TurnId(Guid Value)
 }
 
 public readonly record struct ItemId(string Value);
+
+public readonly record struct MessageId(Guid Value)
+{
+    public static MessageId New() => new(Guid.CreateVersion7());
+}

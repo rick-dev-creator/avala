@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:trimming="using:Avala.Components.UI.Trimming"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:resources="using:Avala.Workbench.Resources"
              x:Class="Avala.Workbench.UI.ResourcesView"
@@ -68,7 +69,7 @@
             <StackPanel Spacing="4">
               <TextBlock Classes="caption" Text="Ports" />
               <TextBlock x:Name="LeaseCount" Classes="figure" Text="{Binding Leases.Count, StringFormat='{}{0} leased'}" />
-              <TextBlock x:Name="Ports" Classes="caption" Text="{Binding Ports}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Ports}" />
+              <TextBlock x:Name="Ports" Classes="caption" Text="{Binding Ports}" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
             </StackPanel>
           </Border>
         </UniformGrid>

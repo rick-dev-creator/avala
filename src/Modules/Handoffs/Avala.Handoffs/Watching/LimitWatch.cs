@@ -4,10 +4,11 @@ using Avala.Handoffs.Policy;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Handoffs.Watching;
 
-internal sealed class LimitWatch(Situations situations, LimitActions actions, IHandoffStore store, TimeProvider clock)
+internal sealed partial class LimitWatch(Situations situations, LimitActions actions, IHandoffStore store, ILogger<LimitWatch> logger)
     : IHandle<JobHeld>, IHandle<JobProgressed>, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor executor = new();
@@ -134,16 +135,32 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
         }
 
         await decision.Resume.Match(
-            resume => WaitAsync(situation.Job, resume, feedback, since, situation.Situation.Rules.Resume == ResumeAtReset.Ask, token),
+            resume => WaitAsync(situation.Job, Guessed(situation, resume), feedback, since, situation.Situation.Rules.Resume == ResumeAtReset.Ask, token),
             () => EndAsync(situation.Job, token));
     }
+
+    private ResumePoint Guessed(JobSituation situation, ResumePoint resume)
+    {
+        if (resume.At.IsSome || situation.Situation.Rules.Resume != ResumeAtReset.Auto)
+        {
+            return resume;
+        }
+
+        var length = UsageWindows.LengthOf(resume.Window);
+        LogResetGuessed(logger, situation.Job.Value, resume.Window, length.TotalHours);
+
+        return resume with { At = situation.Situation.Now + length };
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Job {Job} is held with no known reset of its {Window} usage window, so it goes on by itself after {Hours} hours")]
+    private static partial void LogResetGuessed(ILogger logger, Guid job, string window, double hours);
 
     private async Task WaitAsync(JobId job, ResumePoint resume, Option<string> feedback, DateTimeOffset since, bool asks, CancellationToken token)
     {
         await DisarmAsync(job);
         var kept = new KeptWait(job, feedback, since);
         await store.KeepAsync(kept, token);
-        waits[job] = new Waiting(kept, resume.At.Map(at => clock.CreateAlarm(() => Post(ringing => RingAsync(job, ringing)), at)));
+        waits[job] = new Waiting(kept, resume.At.Map(at => situations.Clock.CreateAlarm(() => Post(ringing => RingAsync(job, ringing)), at)));
         await actions.WaitsAsync(new ResetWait(job, resume.Connection, resume.Window, resume.At, since) { AwaitsPerson = asks }, token);
     }
 

@@ -264,6 +264,49 @@ public sealed class ProviderTests
     }
 
     [Fact]
+    public async Task AMessageTheCliCanNoLongerReadIsReportedUndeliveredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        cli.StdinClosed = true;
+
+        var sent = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+
+        Assert.Equal(AgentError.SessionClosed, sent.Match(_ => default(AgentError?), error => error));
+    }
+
+    [Fact]
+    public async Task AnAnswerTheCliCanNoLongerReadIsReportedUndeliveredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        _ = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+        await cli.Output.Writer.WriteAsync(Cli.Prompt("r1", "Bash", """{ "command": "ls" }""", "t1").ToJsonString(), Cancellation);
+        var asked = await session.Events.OfType<PermissionRequested>().FirstAsync(Cancellation);
+        cli.StdinClosed = true;
+
+        var answered = await session.RespondAsync(new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation);
+
+        Assert.Equal(AgentError.SessionClosed, answered.Match(_ => default(AgentError?), error => error));
+    }
+
+    [Fact]
+    public async Task AnInterruptTheCliCanNoLongerReadIsReportedUndeliveredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        _ = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+        cli.StdinClosed = true;
+
+        var interrupted = await session.InterruptAsync(Cancellation).AsTask().WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.Equal(AgentError.SessionClosed, interrupted.Match(_ => default(AgentError?), error => error));
+    }
+
+    [Fact]
     public async Task ACliThatEndsOnItsOwnEndsTheEventStreamAsACrashAsync()
     {
         using var folder = new TemporaryFolder();
@@ -497,6 +540,8 @@ public sealed class ProviderTests
 
         public AgentError? Refusal { get; init; }
 
+        public bool StdinClosed { get; set; }
+
         public Result<ICliProcess, AgentError> Start(CliLaunch launch, IProcessLauncher processes, Option<string> transcripts)
         {
             if (Refusal is { } refusal)
@@ -513,7 +558,8 @@ public sealed class ProviderTests
         {
             public IAsyncEnumerable<string> Lines => ReadAsync(CancellationToken.None);
 
-            public Task WriteAsync(string line, CancellationToken cancellationToken) => cli.Written.Writer.WriteAsync(line, cancellationToken).AsTask();
+            public Task WriteAsync(string line, CancellationToken cancellationToken) =>
+                cli.StdinClosed ? Task.FromException(new IOException("The pipe is closed.")) : cli.Written.Writer.WriteAsync(line, cancellationToken).AsTask();
 
             public ValueTask DisposeAsync()
             {

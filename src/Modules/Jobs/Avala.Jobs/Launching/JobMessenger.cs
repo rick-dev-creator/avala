@@ -14,11 +14,9 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 
     public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, Told told, CancellationToken cancellationToken)
     {
-        var (message, author) = (told.Text, told.Author);
-
         if (job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
-            return await agents.TellAsync(job, message, author, cancellationToken);
+            return await agents.TellAsync(job, told, cancellationToken);
         }
 
         var briefs = new List<JobBrief>();
@@ -40,7 +38,7 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 
         try
         {
-            sent = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), author, cancellationToken);
+            sent = await agents.TellAsync(job, told with { Text = string.Join("\n\n", [told.Text, .. briefs.Select(brief => brief.Text)]) }, cancellationToken);
         }
         catch
         {
@@ -80,4 +78,6 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 internal sealed record Told(string Text, MessageAuthor Author)
 {
     public bool Fresh { get; init; }
+
+    public IReadOnlyList<MessageId> Messages { get; init; } = [];
 }

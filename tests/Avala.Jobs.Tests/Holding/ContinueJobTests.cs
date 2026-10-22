@@ -32,6 +32,31 @@ public sealed class ContinueJobTests
     }
 
     [Fact]
+    public async Task AMessageTheOpenSessionCanNoLongerReadDoesNotEndTheJobAndIsNeitherReportedDeliveredNorLostAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.Stalled, Token);
+        flow.Agents.Unreadable.Add(Outcomes.Present(job.Session));
+
+        var continued = await flow.Jobs.ContinueAsync(job.Id, Message, Cancellation);
+
+        Assert.Equal((false, false), (job.State == JobState.Failed, continued.IsSuccess && !flow.Agents.Sent.Any(sent => sent.Message.EndsWith(Message, StringComparison.Ordinal))));
+    }
+
+    [Fact]
+    public async Task AMessageNeitherTheOpenSessionNorAResumedOneCanTakeHoldsTheJobAsLostAndIsRefusedAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.Stalled, Token);
+        flow.Agents.Unreadable.Add(Outcomes.Present(job.Session));
+        flow.Agents.OpeningFails = true;
+
+        var continued = await flow.Jobs.ContinueAsync(job.Id, Message, Cancellation);
+
+        Assert.Equal((JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.SessionLost), false), (job.State, job.Held, continued.IsSuccess));
+    }
+
+    [Fact]
     public async Task ContinuingAJobWhoseSessionWasLostResumesItsConversationInANewSessionAsync()
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
@@ -114,7 +139,7 @@ public sealed class ContinueJobTests
         var job = await flow.HeldAsync(HoldReason.LimitNearlyReached, Token);
         var old = Outcomes.Present(job.Session);
 
-        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueOnAsync(job.Id, Personal, Message, Cancellation));
+        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueOnAsync(job.Id, Personal, new JobMessage(Message), Cancellation));
 
         Assert.Equal(new JobContinuation(job.Id, Outcomes.Present(job.Session), ContinuedIn.NewConversation), continued);
         Assert.Equal((Option<ConnectionName>.Some(Personal), Option<ResumeToken>.None), (flow.Agents.Requests[^1].Connection, flow.Agents.Requests[^1].Resume));
@@ -133,11 +158,11 @@ public sealed class ContinueJobTests
         flow.Agents.UnknownConnections.Add("nowhere");
         var sent = flow.Agents.Sent.Count;
 
-        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(running.Id, Personal, Message, Cancellation)));
-        Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(JobId.New(), Personal, Message, Cancellation)));
-        Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, Personal, " ", Cancellation)));
-        Assert.Equal(JobRejection.SameConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, FakeAgents.DefaultConnection, Message, Cancellation)));
-        Assert.Equal(JobRejection.UnknownConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, new ConnectionName("nowhere"), Message, Cancellation)));
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(running.Id, Personal, new JobMessage(Message), Cancellation)));
+        Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(JobId.New(), Personal, new JobMessage(Message), Cancellation)));
+        Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, Personal, new JobMessage(" "), Cancellation)));
+        Assert.Equal(JobRejection.SameConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, FakeAgents.DefaultConnection, new JobMessage(Message), Cancellation)));
+        Assert.Equal(JobRejection.UnknownConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, new ConnectionName("nowhere"), new JobMessage(Message), Cancellation)));
         Assert.Equal((JobState.Running, JobState.NeedsHelp), (running.State, held.State));
         Assert.Equal(Option<ConnectionName>.Some(FakeAgents.DefaultConnection), held.Connection);
         Assert.Equal(sent, flow.Agents.Sent.Count);
@@ -153,7 +178,7 @@ public sealed class ContinueJobTests
         var old = Outcomes.Present(job.Session);
         flow.Briefings.Add(new UnrecordedBriefing());
 
-        var continued = await Record.ExceptionAsync(async () => await flow.Jobs.ContinueOnAsync(job.Id, Personal, Message, Cancellation));
+        var continued = await Record.ExceptionAsync(async () => await flow.Jobs.ContinueOnAsync(job.Id, Personal, new JobMessage(Message), Cancellation));
 
         Assert.Null(continued);
         Assert.Contains(old, flow.Agents.Stopped);

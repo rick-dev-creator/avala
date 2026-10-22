@@ -3,13 +3,20 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workbench.Contracts.Presentation;
+using Avala.Workbench.Drafting;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Steering;
 
-internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>, IAsyncDisposable
+internal sealed record UndeliveredMessage(JobStatus Status, Option<JobRejection> Rejection);
+
+internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMessenger messenger) : IHandle<JobProgressed>, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
     private ImmutableDictionary<JobId, ImmutableList<JobMessage>> queued = ImmutableDictionary<JobId, ImmutableList<JobMessage>>.Empty;
+    private ImmutableDictionary<JobId, UndeliveredMessage> undelivered = ImmutableDictionary<JobId, UndeliveredMessage>.Empty;
+    private ImmutableDictionary<JobId, JobStatus> ended = ImmutableDictionary<JobId, JobStatus>.Empty;
 
     public Option<string> Find(JobId job) =>
         Volatile.Read(ref queued).TryGetValue(job, out var messages) && Persons(messages).ToList() is { Count: > 0 } persons
@@ -18,20 +25,25 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
     public bool Withdraw(JobId job)
     {
-        var withdrawn = false;
+        var withdrawn = ImmutableList<JobMessage>.Empty;
         ImmutableInterlocked.Update(ref queued, known =>
         {
-            withdrawn = known.TryGetValue(job, out var messages) && Persons(messages).Any();
-            var left = withdrawn ? messages!.RemoveAll(message => message.Author == MessageAuthor.Person) : ImmutableList<JobMessage>.Empty;
+            withdrawn = known.TryGetValue(job, out var messages) ? [.. Persons(messages)] : [];
+            var left = withdrawn.IsEmpty ? ImmutableList<JobMessage>.Empty : messages!.RemoveAll(message => message.Author == MessageAuthor.Person);
 
-            return !withdrawn ? known : left.IsEmpty ? known.Remove(job) : known.SetItem(job, left);
+            return withdrawn.IsEmpty ? known : left.IsEmpty ? known.Remove(job) : known.SetItem(job, left);
         });
+        drafts.Unwait(job, withdrawn);
+        Tell(job, withdrawn, QueueChange.Withdrawn);
 
-        return withdrawn;
+        return !withdrawn.IsEmpty;
     }
 
+    public Option<UndeliveredMessage> TakeBack(JobId job) =>
+        ImmutableInterlocked.TryRemove(ref undelivered, job, out var message) ? message : Option<UndeliveredMessage>.None;
+
     public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
-        owner.RunAsync(token => DeliveredAsync(job, shown, message, token), cancellationToken);
+        owner.RunAsync(token => DeliveredAsync(job, Volatile.Read(ref ended).GetValueOrDefault(job, shown), message, token), cancellationToken);
 
     public Task<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, CancellationToken cancellationToken) =>
         owner.RunAsync(token => SentBackAsync(job, token), cancellationToken);
@@ -83,8 +95,9 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             return JobRejection.EmptyMessage;
         }
 
+        Take(job, messages);
         var (first, rest) = Split(messages);
-        var sent = await jobs.SendBackAsync(job, first, cancellationToken);
+        var sent = await KeptAsync(job, messages, () => jobs.SendBackAsync(job, first, cancellationToken));
         if (sent.IsSuccess)
         {
             await JoinAsync(job, rest, cancellationToken);
@@ -103,7 +116,13 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         if (integrationEvent.Status is JobStatus.Discarded or JobStatus.Failed)
         {
-            ImmutableInterlocked.TryRemove(ref queued, job, out _);
+            ImmutableInterlocked.AddOrUpdate(ref ended, job, integrationEvent.Status, (_, _) => integrationEvent.Status);
+
+            if (ImmutableInterlocked.TryRemove(ref queued, job, out var left))
+            {
+                Undeliver(job, left, integrationEvent.Status, Option<JobRejection>.None);
+            }
+
             return;
         }
 
@@ -112,14 +131,19 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             return;
         }
 
+        Take(job, messages);
         var (first, rest) = Split(messages);
-        var continued = await jobs.ContinueAsync(job, first, cancellationToken);
+        var continued = await KeptAsync(job, messages, () => jobs.ContinueAsync(job, first, cancellationToken));
 
         if (continued.IsSuccess)
         {
             await JoinAsync(job, rest, cancellationToken);
         }
-        else if (continued.Match(_ => false, rejection => !Final(integrationEvent.Status, rejection)))
+        else if (!continued.TryGetValue(out _, out var rejection) && Final(integrationEvent.Status, rejection))
+        {
+            Undeliver(job, messages, integrationEvent.Status, rejection);
+        }
+        else
         {
             Requeue(job, messages);
         }
@@ -140,6 +164,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     private static JobMessage Merged(List<JobMessage> messages) =>
         new(string.Join("\n\n", messages.Select(message => message.Text)))
         {
+            Messages = [.. messages.SelectMany(message => message.Messages)],
             Attachments = [.. messages.SelectMany(message => message.Attachments)],
             Author = messages[0].Author,
             CausedBy = messages.Any(message => message.CausedBy == MessageAuthor.Person) ? MessageAuthor.Person : MessageAuthor.Avala,
@@ -149,11 +174,26 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     {
         foreach (var note in rest.Match<JobMessage[]>(found => [found], () => []))
         {
-            if (!(await jobs.SteerAsync(job, note, cancellationToken)).IsSuccess)
+            if (!(await KeptAsync(job, [note], () => jobs.SteerAsync(job, note, cancellationToken))).IsSuccess)
             {
                 Queue(job, note);
             }
         }
+    }
+
+    private void Undeliver(JobId job, ImmutableList<JobMessage> messages, JobStatus status, Option<JobRejection> rejection)
+    {
+        var persons = Persons(messages).ToList();
+        Tell(job, messages.RemoveAll(message => message.Author == MessageAuthor.Person), QueueChange.Dropped);
+
+        if (persons.Count == 0)
+        {
+            return;
+        }
+
+        ImmutableInterlocked.AddOrUpdate(ref undelivered, job, new UndeliveredMessage(status, rejection), (_, _) => new UndeliveredMessage(status, rejection));
+        drafts.Return(job, persons);
+        Tell(job, persons, QueueChange.Returned);
     }
 
     private void Requeue(JobId job, ImmutableList<JobMessage> messages)
@@ -167,6 +207,38 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     private static bool Final(JobStatus status, JobRejection rejection) =>
         rejection == JobRejection.NotRoot || (status == JobStatus.Approved && rejection == JobRejection.WorkspaceUnavailable);
 
-    private void Queue(JobId job, JobMessage message) =>
+    private void Queue(JobId job, JobMessage message)
+    {
         ImmutableInterlocked.AddOrUpdate(ref queued, job, [message], (_, earlier) => earlier.Add(message));
+        drafts.Wait(job, [.. Persons([message])]);
+        Tell(job, [message], QueueChange.Queued);
+    }
+
+    private void Take(JobId job, ImmutableList<JobMessage> messages)
+    {
+        drafts.Unwait(job, Persons(messages));
+        Tell(job, messages, QueueChange.Taken);
+    }
+
+    private async Task<Result<T, JobRejection>> KeptAsync<T>(JobId job, IReadOnlyList<JobMessage> messages, Func<ValueTask<Result<T, JobRejection>>> send)
+        where T : notnull
+    {
+        try
+        {
+            return await send();
+        }
+        catch
+        {
+            Requeue(job, [.. messages]);
+            throw;
+        }
+    }
+
+    private void Tell(JobId job, IReadOnlyList<JobMessage> messages, QueueChange change)
+    {
+        if (messages.Count > 0)
+        {
+            messenger.Send(new QueuedMessageChanged(job, [.. messages.SelectMany(message => message.Messages)], change));
+        }
+    }
 }

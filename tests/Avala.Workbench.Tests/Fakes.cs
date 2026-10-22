@@ -49,6 +49,8 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
 
     public bool Steerable { get; set; } = true;
 
+    public Option<Exception> Fault { get; set; }
+
     public List<JobRequest> Requests { get; } = [];
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
@@ -81,9 +83,9 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         JobId job,
         Avala.Agents.Contracts.Connections.ConnectionName connection,
-        string message,
+        JobMessage message,
         CancellationToken cancellationToken) =>
-        AnswerAsync($"continue on {connection.Value} {message}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
+        AnswerAsync($"continue on {connection.Value} {message.Text}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("discard", job);
@@ -151,6 +153,7 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
         where T : notnull
     {
         Calls.Add(call);
+        Fault.Match(fault => throw fault, () => true);
 
         return ValueTask.FromResult(Enum.IsDefined(Refusal) ? Result<T, JobRejection>.Failure(Refusal) : Result<T, JobRejection>.Success(value));
     }

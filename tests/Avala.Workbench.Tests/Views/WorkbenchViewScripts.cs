@@ -34,6 +34,15 @@ public sealed partial class WorkbenchViewScripts(HeadlessUi ui)
             Assert.False(view.Shows("OpenReview"));
         }, Cancellation);
 
+    [Fact]
+    public Task AJobTitleShownWholeOffersNoTooltipAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWorkbenchViewModel(), ThemeVariant.Dark, 1000, 480);
+
+            Assert.Null(ToolTip.GetTip(view.Find("JobTitle")));
+        }, Cancellation);
+
     [Theory]
     [InlineData(720)]
     [InlineData(1000)]
