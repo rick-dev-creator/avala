@@ -146,4 +146,34 @@ public sealed class ReportedPullRequestTests(PublishedPlugins plugins)
 
         Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
     }
+
+    [Theory]
+    [InlineData("cherry-pick --ff")]
+    [InlineData("merge --quiet -m Take-the-colleagues-work")]
+    public async Task AColleaguesPullRequestIsNotAdoptedWhenTheWorktreeOnlyFastForwardedToItsHeadBeforePushingByUrlAsync(string fastForward)
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ForgeTests.ReviewedEditAsync(run, "pushes-by-url");
+        var url = new Uri(run.Repository.Remote).AbsoluteUri;
+        var head = await run.Repository.GitInAsync(worktree.Path, Cancellation, "rev-parse", "HEAD");
+        await File.WriteAllTextAsync(Path.Combine(worktree.Path, "COLLEAGUE.md"), "A colleague's work.\n", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "add", "COLLEAGUE.md");
+        var tree = await run.Repository.GitInAsync(worktree.Path, Cancellation, "write-tree");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "reset", "--quiet");
+        File.Delete(Path.Combine(worktree.Path, "COLLEAGUE.md"));
+        var colleague = await run.Repository.GitInAsync(worktree.Path, Cancellation, "-c", "user.name=Grace", "-c", "user.email=grace@localhost", "commit-tree", tree, "-p", head, "-m", "A colleague's work");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", url, $"{colleague}:refs/heads/colleague/feature");
+        var number = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("colleague/feature", "main", "A colleague's work", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, ["-c", "user.name=Ada", "-c", "user.email=ada@localhost", .. fastForward.Split(' '), colleague]);
+        var progressed = run.Watch<JobProgressed>();
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"git push {url} HEAD:colleague/feature", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Pushed to {ForgeTests.PullRequestLink(number)}.", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
+    }
 }

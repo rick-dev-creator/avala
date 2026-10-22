@@ -30,6 +30,7 @@ public sealed class RemoteAddressesTests
     [InlineData("git@github.com:Octo/Shop.git", "https://github.com/octo/shop", true)]
     [InlineData("ssh://git@ssh.github.com:443/octo/shop.git", "https://github.com/octo/shop.git", true)]
     [InlineData("https://github.com/octo/shop.git", "https://github.com/mallory/shop.git", false)]
+    [InlineData("/srv/remotes/octo/shop.git", "/home/mallory/octo/shop.git", false)]
     public void TwoAddressesOfTheSameRepositoryNameTheSameRemote(string one, string other, bool same) =>
         Assert.Equal(same, RemoteAddresses.Same(one, other));
 }

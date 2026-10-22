@@ -37,8 +37,41 @@ public sealed class PushedByUrlTests
     [InlineData("git push --delete https://forge.example/octo/shop.git fix/rounding")]
     [InlineData("git push -d https://forge.example/octo/shop.git fix/rounding")]
     [InlineData("git push https://forge.example/octo/shop.git :fix/rounding")]
+    [InlineData("git push --dry https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git push --del https://forge.example/octo/shop.git fix/rounding")]
+    [InlineData("git push --recurse-submodules=only https://forge.example/octo/shop.git HEAD:fix/rounding")]
     public void APushThatLeavesNoCommitOnTheBranchIsNotReportedAsPushedByUrl(string command) =>
         Assert.Empty(Pushed(command));
+
+    [Theory]
+    [InlineData("echo done # ; git push https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("true #&& git push https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    public void APushAfterAShellCommentIsNotReportedAsPushedByUrl(string command) =>
+        Assert.Empty(Pushed(command));
+
+    [Theory]
+    [InlineData("git push \"--dry-run`true`\" https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git push https://forge.example/octo/shop.git \"HEAD:fix/rounding`true`\"")]
+    public void APushWhoseArgumentsABackquotedSubstitutionInsideDoubleQuotesChangesIsNotReportedAsPushedByUrl(string command) =>
+        Assert.Empty(Pushed(command));
+
+    [Fact]
+    public void APushToARepositoryNamedOnTheCommandLineIsNotReportedForTheRepositoryNamedByTheRepoOption() =>
+        Assert.DoesNotContain(
+            Pushed("git push --repo=https://forge.example/octo/shop.git https://forge.example/mallory/shop.git HEAD:fix/rounding"),
+            pushed => pushed.Repository.Owner == "octo");
+
+    [Theory]
+    [InlineData("git push \\\n  https://forge.example/octo/shop.git \\\n  HEAD:fix/rounding")]
+    [InlineData("git push \\\n  https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    public void APushSpreadOverContinuedLinesIsReportedAsPushedByUrl(string command) =>
+        Assert.Contains(new PushedBranch(new RepositoryAddress("forge.example", "octo", "shop"), "fix/rounding"), Pushed(command));
+
+    [Theory]
+    [InlineData("git push https://forge.example/octo/shop.git HEAD:fix/rounding\n")]
+    [InlineData("git push https://forge.example/octo/shop.git HEAD:fix/rounding;")]
+    public void APushThatEndsTheCommandWithANewlineOrASemicolonIsReportedAsPushedByUrl(string command) =>
+        Assert.Contains(new PushedBranch(new RepositoryAddress("forge.example", "octo", "shop"), "fix/rounding"), Pushed(command));
 
     [Fact]
     public void APullRequestLinkWithCredentialsInItIsKeptWithoutThem()
