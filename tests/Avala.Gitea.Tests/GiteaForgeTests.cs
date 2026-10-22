@@ -111,8 +111,12 @@ public sealed class GiteaForgeTests
     public async Task GiteaAndForgejoPassTheForgeConformanceKitAsync(string dialect)
     {
         var server = await ServerAsync();
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var fork = await ForkAsync();
 
-        Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(Forge(dialect), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main"), Cancellation));
+        Assert.Empty(await ForgeConformance.CheckAsync(
+            new ConformanceCase(Forge(dialect), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main", _ => Task.FromResult(server.Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{fork}]", $"[{fork}, {pull}]"))),
+            Cancellation));
     }
 
     [Theory]
@@ -212,6 +216,15 @@ public sealed class GiteaForgeTests
             .Route("GET", $"{Repository}/branches/main", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "branch", Cancellation));
 
     private static GiteaForge Forge(string dialect) => new(dialect == "gitea" ? GiteaDialect.Gitea : GiteaDialect.Forgejo);
+
+    private static async Task<string> ForkAsync()
+    {
+        const string Own = "\"full_name\": \"octo/shop\"";
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var head = pull.LastIndexOf(Own, StringComparison.Ordinal);
+
+        return $"{pull[..head]}\"full_name\": \"mallory/shop\"{pull[(head + Own.Length)..]}".Replace("\"number\": 7", "\"number\": 8", StringComparison.Ordinal);
+    }
 
     private static async Task<FixtureServer> ServerAsync()
     {

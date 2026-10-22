@@ -193,6 +193,10 @@ public sealed class ReportedPullRequestsTests
         Assert.Empty(Pushed(command, outcome));
 
     [Fact]
+    public void APushAfterAnOperatorInsideAQuotedArgumentIsNotReportedAsPushedByUrl() =>
+        Assert.Empty(Pushed("echo 'done && git push https://forge.example/octo/shop.git HEAD:fix/rounding'", ItemOutcome.Succeeded));
+
+    [Fact]
     public async Task APullRequestPushedByUrlWhoseHeadThisWorktreeNeverHeldIsNotAdoptedAsync() =>
         Assert.True((await FoundAfterAPushByUrlAsync(Shop, held: false)).IsNone);
 

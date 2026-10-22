@@ -33,13 +33,6 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
         return found.Map(pullRequest => new Delivered(job, declared, remote, pullRequest, pullRequest.Head));
     }
 
-    private static bool Same(RepositoryAddress left, RepositoryAddress right) =>
-        string.Equals(left.Owner, right.Owner, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase)
-        && (string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase)
-            || left.Host.EndsWith($".{right.Host}", StringComparison.OrdinalIgnoreCase)
-            || right.Host.EndsWith($".{left.Host}", StringComparison.OrdinalIgnoreCase));
-
     private async Task<Option<PullRequestRef>> CheckedOutAsync(ResolvedForge forge, WorkspaceInfo worktree, CancellationToken cancellationToken)
     {
         IReadOnlyList<string> branches = [worktree.Branch, .. (await git.CheckedOutAsync(worktree.Path, cancellationToken)).Where(branch => branch != worktree.Branch)];
@@ -69,7 +62,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
             if ((await forge.Forge.ReadAsync(forge.Context, new PullRequestRef(number, link, string.Empty, string.Empty), cancellationToken)).TryGetValue(out var state, out _)
                 && state.Lifecycle == PullRequestLifecycle.Open
                 && string.Equals(state.PullRequest.Link.Host, link.Host, StringComparison.OrdinalIgnoreCase)
-                && state.HeadRepository.Match(head => Same(head, target), () => false)
+                && state.HeadRepository.Match(head => RemoteAddresses.Same(head, target), () => false)
                 && await PushedHereAsync(worktree, remote, target, reported, state, cancellationToken))
             {
                 return state.PullRequest;
@@ -81,7 +74,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 
     private async Task<bool> PushedHereAsync(WorkspaceInfo worktree, string remote, RepositoryAddress target, Reported reported, PullRequestState state, CancellationToken cancellationToken) =>
         await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken)
-        || (reported.Pushed.Any(pushed => pushed.Branch == state.PullRequest.Head && Same(pushed.Repository, target))
+        || (reported.Pushed.Any(pushed => pushed.Branch == state.PullRequest.Head && RemoteAddresses.Same(pushed.Repository, target))
             && await git.HeldAsync(worktree.Path, state.HeadCommit, cancellationToken));
 }
 

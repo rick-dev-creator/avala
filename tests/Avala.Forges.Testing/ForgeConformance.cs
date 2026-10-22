@@ -2,20 +2,22 @@ using Avala.Forges.Contracts;
 
 namespace Avala.Forges.Testing;
 
-public sealed record ConformanceCase(IForge Forge, ForgeContext Context, string Head, string Base);
+public sealed record ConformanceCase(IForge Forge, ForgeContext Context, string Head, string Base, Func<CancellationToken, Task> OpenFromFork);
 
 public static class ForgeConformance
 {
     public static async Task<IReadOnlyList<string>> CheckAsync(ConformanceCase forge, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
-        var (plugin, context, head, target) = forge;
+        var (plugin, context, head, target, openFromFork) = forge;
 
         Check(plugin.Info.Id.Length > 0 && plugin.Info.Name.Length > 0 && plugin.Info.TokenScheme.Length > 0, problems, "the forge declares no id, name or token scheme");
 
+        await openFromFork(cancellationToken);
+
         if ((await plugin.FindAsync(context, head, cancellationToken)).TryGetValue(out var before, out var error))
         {
-            Check(before.IsNone, problems, "found a pull request before one was opened");
+            Check(before.IsNone, problems, "found a pull request before one was opened, or one from a fork for the branch of the same name");
         }
         else
         {

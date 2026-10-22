@@ -43,7 +43,7 @@ public sealed class ForgeConformanceTests
         Assert.Equal(
             [
                 "the forge declares no id, name or token scheme",
-                "found a pull request before one was opened",
+                "found a pull request before one was opened, or one from a fork for the branch of the same name",
                 $"the opened pull request is not the one asked for: {Opened with { Number = 0 }}",
                 "the opened pull request is not found again",
                 "a fresh pull request is not open",
@@ -76,7 +76,7 @@ public sealed class ForgeConformanceTests
 
     private static Task<IReadOnlyList<string>> CheckAsync(MisbehavingForge forge) =>
         ForgeConformance.CheckAsync(
-            new ConformanceCase(forge, new ForgeContext(new Unused(), new ForgeTarget(new Uri("https://forge.invalid"), new RepositoryAddress("forge.invalid", "octo", "shop"), "origin")), Head, "main"),
+            new ConformanceCase(forge, new ForgeContext(new Unused(), new ForgeTarget(new Uri("https://forge.invalid"), new RepositoryAddress("forge.invalid", "octo", "shop"), "origin")), Head, "main", _ => Task.CompletedTask),
             Cancellation);
 
     private sealed class MisbehavingForge : IForge

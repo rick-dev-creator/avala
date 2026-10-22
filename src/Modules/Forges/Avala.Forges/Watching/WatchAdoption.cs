@@ -64,5 +64,5 @@ internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, Ti
         book.Live.Any(kept => kept.State.Job != delivered.Job
             && kept.State.Forge == delivered.Rules.Forge
             && kept.State.PullRequest.Number == delivered.PullRequest.Number
-            && kept.RemoteUrl == delivered.RemoteUrl);
+            && RemoteAddresses.Same(kept.RemoteUrl, delivered.RemoteUrl));
 }

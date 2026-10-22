@@ -59,7 +59,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open&head={Escape(context.Target.Repository.Owner)}:{Escape(head)}", cancellationToken))
-            .Bind(body => Json.Read(body, root => root.EnumerateArray().Select(Reference).FirstOrDefault().ToOption()));
+            .Bind(body => Json.Read(body, root => root.EnumerateArray().Where(pull => FromTarget(context, pull)).Select(Reference).FirstOrDefault().ToOption()));
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
         (await context.Api.SendAsync(
@@ -141,6 +141,12 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
 
         return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = HeadRepository(context, pull) };
     }
+
+    private static bool FromTarget(ForgeContext context, JsonElement pull) =>
+        HeadRepository(context, pull).Match(
+            head => string.Equals(head.Owner, context.Target.Repository.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(head.Name, context.Target.Repository.Name, StringComparison.OrdinalIgnoreCase),
+            () => false);
 
     private static Option<RepositoryAddress> HeadRepository(ForgeContext context, JsonElement pull) =>
         pull.GetProperty("head").TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object

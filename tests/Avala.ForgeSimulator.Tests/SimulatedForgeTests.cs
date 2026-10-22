@@ -26,7 +26,9 @@ public sealed class SimulatedForgeTests
         await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "green");
 
-        Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(forge, context, Head, "main"), Cancellation));
+        Assert.Empty(await ForgeConformance.CheckAsync(
+            new ConformanceCase(forge, context, Head, "main", token => new SimulatedForgeRemote(context.Target.Remote).OpenPullRequestAsync(Head, "main", "Mallory's greeting", token, fork: "mallory")),
+            Cancellation));
     }
 
     [Fact]

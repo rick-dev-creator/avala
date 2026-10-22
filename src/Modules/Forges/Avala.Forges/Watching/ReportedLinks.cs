@@ -55,17 +55,17 @@ internal sealed partial class ReportedLinks
         switch (activity)
         {
             case ItemStarted { Kind: ItemKind.Message or ItemKind.Command or ItemKind.Mcp } started when sessions.ContainsKey(started.Session):
-                said[(started.Session, started.Item)] = new Said(string.Empty, Opens(started), Pushes(started));
+                said[(started.Session, started.Item)] = new Said(string.Empty, Opens(started), Pushes(started), []);
 
                 return Option<JobId>.None;
             case ItemProgressed progressed when said.TryGetValue((progressed.Session, progressed.Item), out var item) && sessions.TryGetValue(progressed.Session, out var job):
                 var text = item.Carried + progressed.Text;
-                var (carried, found) = Read(job, item.FromOpening, text, PullRequestLinks.Settled(text));
-                said[(progressed.Session, progressed.Item)] = item with { Carried = carried };
+                var (carried, found, opened) = Read(job, item, text, PullRequestLinks.Settled(text));
+                said[(progressed.Session, progressed.Item)] = item with { Carried = carried, Opened = opened };
 
                 return found ? job : Option<JobId>.None;
             case ItemCompleted completed when said.Remove((completed.Session, completed.Item), out var item) && sessions.TryGetValue(completed.Session, out var job):
-                var read = Read(job, item.FromOpening, item.Carried, item.Carried.Length).Found;
+                var read = Read(job, item, item.Carried, item.Carried.Length).Found;
                 var pushed = completed.Outcome == ItemOutcome.Succeeded && Pushed(job, item.Branches);
 
                 return read || pushed ? job : Option<JobId>.None;
@@ -95,25 +95,26 @@ internal sealed partial class ReportedLinks
         return true;
     }
 
-    private (string Carried, bool Found) Read(JobId job, bool opens, string text, int settled)
+    private (string Carried, bool Found, IReadOnlyList<Uri> Opened) Read(JobId job, Said item, string text, int settled)
     {
         var fresh = PullRequestLinks.In(text[..settled]).Where(PullRequestLinks.LooksLikePullRequest).Distinct().ToList();
+        var opened = item.FromOpening ? [.. item.Opened.Concat(fresh).Distinct()] : item.Opened;
 
         if (fresh.Count > 0)
         {
             var known = Of(job);
-            reported[job] = opens
-                ? known with { Created = Kept(known.Created, fresh) }
+            reported[job] = item.FromOpening
+                ? known with { Created = [.. known.Created.Except(opened).Concat(opened.Reverse()).TakeLast(KeptPerJob)] }
                 : known with { Mentioned = Kept(known.Mentioned, fresh) };
         }
 
         var rest = text[settled..];
 
-        return (rest.Length > KeptPerItem ? string.Empty : rest, fresh.Count > 0);
+        return (rest.Length > KeptPerItem ? string.Empty : rest, fresh.Count > 0, opened);
     }
 
     [GeneratedRegex(@"\b(pr|pulls?|mr|merge-request)\s+create\b|create[_-]?(pull|merge)[_-]?request", RegexOptions.IgnoreCase)]
     private static partial Regex Opening();
 
-    private readonly record struct Said(string Carried, bool FromOpening, IReadOnlyList<PushedBranch> Branches);
+    private readonly record struct Said(string Carried, bool FromOpening, IReadOnlyList<PushedBranch> Branches, IReadOnlyList<Uri> Opened);
 }

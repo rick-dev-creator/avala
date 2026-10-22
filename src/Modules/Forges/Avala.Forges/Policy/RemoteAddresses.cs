@@ -29,6 +29,16 @@ internal static class RemoteAddresses
         return IsAbsolutePath(trimmed) ? Address(string.Empty, trimmed) : Option<RepositoryAddress>.None;
     }
 
+    public static bool Same(RepositoryAddress left, RepositoryAddress right) =>
+        string.Equals(left.Owner, right.Owner, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase)
+            || left.Host.EndsWith($".{right.Host}", StringComparison.OrdinalIgnoreCase)
+            || right.Host.EndsWith($".{left.Host}", StringComparison.OrdinalIgnoreCase));
+
+    public static bool Same(string left, string right) =>
+        left == right || Parse(left).Bind(one => Parse(right).Map(other => Same(one, other))).Match(same => same, () => false);
+
     private static bool IsAbsolutePath(string path) =>
         path[0] is '/' or '\\'
         || (path.Length > 2 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '/' or '\\');

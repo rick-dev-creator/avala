@@ -74,7 +74,7 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open", cancellationToken))
             .Bind(body => Json.Read(body, root => root.EnumerateArray()
-                .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head)
+                .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head && FromTarget(context, pull))
                 .Select(Reference)
                 .FirstOrDefault()
                 .ToOption()));
@@ -157,6 +157,12 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
 
         return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = HeadRepository(context, pull) };
     }
+
+    private static bool FromTarget(ForgeContext context, JsonElement pull) =>
+        HeadRepository(context, pull).Match(
+            head => string.Equals(head.Owner, context.Target.Repository.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(head.Name, context.Target.Repository.Name, StringComparison.OrdinalIgnoreCase),
+            () => false);
 
     private static Option<RepositoryAddress> HeadRepository(ForgeContext context, JsonElement pull) =>
         pull.GetProperty("head").TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
