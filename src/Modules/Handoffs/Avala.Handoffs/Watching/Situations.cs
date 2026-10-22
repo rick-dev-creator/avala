@@ -78,6 +78,8 @@ internal sealed class Situations(JobPlaces places, ConnectionReadings readings, 
 {
     public DateTimeOffset Now => clock.GetUtcNow();
 
+    public TimeProvider Clock => clock;
+
     public async Task<Option<JobSituation>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await places.OfAsync(job, cancellationToken)).Match(
             found => found.History.Summary.Connection.Match(

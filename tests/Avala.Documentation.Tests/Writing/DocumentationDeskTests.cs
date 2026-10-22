@@ -231,8 +231,11 @@ public sealed class DocumentationDeskTests
         Assert.Empty(documented.Published<VersionNotWritten>());
     }
 
-    [Fact]
-    public async Task AWaitingWriterWhoseJobEndsIsStoppedAndItsVersionIsShownNotWrittenAsync()
+    [Theory]
+    [InlineData(JobStatus.Approved)]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task AWaitingWriterWhoseJobEndsIsStoppedAndItsVersionIsShownNotWrittenAsync(JobStatus ended)
     {
         var documented = Documented.With();
         var (job, session) = await documented.RunningAsync();
@@ -241,11 +244,29 @@ public sealed class DocumentationDeskTests
         documented.Jobs.Held(writer, HoldReason.LimitNearlyReached);
         await documented.Desk.HandleAsync(new JobProgressed(writer, JobStatus.NeedsHelp), Cancellation);
 
-        await documented.Desk.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
+        await documented.Desk.HandleAsync(new JobProgressed(job, ended), Cancellation);
 
         Assert.Equal([new VersionNotWritten(job, VersionKind.Proposed, VersionFailure.WriterStopped) { Hold = HoldReason.LimitNearlyReached }], documented.Published<VersionNotWritten>());
         Assert.Contains(writer, documented.Jobs.Discarded);
         Assert.Equal(Option<UnwrittenVersion>.None, Outcomes.Present(documented.Book.Of(job)).Waiting);
+    }
+
+    [Theory]
+    [InlineData(JobStatus.Approved)]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task AWriterStillRunningWhenItsJobEndsIsStoppedAndItsVersionIsShownNotWrittenAsync(JobStatus ended)
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        var writer = documented.LastWriter;
+
+        await documented.ProgressAsync(job, ended);
+
+        Assert.Equal([new VersionNotWritten(job, VersionKind.Proposed, VersionFailure.WriterStopped)], documented.Published<VersionNotWritten>());
+        Assert.Contains(writer, documented.Jobs.Discarded);
+        Assert.Equal(Option<JobId>.None, Outcomes.Present(documented.Book.Of(job)).Writer.Map(pending => pending.Writer));
     }
 
     [Fact]
@@ -325,7 +346,7 @@ public sealed class DocumentationDeskTests
         var (job, session) = await documented.RunningAsync();
         await documented.PlanAsync(session, "Add a Webhooks container");
         var writer = documented.LastWriter;
-        await documented.ProgressAsync(job, JobStatus.Approved);
+        documented.Jobs.Move(job, JobStatus.Approved);
         documented.Jobs.Held(writer, HoldReason.LimitNearlyReached);
 
         await documented.Desk.HandleAsync(new JobProgressed(writer, JobStatus.NeedsHelp), Cancellation);

@@ -165,6 +165,26 @@ public sealed class CapacityTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ACompanionThatRunsOutOfItsWindowWaitsOnItsJobsAccountAndWritesItsVersionOnceTheWindowResetsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", DocsOn)]);
+        var waits = run.Watch<VersionWaiting>();
+        var written = run.Watch<VersionWritten>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{Planned} [companion: document-after-the-window]") { Connection = One }));
+        _ = await waits.UntilAsync(version => version.Job == job);
+        var resumed = run.Watch<VersionWriting>();
+        run.Clock.Advance(TimeSpan.FromHours(2));
+        var writing = await resumed.UntilAsync(version => version.Job == job);
+        var version = await written.UntilAsync(version => version.Job == job);
+
+        Assert.Equal((VersionKind.Proposed, VersionKind.Proposed), (writing.Kind, version.Version.Kind));
+        Assert.Equal(One, await RanOnAsync(run, writing.Writer));
+        Assert.Equal(Option<UnwrittenVersion>.None, Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Waiting);
+        Assert.Empty(Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Unwritten);
+    }
+
+    [Fact]
     public async Task AJobHeldAtTheLimitOfOneAccountIsContinuedOnTheOtherAsANewConversationWhenAskedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", HoldNearTheLimit)]);

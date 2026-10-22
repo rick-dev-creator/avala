@@ -155,6 +155,24 @@ public sealed class HandoffPolicyTests
     }
 
     [Fact]
+    public void AJobHeldWithoutAnyReadingWaitsInsteadOfGoingOnAtOnce()
+    {
+        var own = new ConnectionState(Work, "claude-code", []);
+        var held = HandoffPolicy.WhenHeld(new Situation(own, Chosen(Work), Rules(OnLimit.Hold), [own], Now));
+
+        Assert.Equal((Verdict.Wait, new ResumePoint(Work, string.Empty, Option<DateTimeOffset>.None)), (held.Verdict, Outcomes.Present(held.Resume)));
+    }
+
+    [Fact]
+    public void AJobHeldOnAReadingWithoutUtilizationWaitsForThatReadingsResetInsteadOfGoingOnAtOnce()
+    {
+        var own = new ConnectionState(Work, "claude-code", [new UsageLimit("5h", 0, Now.AddHours(1))]);
+        var held = HandoffPolicy.WhenHeld(new Situation(own, Chosen(Work), Rules(OnLimit.Hold), [own], Now));
+
+        Assert.Equal((Verdict.Wait, new ResumePoint(Work, "5h", Now.AddHours(1))), (held.Verdict, Outcomes.Present(held.Resume)));
+    }
+
+    [Fact]
     public void AHeldJobWhoseReadingsHaveResetGoesOn()
     {
         var own = new ConnectionState(Work, "claude-code", [new UsageLimit("5h", 0.95, Now.AddMinutes(-1))]);

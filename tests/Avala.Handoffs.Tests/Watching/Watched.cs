@@ -36,7 +36,7 @@ internal sealed class Watched : IAsyncDisposable
             Situations,
             new LimitActions(Jobs, Briefs, Book, Bus),
             Store,
-            Clock);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LimitWatch>.Instance);
         Status(JobStatus.NeedsHelp);
     }
 

@@ -9,6 +9,8 @@ internal static class ScenarioCatalog
 {
     private const string Tag = "[simulate:";
 
+    private const string CompanionTag = "[companion:";
+
     internal static readonly IStep[] FixedCalculator =
     [
         Thought("The feedback says the sum is wrong. ", "I will fix it."),
@@ -542,7 +544,7 @@ internal static class ScenarioCatalog
 
     public static string NameIn(string firstMessage) =>
         firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
-        : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? DocumentationScenarios.Document.Name
+        : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? Tagged(firstMessage, CompanionTag).Bind(Known).Match(name => name, () => DocumentationScenarios.Document.Name)
         : Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
             () => Tagged(firstMessage, ReplayRequest.CompressedTag).Match(

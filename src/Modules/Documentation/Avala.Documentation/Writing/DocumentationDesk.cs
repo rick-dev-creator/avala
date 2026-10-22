@@ -14,6 +14,8 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 {
     private static readonly HoldReason[] Passing = [HoldReason.LimitNearlyReached];
 
+    private static readonly JobStatus[] Ended = [JobStatus.Approved, JobStatus.Discarded, JobStatus.Failed];
+
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed, JobStatus.Discarded, JobStatus.Approved];
 
     private readonly Dictionary<SessionId, JobId> sessions = [];
@@ -60,6 +62,13 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
     {
         foreach (var documented in book.Pending())
         {
+            if (await EndedJobAsync(documented.Job, cancellationToken))
+            {
+                await EndedAsync(documented.Job, cancellationToken);
+
+                continue;
+            }
+
             await documented.Writer.Match(
                 async pending => await (await subjects.StatusAsync(pending.Writer, cancellationToken)).Match(
                     status => SettleAsync(documented, status, cancellationToken),
@@ -137,7 +146,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
             {
                 var hold = status == JobStatus.NeedsHelp ? await subjects.HoldAsync(pending.Writer, cancellationToken) : Option<HoldReason>.None;
 
-                if (hold.Match(reason => Passing.Contains(reason), () => false))
+                if (hold.Match(reason => Passing.Contains(reason), () => false) && !await EndedJobAsync(documented.Job, cancellationToken))
                 {
                     await WaitingAsync(documented.Job, pending, hold, cancellationToken);
 
@@ -176,16 +185,16 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
     private async Task WaitingAsync(JobId job, PendingWriter pending, Option<HoldReason> hold, CancellationToken cancellationToken) =>
         await book.WaitingAsync(job, await UnwrittenAsync(job, pending.Kind, VersionFailure.WriterStopped, hold, cancellationToken), cancellationToken);
 
+    private async Task<bool> EndedJobAsync(JobId job, CancellationToken cancellationToken) =>
+        (await subjects.StatusAsync(job, cancellationToken)).Match(status => Ended.Contains(status), () => true);
+
     private async Task EndedAsync(JobId job, CancellationToken cancellationToken) =>
         await book.Of(job).Match(
             documented => documented.Writer.Match(
                 async pending =>
                 {
-                    if (documented.Waiting.IsSome)
-                    {
-                        await StoppedAsync(job, pending, cancellationToken);
-                        await launcher.DiscardAsync(pending.Writer, cancellationToken);
-                    }
+                    await StoppedAsync(job, pending, cancellationToken);
+                    await launcher.DiscardAsync(pending.Writer, cancellationToken);
                 },
                 () => Task.CompletedTask),
             () => Task.CompletedTask);
