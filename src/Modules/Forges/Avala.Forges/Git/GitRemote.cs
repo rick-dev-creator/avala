@@ -7,6 +7,8 @@ namespace Avala.Forges.Git;
 
 internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
 {
+    private static readonly string[] Pulled = [" (pick): ", " (reword): ", " (edit): ", " (squash): ", " (fixup): ", " (continue): ", ": Merge made by "];
+
     private static readonly string[] Making =
     [
         "commit:", "commit (amend):", "commit (initial):", "commit (merge):", "cherry-pick:", "revert:", "am:",
@@ -49,7 +51,9 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
 
     private static bool Made(string subject) =>
         !FastForward(subject)
-        && (Making.Any(action => subject.StartsWith(action, StringComparison.Ordinal)) || subject.StartsWith("merge ", StringComparison.Ordinal));
+        && (Making.Any(action => subject.StartsWith(action, StringComparison.Ordinal))
+            || subject.StartsWith("merge ", StringComparison.Ordinal)
+            || (subject.StartsWith("pull", StringComparison.Ordinal) && Pulled.Any(made => subject.Contains(made, StringComparison.Ordinal))));
 
     private static bool FastForward(string subject) =>
         !subject.StartsWith("commit", StringComparison.Ordinal)

@@ -71,13 +71,36 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     public async ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken) =>
         await GiteaRepositories.MeAsync(context, cancellationToken);
 
-    public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
-        (await GetAsync(context, $"{Repository(context)}/pulls?state=open", cancellationToken))
-            .Bind(body => Json.Read(body, root => root.EnumerateArray()
-                .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head && FromBase(context, pull))
-                .Select(Reference)
-                .FirstOrDefault()
-                .ToOption()));
+    public const int DefaultPageSize = 30;
+
+    public const int MostOpenPages = 20;
+
+    public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken)
+    {
+        for (var page = 1; page <= MostOpenPages; page++)
+        {
+            var path = page == 1 ? $"{Repository(context)}/pulls?state=open" : $"{Repository(context)}/pulls?state=open&page={page.ToString(CultureInfo.InvariantCulture)}";
+            var read = (await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => (
+                Count: root.GetArrayLength(),
+                Found: root.EnumerateArray()
+                    .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head && FromBase(context, pull))
+                    .Select(Reference)
+                    .FirstOrDefault()
+                    .ToOption())));
+
+            if (!read.TryGetValue(out var listed, out var error))
+            {
+                return error;
+            }
+
+            if (listed.Found.IsSome || listed.Count < DefaultPageSize)
+            {
+                return listed.Found;
+            }
+        }
+
+        return Option<PullRequestRef>.None;
+    }
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
         (await context.Api.SendAsync(

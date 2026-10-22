@@ -39,7 +39,8 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 
         foreach (var branch in branches)
         {
-            if ((await forge.Forge.FindAsync(forge.Context, branch, cancellationToken)).TryGetValue(out var found, out _) && found.IsSome)
+            if ((await forge.Forge.FindAsync(forge.Context, branch, cancellationToken)).TryGetValue(out var found, out _)
+                && await found.Match(pullRequest => MadeHereAsync(forge, worktree, pullRequest, cancellationToken), () => Task.FromResult(false)))
             {
                 return found;
             }
@@ -47,6 +48,10 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 
         return Option<PullRequestRef>.None;
     }
+
+    private async Task<bool> MadeHereAsync(ResolvedForge forge, WorkspaceInfo worktree, PullRequestRef pullRequest, CancellationToken cancellationToken) =>
+        (await forge.Forge.ReadAsync(forge.Context, pullRequest, cancellationToken)).TryGetValue(out var state, out _)
+        && await git.HeldAsync(worktree.Path, state.HeadCommit, cancellationToken);
 
     private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, string remote, Reported reported, CancellationToken cancellationToken)
     {
@@ -73,9 +78,9 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
     }
 
     private async Task<bool> PushedHereAsync(WorkspaceInfo worktree, string remote, RepositoryAddress target, Reported reported, PullRequestState state, CancellationToken cancellationToken) =>
-        await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken)
-        || (reported.Pushed.Any(pushed => pushed.Branch == state.PullRequest.Head && RemoteAddresses.Same(pushed.Repository, target))
-            && await git.HeldAsync(worktree.Path, state.HeadCommit, cancellationToken));
+        await git.HeldAsync(worktree.Path, state.HeadCommit, cancellationToken)
+        && (reported.Pushed.Any(pushed => pushed.Branch == state.PullRequest.Head && RemoteAddresses.Same(pushed.Repository, target))
+            || await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken));
 }
 
 internal sealed class PullRequestDiscovery(JobPlaces places, PullRequestFinder finder, WatchAdoption adoption, ReportedBook reported)

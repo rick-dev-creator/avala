@@ -108,6 +108,21 @@ public sealed class GiteaForgeTests
 
     [Theory]
     [MemberData(nameof(Dialects))]
+    public async Task TheOpenPullRequestOfABranchIsFoundOnALaterPageOfOpenPullRequestsAsync(string dialect)
+    {
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var others = string.Join(", ", Enumerable.Range(1, GiteaForge.DefaultPageSize).Select(other => pull.Replace($"\"ref\": \"{Head}\"", $"\"ref\": \"other/{other}\"", StringComparison.Ordinal)));
+        var server = (await ServerAsync())
+            .Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{others}]")
+            .Route("GET", $"{Repository}/pulls?state=open&page=2", HttpStatusCode.OK, $"[{pull}]");
+
+        var found = Outcomes.Succeeds(await Forge(dialect).FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.Equal(Option<int>.Some(7), found.Map(pullRequest => pullRequest.Number));
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
     public async Task TheOpenPullRequestOfABranchIsFoundAfterItsRepositoryWasRenamedAsync(string dialect)
     {
         var pull = (await FixtureServer.FixtureAsync("gitea", "pull", Cancellation))

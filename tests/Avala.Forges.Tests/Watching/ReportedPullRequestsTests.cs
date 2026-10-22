@@ -196,6 +196,13 @@ public sealed class ReportedPullRequestsTests
     public void APushToANamedRemoteOrOneThatFailedIsNotReportedAsPushedByUrl(string command, ItemOutcome outcome) =>
         Assert.Empty(Pushed(command, outcome));
 
+    [Theory]
+    [InlineData("git push https://forge.example/$OWNER/shop.git HEAD:fix/rounding")]
+    [InlineData("git push https://x-access-token:$(cat token)@forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git push \"https://forge.example/octo/shop.git\" \"HEAD:$BRANCH\"")]
+    public void AVariableOutsideTheCredentialsOfAPushUrlLeavesThePushUnreported(string command) =>
+        Assert.Empty(Pushed(command, ItemOutcome.Succeeded));
+
     [Fact]
     public void APushAfterAnOperatorInsideAQuotedArgumentIsNotReportedAsPushedByUrl() =>
         Assert.Empty(Pushed("echo 'done && git push https://forge.example/octo/shop.git HEAD:fix/rounding'", ItemOutcome.Succeeded));

@@ -1,10 +1,11 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Avala.Forges.Policy;
 using Avala.Sdk;
 
 namespace Avala.Forges.Watching;
 
-internal static class GitPushes
+internal static partial class GitPushes
 {
     private const string Heads = "refs/heads/";
 
@@ -281,6 +282,22 @@ internal static class GitPushes
         return lexer.Words;
     }
 
+    private static int Credential(string prefix, string text, int at)
+    {
+        var variable = Variable().Match(text, at);
+
+        return variable.Success && UserInfo().IsMatch(prefix) && Authority().IsMatch(text[(at + variable.Length)..]) ? variable.Length : 0;
+    }
+
+    [GeneratedRegex(@"\G\$(\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)")]
+    private static partial Regex Variable();
+
+    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9+.-]*://[^/@?#\s$]*$")]
+    private static partial Regex UserInfo();
+
+    [GeneratedRegex(@"^[^/@?#\s""'$`]*@")]
+    private static partial Regex Authority();
+
     private readonly record struct Word(string Text, bool Operator);
 
     private sealed record Segment(string Before, List<string> Words, string After);
@@ -298,9 +315,9 @@ internal static class GitPushes
         {
             var character = command[Index];
 
-            if (character is '(' or ')' or '`' or '{' or '}' or '$')
+            if (character is '$' or '(' or ')' or '`' or '{' or '}')
             {
-                return false;
+                return character == '$' && Credentialed();
             }
 
             if (character is '\'' or '"')
@@ -376,7 +393,7 @@ internal static class GitPushes
         {
             var closing = command.IndexOf(quote, Index + 1);
 
-            if (closing < 0 || (quote == '"' && command.AsSpan(Index + 1, closing - Index - 1).IndexOfAny('\\', '$', '`') >= 0))
+            if (closing < 0 || (quote == '"' && !Plain(command[(Index + 1)..closing])))
             {
                 return false;
             }
@@ -384,6 +401,40 @@ internal static class GitPushes
             current.Append(command, Index + 1, closing - Index - 1);
             started = true;
             Index = closing + 1;
+
+            return true;
+        }
+
+        private bool Plain(string content)
+        {
+            if (content.AsSpan().IndexOfAny('\\', '`') >= 0)
+            {
+                return false;
+            }
+
+            for (var at = content.IndexOf('$', StringComparison.Ordinal); at >= 0; at = content.IndexOf('$', at + 1))
+            {
+                if (Credential(current + content[..at], content, at) == 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool Credentialed()
+        {
+            var length = Credential(current.ToString(), command, Index);
+
+            if (length == 0)
+            {
+                return false;
+            }
+
+            current.Append(command, Index, length);
+            started = true;
+            Index += length;
 
             return true;
         }
