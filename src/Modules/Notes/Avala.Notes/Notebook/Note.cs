@@ -19,6 +19,9 @@ internal static class Note
             Updated = at,
         });
 
+    public static Result<NoteRecord, NoteError> Ideated(NoteRecord note, DateTimeOffset at) =>
+        Open(note).Map(open => open.State == NoteState.Idea ? open : open with { State = NoteState.Idea, Updated = at });
+
     public static Result<NoteRecord, NoteError> Archived(NoteRecord note, DateTimeOffset at) =>
         Open(note).Map(open => open with { State = NoteState.Archived, Updated = at });
 

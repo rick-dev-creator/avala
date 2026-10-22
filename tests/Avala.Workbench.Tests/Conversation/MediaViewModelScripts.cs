@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Testing;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Timeline;
@@ -14,7 +15,7 @@ public sealed class MediaViewModelScripts
         var path = Path.Combine(folder.Path, "screen.png");
         await File.WriteAllBytesAsync(path, [137, 80, 78, 71], TestContext.Current.CancellationToken);
         var pictures = new FakePictures();
-        var media = new MediaViewModel(new MediaEntry("media", new Attachment("screen.png", "image/png", path), "The checkout page"), pictures);
+        var media = new MediaViewModel(JobId.New(), new MediaEntry("media", new Attachment("screen.png", "image/png", path), "The checkout page"), pictures, Tools.Actions(new FakeClipboard(), Tools.Noting()));
 
         await media.ShowCommand.ExecuteAsync(true);
         var shown = pictures.Held.ToList();
@@ -29,7 +30,7 @@ public sealed class MediaViewModelScripts
     public async Task AShownImageWhoseCopyIsGoneShowsNoPictureAsync()
     {
         var pictures = new FakePictures();
-        var media = new MediaViewModel(new MediaEntry("media", new Attachment("screen.png", "image/png", "/nowhere/screen.png"), string.Empty), pictures);
+        var media = new MediaViewModel(JobId.New(), new MediaEntry("media", new Attachment("screen.png", "image/png", "/nowhere/screen.png"), string.Empty), pictures, Tools.Actions(new FakeClipboard(), Tools.Noting()));
 
         await media.ShowCommand.ExecuteAsync(true);
 

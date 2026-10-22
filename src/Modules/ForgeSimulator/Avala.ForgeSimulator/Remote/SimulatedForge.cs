@@ -26,7 +26,7 @@ internal sealed record SimulatedRemote
     public List<SimulatedFailure> FailingHeads { get; init; } = [];
 }
 
-internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths) : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts, IAsyncDisposable
+internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths) : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts, IForgeIssues, IAsyncDisposable
 {
     public const string Id = "simulated";
 
@@ -81,6 +81,23 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
                 await SaveAsync(context, remote, token);
 
                 return Result<PullRequestRef, ForgeError>.Success(Reference(context, pull));
+            },
+            cancellationToken);
+
+    public async ValueTask<Result<IssueRef, ForgeError>> OpenIssueAsync(ForgeContext context, IssueDraft draft, CancellationToken cancellationToken) =>
+        await executor.RunAsync(
+            async token =>
+            {
+                if (!(await LoadAsync(context, token)).TryGetValue(out var remote, out var error))
+                {
+                    return error;
+                }
+
+                var issue = new SimulatedIssue(remote.Issues.Count + remote.Pulls.Count + 1, draft.Title, draft.Body, SimulatedRepositories.Owner);
+                remote.Issues.Add(issue);
+                await SaveAsync(context, remote, token);
+
+                return Result<IssueRef, ForgeError>.Success(new IssueRef(issue.Number, new Uri(Site, $"{context.Target.Repository.Owner}/{context.Target.Repository.Name}/issues/{issue.Number.ToString(CultureInfo.InvariantCulture)}")));
             },
             cancellationToken);
 

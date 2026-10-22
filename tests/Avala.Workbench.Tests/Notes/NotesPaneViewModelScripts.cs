@@ -50,7 +50,7 @@ public sealed class NotesPaneViewModelScripts : IDisposable
     private NotesPaneViewModel Pane()
     {
         var pane = new NotesPaneViewModel(
-            new NoteBoardViewModel(notes, new FakePictures(), new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddDays(10))),
+            new NoteBoardViewModel(notes, new FakeIdeas(), new FakePictures(), new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddDays(10))),
             new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance),
             messenger,
             catalog);

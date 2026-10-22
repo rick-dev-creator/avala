@@ -7,8 +7,10 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, FileViewing files)
+internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, MediaNoting noting, FileViewing files)
 {
+    private readonly MediaActions mediaActions = new(clipboard, noting);
+
     public ITimelineItem Create(JobId job, ITimelineEntry entry) => entry switch
     {
         PromptEntry prompt => new PromptViewModel(prompt, clipboard, Chips),
@@ -18,7 +20,7 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         ToolEntry tool => new ToolViewModel(tool, clipboard, files.For(job)),
         PlanEntry plan => new PlanViewModel(plan),
         CanvasEntry canvas => new CanvasViewModel(canvas),
-        MediaEntry media => new MediaViewModel(media, files.Pictures),
+        MediaEntry media => mediaActions.Show(job, media, files.Pictures),
         PermissionEntry permission => new PermissionCardViewModel(permission, replies),
         DeniedEntry denied => new DeniedCardViewModel(denied, replies),
         FormEntry form => new FormCardViewModel(form, replies),

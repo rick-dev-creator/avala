@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.GitHub.Api;
 
-internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts
+internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts, IForgeIssues
 {
     public const string Id = "github";
 
@@ -69,6 +69,12 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
             },
             cancellationToken))
             .Bind(response => Json.Read(response.Body, Reference));
+
+    public async ValueTask<Result<IssueRef, ForgeError>> OpenIssueAsync(ForgeContext context, IssueDraft draft, CancellationToken cancellationToken) =>
+        (await context.Api.SendAsync(
+            new ForgeRequest(ForgeMethod.Post, $"{Repository(context)}/issues") { Fields = [new("title", draft.Title), new("body", draft.Body)] },
+            cancellationToken))
+            .Bind(response => Json.Read(response.Body, issue => new IssueRef(issue.GetProperty("number").GetInt32(), new Uri(issue.GetProperty("html_url").GetString()!))));
 
     public async ValueTask<Result<PullRequestState, ForgeError>> ReadAsync(ForgeContext context, PullRequestRef pullRequest, CancellationToken cancellationToken)
     {

@@ -419,6 +419,8 @@ internal sealed class DesignMediaViewModel : IMediaViewModel
 {
     public string Name { get; init; } = "checkout-screen.png";
 
+    public string FilePath => string.Empty;
+
     public string Caption { get; init; } = "The checkout page after the rounding fix";
 
     public bool HasCaption => Caption.Length > 0;
@@ -428,6 +430,18 @@ internal sealed class DesignMediaViewModel : IMediaViewModel
     public IAsyncRelayCommand<bool> ShowCommand { get; } = new AsyncRelayCommand<bool>(_ => Task.CompletedTask);
 
     public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
+
+    public string Notice { get; init; } = string.Empty;
+
+    public bool HasNotice => Notice.Length > 0;
+
+    public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CopyMarkdownCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CopyLinkCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand AddToNoteCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignMediaViewerViewModel : IMediaViewerViewModel
@@ -512,6 +526,8 @@ internal sealed class DesignCiCheck : ICiCheck
     public string Summary => "2 tests failed";
 
     public bool HasLog => true;
+
+    public string LogLink => "https://ci.example.com/runs/1/log";
 
     public IAsyncRelayCommand OpenLogCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }

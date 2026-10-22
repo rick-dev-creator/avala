@@ -24,6 +24,7 @@ public sealed class NotesPlugin : IPlugin
             .AddSingleton<NotePlaces>()
             .AddSingleton<NoteBook>()
             .AddForwarded<INotes, NoteBook>()
+            .AddSingleton<IIdeas, Ideas>()
             .AddSingleton<NoteCommits>()
             .AddForwarded<IHandle<NoteTaken>, NoteCommits>()
             .AddForwarded<IHandle<NoteChanged>, NoteCommits>()

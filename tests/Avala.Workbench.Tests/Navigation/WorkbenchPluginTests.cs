@@ -91,6 +91,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<Sdk.Appearance.IWindowLayout>(new RememberedLayout())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<INotes>(new FakeNotes())
+            .AddSingleton<IIdeas>(new FakeIdeas())
             .AddSingleton<IJobs>(new FakeJobs())
             .AddSingleton<IJobCheckpoints>(new FakeJobCheckpoints())
             .AddSingleton<IJobLaunches>(new FakeJobs())

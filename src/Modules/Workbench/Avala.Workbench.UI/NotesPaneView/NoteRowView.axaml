@@ -21,6 +21,14 @@
                    Margin="10,0,0,0"
                    VerticalAlignment="Center"
                    Text="{Binding When}" />
+        <TextBlock x:Name="IdeaMark"
+                   DockPanel.Dock="Right"
+                   Classes="caption"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentBrush}"
+                   Text="Idea"
+                   IsVisible="{Binding IsIdea}" />
         <TextBlock x:Name="NoteTitle" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
       </DockPanel>
       <TextBlock x:Name="Excerpt"

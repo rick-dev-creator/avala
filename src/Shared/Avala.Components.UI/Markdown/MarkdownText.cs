@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Theme;
+using Avala.Sdk;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -63,6 +64,7 @@ public sealed class MarkdownText : StackPanel
         Children.Add(caret);
         AddHandler(MarkdownViewer.LinkClickedEvent, OnLinkClicked);
         AddHandler(PointerReleasedEvent, (_, _) => Show(Markdown, IsLive), RoutingStrategies.Bubble, handledEventsToo: true);
+        States.Dragging.Follow(this, DraggedSelection, RoutingStrategies.Tunnel);
         ContextFlyout = SelectionMenu.For(() => _ = CopyAsync(), SelectAll, () => SelectedText.Length > 0);
     }
 
@@ -97,6 +99,18 @@ public sealed class MarkdownText : StackPanel
     {
         get => GetValue(CodeCommandProperty);
         set => SetValue(CodeCommandProperty, value);
+    }
+
+    private Option<States.DragPayload> DraggedSelection(PointerPressedEventArgs pressed)
+    {
+        if (!pressed.KeyModifiers.HasFlag(KeyModifiers.Alt) || SelectedText is not { Length: > 0 } selected)
+        {
+            return Option<States.DragPayload>.None;
+        }
+
+        pressed.Handled = true;
+
+        return new States.DragPayload(string.Empty, selected);
     }
 
     private IEnumerable<MarkdownViewer> Shown =>

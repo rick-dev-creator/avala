@@ -74,6 +74,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<IForgeEventLog, EventLogDesk>()
             .AddSingleton<IForgeNudges, ForgeNudges>()
             .AddSingleton<IRepositoryPublishing, RepositoryPublisher>()
+            .AddSingleton<IIssuePublishing, IssuePublisher>()
             .AddSingleton<IForgeConnections, ConnectionDesk>()
             .AddSingleton<IForgeProbes, HttpForgeProbes>()
             .AddSingleton<ILoginDetection>(provider => new LoginDetection(provider.GetServices<IForgeLogins>(), provider.GetServices<IForge>(), provider.GetRequiredService<IProcessRunner>(), provider.GetRequiredService<IForgeProbes>()) { Environment = provider.GetRequiredService<IEnvironmentVariables>().Read })

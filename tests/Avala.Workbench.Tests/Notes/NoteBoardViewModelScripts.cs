@@ -8,10 +8,11 @@ namespace Avala.Workbench.Tests.Notes;
 public sealed class NoteBoardViewModelScripts : IDisposable
 {
     private readonly FakeNotes notes = new();
+    private readonly FakeIdeas ideas = new();
     private readonly NotePlace place = NotePlace.OfJob(JobId.New(), "/repo");
     private readonly NoteBoardViewModel board;
 
-    public NoteBoardViewModelScripts() => board = new NoteBoardViewModel(notes, new FakePictures(), new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddDays(10)));
+    public NoteBoardViewModelScripts() => board = new NoteBoardViewModel(notes, ideas, new FakePictures(), new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddDays(10)));
 
     public void Dispose() => board.Dispose();
 
@@ -59,6 +60,96 @@ public sealed class NoteBoardViewModelScripts : IDisposable
 
         Assert.Equal(NoteState.Archived, notes.Find(kept.Id).State);
         Assert.Equal((false, 0), (board.IsEditing, board.Notes.Count));
+    }
+
+    [Fact]
+    public async Task MakingAnOpenedNoteAnIdeaMarksItsRowAndKeepsItInTheListAsync()
+    {
+        var kept = notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch);
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+        var offered = board.CanMakeIdea;
+        await board.MakeIdeaCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, NoteState.Idea), (offered, notes.Find(kept.Id).State));
+        Assert.Equal((false, 1, true), (board.IsEditing, board.Notes.Count, board.Notes[0].IsIdea));
+    }
+
+    [Fact]
+    public async Task StartingAJobFromAnOpenedIdeaHandsTheIdeaOverAndSaysSoAsync()
+    {
+        var idea = notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch, NoteState.Idea);
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+        var offered = board.CanStartJob;
+        await board.StartJobCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, true), (offered, board.HasNotice));
+        Assert.Equal([idea.Id], ideas.Started);
+        Assert.Equal(NotePhrases.JobStarted("Login bug"), board.Notice);
+    }
+
+    [Fact]
+    public async Task PublishingAnOpenedIdeaAsAnIssueHandsTheIdeaOverAndShowsWhereItLivesAsync()
+    {
+        var idea = notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch, NoteState.Idea);
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+        await board.PublishIssueCommand.ExecuteAsync(null);
+
+        Assert.Equal([idea.Id], ideas.Published);
+        Assert.Equal(NotePhrases.IssuePublished(new Uri("https://forge.example.com/acme/shop/issues/7")), board.Notice);
+    }
+
+    [Fact]
+    public async Task ARefusedIssueSaysWhyAsync()
+    {
+        notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch, NoteState.Idea);
+        ideas.Refusal = IdeaRejection.IssueRefused;
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+        await board.PublishIssueCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, NotePhrases.Rejection(IdeaRejection.IssueRefused)), (board.HasNotice, board.Problem));
+    }
+
+    [Fact]
+    public async Task ARefusedJobStartSaysWhyAsync()
+    {
+        notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch, NoteState.Idea);
+        ideas.Refusal = IdeaRejection.JobRefused;
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+        await board.StartJobCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, NotePhrases.Rejection(IdeaRejection.JobRefused)), (board.HasNotice, board.Problem));
+    }
+
+    [Fact]
+    public async Task ANoteThatIsNotAnIdeaOffersNoJobAsync()
+    {
+        notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch);
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+
+        Assert.False(board.CanStartJob);
+    }
+
+    [Fact]
+    public async Task AnIdeaCannotBeMadeAnIdeaAgainAsync()
+    {
+        notes.Add(place, "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch, NoteState.Idea);
+        await ShowAsync();
+
+        board.Notes[0].OpenCommand.Execute(null);
+
+        Assert.False(board.CanMakeIdea);
     }
 
     [Fact]

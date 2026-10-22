@@ -19,6 +19,8 @@ internal interface INoteRowViewModel
 
     bool HasImages { get; }
 
+    bool IsIdea { get; }
+
     bool IsSelected { get; }
 
     IRelayCommand OpenCommand { get; }
@@ -52,6 +54,8 @@ internal sealed partial class NoteRowViewModel : INoteRowViewModel
     public string Images { get; }
 
     public bool HasImages => Images.Length > 0;
+
+    public bool IsIdea => Note.State == NoteState.Idea;
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }

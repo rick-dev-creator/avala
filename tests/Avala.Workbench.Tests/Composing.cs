@@ -25,7 +25,7 @@ internal static class Composing
 
     public static DraftBook Drafts() => new(new FakeDraftStore(), new JobBoard(), TimeProvider.System);
 
-    public static MentionSource Mentions() => new(Avala.Workbench.Tests.Tools.Files(), new FakeRepositoryIndex(), new JobBoard(), TimeProvider.System);
+    public static MentionSource Mentions() => new(Avala.Workbench.Tests.Tools.Files(), new FakeRepositoryIndex(), new OtherMentions(new JobBoard(), new FakeNotes()), TimeProvider.System);
 
     public static ComposerTools Tools(SendKeys keys, JobId job) => new(keys, Trays().Open(), new MentionsViewModel(job, Mentions()), Drafts(), new FakeJobCheckpoints());
 
@@ -35,7 +35,7 @@ internal static class Composing
         index.Files.AddRange(files);
         var worked = worktree.Worked();
 
-        return new MentionsViewModel(worktree.Job, new MentionSource(worked, index, new JobBoard(), TimeProvider.System));
+        return new MentionsViewModel(worktree.Job, new MentionSource(worked, index, new OtherMentions(new JobBoard(), new FakeNotes()), TimeProvider.System));
     }
 
     public static JobHarnesses Harnesses(IJobs jobs, IHandoffRequests handoffs, IConnections connections) =>

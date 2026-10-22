@@ -41,6 +41,7 @@
         <Path x:Name="FileIcon" Classes="icon kind" Data="{StaticResource IconFileEdit}" IsVisible="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='File'}" />
         <Path x:Name="FolderIcon" Classes="icon kind" Data="{StaticResource IconFolder}" IsVisible="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Folder'}" />
         <Path x:Name="CommitIcon" Classes="icon kind" Data="{StaticResource IconCommit}" IsVisible="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Commit'}" />
+        <Path x:Name="NoteIcon" Classes="icon kind" Data="{StaticResource IconDocument}" IsVisible="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Note'}" />
         <Path x:Name="JobIcon" Classes="icon kind" Data="{StaticResource IconMessage}" IsVisible="{Binding Kind, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Job'}" />
       </Panel>
       <TextBlock x:Name="Label" Grid.Column="1" TextTrimming="CharacterEllipsis" MaxWidth="320" VerticalAlignment="Center" Text="{Binding Label}" />

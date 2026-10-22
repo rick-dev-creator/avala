@@ -66,6 +66,6 @@ public sealed class MediaViewerViewScripts(HeadlessUi ui)
         var path = Path.Combine(folder.Path, name);
         await File.WriteAllBytesAsync(path, Pngs.Of(8, 6), TestContext.Current.CancellationToken);
 
-        return new MediaViewModel(new MediaEntry(name, new Attachment(name, "image/png", path), $"The {name} screen"), decoder);
+        return new MediaViewModel(Avala.Jobs.Contracts.JobId.New(), new MediaEntry(name, new Attachment(name, "image/png", path), $"The {name} screen"), decoder, Tools.Actions(new FakeClipboard(), Tools.Noting()));
     }
 }

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Pictures;
+using Avala.Jobs.Contracts;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,6 +11,8 @@ internal interface IMediaViewModel
 {
     string Name { get; }
 
+    string FilePath { get; }
+
     string Caption { get; }
 
     bool HasCaption { get; }
@@ -19,10 +22,22 @@ internal interface IMediaViewModel
     IAsyncRelayCommand<bool> ShowCommand { get; }
 
     IRelayCommand OpenCommand { get; }
+
+    string Notice { get; }
+
+    bool HasNotice { get; }
+
+    IAsyncRelayCommand CopyCommand { get; }
+
+    IAsyncRelayCommand CopyMarkdownCommand { get; }
+
+    IAsyncRelayCommand CopyLinkCommand { get; }
+
+    IAsyncRelayCommand AddToNoteCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class MediaViewModel(MediaEntry entry, IPictureDecoder pictures) : IMediaViewModel, ITimelineItem
+internal sealed partial class MediaViewModel(JobId job, MediaEntry entry, IPictureDecoder pictures, MediaActions actions) : IMediaViewModel, ITimelineItem
 {
     public const int PictureWidth = 720;
 
@@ -34,11 +49,19 @@ internal sealed partial class MediaViewModel(MediaEntry entry, IPictureDecoder p
 
     public string Name => Media.Name;
 
+    public string FilePath => Media.Path;
+
     public string Caption { get; } = entry.Caption;
 
     public bool HasCaption => Caption.Length > 0;
 
     public bool IsShown => true;
+
+    public bool HasNotice => Notice.Length > 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    public partial string Notice { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial IPicture Picture { get; private set; } = NoPicture.Instance;
@@ -49,6 +72,22 @@ internal sealed partial class MediaViewModel(MediaEntry entry, IPictureDecoder p
 
     [RelayCommand]
     private void Open() => OpenRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private async Task CopyAsync(CancellationToken cancellationToken) =>
+        Notice = await actions.Clipboard.CopyImageAsync(Media.Path, cancellationToken) ? MediaPhrases.Copied : MediaPhrases.NotCopied;
+
+    [RelayCommand]
+    private async Task CopyMarkdownAsync(CancellationToken cancellationToken) =>
+        Notice = await actions.Clipboard.CopyAsync(MediaPhrases.Markdown(Name, Caption, Media.Path), cancellationToken) ? MediaPhrases.Copied : MediaPhrases.NotCopied;
+
+    [RelayCommand]
+    private async Task CopyLinkAsync(CancellationToken cancellationToken) =>
+        Notice = await actions.Clipboard.CopyLinkAsync(new Uri(Path.GetFullPath(Media.Path)), cancellationToken) ? MediaPhrases.Copied : MediaPhrases.NotCopied;
+
+    [RelayCommand]
+    private async Task AddToNoteAsync(CancellationToken cancellationToken) =>
+        Notice = await actions.Noting.AddAsync(job, Media, Caption, cancellationToken) ? MediaPhrases.AddedToNote : MediaPhrases.NotAddedToNote;
 
     [RelayCommand]
     private async Task ShowAsync(bool shown, CancellationToken cancellationToken)

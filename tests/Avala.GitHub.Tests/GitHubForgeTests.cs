@@ -17,6 +17,20 @@ public sealed class GitHubForgeTests
 
     private const string Repository = "/repos/octo/shop";
 
+    [Fact]
+    public async Task OpeningAnIssuePostsItsTitleAndBodyAndReadsItsNumberAndLinkAsync()
+    {
+        var server = new FixtureServer().Route("POST", $"{Repository}/issues", HttpStatusCode.Created, """{ "number": 12, "html_url": "https://github.com/octo/shop/issues/12" }""");
+        var context = new ForgeContext(server.Api(new Uri("https://api.github.com")), Targets.Of(new Uri("https://api.github.com")));
+
+        var issue = Outcomes.Succeeds(await new GitHubForge().OpenIssueAsync(context, new IssueDraft("Login bug", "The button overlaps."), Cancellation));
+
+        Assert.Equal(new IssueRef(12, new Uri("https://github.com/octo/shop/issues/12")), issue);
+        var sent = Assert.Single(server.Sent);
+        using var body = JsonDocument.Parse(sent.Body);
+        Assert.Equal(("Login bug", "The button overlaps."), (body.RootElement.GetProperty("title").GetString(), body.RootElement.GetProperty("body").GetString()));
+    }
+
     private static readonly Uri Root = new("https://api.github.com");
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;

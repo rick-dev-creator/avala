@@ -96,4 +96,5 @@ public enum ForgeError
     RemoteExists,
     PushUnauthorized,
     Unwritable,
+    IssuesUnsupported,
 }

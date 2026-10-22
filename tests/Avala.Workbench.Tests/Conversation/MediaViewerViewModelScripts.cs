@@ -105,7 +105,7 @@ public sealed class MediaViewerViewModelScripts : IDisposable
         var jobs = new FakeJobs();
         var conversation = new Conversations(
             Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()),
-            new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), new FileViewing(Tools.Files(), FakeLinks.Opening, pictures, Tools.Replies(FakeLinks.Opening))),
+            new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Noting(), new FileViewing(Tools.Files(), FakeLinks.Opening, pictures, Tools.Replies(FakeLinks.Opening))),
             new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(JobId.New());
         conversation.Show(new BoardJob(new FakeCatalog().Add("Show me the checkout").Summary, transcript));
 

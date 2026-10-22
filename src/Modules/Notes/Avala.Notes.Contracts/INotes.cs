@@ -12,11 +12,30 @@ public interface INotes
 
     ValueTask<Result<NoteRecord, NoteRejection>> AttachAsync(NoteId note, string file, string caption, CancellationToken cancellationToken);
 
+    ValueTask<Result<NoteRecord, NoteRejection>> MakeIdeaAsync(NoteId note, CancellationToken cancellationToken);
+
     ValueTask<Result<NoteRecord, NoteRejection>> ArchiveAsync(NoteId note, CancellationToken cancellationToken);
 
     ValueTask<IReadOnlyList<NoteRecord>> ListAsync(NotePlace place, CancellationToken cancellationToken);
 
+    ValueTask<IReadOnlyList<NoteRecord>> SearchAsync(string query, CancellationToken cancellationToken);
+
     ValueTask<Option<NoteRecord>> OpenAsync(NoteId note, CancellationToken cancellationToken);
+}
+
+public interface IIdeas
+{
+    ValueTask<Result<JobId, IdeaRejection>> StartJobAsync(NoteId idea, CancellationToken cancellationToken);
+
+    ValueTask<Result<Uri, IdeaRejection>> PublishIssueAsync(NoteId idea, CancellationToken cancellationToken);
+}
+
+public enum IdeaRejection
+{
+    UnknownNote,
+    NotAnIdea,
+    JobRefused,
+    IssueRefused,
 }
 
 public readonly record struct NoteId(Guid Value)

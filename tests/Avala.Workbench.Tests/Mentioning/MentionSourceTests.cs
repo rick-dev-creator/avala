@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Notes.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Mentioning;
 using Avala.Workbench.Timeline;
@@ -15,6 +16,7 @@ public sealed class MentionSourceTests
     private readonly Worktree worktree = new();
     private readonly FakeRepositoryIndex index = new();
     private readonly JobBoard board = new();
+    private readonly FakeNotes notes = new();
     private readonly FakeTimeProvider clock = new(DateTimeOffset.UnixEpoch);
 
     [Fact]
@@ -67,7 +69,31 @@ public sealed class MentionSourceTests
         Assert.Equal("another job, \"Explain the rounding rules\", AwaitingReview: Explain the rounding rules\nIts last reply: Banker's rounding, to the even digit.", job.Reference);
     }
 
-    private MentionSource Source() => new(worktree.Worked(), index, board, clock);
+    [Fact]
+    public async Task ANoteFromAnyJobIsSuggestedByItsTitleOrBodyAndReferencedWithItsTextAndImagesAsync()
+    {
+        var other = NotePlace.OfJob(JobId.New(), "/repo");
+        var login = notes.Add(other, "Login bug", "The button overlaps on narrow windows.", DateTimeOffset.UnixEpoch);
+        notes.Add(NotePlace.OfProject("/repo"), "Roadmap", "Ship notes.", DateTimeOffset.UnixEpoch);
+        _ = await notes.AttachAsync(login.Id, "/shots/login.png", "The login screen", CancellationToken.None);
+
+        var byTitle = await Source().SuggestAsync(worktree.Job, "login", CancellationToken.None);
+        var byBody = await Source().SuggestAsync(worktree.Job, "narrow", CancellationToken.None);
+
+        var note = Assert.Single(byTitle);
+        Assert.Equal((MentionKind.Note, "Login bug", "the note \"Login bug\": The button overlaps on narrow windows.\nIts images: login.png"), (note.Kind, note.Label, note.Reference));
+        Assert.Equal(["Login bug"], byBody.Select(mention => mention.Label));
+    }
+
+    [Fact]
+    public async Task AnArchivedNoteIsNeverSuggestedAsync()
+    {
+        notes.Add(NotePlace.OfProject("/repo"), "Old idea", "Dropped.", DateTimeOffset.UnixEpoch, NoteState.Archived);
+
+        Assert.Empty(await Source().SuggestAsync(worktree.Job, "old", CancellationToken.None));
+    }
+
+    private MentionSource Source() => new(worktree.Worked(), index, new OtherMentions(board, notes), clock);
 
     private void Board(params BoardJob[] jobs) =>
         board.Publish(jobs.ToImmutableDictionary(job => job.Job, job => job));

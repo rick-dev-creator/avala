@@ -2,6 +2,7 @@
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.CiView"
              x:ClassModifier="internal"
              x:DataType="conversation:ICiViewModel"
@@ -44,6 +45,7 @@
                         Content="Log"
                         VerticalAlignment="Top"
                         Command="{Binding OpenLogCommand}"
+                        states:Dragging.Link="{Binding LogLink}"
                         IsVisible="{Binding HasLog}"
                         AutomationProperties.Name="Open the check's log" />
               </Grid>

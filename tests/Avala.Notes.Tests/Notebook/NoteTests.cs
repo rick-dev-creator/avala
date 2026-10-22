@@ -16,6 +16,26 @@ public sealed class NoteTests
         Assert.Equal(NoteError.UntitledNote, Outcomes.FailsWith(Note.Taken(NoteId.New(), Place, new NoteDraft("  ", "body"), At)));
 
     [Fact]
+    public void ANoteMadeAnIdeaKeepsItsMediaAndItsBody()
+    {
+        var note = Outcomes.Succeeds(Note.Taken(NoteId.New(), Place, new NoteDraft("Login bug", "The button overlaps."), At));
+        var attached = Outcomes.Succeeds(Note.Attached(note, new NoteMedia("login.png", "image/png"), "The login screen", At));
+
+        var idea = Outcomes.Succeeds(Note.Ideated(attached, At.AddMinutes(5)));
+
+        Assert.Equal((NoteState.Idea, attached.Body, At.AddMinutes(5)), (idea.State, idea.Body, idea.Updated));
+        Assert.Equal(attached.Media, idea.Media);
+    }
+
+    [Fact]
+    public void AnArchivedNoteCannotBecomeAnIdea()
+    {
+        var archived = Outcomes.Succeeds(Note.Archived(Outcomes.Succeeds(Note.Taken(NoteId.New(), Place, new NoteDraft("Login bug", string.Empty), At)), At));
+
+        Assert.Equal(NoteError.Archived, Outcomes.FailsWith(Note.Ideated(archived, At)));
+    }
+
+    [Fact]
     public void AnArchivedNoteRefusesEdits()
     {
         var archived = Outcomes.Succeeds(Note.Archived(Outcomes.Succeeds(Note.Taken(NoteId.New(), Place, new NoteDraft("Login bug", string.Empty), At)), At));

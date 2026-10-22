@@ -473,7 +473,7 @@ internal static class Focusing
     public static Avala.Workbench.Conversation.Conversations Conversations(FakeJobs jobs) =>
         new(
             Composing.Of(new Avala.Workbench.Steering.JobSteering(jobs, new Avala.Workbench.Steering.QueuedMessages(jobs)), new Avala.Workbench.Steering.SendKeys()),
-            new Avala.Workbench.Conversation.TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()),
+            new Avala.Workbench.Conversation.TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Noting(), Tools.Viewing()),
             new Avala.Workbench.Timeline.TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance()));
 
     public static JobSpending Spending(FakeUsage usage, SessionBook sessions) => new(usage, new FakeBudgets(), new FakeSupervision(), sessions);

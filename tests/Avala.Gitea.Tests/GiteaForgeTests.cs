@@ -16,6 +16,21 @@ public sealed class GiteaForgeTests
 
     private const string Repository = "/api/v1/repos/octo/shop";
 
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task OpeningAnIssuePostsItsTitleAndBodyAndReadsItsNumberAndLinkAsync(string dialect)
+    {
+        var server = new FixtureServer().Route("POST", $"{Repository}/issues", HttpStatusCode.Created, """{ "number": 12, "html_url": "https://git.example.com/octo/shop/issues/12" }""");
+        var context = new ForgeContext(server.Api(Root, "token"), Targets.Of(Root));
+
+        var issue = Outcomes.Succeeds(await Forge(dialect).OpenIssueAsync(context, new IssueDraft("Login bug", "The button overlaps."), Cancellation));
+
+        Assert.Equal(new IssueRef(12, new Uri("https://git.example.com/octo/shop/issues/12")), issue);
+        var sent = Assert.Single(server.Sent);
+        using var body = System.Text.Json.JsonDocument.Parse(sent.Body);
+        Assert.Equal(("Login bug", "The button overlaps."), (body.RootElement.GetProperty("title").GetString(), body.RootElement.GetProperty("body").GetString()));
+    }
+
     private static readonly Uri Root = new("https://git.example.com");
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;

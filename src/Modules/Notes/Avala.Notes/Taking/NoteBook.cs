@@ -38,6 +38,9 @@ internal sealed class NoteBook(INoteShelf shelf, NotePlaces places, IEventBus bu
             },
             cancellationToken);
 
+    public ValueTask<Result<NoteRecord, NoteRejection>> MakeIdeaAsync(NoteId note, CancellationToken cancellationToken) =>
+        ChangedAsync(note, (found, _) => Task.FromResult(Rejected(Note.Ideated(found, time.GetUtcNow()))), cancellationToken);
+
     public ValueTask<Result<NoteRecord, NoteRejection>> ArchiveAsync(NoteId note, CancellationToken cancellationToken) =>
         ChangedAsync(note, (found, _) => Task.FromResult(Rejected(Note.Archived(found, time.GetUtcNow()))), cancellationToken);
 
@@ -58,6 +61,26 @@ internal sealed class NoteBook(INoteShelf shelf, NotePlaces places, IEventBus bu
                 return (IReadOnlyList<NoteRecord>)[.. notes.OrderByDescending(note => note.Created)];
             },
             cancellationToken);
+    }
+
+    public async ValueTask<IReadOnlyList<NoteRecord>> SearchAsync(string query, CancellationToken cancellationToken)
+    {
+        var words = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var found = new List<NoteRecord>();
+
+        foreach (var place in await places.AllAsync(cancellationToken))
+        {
+            found.AddRange((await ListAsync(place, cancellationToken)).Where(note => note.State != NoteState.Archived));
+        }
+
+        return
+        [
+            .. found
+                .Where(note => words.All(word => note.Title.Contains(word, StringComparison.OrdinalIgnoreCase) || note.Body.Contains(word, StringComparison.OrdinalIgnoreCase)))
+                .DistinctBy(note => note.Id)
+                .OrderBy(note => words.All(word => note.Title.Contains(word, StringComparison.OrdinalIgnoreCase)) ? 0 : 1)
+                .ThenByDescending(note => note.Updated),
+        ];
     }
 
     public async ValueTask<Option<NoteRecord>> OpenAsync(NoteId note, CancellationToken cancellationToken) =>

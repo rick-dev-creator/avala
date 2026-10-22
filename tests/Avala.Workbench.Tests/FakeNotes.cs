@@ -28,11 +28,19 @@ internal sealed class FakeNotes : INotes
     public ValueTask<Result<NoteRecord, NoteRejection>> AttachAsync(NoteId note, string file, string caption, CancellationToken cancellationToken) =>
         AnswerAsync(() => Replace(Find(note) with { Media = [.. Find(note).Media, new NoteMedia(Path.GetFileName(file), "image/png")] }));
 
+    public ValueTask<Result<NoteRecord, NoteRejection>> MakeIdeaAsync(NoteId note, CancellationToken cancellationToken) =>
+        AnswerAsync(() => Replace(Find(note) with { State = NoteState.Idea }));
+
     public ValueTask<Result<NoteRecord, NoteRejection>> ArchiveAsync(NoteId note, CancellationToken cancellationToken) =>
         AnswerAsync(() => Replace(Find(note) with { State = NoteState.Archived }));
 
     public ValueTask<IReadOnlyList<NoteRecord>> ListAsync(NotePlace place, CancellationToken cancellationToken) =>
         ValueTask.FromResult<IReadOnlyList<NoteRecord>>([.. kept.Where(note => note.Place == place).OrderByDescending(note => note.Created)]);
+
+    public ValueTask<IReadOnlyList<NoteRecord>> SearchAsync(string query, CancellationToken cancellationToken) =>
+        ValueTask.FromResult<IReadOnlyList<NoteRecord>>([.. kept
+            .Where(note => note.State != NoteState.Archived && (note.Title.Contains(query, StringComparison.OrdinalIgnoreCase) || note.Body.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(note => note.Updated)]);
 
     public ValueTask<Option<NoteRecord>> OpenAsync(NoteId note, CancellationToken cancellationToken) =>
         ValueTask.FromResult(kept.Where(found => found.Id == note).Select(found => Option<NoteRecord>.Some(found)).FirstOrDefault());

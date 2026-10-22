@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
+using Avala.Notes.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Reviewing;
@@ -14,21 +15,18 @@ internal enum MentionKind
     Folder,
     Job,
     Commit,
+    Note,
 }
 
 internal sealed record Mention(MentionKind Kind, string Token, string Label, string Detail, string Reference);
 
-internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, JobBoard board, TimeProvider clock)
+internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, OtherMentions others, TimeProvider clock)
 {
     public const int Shown = 8;
 
     public const int FilesListed = 5000;
 
     public const int CommitsListed = 30;
-
-    public const int ReplyBrief = 400;
-
-    public const int TitleLength = 80;
 
     private static readonly TimeSpan Kept = TimeSpan.FromSeconds(30);
 
@@ -38,11 +36,11 @@ internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, 
     {
         var known = await worked.FolderAsync(job, cancellationToken);
         var places = await known.Match(folder => PlacesAsync(folder, cancellationToken), () => Task.FromResult<IReadOnlyList<Mention>>([]));
-        var all = places.Concat(Jobs(job));
+        var all = places.Concat(others.Jobs(job)).Concat(await others.NotesAsync(query, cancellationToken));
 
         return
         [
-            .. all.Where(mention => mention.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || (mention.Kind == MentionKind.Commit && mention.Detail.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .. all.Where(mention => mention.Label.Contains(query, StringComparison.OrdinalIgnoreCase) || (mention.Kind == MentionKind.Commit && mention.Detail.Contains(query, StringComparison.OrdinalIgnoreCase)) || mention.Kind == MentionKind.Note)
                 .OrderBy(mention => mention.Label.StartsWith(query, StringComparison.OrdinalIgnoreCase) || Path.GetFileName(mention.Label).StartsWith(query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                 .ThenBy(mention => mention.Label.Length)
                 .Take(Shown),
@@ -70,28 +68,5 @@ internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, 
         ImmutableInterlocked.Update(ref listed, current => current.SetItem(folder, (now, found)));
 
         return found;
-    }
-
-    private IEnumerable<Mention> Jobs(JobId current) =>
-        board.Jobs.Values
-            .Where(other => other.Job != current)
-            .OrderByDescending(other => other.Summary.Submitted)
-            .Select(other => new Mention(MentionKind.Job, Title(other.Summary.Instruction), Title(other.Summary.Instruction), string.Empty, Brief(other)));
-
-    private static string Brief(BoardJob job)
-    {
-        var reply = job.Transcript.Entries.OfType<MessageEntry>().LastOrDefault()?.Text ?? string.Empty;
-        var said = reply.Length <= ReplyBrief ? reply : $"{reply[..ReplyBrief]}…";
-
-        return said.Length == 0
-            ? $"another job, \"{Title(job.Summary.Instruction)}\", {job.Status}: {job.Summary.Instruction}"
-            : $"another job, \"{Title(job.Summary.Instruction)}\", {job.Status}: {job.Summary.Instruction}\nIts last reply: {said}";
-    }
-
-    private static string Title(string instruction)
-    {
-        var line = instruction.Trim().Split('\n', 2)[0].Trim();
-
-        return line.Length <= TitleLength ? line : $"{line[..(TitleLength - 1)].TrimEnd()}…";
     }
 }

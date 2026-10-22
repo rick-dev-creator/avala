@@ -31,6 +31,8 @@ internal sealed class DesignNoteRowViewModel(string title, string when, string e
 
     public bool HasImages => Images.Length > 0;
 
+    public bool IsIdea { get; init; }
+
     public bool IsSelected { get; init; }
 
     public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
@@ -50,13 +52,15 @@ internal sealed class DesignNoteBoardViewModel : INoteBoardViewModel
     public IReadOnlyList<INoteRowViewModel> Notes { get; init; } =
     [
         new DesignNoteRowViewModel(),
-        new DesignNoteRowViewModel("Split the checkout into steps", "2 h ago", "Address, delivery, payment: one screen each.", string.Empty) { IsSelected = true },
+        new DesignNoteRowViewModel("Split the checkout into steps", "2 h ago", "Address, delivery, payment: one screen each.", string.Empty) { IsSelected = true, IsIdea = true },
         new DesignNoteRowViewModel("Cache the exchange rates", "Yesterday", "They change once a day; fetching them per request is slow.", string.Empty),
     ];
 
     public bool HasNotes => Notes.Count > 0;
 
     public string Empty => NotePhrases.JobEmpty;
+
+    public string Query { get; set; } = string.Empty;
 
     public bool IsEditing { get; init; }
 
@@ -75,6 +79,20 @@ internal sealed class DesignNoteBoardViewModel : INoteBoardViewModel
     public IRelayCommand NewCommand { get; } = new RelayCommand(() => { });
 
     public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public bool CanMakeIdea => true;
+
+    public bool CanStartJob => true;
+
+    public string Notice => string.Empty;
+
+    public bool HasNotice => false;
+
+    public IAsyncRelayCommand StartJobCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand PublishIssueCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand MakeIdeaCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ArchiveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 

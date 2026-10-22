@@ -15,6 +15,8 @@ internal interface INoteBoardViewModel
 
     string Empty { get; }
 
+    string Query { get; set; }
+
     bool IsEditing { get; }
 
     bool IsListing { get; }
@@ -33,17 +35,34 @@ internal interface INoteBoardViewModel
 
     IAsyncRelayCommand SaveCommand { get; }
 
+    bool CanMakeIdea { get; }
+
+    bool CanStartJob { get; }
+
+    string Notice { get; }
+
+    bool HasNotice { get; }
+
+    IAsyncRelayCommand StartJobCommand { get; }
+
+    IAsyncRelayCommand PublishIssueCommand { get; }
+
+    IAsyncRelayCommand MakeIdeaCommand { get; }
+
     IAsyncRelayCommand ArchiveCommand { get; }
 
     IRelayCommand CancelCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder pictures, TimeProvider time) : INoteBoardViewModel, IDisposable
+internal sealed partial class NoteBoardViewModel(INotes notes, IIdeas ideas, IPictureDecoder pictures, TimeProvider time) : INoteBoardViewModel, IDisposable
 {
     private readonly ObservableCollection<NoteRowViewModel> rows = [];
     private readonly ObservableCollection<NoteImageViewModel> images = [];
     private List<NoteRecord> kept = [];
+    private IReadOnlyList<NoteRecord> placed = [];
+    private IReadOnlyList<NoteRecord> matches = [];
+    private string home = NotePhrases.JobEmpty;
     private Option<NoteRecord> editing;
 
     public IReadOnlyList<INoteRowViewModel> Notes => rows;
@@ -60,12 +79,31 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
 
     public bool CanArchive => IsEditing && editing.IsSome;
 
-    [ObservableProperty]
-    public partial string Empty { get; set; } = NotePhrases.JobEmpty;
+    public bool CanStartJob => IsEditing && editing.Match(note => note.State == NoteState.Idea, () => false);
+
+    public bool HasNotice => Notice.Length > 0;
+
+    public bool CanMakeIdea => IsEditing && editing.Match(note => note.State == NoteState.Kept, () => false);
+
+    public string Empty
+    {
+        get => Query.Trim().Length > 0 ? NotePhrases.NoMatch : home;
+        set
+        {
+            home = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public Task Searching { get; private set; } = Task.CompletedTask;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsListing), nameof(IsNew), nameof(CanArchive))]
-    [NotifyCanExecuteChangedFor(nameof(ArchiveCommand))]
+    [NotifyPropertyChangedFor(nameof(Empty))]
+    public partial string Query { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsListing), nameof(IsNew), nameof(CanArchive), nameof(CanMakeIdea), nameof(CanStartJob))]
+    [NotifyCanExecuteChangedFor(nameof(ArchiveCommand), nameof(MakeIdeaCommand), nameof(StartJobCommand), nameof(PublishIssueCommand))]
     public partial bool IsEditing { get; private set; }
 
     [ObservableProperty]
@@ -73,6 +111,10 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
 
     [ObservableProperty]
     public partial string Body { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    public partial string Notice { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial string Problem { get; private set; } = string.Empty;
@@ -99,6 +141,8 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
 
     public void Dispose() => Release();
 
+    partial void OnQueryChanged(string value) => Searching = SearchAsync(value.Trim());
+
     [RelayCommand]
     private void New()
     {
@@ -117,6 +161,37 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
                 note => notes.EditAsync(note.Id, draft, cancellationToken),
                 () => notes.TakeAsync(place, draft, cancellationToken));
             Settle(saved, Keep);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMakeIdea))]
+    private async Task MakeIdeaAsync(CancellationToken cancellationToken)
+    {
+        foreach (var note in editing.Match<NoteRecord[]>(found => [found], () => []))
+        {
+            Settle(await notes.MakeIdeaAsync(note.Id, cancellationToken), Keep);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStartJob))]
+    private async Task StartJobAsync(CancellationToken cancellationToken)
+    {
+        foreach (var note in editing.Match<NoteRecord[]>(found => [found], () => []))
+        {
+            var started = await ideas.StartJobAsync(note.Id, cancellationToken);
+            Notice = started.Match(_ => NotePhrases.JobStarted(note.Title), _ => string.Empty);
+            Problem = started.Match(_ => string.Empty, NotePhrases.Rejection);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStartJob))]
+    private async Task PublishIssueAsync(CancellationToken cancellationToken)
+    {
+        foreach (var note in editing.Match<NoteRecord[]>(found => [found], () => []))
+        {
+            var published = await ideas.PublishIssueAsync(note.Id, cancellationToken);
+            Notice = published.Match(link => NotePhrases.IssuePublished(link), _ => string.Empty);
+            Problem = published.Match(_ => string.Empty, NotePhrases.Rejection);
         }
     }
 
@@ -151,9 +226,20 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
         List(index < 0 ? [note, .. kept] : [.. kept.Select(other => other.Id == note.Id ? note : other)]);
     }
 
+    private async Task SearchAsync(string query)
+    {
+        matches = query.Length == 0 ? [] : await notes.SearchAsync(query, CancellationToken.None);
+
+        if (query == Query.Trim())
+        {
+            List(placed);
+        }
+    }
+
     private void List(IReadOnlyList<NoteRecord> listed)
     {
-        var shown = listed.Where(note => note.State != NoteState.Archived).ToList();
+        placed = listed;
+        var shown = (Query.Trim().Length > 0 ? matches : listed).Where(note => note.State != NoteState.Archived).ToList();
 
         if (shown.Select(Stamp).SequenceEqual(kept.Select(Stamp)))
         {
@@ -177,6 +263,7 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
         editing = note;
         Release();
         Problem = string.Empty;
+        Notice = string.Empty;
 
         foreach (var found in note.Match<NoteRecord[]>(open => [open], () => []))
         {
@@ -193,7 +280,12 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
         IsEditing = true;
         OnPropertyChanged(nameof(IsNew));
         OnPropertyChanged(nameof(CanArchive));
+        OnPropertyChanged(nameof(CanMakeIdea));
+        OnPropertyChanged(nameof(CanStartJob));
+        StartJobCommand.NotifyCanExecuteChanged();
+        PublishIssueCommand.NotifyCanExecuteChanged();
         ArchiveCommand.NotifyCanExecuteChanged();
+        MakeIdeaCommand.NotifyCanExecuteChanged();
     }
 
     private void Close()
@@ -223,5 +315,5 @@ internal sealed partial class NoteBoardViewModel(INotes notes, IPictureDecoder p
         images.Clear();
     }
 
-    private static (NoteId, DateTimeOffset, string) Stamp(NoteRecord note) => (note.Id, note.Updated, note.Title);
+    private static (NoteId, DateTimeOffset, string, NoteState) Stamp(NoteRecord note) => (note.Id, note.Updated, note.Title, note.State);
 }

@@ -20,7 +20,7 @@ public sealed class NotesToggleViewModelScripts
         using var ui = new TestUiDispatcher();
         using var toggle = new NotesToggleViewModel(messenger);
         using var pane = new NotesPaneViewModel(
-            new NoteBoardViewModel(new FakeNotes(), new FakePictures(), new FakeTimeProvider()),
+            new NoteBoardViewModel(new FakeNotes(), new FakeIdeas(), new FakePictures(), new FakeTimeProvider()),
             new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance),
             messenger,
             catalog);

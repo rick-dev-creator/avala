@@ -11,6 +11,17 @@ internal sealed class NotePlaces(IJobCatalog catalog, IWorkspaces workspaces)
             job => WorktreeOfAsync(job, place.Repository, cancellationToken),
             () => Task.FromResult(place.Repository));
 
+    public async ValueTask<IReadOnlyList<NotePlace>> AllAsync(CancellationToken cancellationToken)
+    {
+        var jobs = await catalog.ListAsync(cancellationToken);
+
+        return
+        [
+            .. jobs.Select(job => NotePlace.OfJob(job.Job, job.Repository)),
+            .. jobs.Select(job => job.Repository).Distinct(StringComparer.Ordinal).Select(NotePlace.OfProject),
+        ];
+    }
+
     private async Task<string> WorktreeOfAsync(JobId job, string repository, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
             history => history.Summary.Workspace.Match(

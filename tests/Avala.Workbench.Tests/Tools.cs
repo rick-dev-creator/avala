@@ -13,6 +13,10 @@ internal static class Tools
 {
     public static WorkedFiles Files() => new(new FakeCatalog(), new FakeChanges(), new FakeWorkspaces(), new FakeWorkingFiles());
 
+    public static MediaNoting Noting() => new(new FakeNotes(), new FakeCatalog());
+
+    public static MediaActions Actions(Avala.Sdk.IClipboard clipboard, MediaNoting noting) => new(clipboard, noting);
+
     public static FileViewing Viewing() => Viewing(Files());
 
     public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures(), Replies(FakeLinks.Opening));

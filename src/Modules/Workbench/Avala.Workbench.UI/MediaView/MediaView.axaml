@@ -12,6 +12,35 @@
   <Design.DataContext>
     <conversation:DesignMediaViewModel />
   </Design.DataContext>
+  <UserControl.ContextFlyout>
+    <MenuFlyout>
+      <MenuItem x:Name="Open" Header="Open" Command="{Binding OpenCommand}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconExternal}" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem x:Name="Copy" Header="Copy" Command="{Binding CopyCommand}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconCopy}" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem x:Name="CopyMarkdown" Header="Copy as Markdown" Command="{Binding CopyMarkdownCommand}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconDocument}" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem x:Name="CopyLink" Header="Copy link" Command="{Binding CopyLinkCommand}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconCopy}" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem x:Name="AddToNote" Header="Add to note" Command="{Binding AddToNoteCommand}">
+        <MenuItem.Icon>
+          <Path Classes="icon" Data="{StaticResource IconPlus}" />
+        </MenuItem.Icon>
+      </MenuItem>
+    </MenuFlyout>
+  </UserControl.ContextFlyout>
   <UserControl.Styles>
     <Style Selector="Button#Frame">
       <Setter Property="Padding" Value="0" />
@@ -31,6 +60,7 @@
     <Button x:Name="Frame"
             HorizontalAlignment="Left"
             Command="{Binding OpenCommand}"
+            states:Dragging.File="{Binding FilePath}"
             ToolTip.Tip="{Binding Name}"
             AutomationProperties.Name="{Binding Name}">
       <Image x:Name="Picture"
@@ -46,5 +76,10 @@
                TextWrapping="Wrap"
                Text="{Binding Caption}"
                IsVisible="{Binding HasCaption}" />
+    <TextBlock x:Name="Notice"
+               Classes="caption secondary"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding HasNotice}" />
   </StackPanel>
 </UserControl>

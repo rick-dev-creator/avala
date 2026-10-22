@@ -26,7 +26,7 @@ public sealed class ProjectNotesViewModelScripts
         notes.Add(NotePlace.OfJob(JobId.New(), "/home/ada/code/ledger-api"), "Login bug", "The button overlaps.", DateTimeOffset.UnixEpoch);
         using var ui = new TestUiDispatcher();
         using var page = new ProjectNotesViewModel(
-            new NoteBoardViewModel(notes, new FakePictures(), new FakeTimeProvider()),
+            new NoteBoardViewModel(notes, new FakeIdeas(), new FakePictures(), new FakeTimeProvider()),
             new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance),
             new JobFocus(new TestRegions(), messenger),
             messenger);

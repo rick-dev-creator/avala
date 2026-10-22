@@ -32,6 +32,8 @@ internal interface ICiCheck
 
     bool HasLog { get; }
 
+    string LogLink { get; }
+
     IAsyncRelayCommand OpenLogCommand { get; }
 }
 
@@ -105,6 +107,8 @@ internal sealed partial class CiCheck(CheckRun check, Links links) : ICiCheck
     public string Summary => check.Summary;
 
     public bool HasLog => check.Link.IsSome;
+
+    public string LogLink => check.Link.Match(found => found.AbsoluteUri, () => string.Empty);
 
     [RelayCommand(CanExecute = nameof(HasLog))]
     private async Task OpenLogAsync(CancellationToken cancellationToken)
