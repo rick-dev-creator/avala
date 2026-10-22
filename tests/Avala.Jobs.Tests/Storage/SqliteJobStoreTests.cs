@@ -5,7 +5,11 @@ using Avala.Jobs.Jobs;
 using Avala.Jobs.Storage;
 using Avala.Jobs.Tests.Jobs;
 using Avala.Sdk;
+using Avala.Storage;
 using Avala.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 
 namespace Avala.Jobs.Tests.Storage;
@@ -71,6 +75,30 @@ public sealed class SqliteJobStoreTests
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
         Assert.Equal([MessageAuthor.Person, MessageAuthor.Avala, MessageAuthor.Person], reloaded.Attempts.Select(attempt => attempt.Author));
+    }
+
+    [Fact]
+    public async Task AHandoffThePersonPickedBeforeAttemptsHadAuthorsIsTheirRoundOnceTheDatabaseIsUpgradedAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var paths = new AvalaPaths(folder.Path);
+        var job = Given.JobIn(JobState.NeedsHelp);
+        var personal = new ConnectionName("personal");
+        Outcomes.Succeeds(job.HandOff(Given.Feedback.By(MessageAuthor.Avala).CausedBy(MessageAuthor.Person), SessionId.New(), personal));
+        await using (var store = new SqliteJobStore(paths))
+        {
+            await store.SaveAsync(job, Cancellation);
+            await store.RecordAsync(job.Id, new ConnectionChoice(personal, ChoiceReason.Person, [], Given.Submitted), Cancellation);
+        }
+
+        await using (var legacy = new JobsDbContext(paths.Database("jobs")))
+        {
+            await legacy.GetService<IMigrator>().MigrateAsync("20261018234128_JobFailures", Cancellation);
+        }
+
+        var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
+
+        Assert.Equal((AttemptOrigin.Handoff, MessageAuthor.Person), (reloaded.Attempts[^1].Origin, reloaded.Attempts[^1].Cause));
     }
 
     [Fact]
