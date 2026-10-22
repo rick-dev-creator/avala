@@ -78,6 +78,34 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task ARetryAndAHandoffAvalaStartedBeforeAttemptsHadAuthorsAreItsOwnRoundsOnceTheDatabaseIsUpgradedAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var paths = new AvalaPaths(folder.Path);
+        var job = Given.JobIn(JobState.Checking);
+        var personal = new ConnectionName("personal");
+        Outcomes.Succeeds(job.Retry(Given.Feedback));
+        Outcomes.Succeeds(job.Hold(HoldReason.LimitNearlyReached));
+        Outcomes.Succeeds(job.HandOff(Given.Feedback, SessionId.New(), personal));
+        await using (var store = new SqliteJobStore(paths))
+        {
+            await store.SaveAsync(job, Cancellation);
+            await store.RecordAsync(job.Id, new ConnectionChoice(personal, ChoiceReason.MostCapacity, [], Given.Submitted), Cancellation);
+        }
+
+        await using (var legacy = new JobsDbContext(paths.Database("jobs")))
+        {
+            await legacy.GetService<IMigrator>().MigrateAsync("20261018234128_JobFailures", Cancellation);
+        }
+
+        var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
+
+        Assert.Equal(
+            [(AttemptOrigin.Initial, MessageAuthor.Person), (AttemptOrigin.Retry, MessageAuthor.Avala), (AttemptOrigin.Handoff, MessageAuthor.Avala)],
+            reloaded.Attempts.Select(attempt => (attempt.Origin, attempt.Cause)));
+    }
+
+    [Fact]
     public async Task AHandoffThePersonPickedBeforeAttemptsHadAuthorsIsTheirRoundOnceTheDatabaseIsUpgradedAsync()
     {
         using var folder = new TemporaryFolder();

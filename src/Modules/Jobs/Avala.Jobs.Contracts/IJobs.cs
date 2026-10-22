@@ -45,6 +45,11 @@ public interface IEndedJobs
     ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
 }
 
+public interface IJobRounds
+{
+    ValueTask PersonJoinedAsync(SessionId session, CancellationToken cancellationToken);
+}
+
 public interface IJobSessions
 {
     ValueTask<Result<JobId, JobRejection>> RestAsync(JobId job, CancellationToken cancellationToken);

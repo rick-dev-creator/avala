@@ -18,7 +18,7 @@ internal static class FormPolicy
     {
         public Option<AutomaticAnswer> Answer(ItemId item, AgentForm form) =>
             policy.Autonomy == Autonomy.Supervised ? Option<AutomaticAnswer>.None
-            : form.Purpose == FormPurpose.Permission ? new AutomaticAnswer(new FormAnswer(item, []) { Declined = true, Message = Refusal }, [])
+            : form.Purpose == FormPurpose.Permission ? new AutomaticAnswer(new FormAnswer(item, []) { Declined = true, Message = Refusal, AnsweredBy = MessageAuthor.Avala }, [])
             : Answered(item, form, policy.Strategy);
     }
 
@@ -26,7 +26,7 @@ internal static class FormPolicy
     {
         var fields = form.Fields.Select(field => Field(field, strategy)).ToList();
 
-        return new AutomaticAnswer(new FormAnswer(item, [.. fields.Select(pair => pair.Answer)]), [.. fields.Select(pair => pair.Assumption)]);
+        return new AutomaticAnswer(new FormAnswer(item, [.. fields.Select(pair => pair.Answer)]) { AnsweredBy = MessageAuthor.Avala }, [.. fields.Select(pair => pair.Assumption)]);
     }
 
     private static (FieldAnswer Answer, Assumption Assumption) Field(FormField field, FormStrategy strategy)

@@ -56,5 +56,6 @@ public sealed class PermissionsPluginTests
             .AddSingleton<IBaseFiles>(new CommittedFiles())
             .AddSingleton<IWorkingFiles>(new WorkingFiles())
             .AddSingleton<IProjectsFolder>(new FixedProjectsFolder(data.Path))
+            .AddSingleton<IJobRounds>(new RecordedRounds())
             .AddSingleton<IJobCatalog>(new OneJobCatalog(JobId.New(), data.Path)));
 }

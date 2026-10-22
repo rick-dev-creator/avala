@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Virtualizing;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,7 +23,9 @@ internal interface IInterjectionViewModel
 [INotifyPropertyChanged]
 internal sealed partial class InterjectionViewModel(InterjectionEntry entry) : IInterjectionViewModel, ITimelineItem, ITextSized, ISearchable
 {
-    public string Note => IsFromDevice ? "From your phone, while it worked · joined the turn" : "You, while it worked · joined the turn";
+    public string Note => IsFromDevice ? "From your phone, while it worked · joined the turn"
+        : entry.Author == MessageAuthor.Avala ? "Avala, while it worked · joined the turn"
+        : "You, while it worked · joined the turn";
 
     public bool IsFromDevice { get; } = entry.FromDevice;
 

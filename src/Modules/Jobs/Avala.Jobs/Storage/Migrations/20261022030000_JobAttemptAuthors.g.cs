@@ -22,7 +22,9 @@ namespace Avala.Jobs.Storage.Migrations
                 nullable: false,
                 defaultValue: "Person");
 
-            migrationBuilder.Sql("UPDATE \"JobAttempts\" SET \"Author\" = 'Avala', \"Cause\" = 'Avala' WHERE \"Origin\" IN ('Retry', 'Recovery', 'Woken', 'Reopen', 'Handoff');");
+            migrationBuilder.Sql("UPDATE \"JobAttempts\" SET \"Author\" = 'Avala', \"Cause\" = 'Avala' WHERE \"Origin\" IN ('Retry', 'Recovery', 'Woken', 'Reopen');");
+
+            migrationBuilder.Sql("UPDATE \"JobAttempts\" SET \"Author\" = 'Avala', \"Cause\" = CASE WHEN EXISTS (SELECT 1 FROM \"ConnectionChoices\" WHERE \"ConnectionChoices\".\"Job\" = \"JobAttempts\".\"JobId\" AND json_extract(\"ConnectionChoices\".\"Choice\", '$.Reason') = 'Person') THEN 'Person' ELSE 'Avala' END WHERE \"Origin\" = 'Handoff';");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

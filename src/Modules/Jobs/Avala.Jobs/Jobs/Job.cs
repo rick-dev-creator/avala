@@ -269,7 +269,7 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Result<RoundJoined, JobError> JoinedBy(MessageAuthor cause)
     {
-        if (cause != MessageAuthor.Person || State is not (JobState.Running or JobState.Checking) || attempts.Count == 0 || attempts[^1].Cause == MessageAuthor.Person)
+        if (cause != MessageAuthor.Person || State is not (JobState.Running or JobState.Checking or JobState.NeedsHelp) || attempts.Count == 0 || attempts[^1].Cause == MessageAuthor.Person)
         {
             return JobError.CannotJoin;
         }

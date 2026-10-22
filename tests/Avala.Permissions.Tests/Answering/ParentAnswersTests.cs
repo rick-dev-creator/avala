@@ -33,7 +33,7 @@ public sealed class ParentAnswersTests
     public ParentAnswersTests()
     {
         var clock = new FakeTimeProvider(Now);
-        var ledger = new AnswerLedger(book, bus, clock);
+        var ledger = new AnswerLedger(book, bus, clock, new RecordedRounds());
         governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [new FixedTerms(new JobTerms(ReadOnly: false, parentJob))]), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         answers = new ParentAnswers(book, agents, ledger);
         people = new HumanAnswers(book, agents, new RepositoryFiles(), ledger);
@@ -141,9 +141,9 @@ public sealed class ParentAnswersTests
         await ParentAsync(Autonomy.Supervised);
         var question = await FormAsync("database", FormPurpose.Question);
         var permission = await FormAsync("grant", FormPurpose.Permission);
-        var chosen = new FormAnswer(question.Item, [new FieldAnswer("choice") { Chosen = ["PostgreSQL"] }]);
+        var chosen = new FormAnswer(question.Item, [new FieldAnswer("choice") { Chosen = ["PostgreSQL"] }]) { AnsweredBy = MessageAuthor.Avala };
 
-        var answered = Outcomes.Succeeds(await answers.AnswerFormAsync(child, new ParentFormReply(parent, chosen), Cancellation));
+        var answered = Outcomes.Succeeds(await answers.AnswerFormAsync(child, new ParentFormReply(parent, chosen with { AnsweredBy = MessageAuthor.Person }), Cancellation));
         var refused = Outcomes.FailsWith(await answers.AnswerFormAsync(child, new ParentFormReply(parent, new FormAnswer(permission.Item, [new FieldAnswer("choice") { Chosen = ["PostgreSQL"] }])), Cancellation));
 
         Assert.Equal((DecisionDelivery.Answered, Option<FormAnswer>.Some(chosen), Option<JobId>.Some(parentJob)), (answered.Delivery, answered.Answer, answered.Parent));

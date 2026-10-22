@@ -1,5 +1,6 @@
 using System.Text;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 
 namespace Avala.Workbench.Timeline;
@@ -28,7 +29,7 @@ internal static class TranscriptMarkdown
     private static IEnumerable<string> Blocks(ITimelineEntry entry, MarkdownChoices choices) => entry switch
     {
         PromptEntry prompt => prompt.Text.Match<IEnumerable<string>>(text => [prompt.IsFromPerson ? "**You**" : "**Avala**", text.Trim()], () => []),
-        InterjectionEntry interjection => ["**You**", interjection.Text.Trim()],
+        InterjectionEntry interjection => [interjection.Author == MessageAuthor.Person ? "**You**" : "**Avala**", interjection.Text.Trim()],
         MessageEntry { Text.Length: > 0 } message => [message.Text.Trim()],
         ReasoningEntry { Text.Length: > 0 } reasoning when choices.Reasoning => [Quoted(reasoning.Text)],
         ToolEntry tool => Tool(tool, choices),

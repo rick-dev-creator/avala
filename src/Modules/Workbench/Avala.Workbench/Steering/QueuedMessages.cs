@@ -11,9 +11,24 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     private readonly SerialExecutor owner = new();
     private ImmutableDictionary<JobId, ImmutableList<JobMessage>> queued = ImmutableDictionary<JobId, ImmutableList<JobMessage>>.Empty;
 
-    public Option<string> Find(JobId job) => Volatile.Read(ref queued).TryGetValue(job, out var messages) ? string.Join("\n\n", messages.Select(message => message.Text)) : Option<string>.None;
+    public Option<string> Find(JobId job) =>
+        Volatile.Read(ref queued).TryGetValue(job, out var messages) && Persons(messages).ToList() is { Count: > 0 } persons
+            ? string.Join("\n\n", persons.Select(message => message.Text))
+            : Option<string>.None;
 
-    public bool Withdraw(JobId job) => ImmutableInterlocked.TryRemove(ref queued, job, out _);
+    public bool Withdraw(JobId job)
+    {
+        var withdrawn = false;
+        ImmutableInterlocked.Update(ref queued, known =>
+        {
+            withdrawn = known.TryGetValue(job, out var messages) && Persons(messages).Any();
+            var left = withdrawn ? messages!.RemoveAll(message => message.Author == MessageAuthor.Person) : ImmutableList<JobMessage>.Empty;
+
+            return !withdrawn ? known : left.IsEmpty ? known.Remove(job) : known.SetItem(job, left);
+        });
+
+        return withdrawn;
+    }
 
     public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
         owner.RunAsync(token => DeliveredAsync(job, shown, message, token), cancellationToken);
@@ -88,7 +103,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         if (integrationEvent.Status is JobStatus.Discarded or JobStatus.Failed)
         {
-            Withdraw(job);
+            ImmutableInterlocked.TryRemove(ref queued, job, out _);
             return;
         }
 
@@ -109,6 +124,8 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             Requeue(job, messages);
         }
     }
+
+    private static IEnumerable<JobMessage> Persons(ImmutableList<JobMessage> messages) => messages.Where(message => message.Author == MessageAuthor.Person);
 
     private static (JobMessage First, Option<JobMessage> Notes) Split(ImmutableList<JobMessage> messages)
     {

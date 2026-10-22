@@ -58,6 +58,10 @@ internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEnt
     public bool FromDevice { get; init; }
 
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
+    public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public InterjectionEntry WrittenAs(MessageQueued queued) => this with { Author = queued.Author };
 }
 
 internal sealed record MessageEntry(string Key, string Text, Option<ItemOutcome> Outcome) : ITimelineEntry;

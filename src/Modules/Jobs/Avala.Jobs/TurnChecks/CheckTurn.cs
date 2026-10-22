@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
@@ -10,7 +11,7 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.TurnChecks;
 
 internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn evaluate, HoldJob hold)
-    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>, IHandle<TurnWoken>
+    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>, IHandle<TurnWoken>, IHandle<AgentActivity>
 {
     public const string WokenNote = "The agent went on by itself, woken by work it had started in the background.";
 
@@ -43,6 +44,14 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
         if (Feedback.Create(integrationEvent.Text).TryGetValue(out var message, out _))
         {
             await OnJobOfAsync(integrationEvent.Session, (found, token) => FromDeviceAsync(found, integrationEvent, message, token), cancellationToken);
+        }
+    }
+
+    public async ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Event is FormAnswered { Answer.AnsweredBy: MessageAuthor.Person } answered)
+        {
+            await OnJobOfAsync(answered.Session, (found, token) => hold.JoinedAsync(found, MessageAuthor.Person, token), cancellationToken);
         }
     }
 
