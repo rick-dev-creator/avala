@@ -49,9 +49,11 @@ public sealed record MessageQueued(SessionId Session, TurnId Turn, string Text) 
 {
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
+    public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
     private bool PrintMembers(System.Text.StringBuilder builder)
     {
-        builder.Append(CultureInfo.InvariantCulture, $"Session = {Session}, Turn = {Turn}, Text = {Text}, Attachments = [{string.Join(", ", Attachments)}]");
+        builder.Append(CultureInfo.InvariantCulture, $"Session = {Session}, Turn = {Turn}, Text = {Text}, Attachments = [{string.Join(", ", Attachments)}], Author = {Author}");
 
         return true;
     }

@@ -13,7 +13,7 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
     {
         if (author != MessageAuthor.Person || job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
-            return await agents.TellAsync(job, message, cancellationToken);
+            return await agents.TellAsync(job, message, author, cancellationToken);
         }
 
         var briefs = new List<JobBrief>();
@@ -35,7 +35,7 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 
         try
         {
-            told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), cancellationToken);
+            told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), author, cancellationToken);
         }
         catch
         {

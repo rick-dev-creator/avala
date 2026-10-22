@@ -16,7 +16,7 @@ public interface IJobs
 
     ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken);
 
-    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken);
+    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
 
     ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
 
@@ -95,12 +95,6 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public bool Companion { get; init; }
-}
-
-public enum MessageAuthor
-{
-    Person,
-    Avala,
 }
 
 public sealed record JobMessage(string Text)

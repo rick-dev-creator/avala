@@ -105,7 +105,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         {
             foreach (var parent in delegation.Parent.Match<JobId[]>(found => [found], () => []))
             {
-                _ = await jobs.SteerAsync(parent, ToolAnswers.RetryNote(delegation, child, hold), cancellationToken);
+                _ = await jobs.NoteAsync(parent, ToolAnswers.RetryNote(delegation, child, hold), cancellationToken);
             }
         }
 
@@ -116,7 +116,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
     {
         foreach (var parent in reported.Parent.Match<JobId[]>(found => [found], () => []))
         {
-            if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
+            if ((await jobs.NoteAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
             {
                 await journal.SteeredAsync(reported, cancellationToken);
             }
@@ -145,7 +145,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
         foreach (var parent in delegation.Parent.Match<JobId[]>(found => [found], () => []))
         {
-            _ = await jobs.SteerAsync(parent, ToolAnswers.HeldNote(delegation, child, hold), cancellationToken);
+            _ = await jobs.NoteAsync(parent, ToolAnswers.HeldNote(delegation, child, hold), cancellationToken);
         }
     }
 

@@ -391,6 +391,28 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.StartsWith("This job was handed off to you from simulator-one. You continue it on simulator-two in a new conversation.", Outcomes.Present(history.Attempts[^1].Guidance), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task TheBriefOfAHandoffListsOnlyWhatThePersonSentDuringATurnThatDidNotFinishAndNamesAvalasOwnNotesAsSuchAsync()
+    {
+        const string Sent = "Also keep the old rounding for negative amounts.";
+        const string Noted = "Avala now allows reaching https://example.com.";
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("hang")) { Connection = One }));
+        _ = await run.OpenedAsync();
+        var messages = run.Get<IJobMessages>();
+        Outcomes.Succeeds(await messages.SteerAsync(job, new JobMessage(Sent), Cancellation));
+        Outcomes.Succeeds(await messages.SteerAsync(job, new JobMessage(Noted) { Author = MessageAuthor.Avala }, Cancellation));
+        _ = await activity.UntilAsync(update => update.Event is MessageQueued { Text: Noted });
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(job, HoldReason.Interrupted, Cancellation));
+        _ = await activity.UntilAsync(update => update.Event is TurnCompleted { Outcome: TurnOutcome.Interrupted });
+
+        Outcomes.Succeeds(await run.Get<IHandoffRequests>().HandOffAsync(job, Two, Cancellation));
+        var brief = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts[^1].Guidance).ReplaceLineEndings("\n");
+
+        Assert.Contains($"## What the person sent during its last turn, which it did not finish\n- {Sent}\n\n## Avala's own notes during that turn\n- {Noted}\n", brief, StringComparison.Ordinal);
+    }
+
     private static (string Path, string Content)[] Committed(string limits) =>
     [
         (".avala/checks.json", ReviewTests.CalculatorChecks),

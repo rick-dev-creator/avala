@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
 using Avala.Jobs.Contracts;
@@ -33,7 +34,8 @@ internal sealed class BriefGatherer(IWorkspaceChanges changes, IVerifications ve
             Decisions = DecisionLines.Taken(audit, job),
             Questions = DecisionLines.Open(audit, job),
             LastMessage = noted.LastMessage,
-            Unanswered = noted.Unanswered,
+            Unanswered = noted.UnansweredBy(MessageAuthor.Person),
+            Noted = noted.UnansweredBy(MessageAuthor.Avala),
         });
     }
 }

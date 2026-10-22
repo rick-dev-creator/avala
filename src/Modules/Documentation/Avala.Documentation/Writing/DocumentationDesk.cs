@@ -35,7 +35,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
             case TurnCompleted completed when sessions.TryGetValue(completed.Session, out var job):
                 await WriteAsync(job, cancellationToken);
                 break;
-            case MessageQueued queued when sessions.TryGetValue(queued.Session, out var job) && queued.Text.Trim().Length > 0:
+            case MessageQueued { Author: MessageAuthor.Person } queued when sessions.TryGetValue(queued.Session, out var job) && queued.Text.Trim().Length > 0:
                 await (await subjects.OfAsync(job, cancellationToken)).Match(
                     subject => book.RequestedAsync(job, RequestKind.Steer, queued.Text.Trim(), subject.Place.Attempt, cancellationToken),
                     () => Task.CompletedTask);

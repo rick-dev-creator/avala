@@ -38,9 +38,6 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, new JobMessage(message), (found, guidance, token) => review.ContinueOnAsync(found, connection, guidance, token), cancellationToken);
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        SteerAsync(job, new JobMessage(message), cancellationToken);
-
     public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
         controls.Journal.Delivered(
             job,

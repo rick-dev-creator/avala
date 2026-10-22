@@ -118,7 +118,7 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
 
                 var note = question.Note(child, found.Escalation);
 
-                return (await jobs.SteerAsync(found.Parent, note, cancellationToken)).IsSuccess
+                return (await jobs.NoteAsync(found.Parent, note, cancellationToken)).IsSuccess
                     ? asked with { Note = note }
                     : Option<ParentAsked>.None;
             },

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workspaces.Contracts;
@@ -15,6 +16,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentQueue<JobId> discarded = new();
     private readonly ConcurrentQueue<JobId> resumed = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> steered = new();
+    private readonly ConcurrentQueue<MessageAuthor> steeredBy = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> continued = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
@@ -61,9 +63,11 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public IReadOnlyList<(JobId Job, string Message)> Steered => [.. steered];
 
+    public IReadOnlyList<MessageAuthor> SteeredBy => [.. steeredBy];
+
     public Func<Task> BeforeSteer { get; set; } = () => Task.CompletedTask;
 
-    public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken)
+    public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
     {
         await BeforeSteer();
 
@@ -72,7 +76,8 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
             return Result<JobSteered, JobRejection>.Failure(JobRejection.NotSteerable);
         }
 
-        steered.Enqueue((job, message));
+        steered.Enqueue((job, message.Text));
+        steeredBy.Enqueue(message.Author);
 
         return Result<JobSteered, JobRejection>.Success(new JobSteered(job, Agents.Contracts.Sessions.SessionId.New(), Agents.Contracts.Sessions.TurnId.New()));
     }
