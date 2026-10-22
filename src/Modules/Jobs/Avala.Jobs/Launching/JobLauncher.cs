@@ -185,7 +185,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         var previous = job.Session;
         _ = job.ContinueOn(guidance, opened.Session, opened.Connection);
-        await BeginAsync(job, opened.Session, $"{job.Instruction.Text}\n\n{guidance.Text}", cancellationToken);
+        await BeginAsync(job, opened.Session, new Told($"{job.Instruction.Text}\n\n{guidance.Text}", job.Attempts[^1].Author) { Messages = guidance.Messages }, cancellationToken);
         await previous.Match(
             async session => _ = await agents.StopAsync(session, cancellationToken),
             () => Task.CompletedTask);
@@ -361,6 +361,12 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         await ledger.RecordSessionAsync(job, session, cancellationToken);
         await TellAsync(job, message, cancellationToken);
+    }
+
+    private async Task BeginAsync(Job job, SessionId session, Told told, CancellationToken cancellationToken)
+    {
+        await ledger.RecordSessionAsync(job, session, cancellationToken);
+        await TellAsync(job, told, cancellationToken);
     }
 
     private Task TellAsync(Job job, string message, CancellationToken cancellationToken) =>

@@ -139,7 +139,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog, IJobMessages
         return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.NewConversation)));
     }
 
-    public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) =>
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public IReadOnlyList<(JobId Job, JobMessage Message)> SentBack => [.. sentBack];

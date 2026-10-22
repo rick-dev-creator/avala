@@ -30,7 +30,8 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
     {
         registrar.Services.AddSingleton(this);
         registrar.Services.AddSingleton<IAgentProviderDecorator>(this);
-        Decorate<IJobMessages>(registrar.Services, inner => new WatchedMessages(inner, this));
+        Decorate<IJobMessages>(registrar.Services, (_, inner) => new WatchedMessages(inner, this));
+        Decorate<IJobs>(registrar.Services, (provider, inner) => new WatchedJobs(inner, provider.GetRequiredService<IJobMessages>(), this));
     }
 
     public void Sent<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome)
@@ -52,12 +53,12 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
         }
     }
 
-    private static void Decorate<TService>(IServiceCollection services, Func<TService, TService> watch)
+    private static void Decorate<TService>(IServiceCollection services, Func<IServiceProvider, TService, TService> watch)
         where TService : class
     {
         var original = services.Last(descriptor => descriptor.ServiceType == typeof(TService));
         services.Remove(original);
-        services.AddSingleton(provider => watch((TService)original.ImplementationFactory!(provider)));
+        services.AddSingleton(provider => watch(provider, (TService)original.ImplementationFactory!(provider)));
     }
 
     private sealed class WatchedMessages(IJobMessages inner, MessageLedger ledger) : IJobMessages
@@ -78,6 +79,41 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
 
             return outcome;
         }
+    }
+
+    private sealed class WatchedJobs(IJobs inner, IJobMessages messages, MessageLedger ledger) : IJobs
+    {
+        public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) => inner.SubmitAsync(request, cancellationToken);
+
+        public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => inner.HoldAsync(job, reason, cancellationToken);
+
+        public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => inner.HoldRunningAsync(job, reason, cancellationToken);
+
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) => messages.ContinueAsync(job, new JobMessage(message), cancellationToken);
+
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.ContinueAsync(job, message, cancellationToken);
+
+        public async ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken)
+        {
+            var continued = await inner.ContinueOnAsync(job, connection, message, cancellationToken);
+            ledger.Sent(job, message, continued);
+
+            return continued;
+        }
+
+        public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.SteerAsync(job, message, cancellationToken);
+
+        public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => inner.DiscardAsync(job, cancellationToken);
+
+        public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) => inner.ApproveAsync(job, cancellationToken);
+
+        public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) => messages.SendBackAsync(job, new JobMessage(feedback), cancellationToken);
+
+        public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) => inner.ResumeAsync(job, cancellationToken);
+
+        public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => inner.HandOffAsync(job, handoff, cancellationToken);
+
+        public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, ModelChoice model, CancellationToken cancellationToken) => inner.ChooseModelAsync(job, model, cancellationToken);
     }
 
     private sealed class WatchedProvider(IAgentProvider inner, MessageLedger ledger) : IAgentProvider

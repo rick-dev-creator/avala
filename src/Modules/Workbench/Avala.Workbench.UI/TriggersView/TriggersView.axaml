@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:trimming="using:Avala.Components.UI.Trimming"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:triggers="using:Avala.Workbench.Triggers"
              x:Class="Avala.Workbench.UI.TriggersView"
@@ -51,7 +52,7 @@
           <ItemsControl x:Name="ForgeEvents" ItemsSource="{Binding ForgeEvents}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -72,7 +73,7 @@
           <ItemsControl x:Name="Deliveries" ItemsSource="{Binding Deliveries}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

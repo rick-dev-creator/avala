@@ -3,13 +3,17 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workbench.Following;
 
 namespace Avala.Workbench.Steering;
 
-internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>, IAsyncDisposable
+internal sealed record UndeliveredMessage(JobMessage Message, JobStatus Status, Option<JobRejection> Rejection);
+
+internal sealed class QueuedMessages(IJobMessages jobs, Pulse pulse) : IHandle<JobProgressed>, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
     private ImmutableDictionary<JobId, ImmutableList<JobMessage>> queued = ImmutableDictionary<JobId, ImmutableList<JobMessage>>.Empty;
+    private ImmutableDictionary<JobId, UndeliveredMessage> undelivered = ImmutableDictionary<JobId, UndeliveredMessage>.Empty;
 
     public Option<string> Find(JobId job) =>
         Volatile.Read(ref queued).TryGetValue(job, out var messages) && Persons(messages).ToList() is { Count: > 0 } persons
@@ -29,6 +33,9 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         return withdrawn;
     }
+
+    public Option<UndeliveredMessage> TakeBack(JobId job) =>
+        ImmutableInterlocked.TryRemove(ref undelivered, job, out var message) ? message : Option<UndeliveredMessage>.None;
 
     public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
         owner.RunAsync(token => DeliveredAsync(job, shown, message, token), cancellationToken);
@@ -103,7 +110,11 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
 
         if (integrationEvent.Status is JobStatus.Discarded or JobStatus.Failed)
         {
-            ImmutableInterlocked.TryRemove(ref queued, job, out _);
+            if (ImmutableInterlocked.TryRemove(ref queued, job, out var left))
+            {
+                Undeliver(job, left, integrationEvent.Status, Option<JobRejection>.None);
+            }
+
             return;
         }
 
@@ -119,7 +130,11 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
         {
             await JoinAsync(job, rest, cancellationToken);
         }
-        else if (continued.Match(_ => false, rejection => !Final(integrationEvent.Status, rejection)))
+        else if (!continued.TryGetValue(out _, out var rejection) && Final(integrationEvent.Status, rejection))
+        {
+            Undeliver(job, messages, integrationEvent.Status, rejection);
+        }
+        else
         {
             Requeue(job, messages);
         }
@@ -154,6 +169,17 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
             {
                 Queue(job, note);
             }
+        }
+    }
+
+    private void Undeliver(JobId job, ImmutableList<JobMessage> messages, JobStatus status, Option<JobRejection> rejection)
+    {
+        var persons = Persons(messages).ToList();
+
+        if (persons.Count > 0)
+        {
+            ImmutableInterlocked.AddOrUpdate(ref undelivered, job, new UndeliveredMessage(Merged(persons), status, rejection), (_, earlier) => new UndeliveredMessage(Merged([earlier.Message, .. persons]), status, rejection));
+            pulse.Beat();
         }
     }
 

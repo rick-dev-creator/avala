@@ -81,9 +81,9 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         JobId job,
         Avala.Agents.Contracts.Connections.ConnectionName connection,
-        string message,
+        JobMessage message,
         CancellationToken cancellationToken) =>
-        AnswerAsync($"continue on {connection.Value} {message}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
+        AnswerAsync($"continue on {connection.Value} {message.Text}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("discard", job);

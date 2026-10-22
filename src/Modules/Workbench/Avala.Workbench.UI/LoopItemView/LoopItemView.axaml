@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:trimming="using:Avala.Components.UI.Trimming"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:triggers="using:Avala.Workbench.Triggers"
              xmlns:local="using:Avala.Workbench.UI"
@@ -43,7 +44,7 @@
       <ItemsControl x:Name="LoopIterations" Margin="0,4,0,0" ItemsSource="{Binding Iterations}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+            <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

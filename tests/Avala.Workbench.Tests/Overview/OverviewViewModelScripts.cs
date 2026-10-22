@@ -474,14 +474,14 @@ internal static class Focusing
     {
         var used = jobs ?? new FakeJobs();
 
-        return new(focus, Conversations(used), new Avala.Workbench.Steering.JobSteering(used, new Avala.Workbench.Steering.QueuedMessages(used)));
+        return new(focus, Conversations(used), new Avala.Workbench.Steering.JobSteering(used, new Avala.Workbench.Steering.QueuedMessages(used, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()))));
     }
 
     public static RowActions Actions() => Actions(Focus());
 
     public static Avala.Workbench.Conversation.Conversations Conversations(FakeJobs jobs) =>
         new(
-            Composing.Of(new Avala.Workbench.Steering.JobSteering(jobs, new Avala.Workbench.Steering.QueuedMessages(jobs)), new Avala.Workbench.Steering.SendKeys()),
+            Composing.Of(new Avala.Workbench.Steering.JobSteering(jobs, new Avala.Workbench.Steering.QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()))), new Avala.Workbench.Steering.SendKeys()),
             new Avala.Workbench.Conversation.TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()),
             new Avala.Workbench.Timeline.TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance()));
 

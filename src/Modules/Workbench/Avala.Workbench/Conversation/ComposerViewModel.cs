@@ -355,7 +355,17 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     public IMentionsViewModel Mentions => mentions;
 
-    private void ShowQueued() => Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
+    private void ShowQueued()
+    {
+        Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
+
+        foreach (var back in steering.TakeBack(Job).Match<UndeliveredMessage[]>(found => [found], () => []))
+        {
+            Edit(Draft.Length == 0 ? back.Message.Text : $"{back.Message.Text}\n\n{Draft}");
+            attachments.Restore(back.Message.Attachments);
+            Error = ConversationPhrases.Undelivered(back);
+        }
+    }
 
     private void Report(Result<JobId, JobRejection> outcome) =>
         Error = outcome.Match(_ => string.Empty, ConversationPhrases.Rejection);

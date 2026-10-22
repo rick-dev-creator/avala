@@ -8,6 +8,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Linking;
+using Avala.Workbench.Steering;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
@@ -367,6 +368,13 @@ internal static class ConversationPhrases
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");
 
     public static string ThoughtUnshared(TimeSpan duration) => $"{Thought(duration)} · content not shared by the harness";
+
+    public static string Undelivered(UndeliveredMessage message) =>
+        message.Rejection.Match(
+            rejection => $"Your queued message was not delivered, so it is back here. {Rejection(rejection)}",
+            () => message.Status == JobStatus.Discarded
+                ? "Your queued message was not delivered, so it is back here: the job was discarded."
+                : "Your queued message was not delivered, so it is back here: the job failed.");
 
     public static string Rejection(JobRejection rejection) => rejection switch
     {

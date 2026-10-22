@@ -84,7 +84,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         IAgentEvent[] quietTurn = [new TurnStarted(session, turn), new ContextReported(session, turn, 530_000, 1_000_000), new TurnCompleted(session, turn, TurnOutcome.Finished)];
         shown = new BoardJob(summary, quietTurn.Aggregate(Transcript.Empty, (transcript, next) => transcript.Apply(next, DateTimeOffset.UnixEpoch.AddHours(-6))));
         jobs.Status = JobStatus.AwaitingReview;
-        queue = new QueuedMessages(jobs);
+        queue = new QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()));
         var harness = Composing.Harnesses(jobs, new FakeHandoffRequests(), connections).Open(summary.Job);
         var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, queue), Composing.Tools(keys, summary.Job), harness);
         composer.Track(shown);
@@ -275,6 +275,23 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AMessageQueuedForAJobThatIsDiscardedComesBackIntoTheComposerSayingItWasNotDelivered()
+    {
+        var composer = Composer(JobStatus.Running);
+        composer.Draft = "Keep the alias";
+        await composer.SendCommand.ExecuteAsync(null);
+        composer.Draft = "And the changelog";
+
+        await queue.HandleAsync(new JobProgressed(shown.Job, JobStatus.Discarded), Cancellation);
+        Becomes(composer, JobStatus.Discarded);
+
+        Assert.Equal(
+            ("Keep the alias\n\nAnd the changelog", string.Empty, "Your queued message was not delivered, so it is back here: the job was discarded."),
+            (composer.Draft, composer.Queued, composer.Error));
+        Assert.Empty(jobs.Calls);
+    }
+
+    [Fact]
     public async Task AWithdrawnMessageIsNeverDelivered()
     {
         var composer = Composer(JobStatus.Running);
@@ -382,7 +399,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         summary = job is { } same ? summary with { Job = same } : summary;
         shown = new BoardJob(summary, Transcript.Empty);
         jobs.Status = status;
-        queue = new QueuedMessages(jobs);
+        queue = new QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()));
         var tools = Composing.Tools(keys, summary.Job) with { Drafts = drafts };
         var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, queue), mentions is null ? tools : tools with { Mentions = mentions }, Composing.Harness(summary.Job));
         composer.Track(shown);
@@ -396,7 +413,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         shown = new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn };
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
-        queue = new QueuedMessages((IJobMessages)steered);
+        queue = new QueuedMessages((IJobMessages)steered, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()));
         var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), mentions is null ? Composing.Tools(keys, summary.Job) : Composing.Tools(keys, summary.Job) with { Mentions = mentions }, Composing.Harness(summary.Job));
         composer.Track(shown);
 
@@ -445,7 +462,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ContinueOnAsync(
             JobId job,
             Avala.Agents.Contracts.Connections.ConnectionName connection,
-            string message,
+            JobMessage message,
             CancellationToken cancellationToken) =>
             inner.ContinueOnAsync(job, connection, message, cancellationToken);
 

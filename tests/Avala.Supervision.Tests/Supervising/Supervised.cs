@@ -102,7 +102,7 @@ internal sealed class Supervised : IAsyncDisposable
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
             JobId job,
             Avala.Agents.Contracts.Connections.ConnectionName connection,
-            string message,
+            JobMessage message,
             CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
 

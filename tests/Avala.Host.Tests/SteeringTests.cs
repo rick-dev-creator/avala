@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
@@ -171,6 +172,34 @@ public sealed class SteeringTests(PublishedPlugins plugins)
             conversation["Composer"]["Queued"].Text));
         Assert.Equal(["Instruction", "You"], origins);
         Assert.Equal((Steering, string.Empty), (texts[1], queued));
+    }
+
+    [Fact]
+    public async Task AMessageQueuedForAJobThatIsThenDiscardedComesBackIntoTheComposerSayingItWasNotDeliveredAsync()
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "hang",
+            new ConnectionName("plain"),
+            [("connections.json", """{ "connections": [ { "name": "plain", "provider": "simulator", "settings": { "withoutCapabilities": "acceptsMessagesMidTurn" } } ] }""")]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "This agent takes no message mid-turn · queue one for when it stops…");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(Steering, await run.Ui.ReadAsync(() => conversation["Composer"]["Queued"].Text));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));
+
+        await workbench.ShowsAsync(() => conversation["Composer"]["Draft"].Text == Steering);
+        Assert.Equal(
+            (string.Empty, "Your queued message was not delivered, so it is back here: the job was discarded."),
+            await run.Ui.ReadAsync(() => (conversation["Composer"]["Queued"].Text, conversation["Composer"]["Error"].Text)));
     }
 
     [Fact]

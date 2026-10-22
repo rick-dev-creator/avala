@@ -124,7 +124,7 @@ public sealed class CapacityTests(PublishedPlugins plugins)
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("spent-window")) { Connection = One }));
         Assert.Equal(HoldReason.LimitNearlyReached, (await held.UntilAsync(announced => announced.Hold.Job == job)).Hold.Reason);
 
-        var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueOnAsync(job, Two, "Go on with the release", Cancellation));
+        var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueOnAsync(job, Two, new JobMessage("Go on with the release"), Cancellation));
 
         var session = await opened.UntilAsync(announced => announced.Connection == Two);
         Assert.Equal((session.Session, ContinuedIn.NewConversation), (continued.Session, continued.Conversation));

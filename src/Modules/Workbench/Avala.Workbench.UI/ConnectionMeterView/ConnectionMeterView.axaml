@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:trimming="using:Avala.Components.UI.Trimming"
              xmlns:usage="using:Avala.Workbench.Usage"
              x:Class="Avala.Workbench.UI.ConnectionMeterView"
              x:ClassModifier="internal"
@@ -31,7 +32,7 @@
           <TextBlock x:Name="Cost" Text="{Binding Cost, StringFormat='{}{0} in total'}" VerticalAlignment="Bottom" />
           <WrapPanel ItemSpacing="10">
             <TextBlock x:Name="ConnectionName" Classes="heading" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
-            <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Bottom" Margin="0,0,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Provider}" />
+            <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Bottom" Margin="0,0,0,2" TextTrimming="CharacterEllipsis" trimming:TrimmedTip.IsOffered="True" />
           </WrapPanel>
         </DockPanel>
         <TextBlock x:Name="Tokens" Classes="caption" TextWrapping="Wrap">

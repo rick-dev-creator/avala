@@ -63,7 +63,7 @@ public sealed class MentionsViewScripts(HeadlessUi ui)
         var jobs = new FakeJobs { Status = status, Steerable = false };
         var summary = new FakeCatalog().Add("Extract sync queue into a module", status).Summary;
         var mentions = Composing.Mentioning(new Worktree(), "src/Checkout/Rounding.cs", "src/Checkout/Prices.cs", "src/Checkout/PriceTags.cs");
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), Composing.Tools(new SendKeys(), summary.Job) with { Mentions = mentions }, Composing.Harness(summary.Job));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()))), Composing.Tools(new SendKeys(), summary.Job) with { Mentions = mentions }, Composing.Harness(summary.Job));
         composer.Track(new BoardJob(summary, Transcript.Empty));
 
         return (composer, jobs);
