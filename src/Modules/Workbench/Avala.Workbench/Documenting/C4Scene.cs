@@ -40,7 +40,7 @@ internal static class C4Scene
         var played = story.Versions[version];
         var earlier = version > 0 ? story.Versions[version - 1].Structure : new C4Diagram(C4Level.Container, string.Empty, [], [], []);
         var elements = played.Structure.Elements.Concat(played.Removed).ToList();
-        var states = elements.ToDictionary(element => element.Alias, element => earlier.Elements.Any(old => old.Alias == element.Alias) ? NodeState.Shown : NodeState.Hidden, StringComparer.Ordinal);
+        var states = States(elements, earlier);
         var current = played.Structure.Relations.Select(Key).ToHashSet(StringComparer.Ordinal);
         var visible = earlier.Relations.Where(relation => current.Contains(Key(relation))).ToList();
         var fresh = Apply(played, step, version, states, visible);
@@ -54,10 +54,19 @@ internal static class C4Scene
 
         return new Scene(Nodes(elements, states, now, flow), links, [.. played.Structure.Boundaries.Select(boundary => new GraphFrame(boundary.Alias, boundary.Label))], caption)
         {
-            Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
-            Flows = [.. played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = "0" })],
+            Structure = Structure(played, earlier),
+            Flows = Flows(played),
         };
     }
+
+    private static List<GraphLink> Structure(PlayedVersion played, C4Diagram earlier) =>
+        [.. played.Structure.Relations.Concat(earlier.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))];
+
+    private static List<GraphLink> Flows(PlayedVersion played) =>
+        [.. played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = "0" })];
+
+    private static Dictionary<string, NodeState> States(List<C4Element> elements, C4Diagram earlier) =>
+        elements.ToDictionary(element => element.Alias, element => earlier.Elements.Any(old => old.Alias == element.Alias) ? NodeState.Shown : NodeState.Hidden, StringComparer.Ordinal);
 
     private static List<SceneNode> Nodes(List<C4Element> elements, Dictionary<string, NodeState> states, PlayStep? now, List<C4Relation> flow)
     {
