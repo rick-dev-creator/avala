@@ -16,7 +16,7 @@
     <Style Selector="TextBlock#Tokens">
       <Setter Property="DockPanel.Dock" Value="Right" />
     </Style>
-    <ContainerQuery Name="Window" Query="max-width:520">
+    <ContainerQuery Name="Window" Query="max-width:472">
       <Style Selector="TextBlock#Tokens">
         <Setter Property="DockPanel.Dock" Value="Bottom" />
         <Setter Property="Margin" Value="0,2,0,0" />

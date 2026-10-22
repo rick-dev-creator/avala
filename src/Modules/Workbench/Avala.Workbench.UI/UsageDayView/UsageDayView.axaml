@@ -12,7 +12,7 @@
       <Setter Property="Grid.Column" Value="2" />
       <Setter Property="HorizontalAlignment" Value="Right" />
     </Style>
-    <ContainerQuery Name="Day" Query="max-width:520">
+    <ContainerQuery Name="Day" Query="max-width:472">
       <Style Selector="ProgressBar#Share">
         <Setter Property="IsVisible" Value="False" />
       </Style>

@@ -12,7 +12,7 @@
     <Style Selector="Border#Segments">
       <Setter Property="DockPanel.Dock" Value="Right" />
     </Style>
-    <ContainerQuery Name="Range" Query="max-width:520">
+    <ContainerQuery Name="Range" Query="max-width:472">
       <Style Selector="Border#Segments">
         <Setter Property="DockPanel.Dock" Value="Bottom" />
         <Setter Property="HorizontalAlignment" Value="Left" />

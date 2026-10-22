@@ -14,7 +14,7 @@
     <Style Selector="TextBlock#Carve">
       <Setter Property="Margin" Value="8,0,0,0" />
     </Style>
-    <ContainerQuery Name="JobMeter" Query="max-width:520">
+    <ContainerQuery Name="JobMeter" Query="max-width:472">
       <Style Selector="TextBlock#Connection, Border#BarSlot">
         <Setter Property="IsVisible" Value="False" />
       </Style>

@@ -13,7 +13,23 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 {
     private static readonly string[] Headers = ["Title", "Scope", "JobsTitle", "JobsHint", "RangeTitle", "Caption", "Label", "Tokens"];
 
+    private static readonly int[] PageWidths = [400, 519, 520, 521, 522, 568, 569, 600];
+
     private static readonly string[] CardParts = ["ConnectionName", "Provider", "Cost", "Tokens"];
+
+    private static IEnumerable<bool> Reflowed(Visual page)
+    {
+        var texts = page.GetVisualDescendants().OfType<TextBlock>().ToList();
+        var named = (string name) => texts.First(text => text.Name == name && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text));
+
+        yield return DockPanel.GetDock(named("Scope")) == Dock.Bottom;
+        yield return DockPanel.GetDock(named("JobsHint")) == Dock.Bottom;
+        yield return DockPanel.GetDock(page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Segments")) == Dock.Bottom;
+        yield return DockPanel.GetDock(page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter").GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "Cost")) == Dock.Bottom;
+        yield return DockPanel.GetDock(texts.First(text => text.Name == "Interventions" && text.IsEffectivelyVisible)) == Dock.Bottom;
+        yield return Grid.GetRow(page.GetVisualDescendants().OfType<WrapPanel>().First(panel => panel.Name == "What")) == 1;
+        yield return Grid.GetRow(texts.First(text => text.Name == "Tokens" && text.GetVisualAncestors().Any(parent => parent.GetType().Name == "UsageDayView"))) == 1;
+    }
 
     private static bool ReadWhole(TextBlock text, Visual page)
     {
@@ -62,18 +78,20 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("Dark")]
-    [InlineData("Light")]
-    public Task ThePageAtItsNarrowestAsync(string variant)
+    [InlineData("Dark", 272)]
+    [InlineData("Light", 272)]
+    [InlineData("Dark", 600)]
+    [InlineData("Light", 600)]
+    public Task ThePageAtANarrowWidthAsync(string variant, double width)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 }, "Set AVALA_FEATURE_SCREENS to a folder and AVALA_HEADLESS_RENDER=1 to capture the page.");
 
         return ui.RunAsync(() =>
         {
-            var view = Screen.ShowStill(new DesignUsageViewModel(), variant == "Dark" ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light, 272, 2300);
+            var view = Screen.ShowStill(new DesignUsageViewModel(), variant == "Dark" ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light, width, 2300);
             view.Settle();
 
-            Assert.True(Save(view, $"usage-272-{variant}"));
+            Assert.True(Save(view, $"usage-{width}-{variant}"));
         }, TestContext.Current.CancellationToken);
     }
 
@@ -133,6 +151,36 @@ public sealed class UsageViewScripts(HeadlessUi ui)
             var at = cost.TranslatePoint(default, name)!.Value;
 
             Assert.True(at.X >= name.Bounds.Width && at.Y < name.Bounds.Height, $"the cost sits at {at} from a name {name.Bounds.Size}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task EveryPartOfThePageReflowsAtTheSamePageWidthAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 640, 2300);
+            var seen = new List<string>();
+
+            foreach (var width in PageWidths)
+            {
+                view.Window.Width = width;
+                view.Settle();
+                seen.Add($"{width}: {string.Join(' ', Reflowed(view.Window).Select(narrow => narrow ? "narrow" : "wide").Distinct())}");
+            }
+
+            Assert.Equal(["400: narrow", "519: narrow", "520: narrow", "521: wide", "522: wide", "568: wide", "569: wide", "600: wide"], seen);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ATokensLineTooLongForItsCardWrapsInsteadOfBeingCutAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Connection("Claude Code", "9.86 USD at API prices") { Caps = "3 USD per job, 40 USD per day across every job of this connection, holds at 90% of a limit" }, Avalonia.Styling.ThemeVariant.Dark, 592, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var tokens = view.Find<TextBlock>("Tokens");
+            var end = tokens.TranslatePoint(new Point(tokens.TextLayout.TextLines.Max(line => line.Width), 0), card)!.Value.X;
+
+            Assert.True(tokens.TextLayout.TextLines.Count > 1 && end <= card.Bounds.Width - card.Padding.Right + 0.5, $"the tokens line takes {tokens.TextLayout.TextLines.Count} lines and ends at {end:0} in a card {card.Bounds.Width:0} wide");
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -225,7 +273,7 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
         public string Unpriced => string.Empty;
 
-        public string Caps => "3 USD per job, holds at 90% of a limit";
+        public string Caps { get; init; } = "3 USD per job, holds at 90% of a limit";
 
         public bool IsFocused => false;
 
@@ -320,7 +368,7 @@ public sealed class ConnectionMeterViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignConnectionMeterViewModel());
 
-            Assert.Equal(("claude-work", "9.86 USD in total", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
+            Assert.Equal(("claude-work", "9.86 USD at API prices in total", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
             Assert.Equal((false, false), (view.Shows("Unpriced"), view.Shows("NoLimits")));
         }, TestContext.Current.CancellationToken);
 

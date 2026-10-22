@@ -23,6 +23,15 @@ public sealed class ReadProblemViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AScreenReaderIsToldOfAReadProblemWithoutBeingInterruptedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignReadProblemViewModel(true));
+
+            Assert.Equal(Avalonia.Automation.AutomationLiveSetting.Polite, Avalonia.Automation.AutomationProperties.GetLiveSetting(view.Find("Problem")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutAReadProblemNothingIsShownAsync() =>
         ui.RunAsync(() =>
         {

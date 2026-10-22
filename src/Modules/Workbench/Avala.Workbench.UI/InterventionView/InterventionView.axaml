@@ -11,7 +11,7 @@
     <Style Selector="WrapPanel#What">
       <Setter Property="Grid.Column" Value="1" />
     </Style>
-    <ContainerQuery Name="Intervention" Query="max-width:520">
+    <ContainerQuery Name="Intervention" Query="max-width:472">
       <Style Selector="TextBlock#At">
         <Setter Property="Grid.ColumnSpan" Value="2" />
       </Style>
