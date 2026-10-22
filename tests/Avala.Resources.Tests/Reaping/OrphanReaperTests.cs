@@ -78,5 +78,37 @@ public sealed class OrphanReaperTests
         Assert.Equal([tree.Id], resources.Trees.Closed);
     }
 
+    [Fact]
+    public async Task ARestedSessionThatLeavesNothingBehindHasItsTreeClosedWithoutAReportAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        var (session, tree) = await resources.OpenAsync(job, Resourced.Home("one"));
+
+        await resources.Tracker.HandleAsync(new JobSessionRested(job, session), Cancellation);
+        await resources.Tracker.HandleAsync(new SessionStopped(session), Cancellation);
+
+        Assert.Empty(resources.Bus.Published.OfType<OrphansFound>());
+        Assert.Equal([tree.Id], resources.Trees.Closed);
+    }
+
+    [Fact]
+    public async Task AProcessARestedSessionLeavesRunningIsKeptUntilItsJobEndsAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        var (session, tree) = await resources.OpenAsync(job, Resourced.Home("one"), members: Server);
+
+        await resources.Tracker.HandleAsync(new JobSessionRested(job, session), Cancellation);
+        await resources.Tracker.HandleAsync(new SessionStopped(session), Cancellation);
+        var whileRested = (resources.Bus.Published.OfType<OrphansFound>().Count(), resources.Trees.Closed.Count);
+        await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Approved), Cancellation);
+
+        var report = Assert.Single(resources.Bus.Published.OfType<OrphansFound>()).Report;
+        Assert.Equal((0, 0), whileRested);
+        Assert.Equal((tree.Id, Option<JobId>.Some(job)), (report.Tree, report.Job));
+        Assert.Equal([tree.Id], resources.Trees.Closed);
+    }
+
     private static TreeProcess[] Server => [new(41, "dotnet", 2_048, TimeSpan.FromSeconds(1))];
 }
