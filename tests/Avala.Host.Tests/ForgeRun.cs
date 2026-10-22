@@ -1,6 +1,7 @@
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using Avala.Testing;
 
 namespace Avala.Host.Tests;
@@ -60,6 +61,17 @@ internal sealed class ForgeRun : IAsyncDisposable
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
 
         return forge;
+    }
+
+    public static async Task<(ForgeRun Forge, EventWatch<TAsked> Asked)> SupervisedAsync<TAsked>(PublishedPlugins plugins, string rules, string scenario, string agent)
+        where TAsked : IIntegrationEvent
+    {
+        var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/jobs.json", rules)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var asked = run.Watch<TAsked>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"[simulate: {agent}] [forge: {scenario}] Fix the calculator") { Autonomy = Autonomy.Supervised }));
+
+        return (new ForgeRun(run, job), asked);
     }
 
     public static async Task<ForgeRun> PacedAsync(PublishedPlugins plugins, string rules, string scenario)
