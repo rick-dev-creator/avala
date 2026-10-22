@@ -281,6 +281,21 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildIsRetriedOnlyUntilItsReportReachedItsParentAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        var recovery = new Avala.Delegation.Delegating.ChildRecovery(desk.Book);
+        var working = await recovery.RetriesAsync(child, TestContext.Current.CancellationToken);
+
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        _ = await desk.ReportedAsync(child);
+
+        Assert.Equal((true, false), (working, await recovery.RetriesAsync(child, TestContext.Current.CancellationToken)));
+    }
+
+    [Fact]
     public async Task AChildThatOnlyStartsToSpeakBeforeItsSessionIsLostAgainIsStillGivenUpAfterItsRetriesAsync()
     {
         await using var desk = new Desk { Jobs = { Steerable = true } };

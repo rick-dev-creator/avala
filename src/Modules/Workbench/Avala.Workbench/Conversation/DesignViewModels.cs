@@ -507,6 +507,15 @@ internal sealed class DesignCiCheck : ICiCheck
     public IAsyncRelayCommand OpenLogCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
+internal sealed class DesignRetryViewModel : IRetryViewModel
+{
+    public string Note { get; init; } = "The harness is retrying · attempt 3 of 10 (overloaded)";
+
+    public bool IsLive { get; init; } = true;
+
+    public bool GaveUp { get; init; }
+}
+
 internal sealed class DesignRestartViewModel : IRestartViewModel
 {
     public string Note => RestartViewModel.KeptNote;

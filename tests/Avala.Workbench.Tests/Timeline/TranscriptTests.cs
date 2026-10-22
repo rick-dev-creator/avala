@@ -17,6 +17,29 @@ public sealed class TranscriptTests
     private static readonly DateTimeOffset Start = new(2026, 10, 9, 9, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public void AHarnessRetryingIsOneLineThatFollowsItsAttemptsAndReadsRecoveredOnceTheTurnGoesOn()
+    {
+        var retrying = Played(
+            new HarnessRetrying(Session, Turn, 1, 10, TimeSpan.FromSeconds(1), "overloaded"),
+            new HarnessRetrying(Session, Turn, 2, 10, TimeSpan.FromSeconds(2), "overloaded"));
+        var recovered = retrying.Apply(new ItemStarted(Session, Turn, new ItemId("reply"), ItemKind.Message, "Reply"), Start);
+
+        var live = Assert.IsType<RetryEntry>(Assert.Single(retrying.Entries));
+        Assert.Equal((2, 10, "overloaded", false), (live.Attempt, live.Most, live.Reason, live.Recovered));
+        Assert.True(Assert.IsType<RetryEntry>(recovered.Entries[0]).Recovered);
+    }
+
+    [Fact]
+    public void AHarnessRetryingWhoseTurnFailsReadsThatItStoppedRetrying()
+    {
+        var failed = Played(
+            new HarnessRetrying(Session, Turn, 10, 10, TimeSpan.FromSeconds(30), "overloaded"),
+            new TurnCompleted(Session, Turn, TurnOutcome.Failed));
+
+        Assert.Equal((false, true), (Assert.IsType<RetryEntry>(failed.Entries[0]).Recovered, Assert.IsType<RetryEntry>(failed.Entries[0]).GaveUp));
+    }
+
+    [Fact]
     public void StreamedTextIsAppendedInOrderAndTheMessageClosesWithItsOutcome()
     {
         var transcript = Played(

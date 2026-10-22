@@ -46,14 +46,14 @@ internal sealed partial class OrchestrationViewModel : IOrchestrationViewModel, 
     private bool chosen;
 
     public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions)
-        : this(tree, open, actions, () => { })
+        : this(tree, open, actions, new TreeClock(TimeProvider.System, () => { }))
     {
     }
 
-    public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions, Action refresh)
+    public OrchestrationViewModel(DelegationTree tree, IRelayCommand<JobId> open, RowActions actions, TreeClock clock)
     {
         Job = tree.Root.Job;
-        this.tree = new SubagentTreeViewModel(open, actions, refresh);
+        this.tree = new SubagentTreeViewModel(open, actions, clock.Time, clock.Refresh);
         Show(tree);
         IsCollapsed = !IsActive;
     }

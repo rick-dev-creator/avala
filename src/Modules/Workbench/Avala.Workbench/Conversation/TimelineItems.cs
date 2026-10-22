@@ -35,6 +35,7 @@ internal static class QuietItems
     public static ITimelineItem Of(ITimelineEntry entry, Links links) => entry switch
     {
         RestartEntry restart => new RestartViewModel(restart),
+        RetryEntry retry => new RetryViewModel(retry),
         CiEntry ci => new CiViewModel(ci, links),
         DocsEntry docs => new DocsLineViewModel(docs),
         ChangeEntry change => new ChangeLineViewModel(change),

@@ -40,7 +40,7 @@ internal sealed class Watchdog(SilenceAlarms alarms, ISupervisionSettings settin
         var watch = Watch(integrationEvent.Job);
 
         await watch.SilenceAt(alarms.Now, window).Match(
-            silent => intervener.StalledAsync(watch.Job, new SilenceMeasure(silent, window), cancellationToken),
+            silent => intervener.StalledAsync(watch.Job, new SilenceMeasure(silent, watch.Window(window)), cancellationToken),
             () => ArmAsync(watch, cancellationToken));
     }
 

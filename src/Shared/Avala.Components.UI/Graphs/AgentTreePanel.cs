@@ -1,3 +1,4 @@
+using Avalonia.VisualTree;
 using Avalonia.Threading;
 using Avala.Components.Graphs;
 using Avala.Components.UI.Theme;
@@ -57,6 +58,7 @@ public sealed class AgentTreePanel : Panel
     private readonly Action<TimeSpan> frame;
     private double arrangedWidth = double.NaN;
     private bool framing;
+    private readonly List<Visual> watched = [];
     private bool loops;
     private DispatcherTimer? stream;
     private TimeSpan lastFrame = TimeSpan.MinValue;
@@ -232,9 +234,40 @@ public sealed class AgentTreePanel : Panel
         }
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        watched.AddRange(this.GetVisualAncestors().OfType<Visual>().Prepend(this));
+
+        foreach (var visual in watched)
+        {
+            visual.PropertyChanged += Hiding;
+        }
+    }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+
+        foreach (var visual in watched)
+        {
+            visual.PropertyChanged -= Hiding;
+        }
+
+        watched.Clear();
+        Rest();
+    }
+
+    private void Hiding(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == IsVisibleProperty && change.NewValue is false)
+        {
+            Rest();
+        }
+    }
+
+    private void Rest()
+    {
         Settle();
         motion.Forget();
         stream?.Stop();

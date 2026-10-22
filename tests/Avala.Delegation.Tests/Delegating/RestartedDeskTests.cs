@@ -98,6 +98,25 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AChildHeldForALostSessionJustBeforeARestartIsRetriedAtStartupInsteadOfReportedHeldAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        await using var restarted = new Desk { Jobs = { Steerable = true } };
+        restarted.Store.Earlier = [.. desk.Store.Recorded.GroupBy(record => (record.Session, record.Item)).Select(versions => versions.Last())];
+        restarted.Jobs.Knows(child, desk.Parent);
+        restarted.Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        restarted.Jobs.HeldFor(child, HoldReason.SessionLost);
+        await restarted.Book.RunAsync(Cancellation);
+
+        await restarted.StartupCompletedAsync();
+
+        Assert.Single(restarted.Jobs.Continued);
+        Assert.Contains("retrying 1 of 2 after its session was lost", Assert.Single(restarted.Jobs.Steered).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AReportBriefedInAMessageThatReachedTheParentJustBeforeARestartIsNotBriefedAgainAfterItAsync()
     {
         await using var desk = new Desk();

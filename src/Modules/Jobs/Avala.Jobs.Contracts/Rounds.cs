@@ -10,6 +10,11 @@ public interface IRoundRouter
     ValueTask<RoundRoute> RouteAsync(RoundQuestion question, CancellationToken cancellationToken);
 }
 
+public interface IChildRetries
+{
+    ValueTask<bool> RetriesAsync(JobId child, CancellationToken cancellationToken);
+}
+
 public sealed record RoundQuestion(JobId Job, ConnectionName Connection, string Feedback);
 
 public enum RoundAction

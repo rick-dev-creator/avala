@@ -48,7 +48,7 @@ public sealed class ClaudeCodeBackgroundTests(PublishedPlugins plugins) : IAsync
         _ = await run.RepliedAsync();
         await EvaluatedAsync(run);
 
-        run.Clock.Advance(PromptCache + PromptCache);
+        run.Clock.Advance(PromptCache + (PromptCache / 2));
         await EvaluatedAsync(run);
 
         Assert.True(run.Get<IAgents>().IsOpen(session), "Avala stopped the agent while its background sub-agent was still working.");

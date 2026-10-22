@@ -7,8 +7,21 @@ using Avala.Sdk;
 
 namespace Avala.Jobs.TurnChecks;
 
-internal sealed class NextRound(IEnumerable<IRoundRouter> routers, JobLauncher launcher, HoldJob hold)
+internal sealed class NextRound(IEnumerable<IRoundRouter> routers, JobLauncher launcher, HoldJob hold, IEnumerable<IChildRetries> retries)
 {
+    public async Task<bool> RetriedAsync(Job job, CancellationToken cancellationToken)
+    {
+        foreach (var retry in retries)
+        {
+            if (await retry.RetriesAsync(job.Id, cancellationToken))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public Task InSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         launcher.RetryInSameSessionAsync(job, feedback, cancellationToken);
 

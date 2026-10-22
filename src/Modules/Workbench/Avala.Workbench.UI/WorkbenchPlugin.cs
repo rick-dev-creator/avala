@@ -246,6 +246,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInterjectionViewModel, InterjectionView>();
         views.Register<IChildAskingViewModel, ChildAskingView>();
         views.Register<IRestartViewModel, RestartView>();
+        views.Register<IRetryViewModel, RetryView>();
         views.Register<ICiViewModel, CiView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IWorkingViewModel, WorkingView>();

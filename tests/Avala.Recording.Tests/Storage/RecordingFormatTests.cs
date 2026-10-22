@@ -42,6 +42,16 @@ public sealed class RecordingFormatTests
     }
 
     [Fact]
+    public void AHarnessRetryingIsWrittenWithItsAttemptWaitAndReason()
+    {
+        var retrying = Written(Recording([(5, new Observed(new HarnessRetrying(Session, First, 3, 10, TimeSpan.FromSeconds(4), "overloaded")))])).GetProperty("entries")[0].GetProperty("event");
+
+        Assert.Equal(
+            ("harnessRetrying", 3, 10, 4000d, "overloaded"),
+            (retrying.GetProperty("type").GetString(), retrying.GetProperty("attempt").GetInt32(), retrying.GetProperty("most").GetInt32(), retrying.GetProperty("waitMs").GetDouble(), retrying.GetProperty("reason").GetString()));
+    }
+
+    [Fact]
     public void EntriesKeepTheirRelativeTimeTheirTurnNumberAndTheirRefusalsWithEveryTextRedacted()
     {
         var entries = Written(Recording(

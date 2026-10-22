@@ -139,11 +139,22 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
         var history = await catalog.HistoryAsync(child, cancellationToken);
         var status = history.Map(found => found.Summary.Status);
 
-        if (status.Match(Settled.Contains, () => false))
+        if (!status.Match(Settled.Contains, () => false))
         {
-            var held = status == Option<JobStatus>.Some(JobStatus.NeedsHelp) && history.Match(Interrupted, () => false);
-            Settle(child, new Settlement(status.Match(found => found, () => default), Option<HoldReason>.None) { Held = held }, cancellationToken);
+            return;
         }
+
+        var held = status == Option<JobStatus>.Some(JobStatus.NeedsHelp) && history.Match(Interrupted, () => false);
+        var reason = held ? history.Bind(found => found.Summary.Hold) : Option<HoldReason>.None;
+
+        if (reason.Match(ChildRetries.Retries, () => false) && pending.TryGetValue(child, out var delegation))
+        {
+            await RetryAsync(delegation, new JobHold(child, Option<SessionId>.None, reason.Match(found => found, () => default), SessionHalt.Interrupted), cancellationToken);
+
+            return;
+        }
+
+        Settle(child, new Settlement(status.Match(found => found, () => default), Option<HoldReason>.None) { Held = held }, cancellationToken);
     }
 
     private void Hydrate()

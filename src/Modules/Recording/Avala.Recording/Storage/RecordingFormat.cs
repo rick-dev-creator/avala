@@ -249,6 +249,12 @@ internal sealed class RecordingFormat
                     Present(limit.Limit.ResetsAt, resets => json.WriteString("resetsAt", resets));
                 });
                 break;
+            case HarnessRetrying retrying:
+                json.WriteNumber("attempt", retrying.Attempt);
+                json.WriteNumber("most", retrying.Most);
+                json.WriteNumber("waitMs", retrying.Wait.TotalMilliseconds);
+                json.WriteString("reason", retrying.Reason);
+                break;
             case ContextReported context:
                 json.WriteNumber("used", context.Used);
                 json.WriteNumber("window", context.Window);

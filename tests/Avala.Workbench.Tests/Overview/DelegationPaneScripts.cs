@@ -25,6 +25,26 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task ASettledSubagentLeavesThePaneByTheApplicationsClockAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        bench.Starts(bench.Endpoint, "check", "Check the build");
+        using var pane = bench.Pane(bench.Endpoint.Job, clock);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => Named(pane, "Check the build"), () => "the sub-agent never showed");
+        bench.Ends(bench.Endpoint, "check", ItemOutcome.Succeeded);
+        await bench.Ui.PresentedAsync(pane, () => Agents(pane, bench.Endpoint.Job).Any(agent => agent.Name == "Check the build" && agent.State == SubagentState.Completed), () => "the sub-agent never completed");
+
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        clock.Advance(SubagentTreeViewModel.Linger);
+        await bench.Ui.PresentedAsync(pane, () => !Named(pane, "Check the build"), () => "the sub-agent never left");
+
+        Assert.True(waited.Elapsed < SubagentTreeViewModel.Linger / 3, $"the sub-agent left only after {waited.Elapsed}, by the wall clock rather than the application's");
+    }
+
+    private static bool Named(DelegationPaneViewModel pane, string name) => pane.Tree is SubagentTreeViewModel tree && tree.Branches.OfType<ISubagentViewModel>().Any(agent => agent.Name == name);
+
+    [Fact]
     public async Task OpenedFromAChildThePaneShowsItsWholeTreeWithTheChildHighlightedAndEachJobsSubagentsAsync()
     {
         using var pane = bench.Pane(bench.Endpoint.Job);
@@ -437,9 +457,11 @@ internal sealed class TreeBench : IDisposable
         Board.Publish(Board.Jobs.SetItem(job.Job, shown with { Transcript = shown.Transcript.Apply(decision) }));
     }
 
-    public DelegationPaneViewModel Pane(JobId shown)
+    public DelegationPaneViewModel Pane(JobId shown) => Pane(shown, TimeProvider.System);
+
+    public DelegationPaneViewModel Pane(JobId shown, TimeProvider clock)
     {
-        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui, NullLogger<LiveFeed>.Instance), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), Messenger);
+        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui, NullLogger<LiveFeed>.Instance, clock), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), Messenger);
         pane.OnRegionContextChanged(shown);
         pane.Activate();
 

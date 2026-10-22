@@ -153,7 +153,7 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
             }
             else
             {
-                known[tree.Root.Job] = new OrchestrationViewModel(tree, OpenCommand, actions, feed.Refresh);
+                known[tree.Root.Job] = new OrchestrationViewModel(tree, OpenCommand, actions, new TreeClock(feed.Clock, feed.Refresh));
             }
         }
 

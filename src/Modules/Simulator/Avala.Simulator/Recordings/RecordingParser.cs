@@ -32,6 +32,7 @@ internal sealed class RecordingParser
             ["planUpdated"] = Plan,
             ["usageReported"] = Usage,
             ["limitReported"] = Limit,
+            ["harnessRetrying"] = Retrying,
             ["contextReported"] = Context,
             ["modelReported"] = recorded => new ModelReported(default, default, Text(recorded.GetProperty("model"))) { Effort = Optional(recorded, "effort") },
             ["turnCompleted"] = recorded => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
@@ -132,6 +133,15 @@ internal sealed class RecordingParser
 
     private ToolResult Result(JsonElement result) =>
         new(Item(result), Text(result.GetProperty("content"))) { IsError = result.GetProperty("isError").GetBoolean() };
+
+    private static HarnessRetrying Retrying(JsonElement recorded) =>
+        new(
+            default,
+            default,
+            recorded.GetProperty("attempt").GetInt32(),
+            recorded.GetProperty("most").GetInt32(),
+            TimeSpan.FromMilliseconds(recorded.GetProperty("waitMs").GetDouble()),
+            Plain(recorded.GetProperty("reason")));
 
     private static LimitReported Limit(JsonElement recorded)
     {

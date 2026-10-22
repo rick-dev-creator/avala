@@ -152,6 +152,7 @@ internal sealed class Conversation
         "assistant" when stale == 0 => Said(message, stamp),
         "stream_event" or "user" when stale == 0 => translator.Receive(message, stamp),
         "system" when message.TextOr("subtype", string.Empty) == "compact_boundary" => Compacted(),
+        "system" when message.TextOr("subtype", string.Empty) == "api_retry" => Retrying(message, stamp),
         "system" => translator.Tasked(message, stamp),
         "rate_limit_event" => Limited(message, stamp),
         "result" => !interrupting && (commands.Pending || (translator.WorkingInBackground && Outcome(message) != TurnOutcome.LimitReached)) ? Carried(message, stamp) : Ended(message, stamp),
@@ -164,6 +165,15 @@ internal sealed class Conversation
 
         return translator.Receive(message, stamp);
     }
+
+    private Reaction Retrying(JsonNode message, Stamp stamp) =>
+        Reaction.Of(new HarnessRetrying(
+            session,
+            stamp.Turn,
+            (int)(message["attempt"]?.GetValue<double>() ?? 0),
+            (int)(message["max_retries"]?.GetValue<double>() ?? 0),
+            TimeSpan.FromMilliseconds(message["retry_delay_ms"]?.GetValue<double>() ?? 0),
+            message.TextOr("error", message["error_status"]?.ToString() ?? string.Empty)));
 
     private Reaction Compacted()
     {

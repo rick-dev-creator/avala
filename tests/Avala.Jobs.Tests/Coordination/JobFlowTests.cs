@@ -163,10 +163,29 @@ public sealed class JobFlowTests
         var flow = JobFlow.With();
         var parent = await flow.RunningAsync();
         var child = await flow.RunningAsync(JobFlow.Request() with { Parent = parent.Id });
+        flow.Retries.Add(new Retrying(child.Id));
 
         await flow.FinishTurnAsync(child, TurnOutcome.Failed);
 
         Assert.Equal((JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.TurnFailed)), (child.State, child.Held));
+    }
+
+    [Fact]
+    public async Task AChildWhoseDelegationNoLongerRetriesItFailsItsFailedTurnInsteadOfWaitingForARetryAsync()
+    {
+        var flow = JobFlow.With();
+        var parent = await flow.RunningAsync();
+        var child = await flow.RunningAsync(JobFlow.Request() with { Parent = parent.Id });
+        flow.Retries.Add(new Retrying(JobId.New()));
+
+        await flow.FinishTurnAsync(child, TurnOutcome.Failed);
+
+        Assert.Equal(JobState.Failed, child.State);
+    }
+
+    private sealed class Retrying(JobId retried) : IChildRetries
+    {
+        public ValueTask<bool> RetriesAsync(JobId child, CancellationToken cancellationToken) => ValueTask.FromResult(child == retried);
     }
 
     [Fact]

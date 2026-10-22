@@ -39,6 +39,8 @@ internal interface IWaitingAgentViewModel
 
 internal sealed record WaitingAgentViewModel(JobId Job, string Name, string What, IRelayCommand<JobId> OpenCommand) : IWaitingAgentViewModel;
 
+internal sealed record TreeClock(TimeProvider Time, Action Refresh);
+
 internal sealed record ShownBranch(string Key, int Depth, AgentBranch Branch, bool Folded);
 
 [INotifyPropertyChanged]
@@ -139,7 +141,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         branch.IsSettled
         && !branch.GivenUp
         && !Finished
-        && viewing != Option<JobId>.Some(branch.Job)
+        && !(branch.Node.IsSome && viewing == Option<JobId>.Some(branch.Job))
         && settledSince.TryGetValue(branch.Key, out var since)
         && clock.GetUtcNow() - since >= Linger;
 

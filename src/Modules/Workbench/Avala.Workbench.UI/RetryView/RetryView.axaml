@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.RetryView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IRetryViewModel"
+             theme:Motion.Enter="Fade"
+             Margin="0,6">
+  <Design.DataContext>
+    <conversation:DesignRetryViewModel />
+  </Design.DataContext>
+  <TextBlock x:Name="Note"
+             Classes="caption"
+             Classes.secondary="{Binding !GaveUp}"
+             Classes.attention="{Binding GaveUp}"
+             MaxWidth="480"
+             HorizontalAlignment="Center"
+             TextAlignment="Center"
+             TextWrapping="Wrap"
+             Text="{Binding Note}" />
+</UserControl>

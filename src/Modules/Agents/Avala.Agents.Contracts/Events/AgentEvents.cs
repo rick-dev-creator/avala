@@ -73,6 +73,8 @@ public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage To
 
 public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Limit) : IAgentEvent;
 
+public sealed record HarnessRetrying(SessionId Session, TurnId Turn, int Attempt, int Most, TimeSpan Wait, string Reason) : IAgentEvent;
+
 public sealed record ContextReported(SessionId Session, TurnId Turn, long Used, long Window) : IAgentEvent
 {
     public bool Compacted { get; init; }

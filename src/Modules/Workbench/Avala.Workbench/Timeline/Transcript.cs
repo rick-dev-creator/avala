@@ -133,10 +133,10 @@ internal sealed record Transcript
     {
         TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])), LiveSince = now, QuietSince = Option<DateTimeOffset>.None },
         ItemDrafted drafted => Drafted(drafted),
-        ItemStarted started => started.Parent.Match(parent => Stepped(started, parent), () => Begun(Opened(started, now)).Refused(started.Turn, started.Item)),
+        ItemStarted started => started.Parent.Match(parent => Stepped(started, parent), () => RetryLines.Recovered(Begun(Opened(started, now)).Refused(started.Turn, started.Item), started.Turn)),
         ItemTokensReported reported => Change(EntryKeys.Item(reported.Turn, reported.Item), entry => entry is ToolEntry tool ? tool with { Tokens = reported.Tokens } : entry),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
-        ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
+        ItemProgressed progressed => RetryLines.Recovered(Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)), progressed.Turn),
         ItemBackgrounded backgrounded => Backgrounded(backgrounded),
         ItemCompleted completed => Concluded(completed, now),
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
@@ -145,8 +145,8 @@ internal sealed record Transcript
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
         ModelReported reported => this with { Ran = reported },
         ContextReported context => this with { Context = context },
-        TurnCompleted completed => Ended(completed, now),
-        _ => Exchange(activity),
+        TurnCompleted completed => RetryLines.Apply(Ended(completed, now), completed),
+        _ => RetryLines.Apply(Exchange(activity), activity),
     };
 
     public Transcript Apply(CanvasSnapshot snapshot) =>
@@ -318,12 +318,12 @@ internal sealed record Transcript
         return this with { Entries = entries, Positions = entries.Select((kept, index) => (kept.Key, index)).ToImmutableDictionary(pair => pair.Key, pair => pair.index) };
     }
 
-    private Transcript Put(ITimelineEntry entry) =>
+    internal Transcript Put(ITimelineEntry entry) =>
         Positions.TryGetValue(entry.Key, out var position)
             ? this with { Entries = Entries.SetItem(position, entry) }
             : Add(entry);
 
-    private Transcript Change(string key, Func<ITimelineEntry, ITimelineEntry> change) =>
+    internal Transcript Change(string key, Func<ITimelineEntry, ITimelineEntry> change) =>
         Positions.TryGetValue(key, out var position)
             ? this with { Entries = Entries.SetItem(position, change(Entries[position])) }
             : this;

@@ -54,6 +54,8 @@ internal sealed record ReportUsage(TokenUsage Tokens, Cost Cost) : IStep;
 
 internal sealed record ReportLimit(UsageLimit Limit) : IStep;
 
+internal sealed record Retry(int Attempt, int Most, TimeSpan Wait, string Reason) : IStep;
+
 internal sealed record ReportContext(long Used, long Window, bool Compacted) : IStep;
 
 internal sealed record ReportLimitResetting(string Window, double Used, TimeSpan ResetsIn) : IStep;

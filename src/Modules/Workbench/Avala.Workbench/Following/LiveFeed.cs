@@ -5,8 +5,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Avala.Workbench.Following;
 
-internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<LiveFeed> logger) : IPresentation, IDisposable
+internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<LiveFeed> logger, TimeProvider clock) : IPresentation, IDisposable
 {
+    public LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<LiveFeed> logger)
+        : this(pulse, ui, logger, TimeProvider.System)
+    {
+    }
+
+    public TimeProvider Clock { get; } = clock;
+
     private CancellationTokenSource? active;
 
     public event EventHandler<Presented>? Presented;
