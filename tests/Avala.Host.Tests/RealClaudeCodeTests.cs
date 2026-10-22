@@ -120,6 +120,10 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
     public async Task SessionsResumeCallHarnessToolsAndKeepTwoLoginsApartAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
+        Assert.SkipUnless(Directory.Exists(SecondLogin), $"Set AVALA_REAL_CLAUDE_SECOND_LOGIN to a second Claude Code login folder; {SecondLogin} does not exist.");
+        Assert.SkipWhen(
+            Conversations(Login) == Conversations(SecondLogin),
+            $"Set AVALA_REAL_CLAUDE_SECOND_LOGIN to a login that keeps its own conversations; {SecondLogin} and {Login} share {Conversations(Login)}, so either can resume the other's.");
         using var data = new TemporaryFolder();
         using var repository = new TemporaryFolder();
         await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
@@ -356,6 +360,7 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
         var fixture = new RegressionFixture(null, [(".avala/permissions.json", permissions), .. committed], files, new Outcome([], [], [], [], []));
         var connections = new JsonObject
         {
+            ["default"] = "claude",
             ["connections"] = new JsonArray(new JsonObject
             {
                 ["name"] = "claude",
@@ -415,6 +420,16 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
 
         return events;
     }
+
+    private static string Conversations(string login)
+    {
+        var folder = new DirectoryInfo(Path.Combine(Resolved(new DirectoryInfo(login)), "projects"));
+
+        return Resolved(folder);
+    }
+
+    private static string Resolved(DirectoryInfo folder) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? folder.FullName));
 
     private static ConnectionEnvironment Connection(string login, string transcripts, params (string Name, string Value)[] settings) =>
         new()
