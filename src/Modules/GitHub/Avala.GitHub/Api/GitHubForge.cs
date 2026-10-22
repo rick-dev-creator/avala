@@ -59,7 +59,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open&head={Escape(context.Target.Repository.Owner)}:{Escape(head)}", cancellationToken))
-            .Bind(body => Json.Read(body, root => root.EnumerateArray().Select(Reference).FirstOrDefault().ToOption()));
+            .Bind(body => Json.Read(body, root => root.EnumerateArray().Where(pull => FromBase(context, pull)).Select(Reference).FirstOrDefault().ToOption()));
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
         (await context.Api.SendAsync(
@@ -74,7 +74,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
     {
         var path = $"{Repository(context)}/pulls/{pullRequest.Number.ToString(CultureInfo.InvariantCulture)}";
 
-        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(root, pullRequest))).TryGetValue(out var pull, out var error))
+        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(context, root, pullRequest))).TryGetValue(out var pull, out var error))
         {
             return error;
         }
@@ -129,7 +129,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
     private static PullRequestRef Reference(JsonElement pull) =>
         new(pull.GetProperty("number").GetInt32(), new Uri(pull.GetProperty("html_url").GetString()!), Json.Text(pull.GetProperty("head"), "ref"), Json.Text(pull.GetProperty("base"), "ref"));
 
-    private static PullRequestState Pull(JsonElement pull, PullRequestRef known)
+    private static PullRequestState Pull(ForgeContext context, JsonElement pull, PullRequestRef known)
     {
         var lifecycle = pull.TryGetProperty("merged", out var merged) && merged.ValueKind == JsonValueKind.True ? PullRequestLifecycle.Merged
             : Json.Text(pull, "state") == "closed" ? PullRequestLifecycle.Closed
@@ -139,8 +139,20 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
             : mergeable == JsonValueKind.True ? Mergeability.Mergeable
             : Mergeability.Unknown;
 
-        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = SideRepository(context, pull, "head"), BaseRepository = SideRepository(context, pull, "base") };
     }
+
+    private static bool FromBase(ForgeContext context, JsonElement pull) =>
+        SideRepository(context, pull, "head").Bind(head => SideRepository(context, pull, "base").Map(target =>
+                string.Equals(head.Owner, target.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(head.Name, target.Name, StringComparison.OrdinalIgnoreCase)))
+            .Match(same => same, () => false);
+
+    private static Option<RepositoryAddress> SideRepository(ForgeContext context, JsonElement pull, string side) =>
+        pull.GetProperty(side).TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
+        && Json.Text(repo, "full_name").Split('/') is [{ Length: > 0 } owner, { Length: > 0 } name]
+            ? new RepositoryAddress(context.Target.Repository.Host, owner, name)
+            : Option<RepositoryAddress>.None;
 
     private static PullRequestRef Known(PullRequestRef read, PullRequestRef known) =>
         read with { Head = read.Head.Length > 0 ? read.Head : known.Head, Base = read.Base.Length > 0 ? read.Base : known.Base };

@@ -38,6 +38,28 @@ public sealed class BriefGathererTests
         Assert.Equal(listed, brief.Contains($"- {Sent}", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(MessageAuthor.Person, MessageAuthor.Person)]
+    [InlineData(MessageAuthor.Avala, MessageAuthor.Avala)]
+    public async Task AHandoffWhoseBriefCarriesWhatThePersonSentIsCausedByThePersonAsync(MessageAuthor sender, MessageAuthor expected)
+    {
+        await using var watched = new Watched();
+        var notes = new JobNotes(watched.Audit);
+        var turn = TurnId.New();
+        await notes.HandleAsync(new JobSessionStarted(watched.Job, Session), Cancellation);
+        foreach (var activity in new IAgentEvent[] { new TurnStarted(Session, turn), new MessageQueued(Session, turn, "Keep the old rounding.") { Author = sender }, new TurnCompleted(Session, turn, TurnOutcome.LimitReached) })
+        {
+            await notes.HandleAsync(new Avala.Agents.Contracts.AgentActivity(activity), Cancellation);
+        }
+
+        var history = Outcomes.Present(await watched.Catalog.HistoryAsync(watched.Job, Cancellation));
+        var choice = new ConnectionChoice(Watched.Personal, ChoiceReason.MostCapacity, [], Watched.Start);
+        var handoff = await new BriefGatherer(watched.Worktrees, watched.Audit, watched.Audit, notes)
+            .HandoffAsync(new BriefRequest(history, Watched.Work, Watched.Personal, Option<Avala.Handoffs.Contracts.LimitReason>.None, Option<string>.None), choice, Cancellation);
+
+        Assert.Equal(expected, handoff.CausedBy);
+    }
+
     [Fact]
     public async Task TheBriefListsTheDecisionsTakenOnTheJobAndTheQuestionsStillOpenAsync()
     {

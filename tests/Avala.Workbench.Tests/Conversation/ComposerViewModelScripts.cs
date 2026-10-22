@@ -1,4 +1,8 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -71,6 +75,29 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AConversationGoneColdIsCompactedOnRequestWithTheMessageItsHarnessTakesAsync()
+    {
+        var connections = new FakeConnections("work");
+        connections.Offers["work"] = CapabilitySet.Of(new CachesPrompt(TimeSpan.FromHours(1)), new CompactsOnRequest("/compact"));
+        var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Summary with { Connection = new ConnectionName("work") };
+        var (session, turn) = (SessionId.New(), TurnId.New());
+        IAgentEvent[] quietTurn = [new TurnStarted(session, turn), new ContextReported(session, turn, 530_000, 1_000_000), new TurnCompleted(session, turn, TurnOutcome.Finished)];
+        shown = new BoardJob(summary, quietTurn.Aggregate(Transcript.Empty, (transcript, next) => transcript.Apply(next, DateTimeOffset.UnixEpoch.AddHours(-6))));
+        jobs.Status = JobStatus.AwaitingReview;
+        queue = new QueuedMessages(jobs);
+        var harness = Composing.Harnesses(jobs, new FakeHandoffRequests(), connections).Open(summary.Job);
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, queue), Composing.Tools(keys, summary.Job), harness);
+        composer.Track(shown);
+        await harness.Loading;
+        var offered = composer.CanCompact;
+
+        await composer.CompactCommand.ExecuteAsync(null);
+
+        Assert.True(offered);
+        Assert.Equal(("/compact", string.Empty), (jobs.Messages[^1].Text, composer.Error));
+    }
+
+    [Fact]
     public async Task SendingADraftForgetsItAsync()
     {
         var drafts = Composing.Drafts();
@@ -101,6 +128,35 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         Assert.Equal(("Fix JPY rounding in invoice totals", false), oldest);
         Assert.Equal("Use the ISO table", back);
         Assert.Equal((string.Empty, false), (composer.Draft, composer.RecallLaterCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public void UpInAnEmptyComposerLeavesOutAMessageAvalaWroteToContinueTheJob()
+    {
+        var composer = Composer(JobStatus.NeedsHelp);
+        Said(composer, "The usage window has reset.", Avala.Agents.Contracts.Sessions.MessageAuthor.Avala);
+
+        composer.RecallEarlierCommand.Execute(null);
+
+        Assert.Equal(("Fix JPY rounding in invoice totals", false), (composer.Draft, composer.RecallEarlierCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public void UpInAnEmptyComposerLeavesOutANoteAvalaSentWhileTheAgentWorked()
+    {
+        var composer = Composer(JobStatus.Running);
+        var session = Avala.Agents.Contracts.Sessions.SessionId.New();
+        var turn = Avala.Agents.Contracts.Sessions.TurnId.New();
+        shown = shown with
+        {
+            Transcript = shown.Transcript.WithPrompts(shown.Summary.Instruction, [new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Running, Option<string>.None, Option<Avala.Agents.Contracts.Sessions.SessionId>.None)])
+                .Apply(new Avala.Agents.Contracts.Events.MessageQueued(session, turn, "Avala now allows running `dotnet test` in this job. You may retry it.") { Author = Avala.Agents.Contracts.Sessions.MessageAuthor.Avala }, DateTimeOffset.UnixEpoch),
+        };
+        composer.Track(shown);
+
+        composer.RecallEarlierCommand.Execute(null);
+
+        Assert.Equal(("Fix JPY rounding in invoice totals", false), (composer.Draft, composer.RecallEarlierCommand.CanExecute(null)));
     }
 
     [Fact]
@@ -347,7 +403,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         return composer;
     }
 
-    private void Said(ComposerViewModel composer, string hint)
+    private void Said(ComposerViewModel composer, string hint, Avala.Agents.Contracts.Sessions.MessageAuthor author = Avala.Agents.Contracts.Sessions.MessageAuthor.Person)
     {
         shown = shown with
         {
@@ -355,7 +411,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
                 shown.Summary.Instruction,
                 [
                     new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Passed, Option<string>.None, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
-                    new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Passed, hint, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
+                    new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Passed, hint, Option<Avala.Agents.Contracts.Sessions.SessionId>.None) { Author = author },
                 ]),
         };
         composer.Track(shown);
@@ -394,8 +450,6 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
             inner.ContinueOnAsync(job, connection, message, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => inner.DiscardAsync(job, cancellationToken);
-
-        public ValueTask<Avala.Sdk.Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) => inner.SteerAsync(job, message, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) => inner.ApproveAsync(job, cancellationToken);
 

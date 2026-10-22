@@ -621,6 +621,8 @@ public sealed class DelegationRefusalViewScripts(HeadlessUi ui)
 
 internal sealed class RecordingConnections(params ConnectionCardViewModel[] cards) : IConnectionsViewModel
 {
+    public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
     private readonly ObservableCollection<IConnectionCardViewModel> connections = [.. cards];
 
     public List<JobId> Opened { get; } = [];

@@ -19,7 +19,7 @@ public sealed class DocsSitePreviewTests(PublishedPlugins plugins)
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 with docfx on the PATH to serve a real docs site.");
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(test: 8)}}, "sampleSeconds": 0.2, "diskSeconds": 60 }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.Settings()}}, "sampleSeconds": 0.2, "diskSeconds": 60 }""")],
             [(".avala/jobs.json", """{ "docs": { "enabled": true } }""")]);
         var documentation = run.Get<IDocumentation>();
         var job = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation)).Job;

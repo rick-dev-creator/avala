@@ -61,10 +61,23 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, J
         await job.Session.Match(
             async session => job.State != JobState.Running
                 ? JobRejection.NotRunning
-                : (await agents.SayAsync(session, new UserTurn(message.Text) { MidTurn = true, Attachments = message.Attachments }, cancellationToken)).Match(
-                    steered => Result<JobSteered, JobRejection>.Success(new JobSteered(job.Id, steered.Session, steered.Turn)),
-                    error => Result<JobSteered, JobRejection>.Failure(SteeringRejection(error))),
+                : await (await agents.SayAsync(session, new UserTurn(message.Text) { MidTurn = true, Attachments = message.Attachments, Author = message.Author }, cancellationToken)).Match(
+                    async steered =>
+                    {
+                        await JoinedAsync(job, message.Cause, cancellationToken);
+
+                        return Result<JobSteered, JobRejection>.Success(new JobSteered(job.Id, steered.Session, steered.Turn));
+                    },
+                    error => Task.FromResult(Result<JobSteered, JobRejection>.Failure(SteeringRejection(error)))),
             () => Task.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotRunning)));
+
+    public async Task JoinedAsync(Job job, MessageAuthor cause, CancellationToken cancellationToken)
+    {
+        if (job.JoinedBy(cause).IsSuccess)
+        {
+            await ledger.RecordCauseAsync(job, cancellationToken);
+        }
+    }
 
     private static JobRejection SteeringRejection(AgentError error) => error switch
     {

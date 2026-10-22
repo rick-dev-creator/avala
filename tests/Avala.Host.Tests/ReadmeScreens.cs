@@ -148,7 +148,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [.. Claude, ("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
+            [.. Claude, ("resources.json", $$"""{ {{LeasedPorts.Settings()}}, "sampleSeconds": 0.2 }""")],
             [(".avala/permissions.json", ServicesPolicy), ("package.json", Package)],
             pace: Pace,
             repositoryName: Repository);
@@ -234,7 +234,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [.. TwoClaudes, ("budgets.json", Budgets), ("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
+            [.. TwoClaudes, ("budgets.json", Budgets), ("resources.json", $$"""{ {{LeasedPorts.Settings()}}, "sampleSeconds": 0.2 }""")],
             [(".avala/checks.json", PassingChecks), (".avala/permissions.json", FleetPolicy), (".avala/jobs.json", Delegating), (".avala/budget.json", """{ "costPerJob": { "USD": 0.50 } }""")],
             repositoryName: Repository);
         run.Cues.HidesDelegatedCues = true;

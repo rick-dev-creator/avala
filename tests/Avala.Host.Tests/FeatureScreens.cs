@@ -182,7 +182,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         Environment.SetEnvironmentVariable(variable, "s3cret");
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(test: 3)}} }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.Settings()}} }""")],
             [(".avala/checks.json", PassingChecks)],
             placed: repository =>
             [

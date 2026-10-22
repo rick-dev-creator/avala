@@ -8,14 +8,14 @@ internal static class ReadOnlyCommands
     {
         var arguments = command.Words.Select((word, index) => new Argument(word, index < command.Raws.Count ? command.Raws[index] : word)).ToList();
 
-        if (arguments.Count == 0 || arguments.Any(argument => argument.Expands))
+        if (arguments.Count == 0 || arguments.Any(argument => argument.Expands && !argument.Glob))
         {
             return false;
         }
 
         return arguments[0].Value switch
         {
-            "find" => Finds(new Queue<Argument>(arguments.Skip(1)), locate),
+            "find" => !arguments.Any(argument => argument.Expands) && Finds(new Queue<Argument>(arguments.Skip(1)), locate),
             "git" => Git([.. arguments.Skip(1).SkipWhile(argument => argument.Value is "--no-pager" or "-P")], locate),
             var program => ReadOnlyOptions.Programs.TryGetValue(program, out var options) && new Scan(options, arguments.Skip(1)).Accepts(locate),
         };
@@ -73,7 +73,7 @@ internal static class ReadOnlyCommands
     private sealed class Scan(OptionSet options, IEnumerable<Argument> arguments)
     {
         private readonly Queue<Argument> pending = new(arguments);
-        private readonly List<string> operands = [];
+        private readonly List<Argument> operands = [];
         private bool patternGiven;
         private bool ended;
 
@@ -81,26 +81,38 @@ internal static class ReadOnlyCommands
         {
             if (options.Free)
             {
-                return true;
+                return pending.All(argument => !argument.Expands || Inside(argument.Value, locate));
             }
 
             while (pending.TryDequeue(out var argument))
             {
-                if (!Takes(argument.Value))
+                if (!Takes(argument))
                 {
                     return false;
                 }
             }
 
-            return operands.Count <= options.Most
-                && (!options.Paths || operands.Skip(options.TakesPattern && !patternGiven ? 1 : 0).All(operand => operand == "-" || Inside(operand, locate)));
+            return Fits(options.TakesPattern && !patternGiven, locate);
         }
 
-        private bool Takes(string word)
+        private bool Fits(bool pattern, Func<string, PermissionRequest> locate) =>
+            operands.Count <= options.Most
+                && (options.Most == int.MaxValue || !operands.Any(operand => operand.Expands))
+                && !(pattern && operands.Count > 0 && operands[0].Expands)
+                && (!options.Paths || operands.Skip(pattern ? 1 : 0).All(operand => operand.Value == "-" || Inside(operand.Value, locate)));
+
+        private bool Takes(Argument argument)
         {
+            var word = argument.Value;
+
+            if (argument.Expands && !ended && argument.Leads)
+            {
+                return false;
+            }
+
             if (ended || word == "-" || !word.StartsWith('-'))
             {
-                operands.Add(word);
+                operands.Add(argument);
 
                 return true;
             }
@@ -132,7 +144,7 @@ internal static class ReadOnlyCommands
                 return attached && Safe(name, word.Split('=', 2)[1]);
             }
 
-            var value = attached ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) ? next.Value : null;
+            var value = attached ? word.Split('=', 2)[1] : pending.TryDequeue(out var next) && !next.Expands ? next.Value : null;
 
             return options.LongValued.Contains(name) && value is not null && Safe(name, value);
         }
@@ -159,7 +171,7 @@ internal static class ReadOnlyCommands
                 {
                     patternGiven |= options.TakesPattern && letters[position] == 'e';
 
-                    return position + 1 < letters.Length || pending.TryDequeue(out _);
+                    return position + 1 < letters.Length || (pending.TryDequeue(out var value) && !value.Expands);
                 }
 
                 if (!options.Flags.Contains(letters[position], StringComparison.Ordinal))

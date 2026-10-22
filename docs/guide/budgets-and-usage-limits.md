@@ -60,7 +60,7 @@ Without `runningJobs`, any number of jobs run at once.
 - A file that cannot be read holds the job as "invalid budget" rather than running it without caps; a rejected `budgets.json` lets one job run at a time.
 - A job with no reset time reported waits for you.
 - Why resuming waits for you by default: a job held for hours has lost its prompt cache, so its first message reads its whole conversation again. On a long conversation that alone can take a fifth of a 5-hour window, which `"auto"` would spend while nobody is there.
-- A handoff starts a new conversation on the other connection; its brief holds the instruction, the plan, the files changed, the checks, the decisions taken, the open questions and what remains.
+- A handoff starts a new conversation on the other connection; its brief holds the instruction, the plan, the files changed, the checks, the decisions taken, the open questions, what you sent during a turn that did not finish, Avala's own notes from that turn listed apart, and what remains.
 - The daily ceiling also pauses an Autopilot loop until the next day.
 
 ## See also

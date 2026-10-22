@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -15,7 +16,7 @@ internal sealed class RaiseDesk(IBudgets budgets, IJobs jobs)
         return await raised.Match(
             async raise => new RaiseOutcome(
                 raised,
-                (await jobs.ContinueAsync(job, message(raise), cancellationToken)).Match(_ => Option<JobRejection>.None, rejection => rejection)),
+                (await jobs.ContinueAsync(job, new JobMessage(message(raise)) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Person }, cancellationToken)).Match(_ => Option<JobRejection>.None, rejection => rejection)),
             _ => Task.FromResult(new RaiseOutcome(raised, Option<JobRejection>.None)));
     }
 }

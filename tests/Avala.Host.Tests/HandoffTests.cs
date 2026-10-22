@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Documentation.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -250,6 +251,44 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheResetMessageOfAJobResumedByItselfAtTheResetIsNoChangeRequestOfThePersonAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", """{ "docs": { "enabled": true }, "limits": { "resumeAtReset": "auto" } }""")]);
+        var waits = run.Watch<JobWaitsForReset>();
+        var resumed = run.Watch<JobResumedAtReset>();
+        var progress = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("window-runs-out")) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        _ = await resumed.UntilAsync(announced => announced.Job == job);
+        await ReviewedAsync(progress, job);
+        await run.DeliveredAsync();
+
+        Assert.Empty(run.Get<IDocumentation>().OfJob(job).Match(documented => documented.Requests, () => []));
+    }
+
+    [Fact]
+    public async Task TheConversationShowsTheResetMessageOfAJobResumedByItselfAtTheResetAsAvalasAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", """{ "limits": { "resumeAtReset": "auto" } }""")]);
+        var waits = run.Watch<JobWaitsForReset>();
+        var resumed = run.Watch<JobResumedAtReset>();
+        var progress = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("window-runs-out")) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        _ = await resumed.UntilAsync(announced => announced.Job == job);
+        await ReviewedAsync(progress, job);
+        var workbench = await run.WorkbenchAsync();
+
+        var conversation = await workbench.SelectAsync(job);
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
+        Assert.NotEqual("You", (await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")))[1]);
+    }
+
+    [Fact]
     public async Task AJobWhoseAccountIsExhaustedIsHeldForItsLimitInsteadOfFailedAndFinishesOnTheOtherAccountAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed("""{ "limits": { "onLimit": "handoff-same-harness", "connections": ["simulator-one", "simulator-two"] } }"""));
@@ -389,6 +428,28 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.Equal((One, Two, Option<LimitReason>.None), (handoff.From, handoff.To, handoff.Why));
         Assert.Equal((AttemptOrigin.Handoff, Option<ConnectionName>.Some(Two)), (history.Attempts[^1].Origin, history.Summary.Connection));
         Assert.StartsWith("This job was handed off to you from simulator-one. You continue it on simulator-two in a new conversation.", Outcomes.Present(history.Attempts[^1].Guidance), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheBriefOfAHandoffListsOnlyWhatThePersonSentDuringATurnThatDidNotFinishAndNamesAvalasOwnNotesAsSuchAsync()
+    {
+        const string Sent = "Also keep the old rounding for negative amounts.";
+        const string Noted = "Avala now allows reaching https://example.com.";
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("hang")) { Connection = One }));
+        _ = await run.OpenedAsync();
+        var messages = run.Get<IJobMessages>();
+        Outcomes.Succeeds(await messages.SteerAsync(job, new JobMessage(Sent), Cancellation));
+        Outcomes.Succeeds(await messages.SteerAsync(job, new JobMessage(Noted) { Author = MessageAuthor.Avala }, Cancellation));
+        _ = await activity.UntilAsync(update => update.Event is MessageQueued { Text: Noted });
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(job, HoldReason.Interrupted, Cancellation));
+        _ = await activity.UntilAsync(update => update.Event is TurnCompleted { Outcome: TurnOutcome.Interrupted });
+
+        Outcomes.Succeeds(await run.Get<IHandoffRequests>().HandOffAsync(job, Two, Cancellation));
+        var brief = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts[^1].Guidance).ReplaceLineEndings("\n");
+
+        Assert.Contains($"## What the person sent during its last turn, which it did not finish\n- {Sent}\n\n## Avala's own notes during that turn\n- {Noted}\n", brief, StringComparison.Ordinal);
     }
 
     private static (string Path, string Content)[] Committed(string limits) =>

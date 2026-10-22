@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Looping;
 using Avala.Budgets.Contracts;
@@ -10,6 +11,22 @@ namespace Avala.Autopilot.Tests.Looping;
 public sealed class LoopHoldTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task TheLoopsContinuationAtTheResetIsAvalasOwnMessageAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("one", "Greet the team");
+        await pilot.StartAsync();
+        var resets = pilot.Clock.GetUtcNow().AddHours(1);
+        _ = await HeldAsync(pilot, Hold(default, HoldReason.LimitNearlyReached) with { Limit = new UsageLimit("5h", 1, resets) });
+        _ = await pilot.Bus.WaitForAsync<LoopPaused>(_ => true, Cancellation);
+
+        pilot.Clock.Advance(TimeSpan.FromHours(1));
+        await pilot.Bus.WaitForAsync<LoopResumed>(_ => true, Cancellation);
+
+        Assert.Equal([MessageAuthor.Avala], pilot.Jobs.ContinuedBy);
+    }
 
     [Fact]
     public async Task AJobHeldWithTheWindowItRanOutOfPausesTheLoopUntilThatWindowResetsBeforeAnyReadingOfItArrivesAsync()

@@ -215,6 +215,31 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task DelegationContinuesAFailedChildWithAvalasOwnMessageAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        Assert.Equal([MessageAuthor.Avala], desk.Jobs.ContinuedBy);
+    }
+
+    [Fact]
+    public async Task TheNotesDelegationSendsAParentAreAvalasOwnNotWhatThePersonSentAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        Assert.Equal([MessageAuthor.Avala, MessageAuthor.Avala], desk.Jobs.SteeredBy);
+    }
+
+    [Fact]
     public async Task AChildWhoseTurnFailedIsContinuedWithItsFailureAsFeedbackUpToTwiceAndItsParentIsToldOfEachRetryAsync()
     {
         await using var desk = new Desk { Jobs = { Steerable = true } };

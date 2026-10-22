@@ -4,17 +4,13 @@ internal static class LeasedPorts
 {
     private const int First = 25_000;
 
-    private const int PerTest = 100;
+    private const int Last = 32_499;
 
-    private const int Tests = 9;
+    private const int Block = 100;
 
-    private const int Runs = 18;
+    public static string Settings() =>
+        $$""" "ports": { "first": {{First}}, "last": {{Last}} } """;
 
-    public static string Settings(int test) =>
-        $$""" "ports": { "first": {{FirstOf(test)}}, "last": {{FirstOf(test) + PerTest - 1}} } """;
-
-    public static string OneBlock(int test) =>
-        $$""" "ports": { "first": {{FirstOf(test)}}, "last": {{FirstOf(test) + PerTest - 1}}, "perWorktree": {{PerTest}} } """;
-
-    private static int FirstOf(int test) => First + (Environment.ProcessId % Runs * Tests + test) * PerTest;
+    public static string OneBlock() =>
+        $$""" "ports": { "first": {{Last + 1}}, "last": {{Last + Block}}, "perWorktree": {{Block}} } """;
 }

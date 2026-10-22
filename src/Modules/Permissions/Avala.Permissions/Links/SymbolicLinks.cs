@@ -7,7 +7,43 @@ internal sealed class SymbolicLinks : IRealPaths
 {
     private const int MostLinks = 40;
 
+    private const int MostMatches = 4096;
+
+    private const int MostEntries = 65536;
+
     private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    private static readonly char[] Wildcards = ['*', '?'];
+
+    private static readonly EnumerationOptions Listing = new() { AttributesToSkip = 0, IgnoreInaccessible = false, ReturnSpecialDirectories = false, RecurseSubdirectories = false };
+
+    public Option<IReadOnlyList<string>> Expand(string pattern)
+    {
+        var root = Path.GetPathRoot(pattern) ?? string.Empty;
+        IReadOnlyList<string> found = [root];
+        var visited = 0;
+
+        foreach (var part in pattern[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var next = new List<string>();
+
+            foreach (var folder in found)
+            {
+                if (part.IndexOfAny(Wildcards) < 0)
+                {
+                    next.Add(Path.Combine(folder, part));
+                }
+                else if (!Listed(folder, part, next, ref visited))
+                {
+                    return Option<IReadOnlyList<string>>.None;
+                }
+            }
+
+            found = next;
+        }
+
+        return Option<IReadOnlyList<string>>.Some(found);
+    }
 
     public Option<string> Resolve(string path)
     {
@@ -43,6 +79,71 @@ internal sealed class SymbolicLinks : IRealPaths
 
         return current;
     }
+
+    private static bool Listed(string folder, string part, List<string> matches, ref int visited)
+    {
+        if (!Directory.Exists(folder))
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(folder, "*", Listing))
+            {
+                if (++visited > MostEntries || entry.Contains('\uFFFD', StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                if (Fits(part, Path.GetFileName(entry)))
+                {
+                    matches.Add(entry);
+                }
+
+                if (matches.Count > MostMatches)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool Fits(string part, string name)
+    {
+        var (p, n, star, resume) = (0, 0, -1, 0);
+
+        while (n < name.Length)
+        {
+            if (p < part.Length && part[p] is '*' or '?')
+            {
+                (star, resume, p) = (p, n, p + 1);
+            }
+            else if (p < part.Length && Same(part[p], name[n]))
+            {
+                (p, n) = (p + 1, n + 1);
+            }
+            else if (star >= 0)
+            {
+                (p, resume) = (star + 1, resume + 1);
+                n = resume;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return part[p..].All(character => character is '*' or '?');
+    }
+
+    private static bool Same(char wanted, char named) => !char.IsAscii(named) || char.ToUpperInvariant(wanted) == char.ToUpperInvariant(named);
 
     private static string Target(string path)
     {

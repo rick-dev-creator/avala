@@ -52,16 +52,21 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
     {
         Say say => Stream(Opened(say.Item, say.Kind, say.Title), say.Item, say.Chunks),
         Draw draw => Stream(new CanvasStarted(Session, Turn, draw.Item, draw.Title, draw.MediaType), draw.Item, draw.Chunks),
-        UpdatePlan plan => [new PlanUpdated(Session, Turn, plan.Steps)],
-        ReportUsage usage => [new UsageReported(Session, Turn, usage.Tokens, usage.Cost)],
-        ReportLimit limit => [new LimitReported(Session, Turn, limit.Limit)],
-        Retry retry => [new HarnessRetrying(Session, Turn, retry.Attempt, retry.Most, retry.Wait, retry.Reason)],
-        ReportContext context => [new ContextReported(Session, Turn, context.Used, context.Window) { Compacted = context.Compacted }],
         Open open => [Opened(open.Item, open.Kind, open.Title)],
         Recall recall => Stream(Opened(recall.Item, ItemKind.Message, "Reply"), recall.Item, ["I was told: ", Told]),
         RecallAttachments attachments => Stream(Opened(attachments.Item, ItemKind.Message, "Reply"), attachments.Item, [Attached.Count == 0 ? "Nothing was attached." : $"I received {string.Join(", ", Attached.Select(attached => $"{attached.Name} ({attached.MediaType})"))}."]),
         FromDevice device when device.Text == Told => [new RemoteMessageArrived(Session, Turn, device.Text) { BeganTurn = true }],
         Finish => [Ended(TurnOutcome.Finished)],
+        _ => Reported(step),
+    };
+
+    private IEnumerable<IAgentEvent> Reported(IStep step) => step switch
+    {
+        UpdatePlan plan => [new PlanUpdated(Session, Turn, plan.Steps)],
+        ReportUsage usage => [new UsageReported(Session, Turn, usage.Tokens, usage.Cost)],
+        ReportLimit limit => [new LimitReported(Session, Turn, limit.Limit)],
+        Retry retry => [new HarnessRetrying(Session, Turn, retry.Attempt, retry.Most, retry.Wait, retry.Reason)],
+        ReportContext context => [new ContextReported(Session, Turn, context.Used, context.Window) { Compacted = context.Compacted }],
         _ => Delegated(step),
     };
 
@@ -70,6 +75,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         StartSubagent agent => [Opened(agent.Item, ItemKind.Subagent, $"Subagent: {agent.Name}", agent.Prompt)],
         MeterSubagent meter => [Metered(meter.Item, meter.Tokens)],
         EndSubagent agent => [Progressed(agent.Item, agent.Output), Closed(agent.Item, ItemOutcome.Succeeded)],
+        RunTold run => [Opened(run.Item, ItemKind.Command, $"Run {Told}", Told), Closed(run.Item, ItemOutcome.Succeeded)],
+        ReturnTold use => [Opened(use.Item, ItemKind.Mcp, use.Tool, string.Empty), Progressed(use.Item, Told), Closed(use.Item, ItemOutcome.Succeeded)],
         _ => [],
     };
 

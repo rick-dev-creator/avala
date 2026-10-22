@@ -21,6 +21,8 @@ internal sealed record DesignArchivedRowViewModel(JobId Job, string Title, strin
 
 internal sealed class DesignArchivedViewModel : IArchivedViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public string Title => "Archived";
 
     public string Summary => ArchivePhrases.Summary(4);

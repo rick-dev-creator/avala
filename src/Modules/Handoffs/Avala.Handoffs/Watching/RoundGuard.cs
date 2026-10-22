@@ -23,9 +23,7 @@ internal sealed class RoundGuard(Situations situations, BriefGatherer briefs, Li
         watch.Pending(question.Job, question.Feedback);
 
         return await decision.Choice.Match(
-            async choice => RoundRoute.To(new JobHandoff(
-                choice,
-                await briefs.WriteAsync(new BriefRequest(situation.History, situation.Connection, choice.Connection, decision.Why, question.Feedback), cancellationToken))),
+            async choice => RoundRoute.To(await briefs.HandoffAsync(new BriefRequest(situation.History, situation.Connection, choice.Connection, decision.Why, question.Feedback), choice, cancellationToken)),
             () => Task.FromResult(RoundRoute.Held(HoldReason.LimitNearlyReached)));
     }
 }

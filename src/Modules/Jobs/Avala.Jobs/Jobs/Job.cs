@@ -213,7 +213,7 @@ internal sealed class Job : IAggregateRoot<JobId>
                 Join(session, resumed: false);
                 Connection = connection;
 
-                return Begin(AttemptOrigin.Handoff, brief);
+                return Begin(AttemptOrigin.Handoff, brief, continuesRound: checking);
             });
     }
 
@@ -265,6 +265,30 @@ internal sealed class Job : IAggregateRoot<JobId>
         RemoteControlled = on;
 
         return new RemoteControlChosen(Id, on);
+    }
+
+    public Result<RoundJoined, JobError> JoinedBy(MessageAuthor cause)
+    {
+        if (cause != MessageAuthor.Person || State is not (JobState.Running or JobState.Checking or JobState.NeedsHelp) || attempts.Count == 0 || attempts[^1].Cause == MessageAuthor.Person)
+        {
+            return JobError.CannotJoin;
+        }
+
+        attempts[^1].CausedBy(cause);
+
+        return new RoundJoined(Id, attempts[^1].Number);
+    }
+
+    public Result<ConversationReopened, JobError> ReopenForDevice(SessionId session)
+    {
+        if (!AllowsRemoteControl || Resume.IsNone)
+        {
+            return JobError.CannotControlRemotely;
+        }
+
+        Join(session, resumed: true);
+
+        return new ConversationReopened(Id, session);
     }
 
     public Result<AttemptStarted, JobError> Reopen(Feedback feedback, AttemptOrigin origin = AttemptOrigin.Reopen) =>
@@ -372,9 +396,7 @@ internal sealed class Job : IAggregateRoot<JobId>
         return attempts.Count - start < Budget.AttemptsPerRound;
     }
 
-    private bool ContinuesRound(int index) =>
-        attempts[index].Origin == AttemptOrigin.Retry
-        || (attempts[index].Origin == AttemptOrigin.Handoff && attempts[index - 1].Outcome == AttemptOutcome.Rejected);
+    private bool ContinuesRound(int index) => attempts[index].Origin == AttemptOrigin.Retry || attempts[index].ContinuesRound;
 
     private void Join(SessionId session, bool resumed)
     {
@@ -382,7 +404,7 @@ internal sealed class Job : IAggregateRoot<JobId>
         Resume = resumed ? Resume : Option<ResumeToken>.None;
     }
 
-    private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance)
+    private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance, bool continuesRound = false)
     {
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
         Held = Option<HoldReason>.None;
@@ -390,7 +412,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         attempts.Add(new Attempt(number, origin, guidance, Session)
         {
             Attachments = origin == AttemptOrigin.Initial ? Attachments : guidance.Match(feedback => feedback.Attachments, () => []),
+            Author = guidance.Match(feedback => feedback.Author, () => origin == AttemptOrigin.Recovery ? MessageAuthor.Avala : MessageAuthor.Person),
+            ContinuesRound = continuesRound,
         });
+        attempts[^1].CausedBy(guidance.Match(feedback => feedback.Cause, () => origin == AttemptOrigin.Recovery ? MessageAuthor.Avala : MessageAuthor.Person));
 
         return new AttemptStarted(Id, number, origin, guidance);
     }

@@ -39,12 +39,12 @@ internal static class ReadOnlyOptions
     private const string GitLogging =
         "oneline graph all branches tags remotes decorate no-decorate abbrev-commit no-abbrev-commit reverse first-parent merges no-merges follow topo-order date-order "
         + "left-right cherry-pick cherry-mark boundary no-walk source full-history simplify-merges ancestry-path regexp-ignore-case all-match invert-grep fixed-strings "
-        + "basic-regexp extended-regexp perl-regexp children parents log-size walk-reflogs mailmap no-mailmap";
+        + "basic-regexp extended-regexp perl-regexp children parents log-size walk-reflogs mailmap no-mailmap relative-date";
 
     private const string GitLogValued =
-        "max-count skip since author grep date diff-filter inter-hunk-context stat-width";
+        "max-count skip since after until before author committer grep date diff-filter inter-hunk-context stat-width";
 
-    private const string GitLogAttached = "until after before committer format encoding";
+    private const string GitLogAttached = "format encoding";
 
     public static FrozenDictionary<string, OptionSet> Programs { get; } = new Dictionary<string, OptionSet>
     {

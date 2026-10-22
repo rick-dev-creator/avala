@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
@@ -15,8 +16,11 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
 
     public async Task<bool> WokenAsync(JobId job, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            history => history.Attempts.LastOrDefault(attempt => attempt.Origin is not (AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff))?.Origin == AttemptOrigin.Reopen,
+            history => history.Attempts.LastOrDefault(attempt => !FollowsAvalasWakeUp(attempt)) is { Origin: AttemptOrigin.Reopen, CausedBy: MessageAuthor.Avala },
             () => false);
+
+    private static bool FollowsAvalasWakeUp(AttemptRecord attempt) =>
+        attempt.Origin != AttemptOrigin.Reopen && attempt.CausedBy == MessageAuthor.Avala;
 
     public async Task<Option<WorkspaceInfo>> WorktreeAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Bind(history => history.Summary.Workspace).Match(

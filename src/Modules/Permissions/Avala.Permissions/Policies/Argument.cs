@@ -12,6 +12,15 @@ internal readonly record struct Argument(string Value, string Raw)
         }
     }
 
+    public bool Glob =>
+        Raw == Value
+        && Raw.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-' or '/' or '*' or '?')
+        && Raw.AsSpan().ContainsAny('*', '?')
+        && !Raw.Contains("**", StringComparison.Ordinal)
+        && Raw.Split('/').All(part => !part.StartsWith('.') || !part.AsSpan().ContainsAny('*', '?'));
+
+    public bool Leads => Value.Length > 0 && Value[0] is '*' or '?' or '-';
+
     private sealed class ShellWordReading
     {
         private bool single;

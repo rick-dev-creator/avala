@@ -494,16 +494,17 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         }
 
         tool.Closed = true;
-        var failed = result.Flag("is_error");
-        var outcome = tool.Refused ? ItemOutcome.Cancelled : failed || tool.Role == ToolRole.Executed ? ItemOutcome.Failed : ItemOutcome.Succeeded;
         var output = tool.Role == ToolRole.Work && !tool.Refused && !tool.Narrated ? Output(result) : string.Empty;
 
         return Reaction.Of(
         [
             .. output.Length == 0 ? Array.Empty<IAgentEvent>() : [new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, output)],
-            new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, outcome),
+            new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, Outcome(tool, result)),
         ]);
     }
+
+    private static ItemOutcome Outcome(TrackedTool tool, JsonNode result) =>
+        tool.Refused ? ItemOutcome.Cancelled : result.Flag("is_error") || tool.Role == ToolRole.Executed ? ItemOutcome.Failed : ItemOutcome.Succeeded;
 
     private static string Output(JsonNode result) =>
         Text(result) is var text && text.Length <= OutputLength ? text : $"{text[..OutputLength]}…";

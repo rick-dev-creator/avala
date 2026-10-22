@@ -78,6 +78,20 @@ public sealed class JobRetryTests
     }
 
     [Fact]
+    public void AHandoffOfAJobThatAskedForHelpOnceItsRetriesRanOutStartsAFreshRoundOfRetries()
+    {
+        var job = Given.JobIn(JobState.Checking, attemptsPerRound: 2);
+        Outcomes.Succeeds(job.Retry(Given.Feedback));
+        Outcomes.Succeeds(job.CompleteTurn());
+        Outcomes.Succeeds(job.RequestHelp());
+
+        Outcomes.Succeeds(job.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal")));
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        Assert.True(job.Retry(Given.Feedback).IsSuccess);
+    }
+
+    [Fact]
     public void AJobIsNeverHandedOffToTheConnectionItRunsOn() =>
         Assert.Equal(JobError.SameConnection, Outcomes.FailsWith(Given.JobIn(JobState.Checking).HandOff(Given.Feedback, SessionId.New(), Given.Connection)));
 

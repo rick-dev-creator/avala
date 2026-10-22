@@ -29,4 +29,5 @@ internal enum JobError
     CannotRetryLaunch,
     NotRoot,
     CannotControlRemotely,
+    CannotJoin,
 }

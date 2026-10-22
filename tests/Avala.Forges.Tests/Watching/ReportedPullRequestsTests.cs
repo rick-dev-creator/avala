@@ -46,8 +46,12 @@ public sealed class ReportedPullRequestsTests
         reported.Saw(new ItemProgressed(session, turn, item, new string('.', ReportedLinks.KeptPerItem)));
         reported.Saw(new ItemCompleted(session, turn, item, ItemOutcome.Succeeded));
 
-        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/7")], reported.Of(job));
+        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/7")], reported.Of(job).Links);
     }
+
+    [Fact]
+    public void APullRequestLinkIsKeptWithoutItsQuery() =>
+        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/7")], PullRequestLinks.In("Opened https://forge.example/octo/shop/pulls/7?token=secret "));
 
     [Fact]
     public void ALinkOnAnotherHostWithOriginsOwnerAndNameIsNotOneOfOriginsPullRequests() =>
@@ -60,7 +64,7 @@ public sealed class ReportedPullRequestsTests
 
         say(["See https://example.com/docs/guide and https://forge.example/octo/shop/pu", "lls/12 when CI ends."]);
 
-        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/12")], reported.Of(job));
+        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/12")], reported.Of(job).Links);
     }
 
     [Fact]
@@ -76,7 +80,23 @@ public sealed class ReportedPullRequestsTests
 
         say([string.Join(' ', Enumerable.Range(20, 6).Select(number => $"https://forge.example/octo/shop/pulls/{number}"))]);
 
-        Assert.Equal(new Uri("https://forge.example/octo/shop/pulls/7"), reported.Of(job)[^1]);
+        Assert.Equal(new Uri("https://forge.example/octo/shop/pulls/7"), reported.Of(job).Links[^1]);
+    }
+
+    [Fact]
+    public void ALinkAnMcpToolThatCreatesAPullRequestReturnedIsTriedBeforeTheLinksMentionedAfterIt()
+    {
+        var (reported, job, say) = Reporting();
+        var session = new SessionId(Guid.CreateVersion7());
+        var turn = new TurnId(Guid.CreateVersion7());
+        reported.Started(job, session);
+        reported.Saw(new ItemStarted(session, turn, new ItemId("create"), ItemKind.Mcp, "mcp__github__create_pull_request"));
+        reported.Saw(new ItemProgressed(session, turn, new ItemId("create"), """{"html_url": "https://forge.example/octo/shop/pulls/7"}"""));
+        reported.Saw(new ItemCompleted(session, turn, new ItemId("create"), ItemOutcome.Succeeded));
+
+        say([string.Join(' ', Enumerable.Range(20, 6).Select(number => $"https://forge.example/octo/shop/pulls/{number}"))]);
+
+        Assert.Equal(new Uri("https://forge.example/octo/shop/pulls/7"), reported.Of(job).Links[^1]);
     }
 
     [Fact]
@@ -90,7 +110,7 @@ public sealed class ReportedPullRequestsTests
 
         reported.Forget(job);
 
-        Assert.Equal((0, 0), (reported.Open, reported.Of(job).Count));
+        Assert.Equal((0, 0), (reported.Open, reported.Of(job).Links.Count));
     }
 
     private static (ReportedLinks Reported, JobId Job, Action<string[]> Say) Reporting()
@@ -124,7 +144,7 @@ public sealed class ReportedPullRequestsTests
         var finder = new PullRequestFinder(new EffectiveRules(new DeclaredRules(), git, connections), git, connections);
         var link = new Uri("https://forge.example/octo/shop/pulls/7");
 
-        _ = await finder.FindAsync(JobId.New(), new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "abc1234"), [.. Enumerable.Repeat(link, 200)], Cancellation);
+        _ = await finder.FindAsync(JobId.New(), new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "abc1234"), new Reported([.. Enumerable.Repeat(link, 200)], [], []), Cancellation);
 
         Assert.Equal(1, forge.Reads);
     }
@@ -140,7 +160,7 @@ public sealed class ReportedPullRequestsTests
         var found = await finder.FindAsync(
             JobId.New(),
             new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "abc1234"),
-            [new Uri("https://forge.example/octo/shop/pulls/7")],
+            new Reported([new Uri("https://forge.example/octo/shop/pulls/7")], [], []),
             Cancellation);
 
         Assert.Equal(Option<int>.Some(7), found.Map(delivered => delivered.PullRequest.Number));
@@ -157,10 +177,125 @@ public sealed class ReportedPullRequestsTests
         var found = await finder.FindAsync(
             JobId.New(),
             new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "f00d123"),
-            [new Uri("https://forge.example/octo/shop/pulls/7")],
+            new Reported([new Uri("https://forge.example/octo/shop/pulls/7")], [], []),
             Cancellation);
 
         Assert.True(found.IsNone);
+    }
+
+    [Theory]
+    [InlineData("git push https://forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git -C /worktrees/shop push --force-with-lease git@forge.example:octo/shop.git +HEAD:refs/heads/fix/rounding")]
+    [InlineData("cd /worktrees/shop && git push -u \"https://forge.example/octo/shop.git\" fix/rounding 2>&1")]
+    public void ABranchACommandPushedByUrlIsReportedWithTheRepositoryItWentTo(string command) =>
+        Assert.Equal([new PushedBranch(Shop, "fix/rounding")], Pushed(command, ItemOutcome.Succeeded));
+
+    [Theory]
+    [InlineData("git push origin HEAD:fix/rounding", ItemOutcome.Succeeded)]
+    [InlineData("git push https://forge.example/octo/shop.git HEAD:fix/rounding", ItemOutcome.Failed)]
+    public void APushToANamedRemoteOrOneThatFailedIsNotReportedAsPushedByUrl(string command, ItemOutcome outcome) =>
+        Assert.Empty(Pushed(command, outcome));
+
+    [Theory]
+    [InlineData("git push https://forge.example/$OWNER/shop.git HEAD:fix/rounding")]
+    [InlineData("git push https://x-access-token:$(cat token)@forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git push \"https://forge.example/octo/shop.git\" \"HEAD:$BRANCH\"")]
+    public void AVariableOutsideTheCredentialsOfAPushUrlLeavesThePushUnreported(string command) =>
+        Assert.Empty(Pushed(command, ItemOutcome.Succeeded));
+
+    [Fact]
+    public void APushAfterAnOperatorInsideAQuotedArgumentIsNotReportedAsPushedByUrl() =>
+        Assert.Empty(Pushed("echo 'done && git push https://forge.example/octo/shop.git HEAD:fix/rounding'", ItemOutcome.Succeeded));
+
+    [Fact]
+    public async Task APullRequestPushedByUrlWhoseHeadThisWorktreeNeverHeldIsNotAdoptedAsync() =>
+        Assert.True((await FoundAfterAPushByUrlAsync(Shop, held: false)).IsNone);
+
+    [Fact]
+    public async Task APullRequestWhoseBranchWasPushedByUrlToAnotherRepositoryIsNotAdoptedAsync() =>
+        Assert.True((await FoundAfterAPushByUrlAsync(Shop with { Owner = "mallory" }, held: true)).IsNone);
+
+    [Fact]
+    public async Task AJobThatEndsForgetsWhatItsAgentReportedAlsoInTheStoreAsync()
+    {
+        var store = new Reports();
+        await using var book = new ReportedBook(store);
+        var job = JobId.New();
+        var session = new SessionId(Guid.CreateVersion7());
+        var turn = new TurnId(Guid.CreateVersion7());
+        await book.StartedAsync(job, session, Cancellation);
+        await book.SawAsync(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Cancellation);
+        await book.SawAsync(new ItemProgressed(session, turn, new ItemId("reply"), "Opened https://forge.example/octo/shop/pulls/7"), Cancellation);
+        await book.SawAsync(new ItemCompleted(session, turn, new ItemId("reply"), ItemOutcome.Succeeded), Cancellation);
+        var kept = store.Kept.Count;
+
+        await book.ForgetAsync(job, Cancellation);
+
+        Assert.Equal((1, 0), (kept, store.Kept.Count));
+    }
+
+    private static IReadOnlyList<PushedBranch> Pushed(string command, ItemOutcome outcome)
+    {
+        var reported = new ReportedLinks();
+        var job = JobId.New();
+        var session = new SessionId(Guid.CreateVersion7());
+        var turn = new TurnId(Guid.CreateVersion7());
+        reported.Started(job, session);
+
+        reported.Saw(new ItemStarted(session, turn, new ItemId("push"), ItemKind.Command, $"Run {command}") { Input = command });
+        reported.Saw(new ItemCompleted(session, turn, new ItemId("push"), outcome));
+
+        return reported.Of(job).Pushed;
+    }
+
+    private static async Task<Option<Delivered>> FoundAfterAPushByUrlAsync(RepositoryAddress pushedTo, bool held)
+    {
+        var forge = new CountingForge(PullRequestLifecycle.Open);
+        var connections = new ForgeConnections(new Declared(), [forge], new Transports());
+        var git = new UntrackedGit(held);
+        var finder = new PullRequestFinder(new EffectiveRules(new DeclaredRules(), git, connections), git, connections);
+
+        return await finder.FindAsync(
+            JobId.New(),
+            new WorkspaceInfo(new WorkspaceId(Guid.CreateVersion7()), "/worktrees/shop", "avala/shop", "abc1234"),
+            new Reported([new Uri("https://forge.example/octo/shop/pulls/7")], [], [new PushedBranch(pushedTo, "fix/old")]),
+            Cancellation);
+    }
+
+    private sealed class Reports : IReportedStore
+    {
+        public Dictionary<JobId, KeptReport> Kept { get; } = [];
+
+        public Task<IReadOnlyList<KeptReport>> ReportsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<KeptReport>>([.. Kept.Values]);
+
+        public Task KeepReportAsync(KeptReport report, CancellationToken cancellationToken)
+        {
+            Kept[report.Job] = report;
+
+            return Task.CompletedTask;
+        }
+
+        public Task ForgetReportAsync(JobId job, CancellationToken cancellationToken)
+        {
+            _ = Kept.Remove(job);
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class UntrackedGit(bool held) : IGitRemote
+    {
+        public ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Result<string, ForgeError>.Success(Origin));
+
+        public ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
+
+        public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(false);
+
+        public ValueTask<bool> HeldAsync(string worktree, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(held);
     }
 
     private sealed class FetchedGit : IGitRemote
@@ -175,6 +310,8 @@ public sealed class ReportedPullRequestsTests
 
         public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) =>
             ValueTask.FromResult(false);
+
+        public ValueTask<bool> HeldAsync(string worktree, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(false);
     }
 
     private sealed class CountingForge(PullRequestLifecycle lifecycle = PullRequestLifecycle.Merged) : IForge
@@ -197,7 +334,7 @@ public sealed class ReportedPullRequestsTests
             Reads++;
 
             return ValueTask.FromResult(Result<PullRequestState, ForgeError>.Success(
-                new PullRequestState(pullRequest with { Head = "fix/old", Base = "main" }, lifecycle, "abc1234", Mergeability.Unknown)));
+                new PullRequestState(pullRequest with { Head = "fix/old", Base = "main" }, lifecycle, "abc1234", Mergeability.Unknown) { HeadRepository = context.Target.Repository }));
         }
 
         public ValueTask<Result<CommentRef, ForgeError>> CommentAsync(ForgeContext context, PullRequestRef pullRequest, string body, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -240,5 +377,7 @@ public sealed class ReportedPullRequestsTests
         public ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<string>>([]);
 
         public ValueTask<bool> PushedAsync(string worktree, string remote, string branch, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(true);
+
+        public ValueTask<bool> HeldAsync(string worktree, string commit, CancellationToken cancellationToken) => ValueTask.FromResult(true);
     }
 }

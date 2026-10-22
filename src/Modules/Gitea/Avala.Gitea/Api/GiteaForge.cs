@@ -71,13 +71,36 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     public async ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken) =>
         await GiteaRepositories.MeAsync(context, cancellationToken);
 
-    public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
-        (await GetAsync(context, $"{Repository(context)}/pulls?state=open", cancellationToken))
-            .Bind(body => Json.Read(body, root => root.EnumerateArray()
-                .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head)
-                .Select(Reference)
-                .FirstOrDefault()
-                .ToOption()));
+    public const int DefaultPageSize = 30;
+
+    public const int MostOpenPages = 20;
+
+    public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken)
+    {
+        for (var page = 1; page <= MostOpenPages; page++)
+        {
+            var path = page == 1 ? $"{Repository(context)}/pulls?state=open" : $"{Repository(context)}/pulls?state=open&page={page.ToString(CultureInfo.InvariantCulture)}";
+            var read = (await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => (
+                Count: root.GetArrayLength(),
+                Found: root.EnumerateArray()
+                    .Where(pull => Json.Text(pull.GetProperty("head"), "ref") == head && FromBase(context, pull))
+                    .Select(Reference)
+                    .FirstOrDefault()
+                    .ToOption())));
+
+            if (!read.TryGetValue(out var listed, out var error))
+            {
+                return error;
+            }
+
+            if (listed.Found.IsSome || listed.Count < DefaultPageSize)
+            {
+                return listed.Found;
+            }
+        }
+
+        return Option<PullRequestRef>.None;
+    }
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
         (await context.Api.SendAsync(
@@ -92,7 +115,7 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     {
         var path = $"{Repository(context)}/pulls/{pullRequest.Number.ToString(CultureInfo.InvariantCulture)}";
 
-        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(root, pullRequest))).TryGetValue(out var pull, out var error)
+        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(context, root, pullRequest))).TryGetValue(out var pull, out var error)
             || !(await GetAsync(context, $"{Repository(context)}/commits/{Uri.EscapeDataString(pull.HeadCommit)}/status", cancellationToken)).Bind(body => Json.Read(body, Statuses)).TryGetValue(out var statuses, out error)
             || !(await GetAsync(context, $"{path}/reviews", cancellationToken)).Bind(body => Json.Read(body, Reviews)).TryGetValue(out var reviews, out error))
         {
@@ -143,7 +166,7 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     private static PullRequestRef Reference(JsonElement pull) =>
         new(pull.GetProperty("number").GetInt32(), new Uri(pull.GetProperty("html_url").GetString()!), Json.Text(pull.GetProperty("head"), "ref"), Json.Text(pull.GetProperty("base"), "ref"));
 
-    private static PullRequestState Pull(JsonElement pull, PullRequestRef known)
+    private static PullRequestState Pull(ForgeContext context, JsonElement pull, PullRequestRef known)
     {
         var lifecycle = pull.TryGetProperty("merged", out var merged) && merged.ValueKind == JsonValueKind.True ? PullRequestLifecycle.Merged
             : Json.Text(pull, "state") == "closed" ? PullRequestLifecycle.Closed
@@ -155,8 +178,20 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
             _ => Mergeability.Unknown,
         } : Mergeability.Unknown;
 
-        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = SideRepository(context, pull, "head"), BaseRepository = SideRepository(context, pull, "base") };
     }
+
+    private static bool FromBase(ForgeContext context, JsonElement pull) =>
+        SideRepository(context, pull, "head").Bind(head => SideRepository(context, pull, "base").Map(target =>
+                string.Equals(head.Owner, target.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(head.Name, target.Name, StringComparison.OrdinalIgnoreCase)))
+            .Match(same => same, () => false);
+
+    private static Option<RepositoryAddress> SideRepository(ForgeContext context, JsonElement pull, string side) =>
+        pull.GetProperty(side).TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
+        && Json.Text(repo, "full_name").Split('/') is [{ Length: > 0 } owner, { Length: > 0 } name]
+            ? new RepositoryAddress(context.Target.Repository.Host, owner, name)
+            : Option<RepositoryAddress>.None;
 
     private static PullRequestRef Known(PullRequestRef read, PullRequestRef known) =>
         read with { Head = read.Head.Length > 0 ? read.Head : known.Head, Base = read.Base.Length > 0 ? read.Base : known.Base };

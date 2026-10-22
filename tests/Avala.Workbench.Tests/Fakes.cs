@@ -98,13 +98,10 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
     {
         Messages.Add(message);
 
-        return SteerAsync(job, message.Text, cancellationToken);
-    }
-
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        (Steerable ? Unless(JobStatus.Running, JobRejection.NotRunning) : JobRejection.NotSteerable) is { } refused
+        return (Steerable ? Unless(JobStatus.Running, JobRejection.NotRunning) : JobRejection.NotSteerable) is { } refused
             ? ValueTask.FromResult<Result<JobSteered, JobRejection>>(refused)
-            : AnswerAsync($"steer {message}", new JobSteered(job, SessionId.New(), TurnId.New()));
+            : AnswerAsync($"steer {message.Text}", new JobSteered(job, SessionId.New(), TurnId.New()));
+    }
 
     public TaskCompletionSource? Gate { get; set; }
 

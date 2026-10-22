@@ -7,13 +7,26 @@
   <Design.DataContext>
     <usage:DesignUsageViewModel />
   </Design.DataContext>
-  <DockPanel>
+  <UserControl.Styles>
+    <Style Selector="TextBlock#Scope, TextBlock#JobsHint">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+    </Style>
+    <ContainerQuery Name="Usage" Query="max-width:520">
+      <Style Selector="TextBlock#Scope, TextBlock#JobsHint">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <DockPanel Container.Name="Usage" Container.Sizing="Width">
     <Border DockPanel.Dock="Top" Classes="pageHeader">
       <DockPanel>
-        <TextBlock x:Name="Scope" DockPanel.Dock="Right" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Scope" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
       </DockPanel>
     </Border>
+    <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="24,16,24,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
     <ScrollViewer>
       <StackPanel Margin="24,36,24,48" Spacing="36" MaxWidth="772">
         <StackPanel Spacing="12">
@@ -32,8 +45,8 @@
 
         <StackPanel Spacing="6">
           <DockPanel>
-            <TextBlock DockPanel.Dock="Right" Classes="hint" Text="caps from each repository's budget file" VerticalAlignment="Bottom" />
-            <TextBlock Classes="section" Text="Jobs · cost against their cap" VerticalAlignment="Bottom" />
+            <TextBlock x:Name="JobsHint" Classes="hint" Text="caps from each repository's budget file" VerticalAlignment="Bottom" />
+            <TextBlock x:Name="JobsTitle" Classes="section" Text="Jobs · cost against their cap" VerticalAlignment="Bottom" />
           </DockPanel>
           <TextBlock x:Name="NoJobs" Classes="caption" Margin="0,8,0,0" Text="No job has spent anything yet." IsVisible="{Binding !Jobs.Count}" />
           <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" Grid.IsSharedSizeScope="True" />

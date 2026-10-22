@@ -17,17 +17,8 @@ internal static partial class ForgeScenario
     public static string NameIn(string text) =>
         Tag().Match(text) is { Success: true } found && Names.Contains(found.Groups["name"].Value) ? found.Groups["name"].Value : Green;
 
-    public static HeadFacts Of(string scenario, int head) => scenario switch
-    {
-        "ci-fails-once" => Facts(head == 0 ? Build(CheckStatus.Failed) : Build(CheckStatus.Passed)),
-        "ci-always-fails" => Facts(Build(CheckStatus.Failed)),
-        "changes-requested-once" => Facts(Build(CheckStatus.Passed)) with { Reviews = [head == 0 ? ChangesRequested : Approval] },
-        "conflict-once" => Facts(Build(CheckStatus.Passed)) with { Mergeability = head == 0 ? Mergeability.Conflicting : Mergeability.Mergeable },
-        "pending" => Facts(Build(CheckStatus.Pending)),
-        "merged" => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Merged },
-        "closed" => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Closed },
-        _ => Facts(Build(CheckStatus.Passed)),
-    };
+    public static HeadFacts Of(string scenario, int head) =>
+        Heads.TryGetValue(scenario, out var facts) ? facts(head) : Facts(Build(CheckStatus.Passed));
 
     private static Review ChangesRequested { get; } = new("1", "reviewer", ReviewVerdict.ChangesRequested, "Please greet the team by name.", string.Empty)
     {
@@ -35,6 +26,17 @@ internal static partial class ForgeScenario
     };
 
     private static Review Approval { get; } = new("2", "reviewer", ReviewVerdict.Approved, "Looks good.", string.Empty);
+
+    private static readonly Dictionary<string, Func<int, HeadFacts>> Heads = new(StringComparer.Ordinal)
+    {
+        ["ci-fails-once"] = head => Facts(head == 0 ? Build(CheckStatus.Failed) : Build(CheckStatus.Passed)),
+        ["ci-always-fails"] = _ => Facts(Build(CheckStatus.Failed)),
+        ["changes-requested-once"] = head => Facts(Build(CheckStatus.Passed)) with { Reviews = [head == 0 ? ChangesRequested : Approval] },
+        ["conflict-once"] = head => Facts(Build(CheckStatus.Passed)) with { Mergeability = head == 0 ? Mergeability.Conflicting : Mergeability.Mergeable },
+        ["pending"] = _ => Facts(Build(CheckStatus.Pending)),
+        ["merged"] = _ => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Merged },
+        ["closed"] = _ => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Closed },
+    };
 
     private static HeadFacts Facts(CheckRun build) => new(PullRequestLifecycle.Open, Mergeability.Mergeable, [build], []);
 

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -39,7 +40,7 @@ internal sealed class DeniedRetries(IDeniedRequests denials, JobSteering steerin
                 }
 
                 var shown = board.Find(job).Match(found => found.Status, () => JobStatus.Running);
-                var delivered = await steering.SendAsync(job, shown, new JobMessage(notice) { Author = MessageAuthor.Avala }, cancellationToken);
+                var delivered = await steering.SendAsync(job, shown, new JobMessage(notice) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Person }, cancellationToken);
 
                 if (!delivered.IsSuccess)
                 {

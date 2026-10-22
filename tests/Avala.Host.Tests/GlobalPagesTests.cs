@@ -156,7 +156,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", $$"""{ "orphans": "report", {{LeasedPorts.Settings(test: 0)}}, "worktrees": { "keepDiscardedHours": null } }""")],
+            [("resources.json", $$"""{ "orphans": "report", {{LeasedPorts.Settings()}}, "worktrees": { "keepDiscardedHours": null } }""")],
             [(".avala/permissions.json", ServicesPolicy)]);
         var reaped = run.Watch<OrphansReaped>();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());

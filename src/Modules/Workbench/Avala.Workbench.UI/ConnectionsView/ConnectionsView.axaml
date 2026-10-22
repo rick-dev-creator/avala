@@ -9,6 +9,7 @@
     <overview:DesignConnectionsViewModel />
   </Design.DataContext>
   <DockPanel>
+    <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="24,16,24,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
     <Border x:Name="FileNoteBanner"
             DockPanel.Dock="Top"
             Classes="quiet"

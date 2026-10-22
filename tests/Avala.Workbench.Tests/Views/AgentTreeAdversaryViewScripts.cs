@@ -86,6 +86,8 @@ internal static class AgentTreeSamples
 
     internal sealed class Pane(ISubagentTreeViewModel tree) : IDelegationPaneViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         public ISubagentTreeViewModel Tree => tree;
 
         public bool HasTree => true;

@@ -9,6 +9,7 @@ using Avala.Resources.Reaping;
 using Avala.Resources.Sampling;
 using Avala.Resources.Settings;
 using Avala.Resources.Tracking;
+using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Microsoft.Extensions.Time.Testing;
@@ -34,10 +35,13 @@ internal sealed class FakeEndedJobs : IEndedJobs
 
 internal sealed class Resourced : IAsyncDisposable
 {
-    public Resourced(ResourceSettings settings)
+    private readonly Option<TemporaryFolder> ownClaims;
+
+    public Resourced(ResourceSettings settings, string claims)
     {
+        Claims = claims;
         Settings = new FixedSettings(settings);
-        Leases = Lessor.Leases(Bus, Listening, settings);
+        Leases = Lessor.Leases(Bus, Listening, settings, claims);
         Book = new ResourceBook(Settings, Leases);
         Readings = new ProcessReadings(Trees, Listening);
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
@@ -47,10 +51,18 @@ internal sealed class Resourced : IAsyncDisposable
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
     }
 
+    public Resourced(ResourceSettings settings)
+        : this(settings, new TemporaryFolder())
+    {
+    }
+
     public Resourced()
         : this(ResourceSettingsParser.Defaults)
     {
     }
+
+    private Resourced(ResourceSettings settings, TemporaryFolder claims)
+        : this(settings, claims.Path) => ownClaims = claims;
 
     public static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -69,6 +81,8 @@ internal sealed class Resourced : IAsyncDisposable
     public FakeEndedJobs Jobs { get; } = new();
 
     public FixedSettings Settings { get; }
+
+    public string Claims { get; }
 
     public PortLeases Leases { get; }
 
@@ -113,5 +127,6 @@ internal sealed class Resourced : IAsyncDisposable
     {
         await Housekeeper.DisposeAsync();
         await Leases.DisposeAsync();
+        await ownClaims.Match(folder => folder.DisposeAsync().AsTask(), () => Task.CompletedTask);
     }
 }

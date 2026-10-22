@@ -179,6 +179,17 @@ public sealed class PullRequestWatcherTests
     }
 
     [Fact]
+    public async Task AWokenFixTheAgentWentOnWithByItselfIsStillRedeliveredToThePullRequestAsync()
+    {
+        await using var world = await new WatcherWorld().WatchingAsync(watch => watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1, Redelivery = Redelivery.Automatic });
+        world.Catalog.Rounds = [AttemptOrigin.Initial, AttemptOrigin.Reopen, AttemptOrigin.Woken];
+
+        await world.Watcher.HandleAsync(new JobProgressed(world.Job, JobStatus.AwaitingReview), Cancellation);
+
+        Assert.Equal(PullRequestDelivery.Strategy, await world.Deliveries.Redelivered.Task.WaitAsync(TimeSpan.FromSeconds(10), Cancellation));
+    }
+
+    [Fact]
     public async Task UnderReviewRedeliveryAWokenFixAwaitingReviewWaitsForAPersonAsync()
     {
         await using var world = await new WatcherWorld().WatchingAsync(watch => watch with { WakeUps = 1, Redelivery = Redelivery.Review });

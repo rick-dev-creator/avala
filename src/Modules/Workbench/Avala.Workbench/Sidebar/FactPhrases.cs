@@ -40,17 +40,23 @@ internal static class FactPhrases
         FactKind.AsksPermission => fact.Item.Match(Permission, () => "asks permission"),
         FactKind.Held => fact.Hold.Match(Held, () => "held"),
         FactKind.ResumesAtReset => fact.Wait.Match(HandoffPhrases.Resumes, () => "held"),
-        FactKind.Verified => fact.Attempt > 1
-            ? string.Create(CultureInfo.InvariantCulture, $"verified on attempt {fact.Attempt}")
-            : "verified",
-        FactKind.Delivered => fact.Total > 0
-            ? string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest} · checks {fact.Done} of {fact.Total}")
-            : string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest}"),
+        FactKind.Verified => Verified(fact),
+        FactKind.Delivered => Delivered(fact),
         FactKind.PullRequestMerged => string.Create(CultureInfo.InvariantCulture, $"merged · #{fact.PullRequest}"),
         FactKind.PullRequestClosed => string.Create(CultureInfo.InvariantCulture, $"closed · #{fact.PullRequest}"),
         FactKind.Approved => fact.Strategy.Match(strategy => strategy == "merge" ? "merged" : "approved", () => "approved"),
         _ => Plain.GetValueOrDefault(fact.Kind, "starting"),
     };
+
+    private static string Verified(JobFact fact) =>
+        fact.Attempt > 1
+            ? string.Create(CultureInfo.InvariantCulture, $"verified on attempt {fact.Attempt}")
+            : "verified";
+
+    private static string Delivered(JobFact fact) =>
+        fact.Total > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest} · checks {fact.Done} of {fact.Total}")
+            : string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest}");
 
     public static StatusKind Dot(BoardJob job) => job.Group switch
     {

@@ -23,7 +23,7 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.Settings()}}, "sampleSeconds": 0.2 }""")],
             [(".avala/permissions.json", ServicesPolicy), ("package.json", Package)]);
         var available = run.Watch<PreviewAvailable>();
         var workbench = await run.WorkbenchAsync();

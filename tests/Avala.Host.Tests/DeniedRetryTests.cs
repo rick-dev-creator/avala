@@ -1,3 +1,4 @@
+using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -28,6 +29,29 @@ public sealed class DeniedRetryTests(PublishedPlugins plugins)
         Assert.Equal(("https://example.com/style", PolicyAnswer.Deny), (denied.Target, denied.Answer));
         Assert.Equal(("https://example.com/style", PolicyAnswer.Allow, "always example.com in this job"), (retried.Target, retried.Answer, Outcomes.Present(retried.Rule).Name));
         Assert.Equal(["always example.com in this job"], run.Get<IPermissionAudit>().JobRulesOf(run.Job).Select(rule => rule.Name));
+    }
+
+    [Fact]
+    public async Task AvalasNoticeThatSendsADocumentedJobBackAfterADenialIsAllowedIsNoChangeRequestOfThePersonAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "tools", (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
+        var progress = run.Watch<JobProgressed>();
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await run.ResumableAsync();
+        await run.DeliveredAsync();
+        await workbench.ShowsAsync(() =>
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            && OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
+
+        await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
+        _ = await progress.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Running);
+        _ = await progress.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+
+        await run.DeliveredAsync();
+
+        Assert.Empty(run.Get<IDocumentation>().OfJob(run.Job).Match(documented => documented.Requests, () => []));
     }
 
     [Fact]

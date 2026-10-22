@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
@@ -10,7 +11,7 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.TurnChecks;
 
 internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn evaluate, HoldJob hold)
-    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>, IHandle<TurnWoken>
+    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>, IHandle<TurnWoken>, IHandle<AgentActivity>
 {
     public const string WokenNote = "The agent went on by itself, woken by work it had started in the background.";
 
@@ -40,9 +41,17 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
 
     public async ValueTask HandleAsync(RemoteMessageReceived integrationEvent, CancellationToken cancellationToken)
     {
-        if (integrationEvent.BeganTurn && Feedback.Create(integrationEvent.Text).TryGetValue(out var message, out _))
+        if (Feedback.Create(integrationEvent.Text).TryGetValue(out var message, out _))
         {
-            await OnJobOfAsync(integrationEvent.Session, (found, token) => ContinueFromDeviceAsync(found, integrationEvent.Session, message, token), cancellationToken);
+            await OnJobOfAsync(integrationEvent.Session, (found, token) => FromDeviceAsync(found, integrationEvent, message, token), cancellationToken);
+        }
+    }
+
+    public async ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Event is FormAnswered { Answer.AnsweredBy: MessageAuthor.Person } answered)
+        {
+            await OnJobOfAsync(answered.Session, (found, token) => hold.JoinedAsync(found, MessageAuthor.Person, token), cancellationToken);
         }
     }
 
@@ -60,19 +69,27 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
 
         if (job.State == JobState.AwaitingReview
             && job.Session == Option<SessionId>.Some(session)
-            && Feedback.Create(WokenNote).TryGetValue(out var note, out _)
+            && Feedback.Create(WokenNote).Map(created => created.By(MessageAuthor.Avala)).TryGetValue(out var note, out _)
             && job.Wake(note).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);
         }
     }
 
-    private async Task ContinueFromDeviceAsync(Job job, SessionId session, Feedback message, CancellationToken cancellationToken)
+    private async Task FromDeviceAsync(Job job, RemoteMessageReceived received, Feedback message, CancellationToken cancellationToken)
     {
-        if (job.State == JobState.AwaitingReview && job.Session == Option<SessionId>.Some(session) && job.ContinueFromDevice(message).IsSuccess)
+        if (job.Session != Option<SessionId>.Some(received.Session))
+        {
+            return;
+        }
+
+        if (received.BeganTurn && job.State == JobState.AwaitingReview && job.ContinueFromDevice(message).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);
+            return;
         }
+
+        await hold.JoinedAsync(job, MessageAuthor.Person, cancellationToken);
     }
 
     private Task OnJobOfAsync(SessionId session, Func<Job, CancellationToken, Task> work, CancellationToken cancellationToken) =>

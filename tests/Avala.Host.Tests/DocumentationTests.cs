@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;

@@ -50,24 +50,12 @@ public static class AgentTreeLayout
         var rooted = nodes[0].Depth <= 0;
         var parents = Parents(nodes);
         var levels = Levels(parents, rooted);
-        var tree = rooted && !railsOnly ? Tree(nodes, parents, levels, spacing) : null;
+        var fitting = rooted && !railsOnly
+            ? Candidates(nodes, parents, levels, spacing).FirstOrDefault(candidate => candidate.Rects is not null && Width(candidate.Rects) <= availableWidth)
+            : default;
 
-        if (tree is not null && Width(tree) <= availableWidth)
-        {
-            return Drawn(AgentTreeShape.Tree, tree, parents, spacing);
-        }
-
-        var stacked = rooted && !railsOnly ? Stacked(nodes, parents, spacing) : null;
-
-        if (stacked is not null && Width(stacked) <= availableWidth)
-        {
-            return Drawn(AgentTreeShape.Stacked, stacked, parents, spacing);
-        }
-
-        var comb = rooted && !railsOnly ? Comb(nodes, levels, spacing) : null;
-
-        return comb is not null && Width(comb) <= availableWidth
-            ? Drawn(AgentTreeShape.Comb, comb, parents, spacing)
+        return fitting.Rects is { } rects
+            ? Drawn(fitting.Shape, rects, parents, spacing)
             : Drawn(AgentTreeShape.Rail, Rail(nodes, levels, rooted, spacing), parents, spacing);
     }
 
@@ -91,6 +79,13 @@ public static class AgentTreeLayout
         }
 
         return parents;
+    }
+
+    private static IEnumerable<(AgentTreeShape Shape, GraphRect[]? Rects)> Candidates(IReadOnlyList<TreeNodeSpec> nodes, int[] parents, int[] levels, AgentTreeSpacing spacing)
+    {
+        yield return (AgentTreeShape.Tree, Tree(nodes, parents, levels, spacing));
+        yield return (AgentTreeShape.Stacked, Stacked(nodes, parents, spacing));
+        yield return (AgentTreeShape.Comb, Comb(nodes, levels, spacing));
     }
 
     private static int[] Levels(int[] parents, bool rooted)

@@ -56,6 +56,7 @@ public sealed class ReadOnlyCommandTests
         "git log --oneline @{u}..",
         "git status -uno",
         "grep -rno TODO src",
+        "git log --relative-date -3",
     ];
 
     public static TheoryData<string> NotReadOnly =>
@@ -72,7 +73,6 @@ public sealed class ReadOnlyCommandTests
         "cat /etc/passwd",
         "cat ../secret.txt",
         "ls ~",
-        "wc -l src/*.cs",
         "cat $HOME/.ssh/id_rsa",
         "grep -f /etc/patterns src",
         "grep --file=/etc/patterns src",
@@ -164,8 +164,97 @@ public sealed class ReadOnlyCommandTests
     [InlineData("git log --format --output=.avala/permissions.json")]
     [InlineData("git show --format --output=.git/config")]
     [InlineData("git log --encoding --output=.git/config")]
-    [InlineData("git log --committer --output=.git/config")]
     public void AGitFormatWithoutAnEqualsSignDoesNotHideTheWordAfterIt(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("git log --until yesterday --oneline")]
+    [InlineData("git log --after 2026-01-01 -5")]
+    [InlineData("git log --before '2 weeks ago'")]
+    [InlineData("git log --since 3.days --oneline")]
+    [InlineData("git log --committer rick -5")]
+    [InlineData("git log --author rick --oneline")]
+    [InlineData("git show --until yesterday --stat HEAD")]
+    public void AGitLogFilterWithItsValueAsTheNextWordIsAllowedWithoutAsking(string line) =>
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Fact]
+    public void AGitLogFilterTakesTheNextWordAsItsValueEvenWhenItLooksLikeAnOption() =>
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command("git log --committer --output=.git/config")).Answer);
+
+    [Theory]
+    [InlineData("git log --committer rick --output=.git/config")]
+    [InlineData("git log --until yesterday --output=log.txt")]
+    [InlineData("git show --author --output --output=.avala/permissions.json")]
+    [InlineData("git log --before")]
+    public void AGitLogFilterTakesOnlyTheNextWordAndWhatFollowsItIsStillDecided(string line) =>
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("ls src/*.cs")]
+    [InlineData("cat src/*.md")]
+    [InlineData("grep foo ./*.txt")]
+    [InlineData("grep -rn TODO src/*")]
+    [InlineData("wc -l src/*.cs")]
+    [InlineData("head -n 5 docs/*.md")]
+    [InlineData("tail -n 3 logs/*.log")]
+    [InlineData("cat src/app?.cs")]
+    [InlineData("ls .github/workflows/*.yml")]
+    [InlineData("sort data/*.txt")]
+    [InlineData("cut -d, -f1 data/*.csv")]
+    [InlineData("file docs/*")]
+    [InlineData("stat src/*")]
+    [InlineData("tree src/*")]
+    [InlineData("rg TODO src/*/")]
+    [InlineData("ls -- *.cs")]
+    [InlineData("grep -n foo -- *.txt")]
+    [InlineData("git diff --stat -- src/*.cs")]
+    [InlineData("git log --oneline -- src/*.cs")]
+    [InlineData("echo src/*")]
+    [InlineData("echo *")]
+    public void AnUnquotedGlobThatCanOnlyExpandToPathsToReadIsAllowedWithoutAsking(string line) =>
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Theory]
+    [InlineData("ls *.cs")]
+    [InlineData("grep foo *.txt")]
+    [InlineData("cat ?ut")]
+    [InlineData("sort -- [-]o names.txt")]
+    [InlineData("uniq src/*.txt")]
+    [InlineData("uniq -c -- src/*.txt")]
+    [InlineData("pwd src/*")]
+    [InlineData("grep src/*.cs")]
+    [InlineData("grep -- src/*.cs")]
+    [InlineData("grep -e src/* README.md")]
+    [InlineData("head -n src/* README.md")]
+    [InlineData("rg -g src/* TODO")]
+    [InlineData("grep --include=src/*.cs TODO src")]
+    [InlineData("git log --author src/* --oneline")]
+    [InlineData("sort -o src/* names.txt")]
+    [InlineData("cat src/**/*.cs")]
+    [InlineData("cat src/.*")]
+    [InlineData("cat src/*/.?/secret")]
+    [InlineData("cat 'src/'*.md")]
+    [InlineData("cat src/*(e:touch\\ pwned:)")]
+    [InlineData("cat src/*=x")]
+    [InlineData("cat ~/*")]
+    [InlineData("cat /etc/*")]
+    [InlineData("cat ../*")]
+    [InlineData("cat < src/*.md")]
+    [InlineData("find src/* -name x")]
+    [InlineData("git sta* --short")]
+    [InlineData("c?t README.md")]
+    [InlineData("tr a b /etc/p*")]
+    [InlineData("git diff -U*")]
+    [InlineData("echo ../*")]
+    [InlineData("echo /etc/*")]
+    [InlineData("git log --grep -- *.cs")]
+    [InlineData("grep -e -- *.txt")]
+    [InlineData("sort -k -- *.txt")]
+    [InlineData("tree -P src/* .")]
+    [InlineData("ls -I src/* src")]
+    [InlineData("git log -n src/* --oneline")]
+    public void AnUnquotedGlobThatCouldExpandIntoAnOptionAPatternOrAWrittenPathStillAsks(string line) =>
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
 
     [Theory]

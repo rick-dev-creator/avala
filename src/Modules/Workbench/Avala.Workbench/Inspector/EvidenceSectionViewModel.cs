@@ -98,7 +98,11 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
             found => ReviewPhrases.Verdict(ReviewExceptions.VerdictOf(found.Audit.Verifications, found.Record.History.Attempts.Count)),
             () => string.Empty);
         Attempts = facts.Match<IReadOnlyList<string>>(found => InspectorPhrases.Attempts(found.Record.History.Attempts, found.Audit.Verifications), () => []);
-        var undeclared = facts.Bind(found => found.Audit.Verifications is [.., { Outcome: VerificationOutcome.NoChecksDeclared } last] ? last : Option<VerificationReport>.None);
+        ShowUndeclared(facts, facts.Bind(found => found.Audit.Verifications is [.., { Outcome: VerificationOutcome.NoChecksDeclared } last] ? last : Option<VerificationReport>.None));
+    }
+
+    private void ShowUndeclared(Option<InspectorFacts> facts, Option<VerificationReport> undeclared)
+    {
         var reported = facts.Match<IReadOnlyList<ReportedRun>>(found => undeclared.IsSome ? found.Reported : [], () => []);
         repository = facts.Match(found => found.Record.History.Summary.Repository, () => string.Empty);
         Lacks = repository.Length > 0 ? undeclared.Match(ReviewPhrases.Lacks, () => string.Empty) : string.Empty;

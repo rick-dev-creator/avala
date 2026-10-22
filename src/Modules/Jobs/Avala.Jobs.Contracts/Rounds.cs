@@ -37,7 +37,10 @@ public sealed record RoundRoute(RoundAction Action)
     public static RoundRoute To(JobHandoff handoff) => new(RoundAction.HandOff) { Handoff = handoff };
 }
 
-public sealed record JobHandoff(ConnectionChoice Choice, string Brief);
+public sealed record JobHandoff(ConnectionChoice Choice, string Brief)
+{
+    public MessageAuthor CausedBy { get; init; } = MessageAuthor.Avala;
+}
 
 public sealed record JobHandedOff(JobId Job, ConnectionName From, ConnectionName To, SessionId Session, int Attempt, ConnectionChoice Choice) : IIntegrationEvent
 {

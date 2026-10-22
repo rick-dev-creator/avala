@@ -1,5 +1,6 @@
 using Avala.Triggers.Contracts;
 using CommunityToolkit.Mvvm.Input;
+using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Triggers;
 
@@ -28,6 +29,8 @@ internal sealed record DesignTriggerItemViewModel(string Name, string Repository
 
 internal sealed class DesignTriggersViewModel : ITriggersViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public string Title => "Triggers";
 
     public string Scope => "Times in this computer's time zone, Europe/Madrid";

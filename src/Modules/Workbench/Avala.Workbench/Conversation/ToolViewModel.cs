@@ -190,30 +190,43 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
     {
         if (entry is ToolEntry tool)
         {
-            Input = tool.Input.Match(input => input, () => string.Empty);
-            ShowsEdit = Kind == ItemKind.FileEdit && Input.Length > 0 && tool.Outcome.IsSome;
-
-            if (ShowsEdit && IsExpanded)
-            {
-                Edit = EditDiffViewModel.Of(path, Input);
-            }
-
-            Title = tool.WaitsFor.IsSome
-                ? ConversationPhrases.Waited(tool.Awaited, tool.Outcome.IsSome)
-                : tool.Drafted.Bind(received => tool.Outcome.IsNone ? Option<int>.Some(received) : Option<int>.None).Match(
-                    received => ConversationPhrases.Drafting(tool.Title, received),
-                    () => tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input)));
-            IsCode = tool.WaitsFor.IsNone && tool.Delegation.IsNone;
-            Output = tool.Output;
-            IsRunning = tool.Outcome.IsNone;
-            var ended = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);
-            Failed = ended && !tool.Denied && !ConversationPhrases.Stopped(tool.Kind, tool.Outcome);
-            ShowsOutcome = ended;
-            Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(tool.Kind, outcome, tool.Denied), () => "running");
-            Fold();
-            ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
-            Reveal(ShowsChanges && preview.Kind != PreviewKind.None);
+            Show(tool);
         }
+    }
+
+    private void Show(ToolEntry tool)
+    {
+        Input = tool.Input.Match(input => input, () => string.Empty);
+        ShowsEdit = Kind == ItemKind.FileEdit && Input.Length > 0 && tool.Outcome.IsSome;
+
+        if (ShowsEdit && IsExpanded)
+        {
+            Edit = EditDiffViewModel.Of(path, Input);
+        }
+
+        Title = Titled(tool, Input);
+        IsCode = tool.WaitsFor.IsNone && tool.Delegation.IsNone;
+        Output = tool.Output;
+        IsRunning = tool.Outcome.IsNone;
+        ShowOutcome(tool);
+        Fold();
+        ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
+        Reveal(ShowsChanges && preview.Kind != PreviewKind.None);
+    }
+
+    private static string Titled(ToolEntry tool, string input) =>
+        tool.WaitsFor.IsSome
+            ? ConversationPhrases.Waited(tool.Awaited, tool.Outcome.IsSome)
+            : tool.Drafted.Bind(received => tool.Outcome.IsNone ? Option<int>.Some(received) : Option<int>.None).Match(
+                received => ConversationPhrases.Drafting(tool.Title, received),
+                () => tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, input)));
+
+    private void ShowOutcome(ToolEntry tool)
+    {
+        var ended = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);
+        Failed = ended && !tool.Denied && !ConversationPhrases.Stopped(tool.Kind, tool.Outcome);
+        ShowsOutcome = ended;
+        Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(tool.Kind, outcome, tool.Denied), () => "running");
     }
 
     private void Reveal(bool shows)

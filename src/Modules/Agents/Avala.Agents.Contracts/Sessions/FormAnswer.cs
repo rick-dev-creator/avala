@@ -16,4 +16,6 @@ public sealed record FormAnswer(ItemId Item, IReadOnlyList<FieldAnswer> Fields)
     public bool Declined { get; init; }
 
     public Option<string> Message { get; init; }
+
+    public MessageAuthor AnsweredBy { get; init; } = MessageAuthor.Person;
 }

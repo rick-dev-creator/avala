@@ -125,8 +125,14 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
 
     public void Show(DelegationTree tree)
     {
+        ShowRoot(tree);
+        ShowBudget(tree);
+        ShowProgress(tree);
+    }
+
+    private void ShowRoot(DelegationTree tree)
+    {
         var root = tree.Root;
-        var children = tree.Children.Where(node => node.Depth == 1).ToList();
         Title = FactPhrases.Title(root.Instruction);
         Harness = tree.RootSpend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
         Connection = root.Connection.Match(name => name.Value, () => tree.RootSpend.Session.Match(seen => seen.Connection.Value, () => "default connection"));
@@ -136,6 +142,11 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }
                 .Where(part => part.Length > 0));
         Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent";
+    }
+
+    private void ShowBudget(DelegationTree tree)
+    {
+        var children = tree.Children.Where(node => node.Depth == 1).ToList();
         var (hasBudget, budget, shares, shareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
             ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
             : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "child job")}, no budget to share"));
@@ -143,6 +154,11 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
         Budget = budget;
         Shares = Shares.SequenceEqual(shares) ? Shares : shares;
         ShareNote = shareNote;
+    }
+
+    private void ShowProgress(DelegationTree tree)
+    {
+        var root = tree.Root;
         dot.Kind = tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status));
         Doing = BranchPhrases.Doing(tree);
         Since = root.Submitted;

@@ -37,7 +37,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
     private readonly Surroundings surroundings;
-    private Application application;
+    private SimulatedApplication application;
     private bool stopped;
 
     private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root, Surroundings surroundings)
@@ -46,7 +46,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         this.data = data;
         this.repository = repository;
         this.surroundings = surroundings;
-        application = new Application(root, surroundings.Processes.InFlight);
+        application = new SimulatedApplication(root, surroundings.Processes.InFlight);
         Ui = surroundings.Ui;
         Clock = surroundings.Clock;
     }
@@ -186,7 +186,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool onboarded = true,
         TimeSpan pace = default,
         string repositoryName = "repository",
-        bool production = false)
+        bool production = false,
+        bool realSignIns = false)
     {
         var data = new TemporaryFolder();
 
@@ -204,6 +205,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace, Production = production };
         surroundings.Telemetry.Configured = telemetry;
+        surroundings.SignIns.Real = realSignIns;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
             surroundings.SignIns.Recorded[tool] = outcome;
@@ -305,10 +307,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task RestartAfterAsync(TimeSpan closed, Action watching, Action whileClosed)
     {
+        InvariantsKeptAttribute.Report(await InvariantCheck.InstantAsync(application.Root.Services, Cancellation));
         await application.DisposeAsync();
         whileClosed();
         Clock.Advance(closed);
-        application = new Application(surroundings.Compose(plugins, data), surroundings.Processes.InFlight);
+        application = new SimulatedApplication(surroundings.Compose(plugins, data), surroundings.Processes.InFlight);
         watching();
         application.Root.Start();
     }
@@ -406,13 +409,21 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await StopAsync();
-        await repository.DisposeAsync();
-        await surroundings.Tools.DisposeAsync();
-        await data.DisposeAsync();
-        surroundings.Notifier.Dispose();
-        Ui.Dispose();
+        try
+        {
+            await StopAsync();
+        }
+        finally
+        {
+            await repository.DisposeAsync();
+            await surroundings.Tools.DisposeAsync();
+            await data.DisposeAsync();
+            surroundings.Notifier.Dispose();
+            Ui.Dispose();
+        }
     }
+
+    public Task<IReadOnlyList<string>> BrokenInvariantsAsync() => application.BrokenAsync();
 
     public Task<OpenWorkbench> WorkbenchAsync() => OpenWorkbench.ActivateAsync(this);
 
@@ -424,7 +435,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
         {
             stopped = true;
             surroundings.Board.Release();
-            await application.DisposeAsync();
+
+            try
+            {
+                InvariantsKeptAttribute.Report(await application.BrokenAsync());
+            }
+            finally
+            {
+                await application.DisposeAsync();
+            }
         }
     }
 
@@ -480,96 +499,6 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
-    }
-
-    private sealed class Application : IAsyncDisposable
-    {
-        private readonly CancellationTokenSource subscriptions = new();
-        private readonly ProcessesInFlight processes;
-
-        public Application(CompositionRoot root, ProcessesInFlight processes)
-        {
-            Root = root;
-            this.processes = processes;
-            Progress = Watch<JobProgressed>();
-            Activity = Watch<AgentActivity>();
-            Canvases = Watch<CanvasUpdated>();
-            Decisions = Watch<PermissionDecided>();
-            Holds = Watch<JobHeld>();
-            Resumable = Watch<JobResumable>();
-            Supervision = Watch<SupervisorIntervened>();
-            Budgets = Watch<BudgetIntervened>();
-            Usage = Watch<UsageRecorded>();
-            Forms = Watch<FormDecided>();
-            Autonomies = Watch<AutonomyApplied>();
-            Opened = Watch<SessionOpened>();
-            Orphans = Watch<OrphansFound>();
-            Reclaimed = Watch<WorktreeReclaimed>();
-            Leased = Watch<PortsLeased>();
-            Queued = Watch<JobQueued>();
-            Sampled = Watch<ResourcesSampled>();
-            Started = new(Feed.SubscribeAsync<StartupCompleted>(subscriptions.Token), Feed.SubscribeAsync<StartupProgressed>(subscriptions.Token), Cancellation) { Processes = processes };
-            Reported = Watch<ChildReported>();
-            Delivered = Watch<ReportDelivered>();
-        }
-
-        public EventWatch<StartupCompleted> Started { get; }
-
-        public EventWatch<ChildReported> Reported { get; }
-
-        public EventWatch<ReportDelivered> Delivered { get; }
-
-        public EventWatch<OrphansFound> Orphans { get; }
-
-        public EventWatch<WorktreeReclaimed> Reclaimed { get; }
-
-        public EventWatch<PortsLeased> Leased { get; }
-
-        public EventWatch<JobQueued> Queued { get; }
-
-        public EventWatch<ResourcesSampled> Sampled { get; }
-
-        public EventWatch<SessionOpened> Opened { get; }
-
-        public EventWatch<FormDecided> Forms { get; }
-
-        public EventWatch<AutonomyApplied> Autonomies { get; }
-
-        public CompositionRoot Root { get; }
-
-        public EventWatch<JobProgressed> Progress { get; }
-
-        public EventWatch<AgentActivity> Activity { get; }
-
-        public EventWatch<CanvasUpdated> Canvases { get; }
-
-        public EventWatch<PermissionDecided> Decisions { get; }
-
-        public EventWatch<JobHeld> Holds { get; }
-
-        public EventWatch<JobResumable> Resumable { get; }
-
-        public EventWatch<SupervisorIntervened> Supervision { get; }
-
-        public EventWatch<BudgetIntervened> Budgets { get; }
-
-        public EventWatch<UsageRecorded> Usage { get; }
-
-        public async ValueTask DisposeAsync()
-        {
-            await subscriptions.CancelAsync();
-            await Root.DisposeAsync();
-            subscriptions.Dispose();
-        }
-
-        public EventWatch<TEvent> Watch<TEvent>()
-            where TEvent : IIntegrationEvent =>
-            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), LoggedAsync, Cancellation) { Processes = processes };
-
-        private Task<string> LoggedAsync(CancellationToken cancellationToken) =>
-            RunLog.ProblemsAsync(Root.Services.GetRequiredService<AvalaPaths>().Logs, cancellationToken);
-
-        private IEventFeed Feed => Root.Services.GetRequiredService<IEventFeed>();
+                RealNotifier ? [new TurnLedger(), Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [new TurnLedger(), Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
     }
 }

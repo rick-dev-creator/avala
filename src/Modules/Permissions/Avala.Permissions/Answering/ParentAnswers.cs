@@ -62,7 +62,8 @@ internal sealed class ParentAnswers(GovernanceBook book, IAgents agents, AnswerL
             return PolicyError.NotAwaitingAnswer;
         }
 
-        var delivered = await agents.AnswerAsync(child, reply.Answer, cancellationToken);
+        var answer = reply.Answer with { AnsweredBy = MessageAuthor.Avala };
+        var delivered = await agents.AnswerAsync(child, answer, cancellationToken);
 
         if (!delivered.TryGetValue(out _, out var error))
         {
@@ -71,7 +72,7 @@ internal sealed class ParentAnswers(GovernanceBook book, IAgents agents, AnswerL
             return error == AgentError.InvalidAnswer ? PolicyError.InvalidAnswer : PolicyError.NotAwaitingAnswer;
         }
 
-        var answered = asked with { Delivery = DecisionDelivery.Answered, Answer = reply.Answer };
+        var answered = asked with { Delivery = DecisionDelivery.Answered, Answer = answer };
         await ledger.ReplacedAsync(answered, cancellationToken);
 
         return answered;

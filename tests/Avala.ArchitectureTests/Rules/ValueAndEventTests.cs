@@ -46,4 +46,14 @@ public sealed class ValueAndEventTests
     [Fact]
     public void DetectsMisplacedIntegrationEvents() =>
         Assert.Equal(["MisplacedIntegrationEvent"], Violations.Named(ValueAndEventRules.MisplacedIntegrationEvents(Violating)));
+
+    [Theory]
+    [InlineData(Scope.Production)]
+    [InlineData(Scope.Compliant)]
+    public void ARecordWithAPropertyOfItsOwnTypeSaysHowItReadsAsText(Scope scope) =>
+        Assert.Empty(ValueAndEventRules.RecordsPrintingThemselves(CodeScopes.Of(scope)));
+
+    [Fact]
+    public void DetectsRecordsThatWouldPrintThemselvesForever() =>
+        Assert.Equal(["SelfPrintingCount"], Violations.Named(ValueAndEventRules.RecordsPrintingThemselves(Violating)));
 }

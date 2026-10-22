@@ -50,6 +50,14 @@ public sealed class ConversationPhrasesTests
     [InlineData(HoldReason.Stalled, "Held · stalled · send a message to continue the job…")]
     [InlineData(HoldReason.SessionLost, "Held · session lost · send a message to continue the job…")]
     [InlineData(HoldReason.Interrupted, "Held · interrupted · send a message to continue the job…")]
+    [InlineData(HoldReason.BudgetExceeded, "Held · over budget · send a message to continue the job…")]
+    [InlineData(HoldReason.LimitNearlyReached, "Held · near its limit · send a message to continue the job…")]
+    [InlineData(HoldReason.InvalidBudget, "Held · invalid budget · send a message to continue the job…")]
+    [InlineData(HoldReason.InvalidChecks, "Held · invalid checks · send a message to continue the job…")]
+    [InlineData(HoldReason.MemoryExceeded, "Held · out of memory · send a message to continue the job…")]
+    [InlineData(HoldReason.Stopped, "Held · stopped · send a message to continue the job…")]
+    [InlineData(HoldReason.NotResumable, "Held · its conversation cannot resume · send a message to continue the job…")]
+    [InlineData(HoldReason.TurnFailed, "Held · its agent's turn failed · send a message to continue the job…")]
     [InlineData(HoldReason.CouldNotStart, "Could not start · retry it from the inspector's worktree section")]
     public void AHeldJobsComposerSaysWhyItIsHeldAndWhatAMessageDoes(HoldReason hold, string phrase) =>
         Assert.Equal(phrase, ConversationPhrases.Placeholder(JobStatus.NeedsHelp, true, Option<PullRequestWatchState>.None, hold, Option<JobFailure>.None));

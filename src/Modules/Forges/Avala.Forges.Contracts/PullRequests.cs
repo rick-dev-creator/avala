@@ -50,6 +50,10 @@ public sealed record PullRequestState(PullRequestRef PullRequest, PullRequestLif
     public IReadOnlyList<CheckRun> Checks { get; init; } = [];
 
     public IReadOnlyList<Review> Reviews { get; init; } = [];
+
+    public Option<RepositoryAddress> HeadRepository { get; init; }
+
+    public Option<RepositoryAddress> BaseRepository { get; init; }
 }
 
 public sealed record CommentRef(string Id, Option<Uri> Link);

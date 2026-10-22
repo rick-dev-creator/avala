@@ -13,6 +13,8 @@ namespace Avala.Workbench.Resources;
 
 internal interface IResourcesViewModel
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     string Title { get; }
 
     string Scope { get; }
@@ -108,6 +110,8 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
     public partial int LeftBehind { get; private set; }
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
 
     public void Activate() => feed.Start(_ => ValueTask.FromResult(reader.Read()), Show);
 

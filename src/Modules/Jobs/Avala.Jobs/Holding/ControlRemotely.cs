@@ -2,12 +2,13 @@ using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
+using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
 using Avala.Sdk;
 
 namespace Avala.Jobs.Holding;
 
-internal sealed class ControlRemotely(JobLedger ledger, IConnections connections)
+internal sealed class ControlRemotely(JobLedger ledger, IConnections connections, JobLauncher launcher)
 {
     public async Task<Result<JobRemoteControlChosen, JobRejection>> ExecuteAsync(Job job, bool on, CancellationToken cancellationToken)
     {
@@ -28,6 +29,11 @@ internal sealed class ControlRemotely(JobLedger ledger, IConnections connections
 
         var chosen = new JobRemoteControlChosen(job.Id, on);
         await ledger.RecordRemoteControlAsync(job, chosen, cancellationToken);
+
+        if (on)
+        {
+            await launcher.ReopenForDeviceAsync(job, cancellationToken);
+        }
 
         return chosen;
     }
