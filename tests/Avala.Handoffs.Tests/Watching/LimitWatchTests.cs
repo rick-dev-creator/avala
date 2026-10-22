@@ -57,6 +57,19 @@ public sealed class LimitWatchTests
     }
 
     [Fact]
+    public async Task ACompanionHeldWhileItsWindowsResetIsUnknownIsStillGivenATimeToGoOnByItselfAsync()
+    {
+        await using var watched = new Watched { Companion = true };
+        watched.Status(JobStatus.NeedsHelp);
+        watched.Reading(Watched.Work, 0.95, Option<DateTimeOffset>.None);
+
+        await watched.HeldAsync(HoldReason.LimitNearlyReached);
+        var wait = await watched.WaitingAsync();
+
+        Assert.True(wait.ResumesAt.IsSome);
+    }
+
+    [Fact]
     public async Task AJobWhoseConnectionIsNoLongerDeclaredMovesWithinTheHarnessItsUsageNamesAsync()
     {
         await using var watched = new Watched { Running = new ConnectionName("retired") };

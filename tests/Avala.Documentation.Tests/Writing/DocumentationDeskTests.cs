@@ -317,4 +317,22 @@ public sealed class DocumentationDeskTests
         Assert.All(documented.Published<VersionWritten>(), written => Assert.Equal(job, written.Job));
         Assert.Contains("- Files changed: 1, +84 −0\n", documented.Files[FakeJobs.Worktree(job), $"{Folder}/v2-as-built.md"]);
     }
+
+    [Fact]
+    public async Task AWriterHeldAtItsUsageLimitAfterItsJobEndedIsStoppedAndShownNotWrittenInsteadOfWaitingAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        var writer = documented.LastWriter;
+        await documented.ProgressAsync(job, JobStatus.Approved);
+        documented.Jobs.Held(writer, HoldReason.LimitNearlyReached);
+
+        await documented.Desk.HandleAsync(new JobProgressed(writer, JobStatus.NeedsHelp), Cancellation);
+
+        Assert.Empty(documented.Published<VersionWaiting>());
+        Assert.Equal(Option<UnwrittenVersion>.None, Outcomes.Present(documented.Book.Of(job)).Waiting);
+        Assert.Equal([new VersionNotWritten(job, VersionKind.Proposed, VersionFailure.WriterStopped) { Hold = HoldReason.LimitNearlyReached }], documented.Published<VersionNotWritten>());
+        Assert.Contains(writer, documented.Jobs.Discarded);
+    }
 }
