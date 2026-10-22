@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Permissions.Answering;
@@ -215,17 +216,47 @@ public sealed class RequestFactsTests
         Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
     }
 
-    [Fact]
-    public void AGlobOverAFolderTooLargeToCheckStillAsks()
+    [Theory]
+    [InlineData(4096, PolicyAnswer.Allow)]
+    [InlineData(4097, PolicyAnswer.Ask)]
+    public void AGlobIsCheckedUpToItsMostMatchesAndAsksBeyondThem(int folders, PolicyAnswer expected)
     {
         using var workspace = new TemporaryFolder();
 
-        foreach (var number in Enumerable.Range(0, 4097))
+        foreach (var number in Enumerable.Range(0, folders))
         {
             Directory.CreateDirectory(Path.Combine(workspace.Path, "docs", $"d{number}"));
         }
 
-        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, "cat docs/*"));
+        Assert.Equal(expected, Decided(workspace.Path, "cat docs/*"));
+    }
+
+    [Fact]
+    public void AGlobThatWouldListMoreNamesThanCanBeCheckedStillAsks()
+    {
+        using var workspace = new TemporaryFolder();
+
+        foreach (var number in Enumerable.Range(0, 65537))
+        {
+            Directory.CreateDirectory(Path.Combine(workspace.Path, "docs", $"d{number}"));
+        }
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, "cat docs/zz*"));
+    }
+
+    [Fact]
+    [UnsupportedOSPlatform("windows")]
+    public void AGlobOverAFolderThatCannotBeListedStillAsks()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows() || Environment.IsPrivilegedProcess, "Only an unprivileged process on Unix is kept out of a folder by its mode.");
+        using var workspace = new TemporaryFolder();
+        var docs = Path.Combine(workspace.Path, "docs");
+        Directory.CreateDirectory(docs);
+        File.SetUnixFileMode(docs, UnixFileMode.None);
+        var answer = Decided(workspace.Path, "cat docs/*");
+        File.SetUnixFileMode(docs, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        Assert.Equal(PolicyAnswer.Ask, answer);
     }
 
     [Theory]

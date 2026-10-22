@@ -245,6 +245,7 @@ public sealed class ReadOnlyCommandTests
     [InlineData("git sta* --short")]
     [InlineData("c?t README.md")]
     [InlineData("tr a b /etc/p*")]
+    [InlineData("git diff -U*")]
     [InlineData("echo ../*")]
     [InlineData("echo /etc/*")]
     [InlineData("git log --grep -- *.cs")]

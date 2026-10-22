@@ -9,16 +9,19 @@ internal sealed class SymbolicLinks : IRealPaths
 
     private const int MostMatches = 4096;
 
+    private const int MostEntries = 65536;
+
     private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
     private static readonly char[] Wildcards = ['*', '?'];
 
-    private static readonly EnumerationOptions Listing = new() { AttributesToSkip = 0, IgnoreInaccessible = true, ReturnSpecialDirectories = false, RecurseSubdirectories = false };
+    private static readonly EnumerationOptions Listing = new() { AttributesToSkip = 0, IgnoreInaccessible = false, ReturnSpecialDirectories = false, RecurseSubdirectories = false };
 
     public Option<IReadOnlyList<string>> Expand(string pattern)
     {
         var root = Path.GetPathRoot(pattern) ?? string.Empty;
         IReadOnlyList<string> found = [root];
+        var visited = 0;
 
         foreach (var part in pattern[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries))
         {
@@ -30,12 +33,7 @@ internal sealed class SymbolicLinks : IRealPaths
                 {
                     next.Add(Path.Combine(folder, part));
                 }
-                else if (!Listed(folder, part, next))
-                {
-                    return Option<IReadOnlyList<string>>.None;
-                }
-
-                if (next.Count > MostMatches)
+                else if (!Listed(folder, part, next, ref visited))
                 {
                     return Option<IReadOnlyList<string>>.None;
                 }
@@ -82,7 +80,7 @@ internal sealed class SymbolicLinks : IRealPaths
         return current;
     }
 
-    private static bool Listed(string folder, string part, List<string> matches)
+    private static bool Listed(string folder, string part, List<string> matches, ref int visited)
     {
         if (!Directory.Exists(folder))
         {
@@ -93,7 +91,7 @@ internal sealed class SymbolicLinks : IRealPaths
         {
             foreach (var entry in Directory.EnumerateFileSystemEntries(folder, "*", Listing))
             {
-                if (!Faithful(entry))
+                if (++visited > MostEntries || entry.Contains('\uFFFD', StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -116,9 +114,6 @@ internal sealed class SymbolicLinks : IRealPaths
             return false;
         }
     }
-
-    private static bool Faithful(string entry) =>
-        !entry.Contains('\uFFFD', StringComparison.Ordinal) && (File.Exists(entry) || Directory.Exists(entry) || Target(entry).Length > 0);
 
     private static bool Fits(string part, string name)
     {
