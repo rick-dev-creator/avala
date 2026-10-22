@@ -9,7 +9,7 @@ internal static class ScenarioCatalog
 {
     private const string Tag = "[simulate:";
 
-    private static readonly IStep[] FixedCalculator =
+    internal static readonly IStep[] FixedCalculator =
     [
         Thought("The feedback says the sum is wrong. ", "I will fix it."),
         new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),
@@ -108,23 +108,6 @@ internal static class ScenarioCatalog
             Message("The calculator is ready."),
             .. Bill(3_100, 240, 0.0150m, 0.21),
             new Finish(),
-        ],
-        FixedCalculator,
-    ]);
-
-    public static Scenario FixPastTheWindow { get; } = new("fix-past-the-window",
-    [
-        [
-            Thought("A quick change ", "to the calculator."),
-            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
-            Message("The calculator is ready."),
-            .. Bill(3_100, 240, 0.0150m, 0.21),
-            new Finish(),
-        ],
-        [
-            Thought("The fix needs a long look ", "at every caller."),
-            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
-            new RunOutOfWindow("5h", TimeSpan.FromHours(1)),
         ],
         FixedCalculator,
     ]);
@@ -545,7 +528,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, FixPastTheWindow, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
         LargeContext, .. RetryScenarios.All, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
     ];
 
