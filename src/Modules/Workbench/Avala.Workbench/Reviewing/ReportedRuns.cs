@@ -139,12 +139,18 @@ internal static partial class ReportedRuns
             [var program, ..] => Writing.Contains(Program(program))
                 || words.Zip(words.Skip(1)).Any(pair => Rewriting.Contains($"{Program(pair.First)} {pair.Second}"))
                 || Interprets(words)
-                || (Runners.Contains(Program(program)) && Named(words).Take(2).SelectMany(word => word.Split(Parts)).Any(Formatting.Contains))
-                || words.Any(word => Fixing.Contains(word) || word.StartsWith("--fix=", StringComparison.Ordinal))
-                || (words.Any(word => word is "rubocop" or "jest" or "vitest") && words.Any(word => word is "-a" or "-A" or "-u"))
-                || (words.Contains("prettier") && words.Contains("-w")),
+                || Formats(Program(program), words)
+                || Fixes(words),
         };
     }
+
+    private static bool Formats(string program, List<string> words) =>
+        Runners.Contains(program) && Named(words).Take(2).SelectMany(word => word.Split(Parts)).Any(Formatting.Contains);
+
+    private static bool Fixes(List<string> words) =>
+        words.Any(word => Fixing.Contains(word) || word.StartsWith("--fix=", StringComparison.Ordinal))
+        || (words.Any(word => word is "rubocop" or "jest" or "vitest") && words.Any(word => word is "-a" or "-A" or "-u"))
+        || (words.Contains("prettier") && words.Contains("-w"));
 
     private static bool Interprets(List<string> words) => Interpreters.Contains(Program(words[0])) && words.Skip(1).Any(Inline.Contains);
 
