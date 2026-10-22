@@ -11,7 +11,7 @@ internal sealed class SymbolicLinks : IRealPaths
 
     private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
-    private static readonly char[] Wildcards = ['*', '?', '['];
+    private static readonly char[] Wildcards = ['*', '?'];
 
     private static readonly EnumerationOptions Listing = new() { AttributesToSkip = 0, IgnoreInaccessible = true, ReturnSpecialDirectories = false, RecurseSubdirectories = false };
 
@@ -22,12 +22,26 @@ internal sealed class SymbolicLinks : IRealPaths
 
         foreach (var part in pattern[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries))
         {
-            found = part.IndexOfAny(Wildcards) >= 0 ? [.. found.SelectMany(folder => Entries(folder, part)).Take(MostMatches + 1)] : [.. found.Select(folder => Path.Combine(folder, part))];
+            var next = new List<string>();
 
-            if (found.Count > MostMatches)
+            foreach (var folder in found)
             {
-                return Option<IReadOnlyList<string>>.None;
+                if (part.IndexOfAny(Wildcards) < 0)
+                {
+                    next.Add(Path.Combine(folder, part));
+                }
+                else if (!Listed(folder, part, next))
+                {
+                    return Option<IReadOnlyList<string>>.None;
+                }
+
+                if (next.Count > MostMatches)
+                {
+                    return Option<IReadOnlyList<string>>.None;
+                }
             }
+
+            found = next;
         }
 
         return Option<IReadOnlyList<string>>.Some(found);
@@ -68,36 +82,57 @@ internal sealed class SymbolicLinks : IRealPaths
         return current;
     }
 
-    private static IEnumerable<string> Entries(string folder, string part)
+    private static bool Listed(string folder, string part, List<string> matches)
     {
-        try
-        {
-            return Directory.Exists(folder) ? [.. Directory.EnumerateFileSystemEntries(folder, "*", Listing).Where(entry => Fits(part, Path.GetFileName(entry))).Take(MostMatches + 1)] : [];
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return [];
-        }
-    }
-
-    private static bool Fits(string part, string name)
-    {
-        if (part.Contains('[', StringComparison.Ordinal))
+        if (!Directory.Exists(folder))
         {
             return true;
         }
 
+        try
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(folder, "*", Listing))
+            {
+                if (!Faithful(entry))
+                {
+                    return false;
+                }
+
+                if (Fits(part, Path.GetFileName(entry)))
+                {
+                    matches.Add(entry);
+                }
+
+                if (matches.Count > MostMatches)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool Faithful(string entry) =>
+        !entry.Contains('\uFFFD', StringComparison.Ordinal) && (File.Exists(entry) || Directory.Exists(entry) || Target(entry).Length > 0);
+
+    private static bool Fits(string part, string name)
+    {
         var (p, n, star, resume) = (0, 0, -1, 0);
 
         while (n < name.Length)
         {
-            if (p < part.Length && (part[p] == '?' || char.ToUpperInvariant(part[p]) == char.ToUpperInvariant(name[n])))
-            {
-                (p, n) = (p + 1, n + 1);
-            }
-            else if (p < part.Length && part[p] == '*')
+            if (p < part.Length && part[p] is '*' or '?')
             {
                 (star, resume, p) = (p, n, p + 1);
+            }
+            else if (p < part.Length && Same(part[p], name[n]))
+            {
+                (p, n) = (p + 1, n + 1);
             }
             else if (star >= 0)
             {
@@ -110,8 +145,10 @@ internal sealed class SymbolicLinks : IRealPaths
             }
         }
 
-        return part[p..].All(character => character == '*');
+        return part[p..].All(character => character is '*' or '?');
     }
+
+    private static bool Same(char wanted, char named) => !char.IsAscii(named) || char.ToUpperInvariant(wanted) == char.ToUpperInvariant(named);
 
     private static string Target(string path)
     {

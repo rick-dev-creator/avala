@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Permissions.Answering;
@@ -143,7 +144,6 @@ public sealed class RequestFactsTests
     [InlineData("cat docs/*.md")]
     [InlineData("head -n 1 docs/l*")]
     [InlineData("grep -rn secret docs/h*")]
-    [InlineData("cat docs/../../*")]
     [InlineData("ls docs/*/")]
     public async Task AReadThatFollowsALinkOutOfTheWorktreeRecursivelyOrThroughAGlobStillAsks(string line)
     {
@@ -174,6 +174,126 @@ public sealed class RequestFactsTests
 
         Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Requested(ItemKind.Command, line).Facts(workspace.Path, Links)).Answer);
     }
+
+    [Theory]
+    [InlineData("cat docs/../../*")]
+    [InlineData("ls docs/*/../../../*")]
+    [InlineData("echo docs/*/../../../*")]
+    [InlineData("echo ../*")]
+    public void AGlobThatClimbsOutOfTheWorktreeStillAsks(string line)
+    {
+        using var workspace = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs", "guide"));
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
+    }
+
+    [Theory]
+    [InlineData("cat docs/*")]
+    [InlineData("echo docs/*")]
+    public void AGlobWhoseMatchIsAHiddenLinkOutOfTheWorktreeStillAsks(string line)
+    {
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", ".leak"), elsewhere.Path);
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
+    }
+
+    [Theory]
+    [InlineData("leak", "cat docs/L*")]
+    [InlineData("leak", "cat docs/LEA?")]
+    [InlineData("\u212Aey", "cat docs/k*")]
+    public void AGlobMatchesNamesInAnyLetterCaseSoALinkOutOfTheWorktreeStillAsks(string link, string line)
+    {
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", link), elsewhere.Path);
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
+    }
+
+    [Fact]
+    public void AGlobOverAFolderTooLargeToCheckStillAsks()
+    {
+        using var workspace = new TemporaryFolder();
+
+        foreach (var number in Enumerable.Range(0, 4097))
+        {
+            Directory.CreateDirectory(Path.Combine(workspace.Path, "docs", $"d{number}"));
+        }
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, "cat docs/*"));
+    }
+
+    [Theory]
+    [InlineData("*evil", "cat docs/*")]
+    [InlineData("*evil", "grep -rn SECRET docs/*")]
+    [InlineData("l*ok", "cat docs/l*k")]
+    public void AGlobMeetingAWildcardInAFileNameStillSeesTheLinkBehindIt(string link, string line)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows names cannot hold a wildcard.");
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", link), elsewhere.Path);
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
+    }
+
+    [Theory]
+    [InlineData("cat docs/e?x")]
+    [InlineData("cat docs/e????x")]
+    public void AGlobMatchingANameOutsideTheBasicPlaneStillSeesTheLinkBehindIt(string line)
+    {
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", "e\U0001F600x"), elsewhere.Path);
+
+        Assert.Equal(PolicyAnswer.Ask, Decided(workspace.Path, line));
+    }
+
+    [Fact]
+    public async Task AGlobOverANameThatIsNotValidTextStillAsks()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Only Linux keeps a name that is not valid text.");
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
+        var linked = await ShellAsync(workspace.Path, "ln -s \"$1\" \"$(printf 'docs/bad\\377')\"", elsewhere.Path);
+        var answer = Decided(workspace.Path, "cat docs/b*");
+        var removed = await ShellAsync(workspace.Path, "rm \"$(printf 'docs/bad\\377')\"", elsewhere.Path);
+
+        Assert.Equal((0, PolicyAnswer.Ask, 0), (linked, answer, removed));
+    }
+
+    private static async Task<int> ShellAsync(string folder, string script, string argument)
+    {
+        using var shell = Process.Start(new ProcessStartInfo("/bin/sh") { ArgumentList = { "-c", script, "sh", argument }, WorkingDirectory = folder })!;
+        await shell.WaitForExitAsync(TestContext.Current.CancellationToken);
+
+        return shell.ExitCode;
+    }
+
+    [Fact]
+    public async Task AGlobIntoAReadableFolderIsReadableButNotWritable()
+    {
+        using var workspace = new TemporaryFolder();
+        using var projects = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(projects.Path, "sibling"));
+        await File.WriteAllTextAsync(Path.Combine(projects.Path, "sibling", "a.md"), "a", TestContext.Current.CancellationToken);
+        var pattern = Path.Combine(projects.Path, "sibling", "*.md");
+        var facts = Requested(ItemKind.Command, $"cat {pattern}").Facts(workspace.Path, Option<string>.None, [projects.Path], Links);
+        var located = facts.Locate(pattern);
+
+        Assert.Equal((PolicyAnswer.Allow, false, true), (PermissionPolicy.BuiltIn.Decide(facts).Answer, located.InsideWorkspace, located.Readable));
+    }
+
+    private static PolicyAnswer Decided(string workspace, string line) =>
+        PermissionPolicy.BuiltIn.Decide(Requested(ItemKind.Command, line).Facts(workspace, Links)).Answer;
 
     private static PermissionRequested Requested(ItemKind kind, string target) =>
         new(SessionId.New(), TurnId.New(), new ItemId("item"), "Request", kind, target);

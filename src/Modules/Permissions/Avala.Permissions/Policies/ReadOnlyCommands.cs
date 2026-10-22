@@ -8,7 +8,7 @@ internal static class ReadOnlyCommands
     {
         var arguments = command.Words.Select((word, index) => new Argument(word, index < command.Raws.Count ? command.Raws[index] : word)).ToList();
 
-        if (arguments.Count == 0 || arguments[0].Expands || arguments.Any(argument => argument.Expands && !argument.Glob))
+        if (arguments.Count == 0 || arguments.Any(argument => argument.Expands && !argument.Glob))
         {
             return false;
         }
@@ -81,7 +81,7 @@ internal static class ReadOnlyCommands
         {
             if (options.Free)
             {
-                return true;
+                return pending.All(argument => !argument.Expands || Inside(argument.Value, locate));
             }
 
             while (pending.TryDequeue(out var argument))

@@ -28,7 +28,7 @@ internal static class RequestFacts
     {
         var located = Placed(target, workingDirectory, scratch, readable, paths);
 
-        if (target.IndexOfAny(['*', '?', '[']) < 0 || !IsPath(target))
+        if (target.IndexOfAny(['*', '?']) < 0 || !IsPath(target))
         {
             return located;
         }

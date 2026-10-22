@@ -175,9 +175,12 @@ public sealed class ReadOnlyCommandTests
     [InlineData("git log --committer rick -5")]
     [InlineData("git log --author rick --oneline")]
     [InlineData("git show --until yesterday --stat HEAD")]
-    [InlineData("git log --committer --output=.git/config")]
     public void AGitLogFilterWithItsValueAsTheNextWordIsAllowedWithoutAsking(string line) =>
         Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command(line)).Answer);
+
+    [Fact]
+    public void AGitLogFilterTakesTheNextWordAsItsValueEvenWhenItLooksLikeAnOption() =>
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command("git log --committer --output=.git/config")).Answer);
 
     [Theory]
     [InlineData("git log --committer rick --output=.git/config")]
@@ -241,6 +244,9 @@ public sealed class ReadOnlyCommandTests
     [InlineData("find src/* -name x")]
     [InlineData("git sta* --short")]
     [InlineData("c?t README.md")]
+    [InlineData("tr a b /etc/p*")]
+    [InlineData("echo ../*")]
+    [InlineData("echo /etc/*")]
     [InlineData("git log --grep -- *.cs")]
     [InlineData("grep -e -- *.txt")]
     [InlineData("sort -k -- *.txt")]
