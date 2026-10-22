@@ -59,7 +59,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open&head={Escape(context.Target.Repository.Owner)}:{Escape(head)}", cancellationToken))
-            .Bind(body => Json.Read(body, root => root.EnumerateArray().Where(pull => FromTarget(context, pull)).Select(Reference).FirstOrDefault().ToOption()));
+            .Bind(body => Json.Read(body, root => root.EnumerateArray().Where(pull => FromBase(context, pull)).Select(Reference).FirstOrDefault().ToOption()));
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
         (await context.Api.SendAsync(
@@ -139,17 +139,17 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
             : mergeable == JsonValueKind.True ? Mergeability.Mergeable
             : Mergeability.Unknown;
 
-        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = HeadRepository(context, pull) };
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = SideRepository(context, pull, "head"), BaseRepository = SideRepository(context, pull, "base") };
     }
 
-    private static bool FromTarget(ForgeContext context, JsonElement pull) =>
-        HeadRepository(context, pull).Match(
-            head => string.Equals(head.Owner, context.Target.Repository.Owner, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(head.Name, context.Target.Repository.Name, StringComparison.OrdinalIgnoreCase),
-            () => false);
+    private static bool FromBase(ForgeContext context, JsonElement pull) =>
+        SideRepository(context, pull, "head").Bind(head => SideRepository(context, pull, "base").Map(target =>
+                string.Equals(head.Owner, target.Owner, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(head.Name, target.Name, StringComparison.OrdinalIgnoreCase)))
+            .Match(same => same, () => false);
 
-    private static Option<RepositoryAddress> HeadRepository(ForgeContext context, JsonElement pull) =>
-        pull.GetProperty("head").TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
+    private static Option<RepositoryAddress> SideRepository(ForgeContext context, JsonElement pull, string side) =>
+        pull.GetProperty(side).TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
         && Json.Text(repo, "full_name").Split('/') is [{ Length: > 0 } owner, { Length: > 0 } name]
             ? new RepositoryAddress(context.Target.Repository.Host, owner, name)
             : Option<RepositoryAddress>.None;

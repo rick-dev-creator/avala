@@ -62,7 +62,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
             if ((await forge.Forge.ReadAsync(forge.Context, new PullRequestRef(number, link, string.Empty, string.Empty), cancellationToken)).TryGetValue(out var state, out _)
                 && state.Lifecycle == PullRequestLifecycle.Open
                 && string.Equals(state.PullRequest.Link.Host, link.Host, StringComparison.OrdinalIgnoreCase)
-                && state.HeadRepository.Match(head => RemoteAddresses.Same(head, target), () => false)
+                && state.HeadRepository.Match(head => RemoteAddresses.Same(head, state.BaseRepository.Match(origin => origin, () => target)), () => false)
                 && await PushedHereAsync(worktree, remote, target, reported, state, cancellationToken))
             {
                 return state.PullRequest;

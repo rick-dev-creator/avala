@@ -118,6 +118,7 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
                     Checks = facts.Checks,
                     Reviews = [.. facts.Reviews.Select(review => review with { Commit = head })],
                     HeadRepository = pull.Fork.Length > 0 ? context.Target.Repository with { Owner = pull.Fork } : context.Target.Repository,
+                    BaseRepository = context.Target.Repository,
                 });
             },
             cancellationToken);

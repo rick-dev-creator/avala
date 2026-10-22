@@ -15,7 +15,7 @@ internal static partial class PullRequestLinks
             .OfType<Uri>();
 
     private static Uri Anonymous(Uri link) =>
-        link.UserInfo.Length == 0 ? link : new UriBuilder(link) { UserName = string.Empty, Password = string.Empty }.Uri;
+        link.UserInfo.Length == 0 && link.Query.Length == 0 ? link : new UriBuilder(link) { UserName = string.Empty, Password = string.Empty, Query = string.Empty }.Uri;
 
     public static int Settled(string text)
     {

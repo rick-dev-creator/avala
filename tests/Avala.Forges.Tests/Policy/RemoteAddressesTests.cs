@@ -33,4 +33,10 @@ public sealed class RemoteAddressesTests
     [InlineData("/srv/remotes/octo/shop.git", "/home/mallory/octo/shop.git", false)]
     public void TwoAddressesOfTheSameRepositoryNameTheSameRemote(string one, string other, bool same) =>
         Assert.Equal(same, RemoteAddresses.Same(one, other));
+
+    [Theory]
+    [InlineData("https://x-access-token:ghp_secret@github.com/octo/shop.git", "https://github.com/octo/shop.git")]
+    [InlineData("git@github.com:octo/shop.git", "git@github.com:octo/shop.git")]
+    public void ARemoteUrlIsKeptWithoutTheCredentialsItCarries(string remote, string kept) =>
+        Assert.Equal(kept, RemoteAddresses.Anonymous(remote));
 }

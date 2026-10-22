@@ -37,7 +37,23 @@ internal static class RemoteAddresses
             || right.Host.EndsWith($".{left.Host}", StringComparison.OrdinalIgnoreCase));
 
     public static bool Same(string left, string right) =>
-        left == right || Parse(left).Bind(one => Parse(right).Map(other => Same(one, other))).Match(same => same, () => false);
+        left == right || Parse(left).Bind(one => Parse(right).Map(other => one.Host.Length == 0 && other.Host.Length == 0
+            ? string.Equals(LocalPath(left), LocalPath(right), StringComparison.Ordinal)
+            : Same(one, other))).Match(same => same, () => false);
+
+    public static string Anonymous(string remote) =>
+        remote.Contains("://", StringComparison.Ordinal) && Uri.TryCreate(remote.Trim(), UriKind.Absolute, out var uri) && uri.UserInfo.Length > 0
+            ? new UriBuilder(uri) { UserName = string.Empty, Password = string.Empty }.Uri.AbsoluteUri
+            : remote;
+
+    private static string LocalPath(string remote)
+    {
+        var trimmed = remote.Trim();
+        var path = trimmed.Contains("://", StringComparison.Ordinal) && Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ? uri.LocalPath : trimmed;
+        var full = string.Join('/', path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).Where(segment => segment != "."));
+
+        return full.EndsWith(GitSuffix, StringComparison.OrdinalIgnoreCase) ? full[..^GitSuffix.Length] : full;
+    }
 
     private static bool IsAbsolutePath(string path) =>
         path[0] is '/' or '\\'

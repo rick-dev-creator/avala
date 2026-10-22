@@ -50,6 +50,10 @@ public sealed class ReportedPullRequestsTests
     }
 
     [Fact]
+    public void APullRequestLinkIsKeptWithoutItsQuery() =>
+        Assert.Equal([new Uri("https://forge.example/octo/shop/pulls/7")], PullRequestLinks.In("Opened https://forge.example/octo/shop/pulls/7?token=secret "));
+
+    [Fact]
     public void ALinkOnAnotherHostWithOriginsOwnerAndNameIsNotOneOfOriginsPullRequests() =>
         Assert.True(PullRequestLinks.NumberOf(new Uri("https://elsewhere.example/octo/shop/pulls/7"), Shop, new HashSet<string>(["pulls"], StringComparer.Ordinal)).IsNone);
 

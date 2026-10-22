@@ -18,9 +18,45 @@ internal static class GitPushes
 
     private static readonly HashSet<string> GlobalValues = new(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"], StringComparer.Ordinal);
 
-    private static readonly HashSet<string> PushValues = new(["-o", "--push-option", "--receive-pack", "--exec"], StringComparer.Ordinal);
+    private static readonly Dictionary<string, Kind> LongOptions = new(StringComparer.Ordinal)
+    {
+        ["repo"] = Kind.Repository,
+        ["receive-pack"] = Kind.Value,
+        ["exec"] = Kind.Value,
+        ["push-option"] = Kind.Value,
+        ["recurse-submodules"] = Kind.Submodules,
+        ["all"] = Kind.Commitless,
+        ["branches"] = Kind.Commitless,
+        ["mirror"] = Kind.Commitless,
+        ["delete"] = Kind.Commitless,
+        ["dry-run"] = Kind.Commitless,
+        ["prune"] = Kind.Commitless,
+        ["tags"] = Kind.Flag,
+        ["porcelain"] = Kind.Flag,
+        ["force"] = Kind.Flag,
+        ["force-with-lease"] = Kind.Flag,
+        ["force-if-includes"] = Kind.Flag,
+        ["thin"] = Kind.Flag,
+        ["set-upstream"] = Kind.Flag,
+        ["progress"] = Kind.Flag,
+        ["verify"] = Kind.Flag,
+        ["follow-tags"] = Kind.Flag,
+        ["signed"] = Kind.Flag,
+        ["atomic"] = Kind.Flag,
+        ["ipv4"] = Kind.Flag,
+        ["ipv6"] = Kind.Flag,
+        ["quiet"] = Kind.Flag,
+        ["verbose"] = Kind.Flag,
+    };
 
-    private static readonly HashSet<string> Commitless = new(["--dry-run", "--delete", "--mirror", "--prune"], StringComparer.Ordinal);
+    private enum Kind
+    {
+        Flag,
+        Value,
+        Repository,
+        Submodules,
+        Commitless,
+    }
 
     public static IReadOnlyList<PushedBranch> In(string command)
     {
@@ -64,6 +100,12 @@ internal static class GitPushes
 
         segments.Add(new Segment(before, current, Start));
 
+        while (segments.Count > 1 && segments[^1].Words.Count == 0 && segments[^1].Before == Next)
+        {
+            segments.RemoveAt(segments.Count - 1);
+            segments[^1] = segments[^1] with { After = Start };
+        }
+
         return segments;
     }
 
@@ -100,7 +142,7 @@ internal static class GitPushes
 
     private static Option<(string Repository, List<string> Refspecs)> Arguments(List<string> words, int start)
     {
-        var repository = string.Empty;
+        var named = string.Empty;
         var positional = new List<string>();
         var index = start;
 
@@ -108,32 +150,99 @@ internal static class GitPushes
         {
             var word = words[index];
 
-            if (LeavesNoCommit(word))
+            if (word == "--")
+            {
+                positional.AddRange(words.Skip(index + 1));
+
+                break;
+            }
+
+            var parsed = word.StartsWith('-') && word != "-" ? Parsed(words, index) : (1, string.Empty);
+
+            if (parsed.IsNone)
             {
                 return Option<(string, List<string>)>.None;
             }
 
-            if (word.StartsWith("--repo=", StringComparison.Ordinal))
-            {
-                repository = word["--repo=".Length..];
-            }
-            else if (word == "--repo" && index + 1 < words.Count)
-            {
-                repository = words[index + 1];
-            }
-            else if (!word.StartsWith('-') && word.IndexOfAny(['<', '>']) < 0)
+            var (length, repository) = parsed.Match(taken => taken, () => (1, string.Empty));
+            named = repository.Length > 0 ? repository : named;
+
+            if ((!word.StartsWith('-') || word == "-") && word.IndexOfAny(['<', '>']) < 0)
             {
                 positional.Add(word);
             }
 
-            index += word == "--repo" || PushValues.Contains(word) ? 2 : 1;
+            index += length;
         }
 
-        return repository.Length == 0 && positional.Count > 0 ? (positional[0], positional[1..]) : (repository, positional);
+        return positional.Count > 0 ? (positional[0], positional[1..]) : (named, positional);
     }
 
-    private static bool LeavesNoCommit(string word) =>
-        Commitless.Contains(word) || (word.Length > 1 && word[0] == '-' && word[1] != '-' && word.AsSpan(1).IndexOfAny('n', 'd') >= 0);
+    private static Option<(int Length, string Repository)> Parsed(List<string> words, int index)
+    {
+        var word = words[index];
+
+        if (!word.StartsWith("--", StringComparison.Ordinal))
+        {
+            return Short(words, index);
+        }
+
+        var equals = word.IndexOf('=', StringComparison.Ordinal);
+        var name = equals < 0 ? word[2..] : word[2..equals];
+
+        if (name.StartsWith("no-", StringComparison.Ordinal) && Resolved(name).IsNone)
+        {
+            return Resolved(name[3..]).Map(_ => (1, string.Empty));
+        }
+
+        return Resolved(name).Bind(kind => Taken(words, index, equals, kind));
+    }
+
+    private static Option<(int Length, string Repository)> Taken(List<string> words, int index, int equals, Kind kind)
+    {
+        var separate = equals < 0 && kind is Kind.Value or Kind.Repository or Kind.Submodules;
+        var value = equals >= 0 ? words[index][(equals + 1)..] : separate && index + 1 < words.Count ? words[index + 1] : string.Empty;
+
+        return kind switch
+        {
+            Kind.Commitless => Option<(int, string)>.None,
+            Kind.Submodules when value == "only" => Option<(int, string)>.None,
+            Kind.Repository => (separate ? 2 : 1, value),
+            _ => (separate ? 2 : 1, string.Empty),
+        };
+    }
+
+    private static Option<(int Length, string Repository)> Short(List<string> words, int index)
+    {
+        var cluster = words[index].AsSpan(1);
+
+        for (var position = 0; position < cluster.Length; position++)
+        {
+            switch (cluster[position])
+            {
+                case 'o':
+                    return (position == cluster.Length - 1 ? 2 : 1, string.Empty);
+                case 'u' or 'f' or 'q' or 'v' or '4' or '6':
+                    continue;
+                default:
+                    return Option<(int, string)>.None;
+            }
+        }
+
+        return (1, string.Empty);
+    }
+
+    private static Option<Kind> Resolved(string name)
+    {
+        if (LongOptions.TryGetValue(name, out var exact))
+        {
+            return exact;
+        }
+
+        var candidates = name.Length == 0 ? [] : LongOptions.Where(option => option.Key.StartsWith(name, StringComparison.Ordinal)).Select(option => option.Value).ToList();
+
+        return candidates.Count == 1 ? candidates[0] : Option<Kind>.None;
+    }
 
     private static string Destination(string refspec)
     {
@@ -199,11 +308,12 @@ internal static class GitPushes
                 return Quoted(character);
             }
 
-            if (character == '\\' && Index + 1 < command.Length)
+            if (character is '#' or '\\' && Escaped(character))
             {
-                Take(command[Index + 1], 2);
+                return true;
             }
-            else if (character is ' ' or '\t' or '\r')
+
+            if (character is ' ' or '\t' or '\r')
             {
                 End();
                 Index++;
@@ -215,6 +325,38 @@ internal static class GitPushes
             else
             {
                 Take(character, 1);
+            }
+
+            return true;
+        }
+
+        private bool Escaped(char character)
+        {
+            if (character == '#')
+            {
+                if (started)
+                {
+                    return false;
+                }
+
+                var end = command.IndexOf('\n', Index);
+                Index = end < 0 ? command.Length : end;
+            }
+            else if (command.AsSpan(Index).StartsWith("\\\n"))
+            {
+                Index += 2;
+            }
+            else if (command.AsSpan(Index).StartsWith("\\\r\n"))
+            {
+                Index += 3;
+            }
+            else if (Index + 1 < command.Length)
+            {
+                Take(command[Index + 1], 2);
+            }
+            else
+            {
+                return false;
             }
 
             return true;
@@ -234,7 +376,7 @@ internal static class GitPushes
         {
             var closing = command.IndexOf(quote, Index + 1);
 
-            if (closing < 0 || (quote == '"' && command.AsSpan(Index + 1, closing - Index - 1).IndexOfAny('\\', '$') >= 0))
+            if (closing < 0 || (quote == '"' && command.AsSpan(Index + 1, closing - Index - 1).IndexOfAny('\\', '$', '`') >= 0))
             {
                 return false;
             }

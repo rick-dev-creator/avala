@@ -47,7 +47,7 @@ public static class ForgeConformance
             Check(state.Lifecycle == PullRequestLifecycle.Open, problems, "a fresh pull request is not open");
             Check(state.HeadCommit.Length > 0, problems, "the pull request has no head commit");
             Check(state.PullRequest.Number == opened.Number, problems, "reading returned another pull request");
-            Check(state.HeadRepository == context.Target.Repository, problems, "a pull request opened from the repository's own branch does not name it as its head repository");
+            Check(OwnHead(state), problems, "a pull request opened from the repository's own branch does not name it as its head repository");
             Check(state.Checks.All(check => check.Name.Length > 0), problems, "a check has no name");
             Check(state.Reviews.All(review => review.Id.Length > 0 && review.Author.Length > 0), problems, "a review has no id or author");
         }
@@ -79,6 +79,8 @@ public static class ForgeConformance
 
         return problems;
     }
+
+    private static bool OwnHead(PullRequestState state) => state.HeadRepository.IsSome && state.HeadRepository == state.BaseRepository;
 
     public static async Task<IReadOnlyList<string>> CheckAccountAsync(IForge forge, ForgeContext context, CancellationToken cancellationToken)
     {

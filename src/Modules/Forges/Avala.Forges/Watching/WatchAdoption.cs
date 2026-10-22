@@ -53,7 +53,7 @@ internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, Ti
         var kept = new KeptWatch(
             state with { NextPoll = clock.GetUtcNow() + poll },
             delivered.Rules.Remote,
-            delivered.RemoteUrl,
+            RemoteAddresses.Anonymous(delivered.RemoteUrl),
             known.Match(found => found.Handled, () => []));
 
         await book.SaveAsync(kept, cancellationToken);

@@ -48,8 +48,14 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
             _ => false);
 
     private static bool Made(string subject) =>
-        Making.Any(action => subject.StartsWith(action, StringComparison.Ordinal))
-        || (subject.StartsWith("merge ", StringComparison.Ordinal) && !subject.EndsWith(": Fast-forward", StringComparison.Ordinal));
+        !FastForward(subject)
+        && (Making.Any(action => subject.StartsWith(action, StringComparison.Ordinal)) || subject.StartsWith("merge ", StringComparison.Ordinal));
+
+    private static bool FastForward(string subject) =>
+        !subject.StartsWith("commit", StringComparison.Ordinal)
+        && !subject.StartsWith("revert:", StringComparison.Ordinal)
+        && !subject.StartsWith("am:", StringComparison.Ordinal)
+        && subject.Contains("fast-forward", StringComparison.OrdinalIgnoreCase);
 
     private static string? Moved(string subject)
     {
