@@ -175,7 +175,11 @@ internal sealed class ShellReader(string text)
 
         SkipBlanks();
         var target = at >= text.Length || Ends(text[at]) ? new ShellWord(string.Empty, string.Empty, Literal: false) : ReadWord();
+        Redirect(op, kind, target);
+    }
 
+    private void Redirect(string op, Redirection kind, ShellWord target)
+    {
         if (target.Raw.Length == 0)
         {
             opaque = true;
@@ -184,15 +188,21 @@ internal sealed class ShellReader(string text)
         {
             heredocs.Enqueue((target.Value, target.Raw.IndexOfAny(['\'', '"', '\\']) >= 0, op == "<<-"));
         }
-        else if (kind == Redirection.Input && op != "<<<" && !(op == "<&" && IsDescriptor(target.Value)))
+        else if (ReadsFrom(op, kind, target))
         {
             Read(target);
         }
-        else if (kind == Redirection.Output || (kind == Redirection.Duplication && !IsDescriptor(target.Value)))
+        else if (WritesTo(kind, target))
         {
             Write(target);
         }
     }
+
+    private static bool ReadsFrom(string op, Redirection kind, ShellWord target) =>
+        kind == Redirection.Input && op != "<<<" && !(op == "<&" && IsDescriptor(target.Value));
+
+    private static bool WritesTo(Redirection kind, ShellWord target) =>
+        kind == Redirection.Output || (kind == Redirection.Duplication && !IsDescriptor(target.Value));
 
     private void Read(ShellWord target)
     {
