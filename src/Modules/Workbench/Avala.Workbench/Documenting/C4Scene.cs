@@ -47,23 +47,31 @@ internal static class C4Scene
 
         var now = step >= 0 && step < played.Steps.Count ? played.Steps[step] : null;
         var flow = now is { Kind: StepKind.Flow } ? now.Relations.Take(hop + 1).ToList() : [];
-        var reached = flow.SelectMany(relation => new[] { relation.From, relation.To }).ToHashSet(StringComparer.Ordinal);
-        var nodes = elements.Select(element => new SceneNode(element, states[element.Alias])
-        {
-            Focus = now is { Kind: not StepKind.Flow } && now.Elements.Contains(element.Alias),
-            Reached = reached.Contains(element.Alias),
-        }).ToList();
         var links = flow.Count > 0
-            ? flow.Select((relation, index) => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) }).ToList()
+            ? Numbered(flow)
             : visible.Select(relation => new GraphLink(relation.From, relation.To, relation.Label, Kind(relation, fresh, states, now))).ToList();
         var caption = flow.Count > 0 ? $"{flow.Count} · {flow[^1].Label}" : string.Empty;
 
-        return new Scene(nodes, links, [.. played.Structure.Boundaries.Select(boundary => new GraphFrame(boundary.Alias, boundary.Label))], caption)
+        return new Scene(Nodes(elements, states, now, flow), links, [.. played.Structure.Boundaries.Select(boundary => new GraphFrame(boundary.Alias, boundary.Label))], caption)
         {
             Structure = [.. played.Structure.Relations.Concat(earlier.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Quiet))],
             Flows = [.. played.Steps.Where(shown => shown.Kind == StepKind.Flow).SelectMany(shown => shown.Relations).Select(relation => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = "0" })],
         };
     }
+
+    private static List<SceneNode> Nodes(List<C4Element> elements, Dictionary<string, NodeState> states, PlayStep? now, List<C4Relation> flow)
+    {
+        var reached = flow.SelectMany(relation => new[] { relation.From, relation.To }).ToHashSet(StringComparer.Ordinal);
+
+        return [.. elements.Select(element => new SceneNode(element, states[element.Alias])
+        {
+            Focus = now is { Kind: not StepKind.Flow } && now.Elements.Contains(element.Alias),
+            Reached = reached.Contains(element.Alias),
+        })];
+    }
+
+    private static List<GraphLink> Numbered(List<C4Relation> flow) =>
+        [.. flow.Select((relation, index) => new GraphLink(relation.From, relation.To, relation.Label, EdgeKind.Flowing) { Badge = (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) })];
 
     private static List<C4Relation> Apply(PlayedVersion played, int step, int version, Dictionary<string, NodeState> states, List<C4Relation> visible)
     {
