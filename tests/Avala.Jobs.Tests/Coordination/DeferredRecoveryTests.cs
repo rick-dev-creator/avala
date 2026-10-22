@@ -117,6 +117,19 @@ public sealed class DeferredRecoveryTests
         Assert.Equal((continued.Session, $"Go on\n\n{Note}"), flow.Agents.Sent[^1]);
     }
 
+    [Fact]
+    public async Task AReportOwedToAJobHeldAtItsLimitReachesItWithAvalasContinuationAtTheResetAsync()
+    {
+        const string Reset = "The usage window has reset. Continue where you left off.";
+        var flow = JobFlow.With();
+        var job = await flow.HeldAsync(HoldReason.LimitNearlyReached);
+        flow.Briefings.Add(new Briefing(job.Id, Note));
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage(Reset) { Author = MessageAuthor.Avala }, Cancellation));
+
+        Assert.Equal((continued.Session, $"{Reset}\n\n{Note}"), flow.Agents.Sent[^1]);
+    }
+
     private static async Task<Job> DeferredAsync(JobFlow flow, Option<ResumeToken> token)
     {
         var job = await flow.RunningAsync();
