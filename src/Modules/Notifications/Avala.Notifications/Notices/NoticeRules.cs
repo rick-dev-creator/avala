@@ -26,9 +26,6 @@ internal static partial class NoticeRules
             ? Decision(decision.Job, decision.Session, decision.Item, decision.At) with { Detail = decision.Form.Title }
             : Option<Notice>.None;
 
-    public static Notice Of(ParentAsked asked) =>
-        Decision(asked.Delegation.Child, asked.Session, asked.Item, asked.Delegation.At) with { Detail = asked.Asking };
-
     public static Notice Of(JobHeld held, DateTimeOffset at) =>
         NeedsHelp(held.Hold.Job, BudgetHolds.Contains(held.Hold.Reason) ? NotificationKind.Budget : NotificationKind.Held, at) with { Detail = Words(held.Hold.Reason) };
 

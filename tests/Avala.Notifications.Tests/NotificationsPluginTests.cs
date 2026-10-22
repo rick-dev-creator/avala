@@ -42,6 +42,15 @@ public sealed class NotificationsPluginTests
         Assert.Contains(composition.Get<NotificationDesk>(), composition.All<IHandle<JobProgressed>>());
     }
 
+    [Fact]
+    public async Task NoNoticeIsSubscribedToAChildsQuestionToItsOrchestratorAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var composition = Compose(data);
+
+        Assert.Empty(composition.All<IHandle<Delegation.Contracts.ParentAsked>>());
+    }
+
     private static PluginComposition Compose(TemporaryFolder data)
     {
         var clock = new FakeTimeProvider(Samples.Monday);

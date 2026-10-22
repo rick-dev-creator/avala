@@ -13,7 +13,6 @@ namespace Avala.Notifications.Dispatching;
 internal sealed class NotificationDesk(Dispatcher dispatcher, IJobCatalog catalog, TimeProvider clock) :
     IHandle<PermissionDecided>,
     IHandle<FormDecided>,
-    IHandle<ParentAsked>,
     IHandle<PermissionAnswered>,
     IHandle<JobHeld>,
     IHandle<BudgetIntervened>,
@@ -33,9 +32,6 @@ internal sealed class NotificationDesk(Dispatcher dispatcher, IJobCatalog catalo
         await dispatcher.ResolveAsync(NoticeRules.Resolved(integrationEvent), cancellationToken);
         await OfferAsync(NoticeRules.Of(integrationEvent), cancellationToken);
     }
-
-    public ValueTask HandleAsync(ParentAsked integrationEvent, CancellationToken cancellationToken) =>
-        OfferAsync(NoticeRules.Of(integrationEvent), cancellationToken);
 
     public async ValueTask HandleAsync(PermissionAnswered integrationEvent, CancellationToken cancellationToken) =>
         await dispatcher.ResolveAsync(NoticeRules.Resolved(integrationEvent), cancellationToken);
