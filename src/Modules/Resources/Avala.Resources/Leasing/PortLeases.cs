@@ -9,12 +9,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Avala.Resources.Leasing;
 
-internal sealed partial class PortLeases(IListeningPorts listening, IResourceSettings settings, IEventBus bus, ILogger<PortLeases> logger)
+internal sealed partial class PortLeases(IPortClaims claims, IResourceSettings settings, IEventBus bus, ILogger<PortLeases> logger)
     : IProcessEnvironment, IPortLeases, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
     private Option<PortBook> book;
     private ImmutableList<PortLease> current = [];
+    private ImmutableDictionary<string, IDisposable> claimed = ImmutableDictionary<string, IDisposable>.Empty;
 
     public IReadOnlyList<PortLease> Current => Volatile.Read(ref current);
 
@@ -30,12 +31,20 @@ internal sealed partial class PortLeases(IListeningPorts listening, IResourceSet
             released => bus.PublishAsync(new PortsReleased(released), cancellationToken).AsTask(),
             () => Task.CompletedTask);
 
-    public ValueTask DisposeAsync() => owner.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await owner.DisposeAsync();
+
+        foreach (var claim in claimed.Values)
+        {
+            claim.Dispose();
+        }
+    }
 
     private async ValueTask<Option<PortLease>> LeaseAsync(string holder, bool own, CancellationToken cancellationToken)
     {
         var range = (await settings.LoadAsync(cancellationToken)).Ports;
-        var busy = (await listening.ListAsync(ImmutableHashSet<int>.Empty, cancellationToken)).Select(listener => listener.Port).ToHashSet();
+        var busy = await claims.ListenedAsync(cancellationToken);
         var (lease, fresh) = await owner.RunAsync(_ => Task.FromResult(Lease(range, holder, busy, own)), cancellationToken);
 
         if (lease.IsNone)
@@ -54,11 +63,36 @@ internal sealed partial class PortLeases(IListeningPorts listening, IResourceSet
     private (Option<PortLease> Lease, bool Fresh) Lease(PortRange range, string worktree, IReadOnlySet<int> busy, bool own)
     {
         var opened = book.Match(known => known, () => PortBook.Open(range));
-        var (next, lease) = opened.Lease(worktree, busy, own);
+
+        if (opened.Of(worktree).IsSome)
+        {
+            return (opened.Of(worktree), false);
+        }
+
+        var (next, lease) = Claim(opened, worktree, busy, own);
         Keep(next);
 
-        return (lease, opened.Of(worktree).IsNone && lease.IsSome);
+        return (lease, lease.IsSome);
     }
+
+    private (PortBook Book, Option<PortLease> Lease) Claim(PortBook opened, string worktree, IReadOnlySet<int> taken, bool own)
+    {
+        var (next, lease) = opened.Lease(worktree, taken, own);
+
+        return lease.Match(
+            block => Claimed(block) ? (next, lease) : Claim(opened, worktree, taken.Union(Enumerable.Range(block.First, block.Last - block.First + 1)).ToHashSet(), own),
+            () => (opened, lease));
+    }
+
+    private bool Claimed(PortLease lease) =>
+        claims.TryClaim(lease.First, lease.Last).Match(
+            claim =>
+            {
+                claimed = claimed.SetItem(lease.Worktree, claim);
+
+                return true;
+            },
+            () => false);
 
     private Option<PortLease> Release(string worktree) =>
         book.Match(
@@ -66,6 +100,12 @@ internal sealed partial class PortLeases(IListeningPorts listening, IResourceSet
             {
                 var (next, released) = known.Release(worktree);
                 Keep(next);
+
+                if (claimed.TryGetValue(worktree, out var claim))
+                {
+                    claim.Dispose();
+                    claimed = claimed.Remove(worktree);
+                }
 
                 return released;
             },

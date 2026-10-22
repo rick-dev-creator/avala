@@ -18,7 +18,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
     [Fact]
     public async Task AServerAJobStartsOnItsLeasedPortBecomesItsPreviewAsync()
     {
-        await using var run = await ServingAsync(test: 6);
+        await using var run = await ServingAsync();
         var available = run.Watch<PreviewAvailable>();
         var lease = await run.LeasedAsync();
 
@@ -32,7 +32,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
     [Fact]
     public async Task AJobsPreviewIsGoneOnceTheJobEndsAndItsServerIsReapedAsync()
     {
-        await using var run = await ServingAsync(test: 7);
+        await using var run = await ServingAsync();
         var available = run.Watch<PreviewAvailable>();
         var gone = run.Watch<PreviewGone>();
         var target = await PreviewedAsync(run, available);
@@ -48,7 +48,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
     [Fact]
     public async Task TheRunningChipOpensThePreviewBesideTheConversationThroughItsGatewayAndThePaneFollowsTheSelectionAsync()
     {
-        await using var run = await ServingAsync(test: 6);
+        await using var run = await ServingAsync();
         var available = run.Watch<PreviewAvailable>();
         var workbench = await run.WorkbenchAsync();
         var lease = await run.LeasedAsync();
@@ -81,7 +81,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
     [Fact]
     public async Task AServerTheWatchedJobStartsOpensThePreviewPaneByItselfAsync()
     {
-        await using var run = await ServingAsync(test: 6);
+        await using var run = await ServingAsync();
         var available = run.Watch<PreviewAvailable>();
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(run.Job);
@@ -106,11 +106,11 @@ public sealed class PreviewTests(PublishedPlugins plugins)
         return target;
     }
 
-    private Task<SimulatedRun> ServingAsync(int test) =>
+    private Task<SimulatedRun> ServingAsync() =>
         SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(test)}}, "sampleSeconds": 0.2, "diskSeconds": 60 }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.Settings()}}, "sampleSeconds": 0.2, "diskSeconds": 60 }""")],
             [(".avala/permissions.json", ServicesPolicy)]);
 
     private static int ServedPort(IReadOnlyList<IAgentEvent> turn) =>

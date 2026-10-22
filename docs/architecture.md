@@ -118,7 +118,7 @@ Avala's purpose is agents you can trust without watching. Four modules carry tha
 
 **Budgets.** Caps on cost, tokens, memory and provider limits stop a job before it overspends; a child job's budget is carved out of its parent's, and the machine admits only as many running jobs as its limit allows. Every intervention is recorded.
 
-Around them, **Resources** samples the processes, ports and disk every job uses, reaps what a session leaves behind, leases ports per worktree and reclaims old worktrees, and **Observability** keeps usage, cost and limits per provider, account, connection, session and job.
+Around them, **Resources** samples the processes, ports and disk every job uses, reaps what a session leaves behind, leases ports per worktree and reclaims old worktrees, and **Observability** keeps usage, cost and limits per provider, account, connection, session and job. A port lease skips the blocks in which a port is listened on, and holds every port of its block through a claim file in the machine's temporary folder, `avala-ports/<port>.claim`, opened without sharing until the lease is released or Avala exits, so two Avala processes, or test runs in parallel, never lease the same block before its service binds it.
 
 ### Unattended work
 

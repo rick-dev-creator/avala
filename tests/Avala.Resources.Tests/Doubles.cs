@@ -1,3 +1,4 @@
+using Avala.Resources.Claims;
 using System.Collections.Concurrent;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
@@ -190,6 +191,6 @@ internal sealed class FakeTree(ProcessTreeId id, string home) : IProcessTree
 
 internal static class Lessor
 {
-    public static PortLeases Leases(RecordingBus bus, FakeListening listening, ResourceSettings settings) =>
-        new(listening, new FixedSettings(settings), bus, NullLogger<PortLeases>.Instance);
+    public static PortLeases Leases(RecordingBus bus, FakeListening listening, ResourceSettings settings, string claims) =>
+        new(new PortClaimFiles(listening, claims), new FixedSettings(settings), bus, NullLogger<PortLeases>.Instance);
 }
