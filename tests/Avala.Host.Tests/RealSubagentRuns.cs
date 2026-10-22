@@ -47,6 +47,10 @@ public sealed class RealSubagentRuns(PublishedPlugins plugins)
         : Path.Combine(Path.GetTempPath(), "avala-real-subagents");
 
     [Fact]
+    public Task ARequestTheHarnessRetriesIsRecordedWithWhatAvalaMadeOfItAsync() =>
+        RecordAsync("retried", "Reply with the single word ready.", (_, _, _) => Task.CompletedTask);
+
+    [Fact]
     public Task BackgroundSubagentsInterruptedByAPersonAreRecordedWithWhatAvalaMadeOfThemAsync() =>
         RecordAsync("interrupted", Interrupted, async (run, conversation, activity) =>
         {
