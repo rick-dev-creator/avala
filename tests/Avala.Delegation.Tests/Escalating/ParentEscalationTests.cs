@@ -78,6 +78,19 @@ public sealed class ParentEscalationTests
         Assert.True(Assert.Single(bus.Published.OfType<ParentAsked>()).Woken, "The idle parent was not said to be woken by its child's question");
     }
 
+    [Theory]
+    [InlineData(HoldReason.BudgetExceeded)]
+    [InlineData(HoldReason.Stopped)]
+    public async Task AParentHeldOverItsBudgetOrStoppedByThePersonIsNotContinuedByItsChildsQuestionAsync(HoldReason reason)
+    {
+        await DelegatedAsync();
+        jobs.HeldFor(parent, reason);
+
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+
+        Assert.Empty(jobs.Continued);
+    }
+
     [Fact]
     public async Task AParentThatCannotBeToldYetIsWokenWithTheQuestionOnceItStopsWorkingAsync()
     {
