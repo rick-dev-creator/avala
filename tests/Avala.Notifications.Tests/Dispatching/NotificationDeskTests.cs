@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Notifications.Contracts;
 using Avala.Notifications.Pacing;
@@ -42,5 +44,18 @@ public sealed class NotificationDeskTests
 
         Assert.Empty(notified.Channel.Sent);
         Assert.Equal(NotificationOutcome.Withdrawn, Assert.Single(notified.Records).Outcome);
+    }
+
+    [Fact]
+    public async Task AChildsQuestionToItsOrchestratorNeverNotifiesThePersonAsync()
+    {
+        await using var notified = new Notified();
+        notified.Catalog.With(Samples.Job, Samples.Other);
+        var child = new DelegationRecord(Samples.Session, new ItemId("delegate"), "Choose the orders database", Samples.Monday) { Parent = Samples.Other, Child = Samples.Job };
+
+        await notified.Desk.HandleAsync(new ParentAsked(child, Samples.Session, new ItemId("question"), "asks: Which database?"), Notified.Cancellation);
+        await notified.AdvanceAsync(Outbox.Coalescing);
+
+        Assert.Empty(notified.Channel.Sent);
     }
 }
