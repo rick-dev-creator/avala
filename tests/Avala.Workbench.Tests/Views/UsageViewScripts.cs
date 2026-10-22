@@ -13,6 +13,8 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 {
     private static readonly string[] Headers = ["Title", "Scope", "JobsTitle", "JobsHint", "RangeTitle", "Caption", "Label", "Tokens"];
 
+    private static readonly string[] CardParts = ["ConnectionName", "Provider", "Cost", "Tokens"];
+
     private static bool ReadWhole(TextBlock text, Visual page)
     {
         var typeface = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight);
@@ -54,6 +56,40 @@ public sealed class UsageViewScripts(HeadlessUi ui)
                 .Select(text => $"{text.Name} '{text.Text}' is given {text.Bounds.Width:0}");
 
             Assert.Empty(clipped);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestAConnectionsNameProviderCostAndTokensStayApartAndInsideItsCardAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var parts = CardParts
+                .Select(name => card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == name))
+                .Select(text => (text.Name, Box: new Rect(text.TranslatePoint(default, card)!.Value, new Size(Math.Max(text.Bounds.Width, text.TextLayout.WidthIncludingTrailingWhitespace), text.Bounds.Height))))
+                .ToList();
+
+            var faults = parts.SelectMany(part => parts.Where(other => string.CompareOrdinal(part.Name, other.Name) < 0 && part.Box.Intersects(other.Box)).Select(other => $"{part.Name} {part.Box} overlaps {other.Name} {other.Box}"))
+                .Concat(parts.Where(part => part.Box.Right > card.Bounds.Width - card.Padding.Right + 0.5).Select(part => $"{part.Name} ends at {part.Box.Right:0} in a card {card.Bounds.Width:0} wide"));
+
+            Assert.Empty(faults);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestEveryJobsTitleShowsAtLeastItsFirstWordAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            var jobs = view.Window.GetVisualDescendants().OfType<ItemsControl>().First(list => list.Name == "Jobs");
+
+            var cut = jobs.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "Title" && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text))
+                .Where(text => text.Bounds.Width + 0.5 < new Avalonia.Media.TextFormatting.TextLayout(text.Text!.Split(' ')[0], new Typeface(text.FontFamily, text.FontStyle, text.FontWeight), text.FontSize, null).Width)
+                .Select(text => $"'{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(cut);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

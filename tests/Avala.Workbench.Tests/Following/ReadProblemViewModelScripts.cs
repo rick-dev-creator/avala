@@ -32,6 +32,18 @@ public sealed class ReadProblemViewModelScripts : IDisposable
         Assert.Equal(((true, ReadProblemPhrases.Problem("The usage store is locked")), (false, string.Empty)), (failed, await ui.ReadAsync(() => (problem.IsShown, problem.Text))));
     }
 
+    [Fact]
+    public async Task AReadProblemNeverShowsASecretTheFailureCarriedAsync()
+    {
+        const string Secret = "sk-ant-api03-Zq7xR2mN8vK4pL1wT6yB";
+        var problem = new ReadProblemViewModel(feed);
+        feed.Start<int>(_ => throw new HttpRequestException($"401 Unauthorized for Authorization: Bearer {Secret}"), _ => { });
+
+        await ui.PresentedAsync(feed, () => problem.IsShown, () => $"shown {problem.IsShown}");
+
+        Assert.DoesNotContain(Secret, await ui.ReadAsync(() => problem.Text), StringComparison.Ordinal);
+    }
+
     public void Dispose()
     {
         feed.Dispose();
