@@ -263,6 +263,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
         _ = await resumed.UntilAsync(announced => announced.Job == job);
         await ReviewedAsync(progress, job);
+        await run.DeliveredAsync();
 
         Assert.Empty(run.Get<IDocumentation>().OfJob(job).Match(documented => documented.Requests, () => []));
     }

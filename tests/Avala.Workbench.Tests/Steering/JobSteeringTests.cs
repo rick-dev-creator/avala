@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -85,6 +86,19 @@ public sealed class JobSteeringTests : IAsyncDisposable
 
         Assert.Equal(["continue Keep the alias"], jobs.Calls);
         Assert.True(steering.Queued(job).IsNone);
+    }
+
+    [Fact]
+    public async Task TwoOfAvalasNoticesQueuedForTheSameJobStillReachItAsAvalasOwn()
+    {
+        jobs.Status = JobStatus.Checking;
+        _ = Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, new JobMessage("Avala now allows reaching https://example.com in this job. You may retry it.") { Author = MessageAuthor.Avala }, Cancellation));
+        _ = Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, new JobMessage("Avala now allows running dotnet test in this job. You may retry it.") { Author = MessageAuthor.Avala }, Cancellation));
+
+        jobs.Status = JobStatus.NeedsHelp;
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation);
+
+        Assert.Equal(MessageAuthor.Avala, jobs.Messages[^1].Author);
     }
 
     [Fact]

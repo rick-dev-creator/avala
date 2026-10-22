@@ -207,6 +207,7 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.PollUntilWokenAsync();
 
         _ = await forge.RedeliveredAsync();
+        await forge.Run.DeliveredAsync();
 
         Assert.Empty(forge.Run.Get<IDocumentation>().OfJob(forge.Job).Match(documented => documented.Requests, () => []));
     }
