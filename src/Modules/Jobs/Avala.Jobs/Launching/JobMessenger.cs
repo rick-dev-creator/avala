@@ -9,9 +9,14 @@ namespace Avala.Jobs.Launching;
 
 internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBriefing> briefings, ILogger<JobMessenger> logger)
 {
-    public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
+    public Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken) =>
+        TellAsync(job, new Told(message, author), cancellationToken);
+
+    public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, Told told, CancellationToken cancellationToken)
     {
-        if (!Briefed(job, author) || job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
+        var (message, author) = (told.Text, told.Author);
+
+        if (job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
             return await agents.TellAsync(job, message, author, cancellationToken);
         }
@@ -22,7 +27,7 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
         {
             foreach (var briefing in briefings)
             {
-                briefs.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<JobBrief[]>(brief => [brief], () => []));
+                briefs.AddRange((await briefing.BriefAsync(job.Id, cancellationToken)).Match<JobBrief[]>(brief => !brief.Reminder || Reminded(job, told) ? [brief] : [], () => []));
             }
         }
         catch
@@ -31,11 +36,11 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
             throw;
         }
 
-        Result<AgentTurn, AgentError> told;
+        Result<AgentTurn, AgentError> sent;
 
         try
         {
-            told = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), author, cancellationToken);
+            sent = await agents.TellAsync(job, string.Join("\n\n", [message, .. briefs.Select(brief => brief.Text)]), author, cancellationToken);
         }
         catch
         {
@@ -43,13 +48,14 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
             throw;
         }
 
-        await SettleAsync(job, briefs, brief => told.IsSuccess ? brief.Delivered : brief.Undelivered);
+        await SettleAsync(job, briefs, brief => sent.IsSuccess ? brief.Delivered : brief.Undelivered);
 
-        return told;
+        return sent;
     }
 
-    private static bool Briefed(Job job, MessageAuthor author) =>
-        author == MessageAuthor.Person
+    private static bool Reminded(Job job, Told told) =>
+        told.Author == MessageAuthor.Person
+        || told.Fresh
         || (job.Attempts.Count > 0 && job.Attempts[^1].Origin is AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff or AttemptOrigin.Reopen);
 
     private async Task SettleAsync(Job job, IReadOnlyList<JobBrief> briefs, Func<JobBrief, Func<CancellationToken, Task>> settle)
@@ -69,4 +75,9 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 
     [LoggerMessage(Level = LogLevel.Error, Message = "A briefing of job {Job} could not record whether its message reached the agent")]
     private partial void LogUnsettled(Guid job, Exception exception);
+}
+
+internal sealed record Told(string Text, MessageAuthor Author)
+{
+    public bool Fresh { get; init; }
 }

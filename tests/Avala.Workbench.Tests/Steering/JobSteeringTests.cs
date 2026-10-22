@@ -89,6 +89,22 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task APersonsMessageQueuedWithAvalasNoticeContinuesTheJobAloneAsThePersonsAndTheNoticeFollowsAsAvalasOwn()
+    {
+        const string Notice = "Avala now allows reaching https://example.com in this job. You may retry it.";
+        jobs.Status = JobStatus.Checking;
+        _ = Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, new JobMessage(Notice) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Person }, Cancellation));
+        _ = Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, new JobMessage("Keep the old alias."), Cancellation));
+
+        jobs.Status = JobStatus.NeedsHelp;
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation);
+
+        Assert.Equal(
+            [("Keep the old alias.", MessageAuthor.Person, MessageAuthor.Person), (Notice, MessageAuthor.Avala, MessageAuthor.Person)],
+            jobs.Messages.Skip(jobs.Messages.Count - 2).Select(message => (message.Text, message.Author, message.CausedBy)));
+    }
+
+    [Fact]
     public async Task TwoOfAvalasNoticesQueuedForTheSameJobStillReachItAsAvalasOwn()
     {
         jobs.Status = JobStatus.Checking;

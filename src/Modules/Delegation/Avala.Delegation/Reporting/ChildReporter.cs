@@ -99,7 +99,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     private async Task<Option<JobRejection>> RetriedAsync(DelegationRecord delegation, JobId child, JobHold hold, CancellationToken cancellationToken)
     {
-        var continued = await jobs.ContinueAsync(child, new JobMessage(ToolAnswers.Retrying(hold)) { Author = MessageAuthor.Avala }, cancellationToken);
+        var continued = await jobs.ContinueAsync(child, new JobMessage(ToolAnswers.Retrying(hold)) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala }, cancellationToken);
 
         if (continued.IsSuccess)
         {

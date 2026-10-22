@@ -77,6 +77,8 @@ public interface IJobBriefing
 
 public sealed record JobBrief(string Text)
 {
+    public bool Reminder { get; init; }
+
     public Func<CancellationToken, Task> Delivered { get; init; } = _ => Task.CompletedTask;
 
     public Func<CancellationToken, Task> Undelivered { get; init; } = _ => Task.CompletedTask;
@@ -104,6 +106,8 @@ public sealed record JobMessage(string Text)
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public MessageAuthor CausedBy { get; init; } = MessageAuthor.Person;
 }
 
 public interface IJobMessages

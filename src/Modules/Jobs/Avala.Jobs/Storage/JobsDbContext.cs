@@ -89,6 +89,7 @@ internal sealed class JobsDbContext(string database) : DbContext
             text => text.Length == 0 ? Option<Feedback>.None : Option<Feedback>.Some(Stored.Feedback(text)));
         attempt.Property(entity => entity.Attachments).HasConversion(attachments => Stored.Text(attachments), text => Stored.Attachments(text), Listed);
         attempt.Property(entity => entity.Author).HasConversion<string>();
+        attempt.Property(entity => entity.Cause).HasConversion<string>();
         attempt.Property(entity => entity.Session).HasConversion(
             option => option.Match(id => id.Value, () => Guid.Empty),
             value => value == Guid.Empty ? Option<SessionId>.None : Option<SessionId>.Some(new SessionId(value)));

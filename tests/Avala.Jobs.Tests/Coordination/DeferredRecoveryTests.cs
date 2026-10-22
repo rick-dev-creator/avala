@@ -117,6 +117,24 @@ public sealed class DeferredRecoveryTests
         Assert.Equal((continued.Session, $"Go on\n\n{Note}"), flow.Agents.Sent[^1]);
     }
 
+    [Theory]
+    [InlineData(false, "The usage window has reset. Continue where you left off.")]
+    [InlineData(true, "Add GitHub login\n\nThe usage window has reset. Continue where you left off.\n\nKeep your task list up to date.")]
+    public async Task AvalasContinuationLeavesOutTheReminderOnlyWhileItsConversationGoesOnAsync(bool sessionEnded, string told)
+    {
+        var flow = JobFlow.With();
+        var job = await flow.HeldAsync(HoldReason.LimitNearlyReached);
+        flow.Briefings.Add(new Briefing(job.Id, "Keep your task list up to date.", reminder: true));
+        if (sessionEnded)
+        {
+            _ = await flow.Agents.StopAsync(Outcomes.Present(job.Session), Cancellation);
+        }
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, new JobMessage("The usage window has reset. Continue where you left off.") { Author = MessageAuthor.Avala }, Cancellation));
+
+        Assert.Equal((continued.Session, told), flow.Agents.Sent[^1]);
+    }
+
     [Fact]
     public async Task AReportOwedToAJobHeldAtItsLimitReachesItWithAvalasContinuationAtTheResetAsync()
     {
@@ -145,7 +163,7 @@ public sealed class DeferredRecoveryTests
         public ValueTask<bool> DefersAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(job == deferred);
     }
 
-    private sealed class Briefing(JobId briefed, string note) : IJobBriefing
+    private sealed class Briefing(JobId briefed, string note, bool reminder = false) : IJobBriefing
     {
         public int Asked { get; private set; }
 
@@ -153,7 +171,7 @@ public sealed class DeferredRecoveryTests
         {
             Asked++;
 
-            return ValueTask.FromResult(job == briefed ? new JobBrief(note) : Option<JobBrief>.None);
+            return ValueTask.FromResult(job == briefed ? new JobBrief(note) { Reminder = reminder } : Option<JobBrief>.None);
         }
     }
 }

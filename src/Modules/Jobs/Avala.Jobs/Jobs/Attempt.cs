@@ -18,9 +18,13 @@ internal sealed class Attempt(AttemptNumber number, AttemptOrigin origin, Option
 
     public MessageAuthor Author { get; init; } = MessageAuthor.Person;
 
+    public MessageAuthor Cause { get; private set; } = MessageAuthor.Person;
+
     public AttemptOutcome Outcome { get; private set; } = AttemptOutcome.Running;
 
     public bool IsUnderway => Outcome is AttemptOutcome.Running or AttemptOutcome.AwaitingCheck;
 
     internal void Conclude(AttemptOutcome outcome) => Outcome = outcome;
+
+    internal void CausedBy(MessageAuthor cause) => Cause = cause;
 }

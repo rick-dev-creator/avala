@@ -81,6 +81,8 @@ public sealed record AttemptRecord(int Number, AttemptOrigin Origin, AttemptOutc
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public MessageAuthor CausedBy { get; init; } = MessageAuthor.Person;
 }
 
 public sealed record SessionRecord(SessionId Session, IReadOnlyList<int> Attempts);

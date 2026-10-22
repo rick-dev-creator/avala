@@ -17,9 +17,9 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
         await decision.Choice.Match(
             async choice =>
             {
-                var brief = await briefs.WriteAsync(new BriefRequest(situation.History, situation.Connection, choice.Connection, decision.Why, pending), cancellationToken);
+                var handoff = await briefs.HandoffAsync(new BriefRequest(situation.History, situation.Connection, choice.Connection, decision.Why, pending), choice, cancellationToken);
 
-                return (await jobs.HandOffAsync(situation.Job, new JobHandoff(choice, brief), cancellationToken)).IsSuccess;
+                return (await jobs.HandOffAsync(situation.Job, handoff, cancellationToken)).IsSuccess;
             },
             () => Task.FromResult(false));
 
@@ -27,7 +27,7 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
     {
         var message = pending.Match(feedback => $"{ResetMessage}\n\n{feedback}", () => ResetMessage);
 
-        if (!(await jobs.ContinueAsync(situation.Job, new JobMessage(message) { Author = MessageAuthor.Avala }, cancellationToken)).TryGetValue(out var continued, out _))
+        if (!(await jobs.ContinueAsync(situation.Job, new JobMessage(message) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala }, cancellationToken)).TryGetValue(out var continued, out _))
         {
             return false;
         }

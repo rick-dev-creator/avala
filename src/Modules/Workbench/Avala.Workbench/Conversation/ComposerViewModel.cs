@@ -230,7 +230,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         var spoken = shown.Transcript.Entries.Select(entry => entry switch
             {
-                PromptEntry { Origin: AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device } prompt => prompt.Text,
+                PromptEntry { IsFromPerson: true } prompt => prompt.Text,
                 InterjectionEntry interjection => interjection.Text,
                 _ => Option<string>.None,
             })

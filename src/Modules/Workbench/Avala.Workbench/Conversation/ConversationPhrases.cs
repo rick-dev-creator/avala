@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
@@ -87,7 +88,8 @@ internal static class ConversationPhrases
         _ => "Resumed after a restart",
     };
 
-    public static string Origin(PromptEntry prompt) => prompt.Handoff.Match(HandoffPhrases.Moved, () => Origin(prompt.Origin));
+    public static string Origin(PromptEntry prompt) =>
+        prompt.Handoff.Match(HandoffPhrases.Moved, () => prompt.Author == MessageAuthor.Avala && prompt.Origin is AttemptOrigin.Hint or AttemptOrigin.SendBack ? "Avala" : Origin(prompt.Origin));
 
     public static string Outcome(int attempt, AttemptOutcome outcome) =>
         string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");

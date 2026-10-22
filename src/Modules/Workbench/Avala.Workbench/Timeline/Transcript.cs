@@ -205,7 +205,7 @@ internal sealed record Transcript
             .Change(EntryKeys.Item(withdrawn.Turn, withdrawn.Item), entry => entry is FormEntry form ? form with { Withdrawn = true } : entry);
 
     private PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
-        new(
+        new PromptEntry(
             EntryKeys.Attempt(attempt.Number),
             attempt.Number,
             attempt.Origin,
@@ -214,7 +214,7 @@ internal sealed record Transcript
         {
             Handoff = Handoffs.TryGetValue(attempt.Number, out var handoff) ? handoff : Option<HandoffRecord>.None,
             Attachments = attempt.Attachments,
-        };
+        }.WrittenAs(attempt);
 
     private Transcript Drafted(ItemDrafted drafted)
     {

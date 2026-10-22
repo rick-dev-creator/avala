@@ -14,6 +14,12 @@ internal sealed record BriefRequest(JobHistory History, ConnectionName From, Con
 
 internal sealed class BriefGatherer(IWorkspaceChanges changes, IVerifications verifications, IPermissionAudit audit, JobNotes notes)
 {
+    public async Task<JobHandoff> HandoffAsync(BriefRequest request, ConnectionChoice choice, CancellationToken cancellationToken) =>
+        new(choice, await WriteAsync(request, cancellationToken))
+        {
+            CausedBy = (await notes.OfAsync(request.History.Summary.Job, cancellationToken)).UnansweredBy(MessageAuthor.Person).Count > 0 ? MessageAuthor.Person : MessageAuthor.Avala,
+        };
+
     public async Task<string> WriteAsync(BriefRequest request, CancellationToken cancellationToken)
     {
         var job = request.History.Summary.Job;

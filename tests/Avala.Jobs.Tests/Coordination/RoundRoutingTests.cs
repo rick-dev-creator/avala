@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -67,16 +68,30 @@ public sealed class RoundRoutingTests
     }
 
     [Theory]
-    [InlineData(ChoiceReason.MostCapacity, MessageAuthor.Avala)]
-    [InlineData(ChoiceReason.Person, MessageAuthor.Person)]
-    public async Task AHandoffAvalaChoseIsItsOwnRoundAndOneThePersonPickedIsTheirsAsync(ChoiceReason reason, MessageAuthor expected)
+    [InlineData(ChoiceReason.MostCapacity, MessageAuthor.Avala, MessageAuthor.Avala)]
+    [InlineData(ChoiceReason.MostCapacity, MessageAuthor.Person, MessageAuthor.Person)]
+    [InlineData(ChoiceReason.Person, MessageAuthor.Avala, MessageAuthor.Person)]
+    public async Task AHandoffIsCausedByThePersonWhenTheyPickedItOrItCarriesTheirMessagesAndItsBriefIsAvalasAsync(ChoiceReason reason, MessageAuthor carrying, MessageAuthor expected)
     {
-        var flow = Routed(new ScriptedRouter(RoundRoute.To(new JobHandoff(ToPersonal with { Reason = reason }, Brief))));
+        var flow = Routed(new ScriptedRouter(RoundRoute.To(new JobHandoff(ToPersonal with { Reason = reason }, Brief) { CausedBy = carrying })));
         var job = await flow.RunningAsync();
 
         await flow.FinishTurnAsync(job);
 
-        Assert.Equal((AttemptOrigin.Handoff, expected), (job.Attempts[^1].Origin, job.Attempts[^1].Author));
+        Assert.Equal((AttemptOrigin.Handoff, MessageAuthor.Avala, expected), (job.Attempts[^1].Origin, job.Attempts[^1].Author, job.Attempts[^1].Cause));
+    }
+
+    [Fact]
+    public async Task AMessageFromThePhoneThatJoinsAvalasRoundWhileItRunsMakesItThePersonsRoundAsync()
+    {
+        var flow = Routed(new ScriptedRouter(RoundRoute.GoOn));
+        var job = await flow.RunningAsync();
+        await flow.FinishTurnAsync(job);
+
+        await flow.Check.HandleAsync(new RemoteMessageReceived(Outcomes.Present(job.Session), TurnId.New(), "Also rename add to sum."), Cancellation);
+        await flow.SettledAsync(job);
+
+        Assert.Equal((JobState.Running, AttemptOrigin.Retry, MessageAuthor.Person), (job.State, job.Attempts[^1].Origin, job.Attempts[^1].Cause));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -50,6 +51,11 @@ public sealed class PromptViewModelScripts
     public void ARecoveryPromptHasNoText() =>
         ViewModelScript.Given(new PromptViewModel(new PromptEntry("attempt:3", 3, AttemptOrigin.Recovery, Option<string>.None, Option<AttemptOutcome>.None), new FakeClipboard()))
             .Then(prompt => Assert.Equal((3, string.Empty), (prompt.Attempt, prompt.Text)));
+
+    [Fact]
+    public void AMessageAvalaWroteReadsAsAvalasAndNotThePersons() =>
+        ViewModelScript.Given(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "The usage window has reset.", Option<AttemptOutcome>.None) { Author = MessageAuthor.Avala }, new FakeClipboard()))
+            .Then(prompt => Assert.Equal(("Avala", false), (prompt.Origin, prompt.IsFromPerson)));
 
     [Fact]
     public async Task CopyPutsThePromptOnTheClipboard()
