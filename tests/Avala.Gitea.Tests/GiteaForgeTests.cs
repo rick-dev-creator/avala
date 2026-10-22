@@ -93,6 +93,21 @@ public sealed class GiteaForgeTests
 
     [Theory]
     [MemberData(nameof(Dialects))]
+    public async Task AnOpenPullRequestFromAForkIsNotFoundForTheBranchOfTheSameNameAsync(string dialect)
+    {
+        const string Own = "\"full_name\": \"octo/shop\"";
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var head = pull.LastIndexOf(Own, StringComparison.Ordinal);
+        var fork = $"{pull[..head]}\"full_name\": \"mallory/shop\"{pull[(head + Own.Length)..]}";
+        var server = (await ServerAsync()).Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{fork}]");
+
+        var found = Outcomes.Succeeds(await Forge(dialect).FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.True(found.IsNone);
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
     public async Task GiteaAndForgejoPassTheForgeConformanceKitAsync(string dialect)
     {
         var server = await ServerAsync();
