@@ -48,7 +48,7 @@ public sealed class IdleSessionsTests
     }
 
     [Fact]
-    public async Task AJobsSessionIsRestedOnceItsTurnFinishesAndItsPromptCacheExpiresAsync()
+    public async Task AHeldJobsSessionIsRestedOnceItsTurnFinishesAndItsPromptCacheExpiresAsync()
     {
         var flow = JobFlow.With();
         var (job, session) = await IdleAsync(flow, CapabilitySet.Of(new Resumable(), new CachesPrompt(Cache)));
@@ -75,12 +75,25 @@ public sealed class IdleSessionsTests
     }
 
     [Fact]
-    public async Task ASessionThatStoppedOrEndedIsNeverRestedAsync()
+    public async Task AStoppedSessionIsNeverRestedAsync()
     {
         var flow = JobFlow.With();
         var (job, session) = await IdleAsync(flow, CapabilitySet.Of(new Resumable(), new CachesPrompt(Cache)));
 
         await flow.Idle.HandleAsync(new SessionStopped(session), Cancellation);
+        await flow.Idle.HandleAsync(new JobProgressed(job.Id, JobStatus.NeedsHelp), Cancellation);
+        flow.IdleClock.Advance(Avala.Jobs.Holding.IdleSessions.UndeclaredCache);
+        await flow.SettledAsync(job);
+
+        Assert.Empty(flow.Agents.Stopped);
+    }
+
+    [Fact]
+    public async Task AnEndedSessionIsNeverRestedAsync()
+    {
+        var flow = JobFlow.With();
+        var (job, session) = await IdleAsync(flow, CapabilitySet.Of(new Resumable(), new CachesPrompt(Cache)));
+
         await flow.Idle.HandleAsync(new SessionEnded(session, SessionEnding.Crashed), Cancellation);
         await flow.Idle.HandleAsync(new JobProgressed(job.Id, JobStatus.NeedsHelp), Cancellation);
         flow.IdleClock.Advance(Avala.Jobs.Holding.IdleSessions.UndeclaredCache);
