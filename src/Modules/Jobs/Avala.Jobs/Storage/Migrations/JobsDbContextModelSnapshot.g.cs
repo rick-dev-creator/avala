@@ -130,6 +130,10 @@ namespace Avala.Jobs.Storage.Migrations
                                 .IsRequired()
                                 .HasColumnType("TEXT");
 
+                            b1.Property<string>("Author")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
+
                             b1.Property<string>("Guidance")
                                 .IsRequired()
                                 .HasColumnType("TEXT");

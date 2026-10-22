@@ -60,7 +60,7 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
 
         if (job.State == JobState.AwaitingReview
             && job.Session == Option<SessionId>.Some(session)
-            && Feedback.Create(WokenNote).TryGetValue(out var note, out _)
+            && Feedback.Create(WokenNote).Map(created => created.By(MessageAuthor.Avala)).TryGetValue(out var note, out _)
             && job.Wake(note).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);

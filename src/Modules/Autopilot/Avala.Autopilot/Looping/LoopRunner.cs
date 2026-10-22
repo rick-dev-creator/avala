@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Autopilot.Loops;
@@ -391,7 +392,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private async Task ContinueAsync(Underway underway, bool newDay, CancellationToken token)
     {
-        var continued = await steps.Jobs.ContinueAsync(underway.Job, newDay ? NewDayMessage : ResetMessage, token);
+        var continued = await steps.Jobs.ContinueAsync(underway.Job, new JobMessage(newDay ? NewDayMessage : ResetMessage) { Author = MessageAuthor.Avala }, token);
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
 
         if (continued.TryGetValue(out _, out var rejection) || rejection == JobRejection.NotHeld)

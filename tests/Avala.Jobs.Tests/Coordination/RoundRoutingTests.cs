@@ -56,6 +56,30 @@ public sealed class RoundRoutingTests
     }
 
     [Fact]
+    public async Task TheRetryAfterFailingChecksIsAvalasOwnRoundAsync()
+    {
+        var flow = Routed(new ScriptedRouter(RoundRoute.GoOn));
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal([(AttemptOrigin.Initial, MessageAuthor.Person), (AttemptOrigin.Retry, MessageAuthor.Avala)], job.Attempts.Select(attempt => (attempt.Origin, attempt.Author)));
+    }
+
+    [Theory]
+    [InlineData(ChoiceReason.MostCapacity, MessageAuthor.Avala)]
+    [InlineData(ChoiceReason.Person, MessageAuthor.Person)]
+    public async Task AHandoffAvalaChoseIsItsOwnRoundAndOneThePersonPickedIsTheirsAsync(ChoiceReason reason, MessageAuthor expected)
+    {
+        var flow = Routed(new ScriptedRouter(RoundRoute.To(new JobHandoff(ToPersonal with { Reason = reason }, Brief))));
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal((AttemptOrigin.Handoff, expected), (job.Attempts[^1].Origin, job.Attempts[^1].Author));
+    }
+
+    [Fact]
     public async Task AHoldAtTheEndOfATurnKeepsTheSessionIdleAndSendsNothingAsync()
     {
         var flow = Routed(new ScriptedRouter(RoundRoute.Held(HoldReason.LimitNearlyReached)));

@@ -402,6 +402,7 @@ internal sealed class Job : IAggregateRoot<JobId>
         attempts.Add(new Attempt(number, origin, guidance, Session)
         {
             Attachments = origin == AttemptOrigin.Initial ? Attachments : guidance.Match(feedback => feedback.Attachments, () => []),
+            Author = guidance.Match(feedback => feedback.Author, () => origin == AttemptOrigin.Recovery ? MessageAuthor.Avala : MessageAuthor.Person),
         });
 
         return new AttemptStarted(Id, number, origin, guidance);

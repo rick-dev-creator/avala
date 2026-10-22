@@ -55,7 +55,7 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         await InQueueAsync(job, (found, token) => review.ApproveAsync(found, Option<string>.Some(strategy), token), cancellationToken);
 
     public async ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
-        await WithFeedbackAsync(job, new JobMessage(feedback), review.ReopenAsync, cancellationToken);
+        await WithFeedbackAsync(job, new JobMessage(feedback) { Author = MessageAuthor.Avala }, review.ReopenAsync, cancellationToken);
 
     public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         await SendBackAsync(job, new JobMessage(feedback), cancellationToken);

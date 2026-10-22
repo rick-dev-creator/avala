@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Briefing;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
@@ -26,7 +27,7 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
     {
         var message = pending.Match(feedback => $"{ResetMessage}\n\n{feedback}", () => ResetMessage);
 
-        if (!(await jobs.ContinueAsync(situation.Job, message, cancellationToken)).TryGetValue(out var continued, out _))
+        if (!(await jobs.ContinueAsync(situation.Job, new JobMessage(message) { Author = MessageAuthor.Avala }, cancellationToken)).TryGetValue(out var continued, out _))
         {
             return false;
         }

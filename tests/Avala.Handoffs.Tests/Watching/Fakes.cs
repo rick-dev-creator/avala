@@ -92,6 +92,9 @@ internal sealed class MovingJobs : IJobs
 
     public Option<JobRejection> Refusal { get; set; }
 
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
+        ContinueAsync(job, message.Text, cancellationToken);
+
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
     {
         Calls.Add(new JobCall("continue", job, message, Option<JobHandoff>.None));

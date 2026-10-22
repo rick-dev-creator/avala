@@ -11,7 +11,7 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 {
     public async Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
     {
-        if (author != MessageAuthor.Person || job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
+        if (!Briefed(job, author) || job.State != JobState.Running || !job.Session.Match(agents.IsOpen, () => false))
         {
             return await agents.TellAsync(job, message, author, cancellationToken);
         }
@@ -47,6 +47,10 @@ internal sealed partial class JobMessenger(IAgents agents, IEnumerable<IJobBrief
 
         return told;
     }
+
+    private static bool Briefed(Job job, MessageAuthor author) =>
+        author == MessageAuthor.Person
+        || (job.Attempts.Count > 0 && job.Attempts[^1].Origin is AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff or AttemptOrigin.Reopen);
 
     private async Task SettleAsync(Job job, IReadOnlyList<JobBrief> briefs, Func<JobBrief, Func<CancellationToken, Task>> settle)
     {

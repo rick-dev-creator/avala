@@ -13,6 +13,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentDictionary<JobId, JobHistory> histories = new();
     private readonly ConcurrentQueue<JobId> approved = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> continued = new();
+    private readonly ConcurrentQueue<MessageAuthor> continuedBy = new();
 
     public IReadOnlyList<(JobId Job, JobRequest Request)> Submitted => [.. submitted];
 
@@ -59,6 +60,15 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         approved.Enqueue(job);
 
         return ValueTask.FromResult(Result<JobApproval, JobRejection>.Success(new JobApproval(job, new ApprovalDelivery("merge", "main", "c0ffee"))));
+    }
+
+    public IReadOnlyList<MessageAuthor> ContinuedBy => [.. continuedBy];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        continuedBy.Enqueue(message.Author);
+
+        return ContinueAsync(job, message.Text, cancellationToken);
     }
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)

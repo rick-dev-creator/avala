@@ -58,6 +58,22 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task WhoWroteTheMessageOfEachAttemptSurvivesAReloadAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var job = Given.JobIn(JobState.Checking);
+        Outcomes.Succeeds(job.Retry(Given.Feedback.By(MessageAuthor.Avala)));
+        Outcomes.Succeeds(job.CompleteTurn());
+        Outcomes.Succeeds(job.Pass());
+        Outcomes.Succeeds(job.SendBack(Given.Feedback));
+        await SaveAsync(folder, job);
+
+        var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
+
+        Assert.Equal([MessageAuthor.Person, MessageAuthor.Avala, MessageAuthor.Person], reloaded.Attempts.Select(attempt => attempt.Author));
+    }
+
+    [Fact]
     public async Task WhyAJobWasHeldSurvivesAReloadAsync()
     {
         using var folder = new TemporaryFolder();

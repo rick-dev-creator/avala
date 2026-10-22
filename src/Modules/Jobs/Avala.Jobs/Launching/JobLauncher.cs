@@ -219,7 +219,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.SameConnection;
         }
 
-        if (!Feedback.Create(handoff.Brief).TryGetValue(out var brief, out _))
+        if (!Feedback.Create(handoff.Brief).Map(created => created.By(handoff.Choice.Reason == ChoiceReason.Person ? MessageAuthor.Person : MessageAuthor.Avala)).TryGetValue(out var brief, out _))
         {
             return JobRejection.EmptyMessage;
         }
@@ -364,7 +364,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     private Task TellAsync(Job job, string message, CancellationToken cancellationToken) =>
-        TellAsync(job, message, MessageAuthor.Person, cancellationToken);
+        TellAsync(job, message, job.Attempts.Count == 0 ? MessageAuthor.Person : job.Attempts[^1].Author, cancellationToken);
 
     private async Task TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
     {

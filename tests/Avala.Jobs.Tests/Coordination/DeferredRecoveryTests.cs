@@ -33,6 +33,17 @@ public sealed class DeferredRecoveryTests
     }
 
     [Fact]
+    public async Task TheRoundResumedAfterARestartIsAvalasOwnAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await DeferredAsync(flow, Option<ResumeToken>.Some(Token));
+
+        _ = Outcomes.Succeeds(await flow.Jobs.ResumeAsync(job.Id, Cancellation));
+
+        Assert.Equal((AttemptOrigin.Recovery, MessageAuthor.Avala), (job.Attempts[^1].Origin, job.Attempts[^1].Author));
+    }
+
+    [Fact]
     public async Task ResumingADeferredJobResumesItsConversationWithTheRestartNoteAndEveryBriefingAsync()
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });

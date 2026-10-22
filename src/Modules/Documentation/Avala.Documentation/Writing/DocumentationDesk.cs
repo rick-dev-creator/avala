@@ -74,7 +74,7 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
         foreach (var attempt in await subjects.AttemptsAsync(job, cancellationToken))
         {
-            var asked = Requested(attempt.Origin);
+            var asked = attempt.Author == MessageAuthor.Person ? Requested(attempt.Origin) : Option<RequestKind>.None;
             var text = attempt.Guidance.Match(guidance => guidance.Trim(), () => string.Empty);
 
             if (asked.IsSome && text.Length > 0 && !subject.Documented.Requests.Any(request => request.Kind != RequestKind.Steer && request.Attempt == attempt.Number))

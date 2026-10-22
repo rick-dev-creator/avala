@@ -18,6 +18,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentQueue<(JobId Job, string Message)> steered = new();
     private readonly ConcurrentQueue<MessageAuthor> steeredBy = new();
     private readonly ConcurrentQueue<(JobId Job, string Message)> continued = new();
+    private readonly ConcurrentQueue<MessageAuthor> continuedBy = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
 
@@ -115,6 +116,15 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public IReadOnlyList<(JobId Job, string Message)> Continued => [.. continued];
 
     public Option<JobRejection> ContinueRefusal { get; set; }
+
+    public IReadOnlyList<MessageAuthor> ContinuedBy => [.. continuedBy];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        continuedBy.Enqueue(message.Author);
+
+        return ContinueAsync(job, message.Text, cancellationToken);
+    }
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
     {

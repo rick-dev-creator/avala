@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -102,5 +103,9 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
         rejection == JobRejection.NotRoot || (status == JobStatus.Approved && rejection == JobRejection.WorkspaceUnavailable);
 
     private void Queue(JobId job, JobMessage message) =>
-        ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => new JobMessage($"{earlier.Text}\n\n{message.Text}") { Attachments = [.. earlier.Attachments, .. message.Attachments] });
+        ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => new JobMessage($"{earlier.Text}\n\n{message.Text}")
+        {
+            Attachments = [.. earlier.Attachments, .. message.Attachments],
+            Author = earlier.Author == MessageAuthor.Avala && message.Author == MessageAuthor.Avala ? MessageAuthor.Avala : MessageAuthor.Person,
+        });
 }
