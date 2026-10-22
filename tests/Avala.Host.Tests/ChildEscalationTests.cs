@@ -94,6 +94,24 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ASubAgentDiscardedWhileItsPermissionWaitsNoLongerAsksThePersonInItsParentsConversationAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var decisions = run.Watch<PermissionDecided>();
+        var workbench = await run.WorkbenchAsync();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        var asked = (await decisions.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(parent) && update.Decision.Delivery == DecisionDelivery.LeftToHuman)).Decision;
+        var conversation = await workbench.SelectAsync(parent);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(Outcomes.Present(asked.Job), Cancellation));
+        _ = await run.SettledAsync(parent);
+        await run.DeliveredAsync();
+
+        Assert.DoesNotContain(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Status")), status => status.StartsWith("Waiting for you", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ASubAgentWaitingForItsParentsAnswerSaysSoUnderItsParentInTheSidebarAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
