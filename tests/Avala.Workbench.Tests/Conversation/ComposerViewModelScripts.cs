@@ -104,6 +104,35 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public void UpInAnEmptyComposerLeavesOutAMessageAvalaWroteToContinueTheJob()
+    {
+        var composer = Composer(JobStatus.NeedsHelp);
+        Said(composer, "The usage window has reset.", Avala.Agents.Contracts.Sessions.MessageAuthor.Avala);
+
+        composer.RecallEarlierCommand.Execute(null);
+
+        Assert.Equal(("Fix JPY rounding in invoice totals", false), (composer.Draft, composer.RecallEarlierCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public void UpInAnEmptyComposerLeavesOutANoteAvalaSentWhileTheAgentWorked()
+    {
+        var composer = Composer(JobStatus.Running);
+        var session = Avala.Agents.Contracts.Sessions.SessionId.New();
+        var turn = Avala.Agents.Contracts.Sessions.TurnId.New();
+        shown = shown with
+        {
+            Transcript = shown.Transcript.WithPrompts(shown.Summary.Instruction, [new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Running, Option<string>.None, Option<Avala.Agents.Contracts.Sessions.SessionId>.None)])
+                .Apply(new Avala.Agents.Contracts.Events.MessageQueued(session, turn, "Avala now allows running `dotnet test` in this job. You may retry it.") { Author = Avala.Agents.Contracts.Sessions.MessageAuthor.Avala }, DateTimeOffset.UnixEpoch),
+        };
+        composer.Track(shown);
+
+        composer.RecallEarlierCommand.Execute(null);
+
+        Assert.Equal(("Fix JPY rounding in invoice totals", false), (composer.Draft, composer.RecallEarlierCommand.CanExecute(null)));
+    }
+
+    [Fact]
     public void WithTextInTheComposerUpRecallsNothing()
     {
         var composer = Composer(JobStatus.NeedsHelp);
@@ -347,7 +376,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         return composer;
     }
 
-    private void Said(ComposerViewModel composer, string hint)
+    private void Said(ComposerViewModel composer, string hint, Avala.Agents.Contracts.Sessions.MessageAuthor author = Avala.Agents.Contracts.Sessions.MessageAuthor.Person)
     {
         shown = shown with
         {
@@ -355,7 +384,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
                 shown.Summary.Instruction,
                 [
                     new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Passed, Option<string>.None, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
-                    new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Passed, hint, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
+                    new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Passed, hint, Option<Avala.Agents.Contracts.Sessions.SessionId>.None) { Author = author },
                 ]),
         };
         composer.Track(shown);
