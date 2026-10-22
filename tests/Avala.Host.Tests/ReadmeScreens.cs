@@ -163,7 +163,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         run.Clock.Advance(TimeSpan.FromSeconds(0.2));
         _ = await available.UntilAsync(_ => true);
         var pane = Assert.Single(await run.Ui.ReadAsync(() => workbench.Page["Regions"]["Preview"].Items));
-        await workbench.ShowsAsync(() => pane["IsOpen"].Value<bool>());
+        await workbench.ShowsAsync(pane, () => pane["IsOpen"].Value<bool>());
         await Reel.FilmAsync(run, "preview", FeatureReel.Hold(3.0));
     }
 
