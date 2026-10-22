@@ -16,7 +16,9 @@ internal sealed record Scene(
     IReadOnlyList<string> OpenTrees,
     IReadOnlyDictionary<JobId, string> Worktrees,
     IReadOnlyList<UsageSummary> Usage,
-    IReadOnlyList<OpenTurn> TurnsOpenAfterTheirSession)
+    IReadOnlyList<OpenTurn> TurnsOpenAfterTheirSession,
+    IReadOnlyList<OpenItem> ItemsOpenAfterTheirTurn,
+    IReadOnlyList<string> RestsWhileWorking)
 {
     public static async Task<Scene> ReadAsync(IServiceProvider services, TurnLedger turns, CancellationToken cancellationToken)
     {
@@ -43,7 +45,9 @@ internal sealed record Scene(
             [.. services.GetRequiredService<IProcessTrees>().Open.Select(tree => tree.Home)],
             worktrees,
             [.. jobs.SelectMany(job => usage.OfJob(job.Summary.Job).Match<UsageSummary[]>(used => [used], () => [])), .. usage.ByProvider().Select(provider => provider.Usage)],
-            turns.OpenAfterTheirSession);
+            turns.OpenAfterTheirSession,
+            turns.OpenAfterTheirTurn,
+            turns.RestedWhileWorking);
     }
 }
 
@@ -55,15 +59,22 @@ internal static class Invariants
 
     public static IReadOnlyList<string> BrokenIn(Scene scene) =>
     [
-        .. NeverFailsWithoutAReason(scene),
-        .. HoldsOnlyWhileItNeedsHelp(scene),
-        .. EndsExactlyWhenItIsApprovedDiscardedOrFailed(scene),
-        .. SettlesEveryAttempt(scene),
+        .. InstantlyBrokenIn(scene),
         .. StopsTheSessionsOfAnEndedJob(scene),
         .. LeavesNoProcessInTheWorktreeOfAnEndedJob(scene),
         .. EndsEveryChildOfAnEndedParent(scene),
         .. ClosesEveryTurnOfAnEndedSession(scene),
+        .. ClosesEveryItemOfAnEndedTurn(scene),
+    ];
+
+    public static IReadOnlyList<string> InstantlyBrokenIn(Scene scene) =>
+    [
+        .. NeverFailsWithoutAReason(scene),
+        .. HoldsOnlyWhileItNeedsHelp(scene),
+        .. EndsExactlyWhenItIsApprovedDiscardedOrFailed(scene),
+        .. SettlesEveryAttempt(scene),
         .. NeverCountsNegativeUsage(scene),
+        .. scene.RestsWhileWorking,
     ];
 
     private static IEnumerable<string> NeverFailsWithoutAReason(Scene scene) =>
@@ -113,6 +124,9 @@ internal static class Invariants
 
     private static IEnumerable<string> ClosesEveryTurnOfAnEndedSession(Scene scene) =>
         scene.TurnsOpenAfterTheirSession.Select(turn => $"No turn stays open once its session ended: turn {turn.Turn.Value} of session {turn.Session.Value}.");
+
+    private static IEnumerable<string> ClosesEveryItemOfAnEndedTurn(Scene scene) =>
+        scene.ItemsOpenAfterTheirTurn.Select(item => $"No item stays open once its turn ended: item {item.Item.Value} of turn {item.Turn.Value} in session {item.Session.Value}.");
 
     private static IEnumerable<string> NeverCountsNegativeUsage(Scene scene) =>
         from usage in scene.Usage

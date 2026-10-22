@@ -152,6 +152,22 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task WhetherAHandoffContinuesItsRoundSurvivesAReloadAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var rejected = Given.JobIn(JobState.Checking);
+        Outcomes.Succeeds(rejected.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal")));
+        var held = Given.JobIn(JobState.Running);
+        Outcomes.Succeeds(held.Hold(HoldReason.LimitNearlyReached));
+        Outcomes.Succeeds(held.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal")));
+        await SaveAsync(folder, rejected, held);
+
+        var reloaded = (await ReloadAsync(folder, store => store.FindAsync(rejected.Id, Cancellation)), await ReloadAsync(folder, store => store.FindAsync(held.Id, Cancellation)));
+
+        Assert.Equal((true, false), (reloaded.Item1.Attempts[^1].ContinuesRound, reloaded.Item2.Attempts[^1].ContinuesRound));
+    }
+
+    [Fact]
     public async Task WhenAJobEndedSurvivesAReloadAsync()
     {
         using var folder = new TemporaryFolder();

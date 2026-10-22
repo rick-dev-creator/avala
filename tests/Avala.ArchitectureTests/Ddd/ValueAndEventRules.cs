@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Avala.ArchitectureTests.Scopes;
 
 namespace Avala.ArchitectureTests.Ddd;
@@ -29,6 +30,17 @@ internal static class ValueAndEventRules
         Events(scope)
             .Where(type => type.IsIntegrationEvent && Layers.Of(type.Namespace) != Layer.Contracts)
             .Select(Name);
+
+    public static IEnumerable<string> RecordsPrintingThemselves(CodeScope scope) =>
+        scope.Types
+            .Where(type => (type.IsRecordClass || type.IsRecordStruct)
+                && type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).Any(property => property.PropertyType == type)
+                && Generated(type, nameof(ToString))
+                && Generated(type, "PrintMembers"))
+            .Select(Name);
+
+    private static bool Generated(Type type, string method) =>
+        type.GetMethods(BuildingBlocks.Declared).Where(declared => declared.Name == method).All(declared => declared.IsDefined(typeof(CompilerGeneratedAttribute), false));
 
     private static IEnumerable<Type> Events(CodeScope scope) =>
         scope.Types.Where(type => !type.IsInterface && (type.IsDomainEvent || type.IsIntegrationEvent));
