@@ -140,6 +140,7 @@ internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>
     private static JobMessage Merged(List<JobMessage> messages) =>
         new(string.Join("\n\n", messages.Select(message => message.Text)))
         {
+            Messages = [.. messages.SelectMany(message => message.Messages)],
             Attachments = [.. messages.SelectMany(message => message.Attachments)],
             Author = messages[0].Author,
             CausedBy = messages.Any(message => message.CausedBy == MessageAuthor.Person) ? MessageAuthor.Person : MessageAuthor.Avala,

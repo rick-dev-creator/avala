@@ -10,10 +10,10 @@ internal static class JobCollaborators
 {
     extension(IAgents agents)
     {
-        public Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken) =>
+        public Task<Result<AgentTurn, AgentError>> TellAsync(Job job, Told told, CancellationToken cancellationToken) =>
             job.Session.Match(
                 session => job.State == JobState.Running
-                    ? agents.SayOrJoinAsync(session, new UserTurn(message) { Attachments = job.Attempts.Count == 0 ? [] : job.Attempts[^1].Attachments, Author = author }, cancellationToken)
+                    ? agents.SayOrJoinAsync(session, new UserTurn(told.Text) { Messages = told.Messages, Attachments = job.Attempts.Count == 0 ? [] : job.Attempts[^1].Attachments, Author = told.Author }, cancellationToken)
                     : Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported)),
                 () => Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.SessionClosed)));
 

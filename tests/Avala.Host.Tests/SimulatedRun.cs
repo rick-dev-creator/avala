@@ -499,6 +499,6 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [new TurnLedger(), Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [new TurnLedger(), Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
+                RealNotifier ? [new TurnLedger(), new MessageLedger(), Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [new TurnLedger(), new MessageLedger(), Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
     }
 }

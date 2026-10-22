@@ -291,7 +291,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     {
         _ = round.InSameSession(job, guidance);
         await ledger.RecordAsync(job, cancellationToken);
-        await TellAsync(job, guidance.Text, guidance.Author, cancellationToken);
+        await TellAsync(job, new Told(guidance.Text, guidance.Author) { Messages = guidance.Messages }, cancellationToken);
 
         return new JobContinuation(job.Id, session, ContinuedIn.SameSession);
     }
@@ -314,7 +314,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
         await ledger.RecordSessionAsync(job, opened.Session, cancellationToken);
-        await TellAsync(job, new Told(opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author) { Fresh = !opened.Resumed }, cancellationToken);
+        await TellAsync(job, new Told(opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author) { Fresh = !opened.Resumed, Messages = guidance.Messages }, cancellationToken);
 
         return new JobContinuation(job.Id, opened.Session, opened.Resumed ? ContinuedIn.ResumedConversation : ContinuedIn.NewConversation);
     }

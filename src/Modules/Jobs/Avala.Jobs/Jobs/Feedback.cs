@@ -16,11 +16,15 @@ internal sealed record Feedback
 
     public MessageAuthor Cause { get; private init; }
 
+    public IReadOnlyList<MessageId> Messages { get; private init; } = [];
+
     public Feedback With(IReadOnlyList<Attachment> attachments) => this with { Attachments = attachments };
 
     public Feedback By(MessageAuthor author) => this with { Author = author, Cause = author };
 
     public Feedback CausedBy(MessageAuthor cause) => this with { Cause = cause };
+
+    public Feedback Carrying(IReadOnlyList<MessageId> messages) => this with { Messages = messages };
 
     public static Result<Feedback, JobError> Create(string text) =>
         string.IsNullOrWhiteSpace(text) ? JobError.EmptyFeedback : new Feedback(text.Trim());

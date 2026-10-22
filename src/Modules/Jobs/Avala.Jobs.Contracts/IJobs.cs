@@ -108,6 +108,8 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
 
 public sealed record JobMessage(string Text)
 {
+    public IReadOnlyList<MessageId> Messages { get; init; } = [MessageId.New()];
+
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public MessageAuthor Author { get; init; } = MessageAuthor.Person;

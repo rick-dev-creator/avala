@@ -41,7 +41,7 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
     public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
         controls.Journal.Delivered(
             job,
-            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy)).TryGetValue(out var steering, out _)
+            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy).Carrying(message.Messages)).TryGetValue(out var steering, out _)
                 ? await InQueueAsync(job, (found, token) => controls.Hold.SteerAsync(found, steering, token), cancellationToken)
                 : JobRejection.EmptyMessage);
 
@@ -82,7 +82,7 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         CancellationToken cancellationToken) =>
         controls.Journal.Delivered(
             job,
-            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy)).TryGetValue(out var feedback, out _)
+            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy).Carrying(message.Messages)).TryGetValue(out var feedback, out _)
                 ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
                 : JobRejection.EmptyMessage);
 

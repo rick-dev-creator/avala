@@ -18,7 +18,8 @@ internal sealed record Scene(
     IReadOnlyList<UsageSummary> Usage,
     IReadOnlyList<OpenTurn> TurnsOpenAfterTheirSession,
     IReadOnlyList<OpenItem> ItemsOpenAfterTheirTurn,
-    IReadOnlyList<string> RestsWhileWorking)
+    IReadOnlyList<string> RestsWhileWorking,
+    IReadOnlyList<SentMessage> Messages)
 {
     public static async Task<Scene> ReadAsync(IServiceProvider services, TurnLedger turns, CancellationToken cancellationToken)
     {
@@ -47,7 +48,8 @@ internal sealed record Scene(
             [.. jobs.SelectMany(job => usage.OfJob(job.Summary.Job).Match<UsageSummary[]>(used => [used], () => [])), .. usage.ByProvider().Select(provider => provider.Usage)],
             turns.OpenAfterTheirSession,
             turns.OpenAfterTheirTurn,
-            turns.RestedWhileWorking);
+            turns.RestedWhileWorking,
+            services.GetRequiredService<MessageLedger>().Messages);
     }
 }
 
@@ -65,6 +67,7 @@ internal static class Invariants
         .. EndsEveryChildOfAnEndedParent(scene),
         .. ClosesEveryTurnOfAnEndedSession(scene),
         .. ClosesEveryItemOfAnEndedTurn(scene),
+        .. DeliversEveryMessageOnceOrReportsItUndelivered(scene),
     ];
 
     public static IReadOnlyList<string> InstantlyBrokenIn(Scene scene) =>
@@ -127,6 +130,12 @@ internal static class Invariants
 
     private static IEnumerable<string> ClosesEveryItemOfAnEndedTurn(Scene scene) =>
         scene.ItemsOpenAfterTheirTurn.Select(item => $"No item stays open once its turn ended: item {item.Item.Value} of turn {item.Turn.Value} in session {item.Session.Value}.");
+
+    private static IEnumerable<string> DeliversEveryMessageOnceOrReportsItUndelivered(Scene scene) =>
+        from message in scene.Messages
+        let failed = scene.Jobs.Any(job => job.Summary.Job == message.Job && job.Summary.Status == JobStatus.Failed)
+        where message.Reached != (message.Accepted ? 1 : 0) && !(message.Accepted && failed && message.Reached == 0)
+        select $"Every message reaches the agent once, or is reported undelivered: message {message.Message.Value} to job {message.Job.Value} was {(message.Accepted ? "accepted" : "refused")} and reached the agent {message.Reached} times.";
 
     private static IEnumerable<string> NeverCountsNegativeUsage(Scene scene) =>
         from usage in scene.Usage

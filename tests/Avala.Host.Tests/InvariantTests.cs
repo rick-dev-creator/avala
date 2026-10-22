@@ -15,12 +15,52 @@ public sealed class InvariantTests
     private static readonly DateTimeOffset Moment = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void AScenarioWhoseJobsKeptTheirLifecycleBreaksNoInvariant() =>
+    public void AScenarioWhoseJobsKeptTheirLifecycleBreaksNoInvariant()
+    {
+        var running = Job(JobStatus.Running, AttemptOutcome.Running);
+        var failed = Job(JobStatus.Failed, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.Failed) with { Ended = Moment, Failure = JobFailure.AgentUnavailable } };
+
         Assert.Empty(Invariants.BrokenIn(Of(
-            Job(JobStatus.Running, AttemptOutcome.Running),
+            running,
+            failed,
             Job(JobStatus.Approved, AttemptOutcome.Passed) with { Summary = Summary(JobStatus.Approved) with { Ended = Moment } },
             Job(JobStatus.NeedsHelp, AttemptOutcome.Rejected),
-            Job(JobStatus.NeedsHelp, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.NeedsHelp) with { Hold = HoldReason.Stalled } })));
+            Job(JobStatus.NeedsHelp, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.NeedsHelp) with { Hold = HoldReason.Stalled } }) with
+            {
+                Messages =
+                [
+                    new SentMessage(running.Summary.Job, MessageId.New(), Accepted: true, Reached: 1),
+                    new SentMessage(running.Summary.Job, MessageId.New(), Accepted: false, Reached: 0),
+                    new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: true, Reached: 0),
+                ],
+            }));
+    }
+
+    [Fact]
+    public void AMessageThatReachedTheAgentTwiceBreaksAnInvariant() =>
+        Broken("Every message reaches the agent once", Of() with { Messages = [new SentMessage(JobId.New(), MessageId.New(), Accepted: true, Reached: 2)] });
+
+    [Fact]
+    public void AMessageAcceptedThatNeverReachedTheAgentOfAJobStillGoingBreaksAnInvariant() =>
+        Broken("Every message reaches the agent once", Of() with { Messages = [new SentMessage(JobId.New(), MessageId.New(), Accepted: true, Reached: 0)] });
+
+    [Fact]
+    public void AMessageReportedUndeliveredThatReachedTheAgentBreaksAnInvariant() =>
+        Broken("Every message reaches the agent once", Of() with { Messages = [new SentMessage(JobId.New(), MessageId.New(), Accepted: false, Reached: 1)] });
+
+    [Fact]
+    public void OnlyATurnTheAgentAcceptedCountsAsTheMessageReachingIt()
+    {
+        var ledger = new MessageLedger();
+        var (job, message) = (JobId.New(), new JobMessage("Use the new rounding table"));
+        var turn = new UserTurn(message.Text) { Messages = message.Messages };
+
+        ledger.Said(turn, AgentError.TurnInProgress);
+        ledger.Said(turn with { MidTurn = true }, TurnId.New());
+        ledger.Sent(job, message, Result<JobSteered, JobRejection>.Success(new JobSteered(job, Session, TurnId.New())));
+
+        Assert.Equal([new SentMessage(job, message.Messages[0], Accepted: true, Reached: 1)], ledger.Messages);
+    }
 
     [Fact]
     public void AJobThatFailedWithoutItsReasonBreaksAnInvariant() =>
@@ -105,7 +145,7 @@ public sealed class InvariantTests
     private static void Broken(string invariant, Scene scene) =>
         Assert.StartsWith(invariant, Assert.Single(Invariants.BrokenIn(scene)), StringComparison.Ordinal);
 
-    private static Scene Of(params JobHistory[] jobs) => new(jobs, [], [], new Dictionary<JobId, string>(), [], [], [], []);
+    private static Scene Of(params JobHistory[] jobs) => new(jobs, [], [], new Dictionary<JobId, string>(), [], [], [], [], []);
 
     private static JobHistory Discarded() =>
         Job(JobStatus.Discarded, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.Discarded) with { Ended = Moment } };
