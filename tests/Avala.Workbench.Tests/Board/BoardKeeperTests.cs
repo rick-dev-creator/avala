@@ -139,6 +139,26 @@ public sealed class BoardKeeperTests
         Assert.Equal(ChildAskingState.Allowed, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
     }
 
+    [Fact]
+    public async Task AChildsPermissionSettledWithoutThePersonNoLongerAsksThemInItsParentsConversation()
+    {
+        var parent = catalog.Add("Ship the release").Summary.Job;
+        var child = catalog.Add("Migrate the database").Summary.Job;
+        catalog.Change(child, history => history with { Summary = history.Summary with { Parent = parent } });
+        var (parentSession, childSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(parent, parentSession), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(child, childSession), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(childSession, turn)), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new PermissionRequested(childSession, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update")), Cancellation);
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(childSession, turn, new ItemId("migrate"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+
+        await keeper.HandleAsync(new AgentActivity(new PermissionResolved(childSession, turn, new ItemId("migrate"), PermissionAnswer.Allow)), Cancellation);
+
+        Assert.Equal(ChildAskingState.Withdrawn, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

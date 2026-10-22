@@ -56,17 +56,17 @@ public sealed class TranscriptTests
     public void WhatAChildAskedItsParentReplacesTheNoteTheParentWasToldAndFollowsTheChildsDecision()
     {
         var child = SessionId.New();
-        const string note = "Sub-agent \"Migrate the database\" is waiting for you: it wants to run a command: dotnet ef database update";
+        const string note = "Sub-agent \"Migrate the database\" is waiting for you: it asks: Choose a database";
         var told = Played(new MessageQueued(Session, Turn, note))
-            .Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note, Option<string>.None);
-        var allowed = told.ChildDecided(child, new ItemId("migrate"), asked => asked with { State = ChildAskingState.Allowed });
-        var elsewhere = Played().Asked(child, new ItemId("migrate"), "Migrate the database", "wants to run a command: dotnet ef database update", note, Option<string>.None);
+            .Asked(child, new ItemId("migrate"), "Migrate the database", "asks: Choose a database", note, Option<string>.None);
+        var allowed = told.ChildDecided(asked => asked with { State = ChildAskingState.Answered });
+        var elsewhere = Played().Asked(child, new ItemId("migrate"), "Migrate the database", "asks: Choose a database", note, Option<string>.None);
 
         var asked = Assert.IsType<ChildAskingEntry>(Assert.Single(told.Entries));
-        Assert.Equal(("Migrate the database", "wants to run a command: dotnet ef database update", ChildAskingState.Waiting), (asked.Child, asked.Asking, asked.State));
-        Assert.Equal(ChildAskingState.Allowed, Assert.IsType<ChildAskingEntry>(Assert.Single(allowed.Entries)).State);
+        Assert.Equal(("Migrate the database", "asks: Choose a database", ChildAskingState.Waiting), (asked.Child, asked.Asking, asked.State));
+        Assert.Equal(ChildAskingState.Answered, Assert.IsType<ChildAskingEntry>(Assert.Single(allowed.Entries)).State);
         Assert.IsType<ChildAskingEntry>(Assert.Single(elsewhere.Entries));
-        Assert.Same(told, told.ChildDecided(SessionId.New(), new ItemId("migrate"), entry => entry with { State = ChildAskingState.Denied }));
+        Assert.Same(told, told.ChildDecided(entry => entry));
     }
 
     [Fact]

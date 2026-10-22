@@ -75,6 +75,11 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
             Hold = integrationEvent.Status == JobStatus.NeedsHelp ? job.Hold : Option<HoldReason>.None,
             Wait = integrationEvent.Status == JobStatus.NeedsHelp ? job.Wait : Option<ResetWait>.None,
         }));
+
+        if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        {
+            Ended(integrationEvent.Job);
+        }
     }
 
     public ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken) =>
@@ -125,13 +130,20 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         Change(integrationEvent.Job, job => Audited(job with { Choice = integrationEvent.Choice }));
     }
 
-    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Event.Session, job =>
+    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Event is PermissionResolved resolved)
+        {
+            Asker(ParentOf(resolved.Session), resolved.Session, resolved.Item, asked => asked.State == ChildAskingState.Waiting ? asked with { State = ChildAskingState.Withdrawn } : asked);
+        }
+
+        return InSessionAsync(integrationEvent.Event.Session, job =>
         {
             var applied = job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) };
 
             return integrationEvent.Event is ModelReported ? Audited(applied) : applied;
         });
+    }
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });
@@ -245,7 +257,17 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     {
         foreach (var asked in Known(parent))
         {
-            Change(asked, job => Audited(job with { Transcript = job.Transcript.ChildDecided(session, item, change) }));
+            Change(asked, job => Audited(job with { Transcript = job.Transcript.ChildDecided(entry => entry.Session == session && entry.Item == item ? change(entry) : entry) }));
+        }
+    }
+
+    private void Ended(JobId child)
+    {
+        var asking = sessions.Where(pair => pair.Value == child).Select(pair => pair.Key).ToHashSet();
+
+        foreach (var parent in Known(jobs.TryGetValue(child, out var known) ? known.Summary.Parent : Option<JobId>.None))
+        {
+            Change(parent, job => Audited(job with { Transcript = job.Transcript.ChildDecided(asked => asked.State == ChildAskingState.Waiting && asking.Contains(asked.Session) ? asked with { State = ChildAskingState.Withdrawn } : asked) }));
         }
     }
 

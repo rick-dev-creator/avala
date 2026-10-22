@@ -36,7 +36,8 @@ internal sealed record Transcript
     public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note, Option<string> harness)
     {
         var told = Entries.OfType<InterjectionEntry>().LastOrDefault(entry => note.Length > 0 && entry.Text == note);
-        var key = told is null ? EntryKeys.ChildAsking(session, item) : told.Key;
+        var known = Entries.OfType<ChildAskingEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item);
+        var key = known?.Key ?? told?.Key ?? EntryKeys.ChildAsking(session, item);
 
         return Put(new ChildAskingEntry(key, session, item, child, asking) { Harness = harness });
     }
@@ -44,10 +45,8 @@ internal sealed record Transcript
     public Transcript AskedYou(ChildAskingEntry asked) =>
         Entries.OfType<ChildAskingEntry>().Any(entry => entry.Session == asked.Session && entry.Item == asked.Item) ? this : Put(asked);
 
-    public Transcript ChildDecided(SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change) =>
-        Entries.OfType<ChildAskingEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item) is { } asked
-            ? Put(change(asked))
-            : this;
+    public Transcript ChildDecided(Func<ChildAskingEntry, ChildAskingEntry> change) =>
+        Entries.OfType<ChildAskingEntry>().Aggregate(this, (transcript, asked) => change(asked) is var changed && changed != asked ? transcript.Put(changed) : transcript);
 
     public Transcript Delegated(DelegationRecord delegation)
     {

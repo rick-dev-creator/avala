@@ -34,23 +34,23 @@ public sealed class DecisionsViewModelScripts : IDisposable
     }
 
     [Fact]
-    public void ADecisionOfASubAgentFollowsItsParentsUnderTheParentsTitleAndOneWaitingForTheParentSaysSo()
+    public void APermissionOfASubAgentFollowsItsParentsDecisionsUnderTheParentsTitle()
     {
         var decisions = bench.Decisions();
         var parent = Questioning();
         var stranger = Asking();
-        var child = Asking(parent.Job, DecisionDelivery.LeftToParent, minutesAgo: 9) with { Summary = bench.Job("Migrate the database", JobStatus.Running) with { Parent = parent.Job } };
+        var child = Asking(Option<JobId>.None, DecisionDelivery.LeftToHuman, minutesAgo: 9) with { Summary = bench.Job("Migrate the database", JobStatus.Running) with { Parent = parent.Job } };
 
         decisions.Show(Bench.Of(stranger, parent, child));
 
         Assert.Equal(
             [
                 ("Add invoice PDF endpoint", string.Empty, "Waiting for you"),
-                ("Migrate the database", "Sub-agents of Add invoice PDF endpoint", "Waiting for its parent"),
+                ("Migrate the database", "Sub-agents of Add invoice PDF endpoint", "Waiting for you"),
                 ("Fix flaky CheckoutForm test", string.Empty, "Waiting for you"),
             ],
             decisions.Items.Select(item => (item.JobTitle, item.Heading, item.Status)));
-        Assert.Equal((0, 1), (child.PendingDecisions, parent.PendingDecisions));
+        Assert.Equal((1, 1), (child.PendingDecisions, parent.PendingDecisions));
     }
 
     [Fact]

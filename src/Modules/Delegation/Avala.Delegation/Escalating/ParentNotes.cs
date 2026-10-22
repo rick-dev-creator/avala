@@ -8,18 +8,19 @@ using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Escalating;
 
+internal sealed record UntoldQuestion(JobId Parent, JobId Child, ParentAsked Asked);
+
 internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking) : IHandle<FormDecided>, IHandle<JobProgressed>
 {
-    private readonly Dictionary<(SessionId Session, ItemId Item), (JobId Parent, ParentAsked Asked)> untold = [];
+    private readonly Dictionary<(SessionId Session, ItemId Item), UntoldQuestion> untold = [];
 
     public async ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
     {
         var decision = integrationEvent.Decision;
-        var key = (decision.Session, decision.Item);
 
         if (decision.Delivery != DecisionDelivery.LeftToParent)
         {
-            untold.Remove(key);
+            untold.Remove((decision.Session, decision.Item));
 
             return;
         }
@@ -32,18 +33,37 @@ internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking
 
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
     {
-        if (integrationEvent.Status is not (JobStatus.AwaitingReview or JobStatus.NeedsHelp))
+        if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        {
+            foreach (var ended in untold.Where(pending => pending.Value.Child == integrationEvent.Job).Select(pending => pending.Key).ToList())
+            {
+                untold.Remove(ended);
+            }
+
+            return;
+        }
+
+        var waiting = untold.Where(pending => pending.Value.Parent == integrationEvent.Job).ToList();
+
+        if (waiting.Count == 0 || integrationEvent.Status is not (JobStatus.Running or JobStatus.AwaitingReview or JobStatus.NeedsHelp))
         {
             return;
         }
 
-        foreach (var (key, waiting) in untold.Where(pending => pending.Value.Parent == integrationEvent.Job).ToList())
+        var note = string.Join("\n\n", waiting.Select(pending => pending.Value.Asked.Note));
+        var reached = integrationEvent.Status == JobStatus.Running
+            ? await waking.TellAsync(integrationEvent.Job, note, cancellationToken) ? ParentReach.Told : ParentReach.Later
+            : await waking.WakeIdleAsync(integrationEvent.Job, note, cancellationToken);
+
+        if (reached == ParentReach.Later)
         {
-            if (await waking.WakeIdleAsync(waiting.Parent, integrationEvent.Status, waiting.Asked.Note, cancellationToken) == ParentReach.Woken)
-            {
-                untold.Remove(key);
-                await journal.AskedAsync(waiting.Asked with { Woken = true }, cancellationToken);
-            }
+            return;
+        }
+
+        foreach (var (key, question) in waiting)
+        {
+            untold.Remove(key);
+            await journal.AskedAsync(question.Asked with { Woken = reached == ParentReach.Woken }, cancellationToken);
         }
     }
 
@@ -66,17 +86,16 @@ internal sealed class ParentNotes(DelegationJournal journal, ParentWaking waking
 
         foreach (var parent in child.Parent.Match<JobId[]>(found => [found], () => []))
         {
-            switch (await waking.ReachAsync(parent, job, noted.Note, cancellationToken))
+            var reached = await waking.ReachAsync(parent, job, noted.Note, cancellationToken);
+
+            if (reached == ParentReach.Later)
             {
-                case ParentReach.Told:
-                    await journal.AskedAsync(noted, cancellationToken);
-                    break;
-                case ParentReach.Woken:
-                    await journal.AskedAsync(noted with { Woken = true }, cancellationToken);
-                    break;
-                case ParentReach.Later:
-                    untold[(decision.Session, decision.Item)] = (parent, noted);
-                    break;
+                untold[(decision.Session, decision.Item)] = new UntoldQuestion(parent, job, noted);
+            }
+
+            if (reached != ParentReach.Gone)
+            {
+                await journal.AskedAsync(noted with { Woken = reached == ParentReach.Woken }, cancellationToken);
             }
         }
     }

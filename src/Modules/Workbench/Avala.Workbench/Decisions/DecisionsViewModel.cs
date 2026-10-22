@@ -140,7 +140,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         shown = jobs;
         var now = time.GetUtcNow();
         var waiting = jobs.Values
-            .SelectMany(job => job.Transcript.Pending.Select(entry => (Job: job, Entry: entry, Since: Since(entry))))
+            .SelectMany(job => job.Transcript.Awaiting.Select(entry => (Job: job, Entry: entry, Since: Since(entry))))
             .GroupBy(found => found.Job.Summary.Parent.Match(parent => parent, () => found.Job.Job))
             .OrderBy(family => family.Min(found => Oldest(found.Since)))
             .SelectMany(family => family.OrderBy(found => found.Job.Summary.Parent.IsSome).ThenBy(found => Oldest(found.Since)))

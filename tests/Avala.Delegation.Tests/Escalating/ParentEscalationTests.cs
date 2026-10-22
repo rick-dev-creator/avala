@@ -97,14 +97,15 @@ public sealed class ParentEscalationTests
         await DelegatedAsync();
 
         await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
-        Assert.Empty(bus.Published.OfType<ParentAsked>());
+        var shown = Assert.Single(bus.Published.OfType<ParentAsked>());
         jobs.Is(parent, JobStatus.AwaitingReview);
         await notes.HandleAsync(new JobProgressed(parent, JobStatus.AwaitingReview), Cancellation);
         await notes.HandleAsync(new JobProgressed(parent, JobStatus.AwaitingReview), Cancellation);
 
         var (job, message) = Assert.Single(jobs.SentBack);
         Assert.Equal((parent, MessageAuthor.Avala), (job, message.CausedBy));
-        Assert.True(Assert.Single(bus.Published.OfType<ParentAsked>()).Woken, "The parent was not woken once it stopped working");
+        Assert.False(shown.Woken, "A question the parent could not be told yet was said to have woken it");
+        Assert.True(bus.Published.OfType<ParentAsked>().Last().Woken, "The parent was not woken once it stopped working");
     }
 
     [Fact]
@@ -131,6 +132,45 @@ public sealed class ParentEscalationTests
         await notes.HandleAsync(new JobProgressed(parent, JobStatus.AwaitingReview), Cancellation);
 
         Assert.Empty(jobs.SentBack);
+    }
+
+    [Fact]
+    public async Task AQuestionWaitingForAParentThePersonHeldIsShownAndToldOnceThePersonContinuesItAsync()
+    {
+        await DelegatedAsync();
+        jobs.HeldFor(parent, HoldReason.Stopped);
+
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+        var shown = Assert.Single(bus.Published.OfType<ParentAsked>());
+        await notes.HandleAsync(new JobProgressed(parent, JobStatus.NeedsHelp), Cancellation);
+        jobs.Is(parent, JobStatus.Running);
+        jobs.Steerable = true;
+        await notes.HandleAsync(new JobProgressed(parent, JobStatus.Running), Cancellation);
+
+        Assert.Empty(jobs.Continued);
+        Assert.Equal((child, false), (Outcomes.Present(shown.Delegation.Child), shown.Woken));
+        var (told, note) = Assert.Single(jobs.Steered);
+        Assert.Equal(parent, told);
+        Assert.StartsWith("Sub-agent \"Choose the orders database\" is waiting for you", note, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TwoQuestionsWaitingForAParentThatCannotBeToldAreFoldedIntoOneWakeAsync()
+    {
+        var sibling = jobs.Running(parent);
+        await DelegatedAsync();
+        await book.KeepAsync(Record(sibling) with { Item = new ItemId("delegate-seed"), Instruction = "Choose the seed database" }, Cancellation);
+
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+        await notes.HandleAsync(new FormDecided(Asked() with { Session = SessionId.New(), Item = new ItemId("seed"), Job = sibling }), Cancellation);
+        jobs.Is(parent, JobStatus.AwaitingReview);
+        await notes.HandleAsync(new JobProgressed(parent, JobStatus.AwaitingReview), Cancellation);
+
+        var (job, message) = Assert.Single(jobs.SentBack);
+        Assert.Equal(parent, job);
+        Assert.Contains("\"Choose the orders database\"", message.Text, StringComparison.Ordinal);
+        Assert.Contains("\"Choose the seed database\"", message.Text, StringComparison.Ordinal);
+        Assert.Equal(2, bus.Published.OfType<ParentAsked>().Count(asked => asked.Woken));
     }
 
     [Theory]
