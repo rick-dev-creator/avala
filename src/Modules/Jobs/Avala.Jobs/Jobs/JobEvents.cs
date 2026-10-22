@@ -38,4 +38,6 @@ internal sealed record ModelChosen(JobId Job, ModelChoice Model) : IDomainEvent;
 
 internal sealed record RemoteControlChosen(JobId Job, bool On) : IDomainEvent;
 
+internal sealed record ConversationReopened(JobId Job, SessionId Session) : IDomainEvent;
+
 internal sealed record ResumeRecorded(JobId Job, SessionId Session) : IDomainEvent;

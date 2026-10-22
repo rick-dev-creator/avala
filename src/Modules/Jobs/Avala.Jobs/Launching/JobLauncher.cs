@@ -99,6 +99,27 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         }
     }
 
+    public async Task ReopenForDeviceAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (!job.AllowsRemoteControl
+            || job.Resume.IsNone
+            || job.Session.Match(agents.IsOpen, () => false)
+            || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
+            || !(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        {
+            return;
+        }
+
+        if (!opened.Resumed || job.ReopenForDevice(opened.Session).IsFailure)
+        {
+            _ = await agents.StopAsync(opened.Session, cancellationToken);
+
+            return;
+        }
+
+        await ledger.RecordReopenedAsync(job, opened.Session, cancellationToken);
+    }
+
     public async Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken)
     {
         if (job.Resume.IsNone || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))

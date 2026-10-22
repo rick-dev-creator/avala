@@ -267,6 +267,18 @@ internal sealed class Job : IAggregateRoot<JobId>
         return new RemoteControlChosen(Id, on);
     }
 
+    public Result<ConversationReopened, JobError> ReopenForDevice(SessionId session)
+    {
+        if (!AllowsRemoteControl || Resume.IsNone)
+        {
+            return JobError.CannotControlRemotely;
+        }
+
+        Join(session, resumed: true);
+
+        return new ConversationReopened(Id, session);
+    }
+
     public Result<AttemptStarted, JobError> Reopen(Feedback feedback, AttemptOrigin origin = AttemptOrigin.Reopen) =>
         machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
             .Map(_ =>

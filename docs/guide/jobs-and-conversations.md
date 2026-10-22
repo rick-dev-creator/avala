@@ -55,7 +55,7 @@ A job is one piece of work an agent does in its own worktree, and its conversati
 - Code blocks over 300 lines are shown without colors.
 - The exported conversation leaves out reasoning, and hides personal details while that setting is on.
 - **How much context is left** shows in the job's header beside the usage left, such as "30% context left", once the agent's first turn ends. Hover it for the tokens in use against the model's window, and whether the harness compacted the conversation during the last turn; it turns amber when the context is nearly full. A harness that reports no context window shows nothing there.
-- **On your phone**, Avala still decides: its permission rules, budgets and review apply, and a permission request waits in Avala, not on the phone. A delegated job is never on the phone; follow it through the job that started it. While Avala holds a job, its Remote Control is paused, and it comes back when the job runs again.
+- **On your phone**, Avala still decides: its permission rules, budgets and review apply, and a permission request waits in Avala, not on the phone. A delegated job is never on the phone; follow it through the job that started it. While Avala holds a job, its Remote Control is paused, and it comes back when the job runs again. Turning it on for a job waiting for review whose agent has ended, after an idle hour or a restart of Avala, resumes the job's conversation first, so your phone reaches its agent at once.
 - Jobs and their conversations survive a restart; a pending permission request does not.
 - When the agent does not confirm Stop within 30 seconds, Avala stops its session instead, and the log says so. The job is held with its work kept, and your next message resumes the conversation in a new session.
 
