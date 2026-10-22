@@ -312,6 +312,7 @@ public sealed class RequestFactsTests
     [Fact]
     public async Task AGlobIntoAReadableFolderIsReadableButNotWritable()
     {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "A Windows path holds a drive colon and backslashes, which no glob runs without asking with.");
         using var workspace = new TemporaryFolder();
         using var projects = new TemporaryFolder();
         Directory.CreateDirectory(Path.Combine(projects.Path, "sibling"));
