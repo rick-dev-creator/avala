@@ -135,6 +135,51 @@ public sealed class BackgroundTaskTests
         Assert.Equal("a1:run2", talk.Events.OfType<ItemStarted>().Single(started => started.Item == new ItemId("n1")).Parent.Match(parent => parent.Value, () => string.Empty));
     }
 
+    [Fact]
+    public void ASubagentsToolCallStillOpenWhenTheReplyEndsIsCarriedWhileTheSubagentWorksInTheBackground()
+    {
+        var talk = new Talk(PermissionMode.AllowAll).Begin();
+
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Started(),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Nested(Cli.ToolUse("n1", "Read", """{ "file_path": "/work/billing.md" }"""), "a1"),
+            Cli.Said("m1", "text", "launched"),
+            Cli.Result(0.006m),
+            Cli.Lifecycle(talk.Command, "completed"));
+
+        Assert.Contains(talk.Events.OfType<ItemStarted>(), started => started.Item == new ItemId("n1"));
+        Assert.DoesNotContain(talk.Events.OfType<ItemCompleted>(), completed => completed.Item == new ItemId("n1"));
+    }
+
+    [Fact]
+    public void ALateNotificationNamingOnlyTheTaskOfASubagentThatFinishedReportsNothing()
+    {
+        var talk = new Talk(PermissionMode.AllowAll).Begin();
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("a1", "Agent", """{ "description": "Survey", "prompt": "Survey billing", "subagent_type": "general-purpose", "run_in_background": true }"""),
+            Started(),
+            Cli.ToolResult("a1", "Async agent launched successfully."),
+            Cli.Said("m1", "text", "launched"),
+            Cli.Result(0.006m),
+            Cli.Lifecycle(talk.Command, "completed"),
+            Completed(),
+            Cli.Said("m2", "text", "The survey came back."),
+            Cli.Result(0.009m));
+        talk.Drain();
+
+        talk.Receive(Cli.Parse("""{ "type": "system", "subtype": "task_notification", "task_id": "k1", "status": "completed", "summary": "Survey" }"""));
+
+        Assert.Empty(talk.Events);
+    }
+
     private static System.Text.Json.Nodes.JsonNode Started() =>
         Cli.Parse("""{ "type": "system", "subtype": "task_started", "task_id": "k1", "tool_use_id": "a1", "description": "Survey", "subagent_type": "general-purpose", "is_backgrounded": true }""");
 
