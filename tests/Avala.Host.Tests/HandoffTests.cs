@@ -269,6 +269,26 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheConversationShowsTheResetMessageOfAJobResumedByItselfAtTheResetAsAvalasAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", """{ "limits": { "resumeAtReset": "auto" } }""")]);
+        var waits = run.Watch<JobWaitsForReset>();
+        var resumed = run.Watch<JobResumedAtReset>();
+        var progress = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("window-runs-out")) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        _ = await resumed.UntilAsync(announced => announced.Job == job);
+        await ReviewedAsync(progress, job);
+        var workbench = await run.WorkbenchAsync();
+
+        var conversation = await workbench.SelectAsync(job);
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
+        Assert.NotEqual("You", (await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")))[1]);
+    }
+
+    [Fact]
     public async Task AJobWhoseAccountIsExhaustedIsHeldForItsLimitInsteadOfFailedAndFinishesOnTheOtherAccountAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed("""{ "limits": { "onLimit": "handoff-same-harness", "connections": ["simulator-one", "simulator-two"] } }"""));
