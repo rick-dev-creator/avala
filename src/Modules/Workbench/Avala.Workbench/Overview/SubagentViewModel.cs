@@ -125,24 +125,31 @@ internal sealed partial class SubagentViewModel(BranchPlaceViewModel place, JobI
 
         foreach (var entry in branch.Tool.Match<ToolEntry[]>(found => [found], () => []))
         {
-            Name = entry.Named;
-            Activity = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
-            Meter = Metered(entry);
-            Since = entry.Started.Match(at => at, () => DateTimeOffset.MinValue);
-            IsTiming = entry.Outcome.IsNone && entry.Started.IsSome;
-            var trail = entry.Trail.AsEnumerable().Reverse().ToList();
-            Trail = Trail.SequenceEqual(trail) ? Trail : trail;
+            Show(entry);
         }
 
-        Note = branch.State switch
-        {
-            SubagentState.Waiting => branch.Asks.Match(target => $"asks: {target}", () => "waits for you"),
-            SubagentState.Lost => "its work was lost when its turn or session ended",
-            SubagentState.Failed => "it failed",
-            SubagentState.Stopped when branch.Tool.Match(tool => tool.Denied, () => false) => "it was denied before it ran",
-            _ => string.Empty,
-        };
+        Note = Noted(branch);
     }
+
+    private void Show(ToolEntry entry)
+    {
+        Name = entry.Named;
+        Activity = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
+        Meter = Metered(entry);
+        Since = entry.Started.Match(at => at, () => DateTimeOffset.MinValue);
+        IsTiming = entry.Outcome.IsNone && entry.Started.IsSome;
+        var trail = entry.Trail.AsEnumerable().Reverse().ToList();
+        Trail = Trail.SequenceEqual(trail) ? Trail : trail;
+    }
+
+    private static string Noted(AgentBranch branch) => branch.State switch
+    {
+        SubagentState.Waiting => branch.Asks.Match(target => $"asks: {target}", () => "waits for you"),
+        SubagentState.Lost => "its work was lost when its turn or session ended",
+        SubagentState.Failed => "it failed",
+        SubagentState.Stopped when branch.Tool.Match(tool => tool.Denied, () => false) => "it was denied before it ran",
+        _ => string.Empty,
+    };
 
     private static string Metered(ToolEntry entry) =>
         string.Join(
