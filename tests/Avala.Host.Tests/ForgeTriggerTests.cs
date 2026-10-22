@@ -204,7 +204,7 @@ public sealed class ForgeTriggerTests(PublishedPlugins plugins)
                 plugins,
                 [
                     ("forges.json", """{ "pollSeconds": 60, "forges": [{ "name": "local", "forge": "simulated" }] }"""),
-                    ("resources.json", $$"""{ {{LeasedPorts.Settings(test: 5)}} }"""),
+                    ("resources.json", $$"""{ {{LeasedPorts.Settings()}} }"""),
                 ],
                 [(".avala/checks.json", PassingChecks), .. committed ?? []],
                 placed: repository =>

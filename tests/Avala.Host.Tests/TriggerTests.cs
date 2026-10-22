@@ -242,7 +242,7 @@ public sealed class TriggerTests(PublishedPlugins plugins)
     {
         var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(test: 4)}} }"""), .. settings ?? []],
+            [("resources.json", $$"""{ {{LeasedPorts.Settings()}} }"""), .. settings ?? []],
             [(".avala/checks.json", PassingChecks), .. committed ?? []],
             placed: repository =>
             [

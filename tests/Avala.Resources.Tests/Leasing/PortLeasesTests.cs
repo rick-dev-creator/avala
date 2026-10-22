@@ -67,4 +67,29 @@ public sealed class PortLeasesTests
         Assert.Equal(new PortLease(home, 24_000, 24_009), Assert.Single(resources.Bus.Published.OfType<PortsReleased>()).Lease);
         Assert.Empty(resources.Book.Leases());
     }
+
+    [Fact]
+    public async Task TwoAvalasLeasingFromTheSameRangeBeforeEitherListensGetDifferentBlocksAsync()
+    {
+        await using var one = new Resourced();
+        await using var other = new Resourced(Avala.Resources.Settings.ResourceSettingsParser.Defaults, one.Claims);
+
+        var first = await one.Leases.LeaseAsync("avala-webhooks", Cancellation);
+        var second = await other.Leases.LeaseAsync("avala-webhooks", Cancellation);
+
+        Assert.Equal((24_000, 24_010), (Outcomes.Present(first).First, Outcomes.Present(second).First));
+    }
+
+    [Fact]
+    public async Task ABlockAnotherAvalaReleasedIsLeasedAgainAsync()
+    {
+        await using var one = new Resourced();
+        await using var other = new Resourced(Avala.Resources.Settings.ResourceSettingsParser.Defaults, one.Claims);
+        _ = await one.Leases.LeaseAsync("avala-webhooks", Cancellation);
+        await one.Leases.ReleaseAsync("avala-webhooks", Cancellation);
+
+        var lease = await other.Leases.LeaseAsync("avala-webhooks", Cancellation);
+
+        Assert.Equal(24_000, Outcomes.Present(lease).First);
+    }
 }

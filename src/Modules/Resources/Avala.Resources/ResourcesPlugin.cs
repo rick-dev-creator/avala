@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Resources.Claims;
 using Avala.Resources.Contracts;
 using Avala.Resources.Disks;
 using Avala.Resources.Housekeeping;
@@ -30,6 +31,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<TemporaryFolders>()
             .AddForwarded<IProcessEnvironment, TemporaryFolders>()
             .AddForwarded<IHandle<JobProgressed>, TemporaryFolders>()
+            .AddSingleton<IPortClaims>(services => new PortClaimFiles(services.GetRequiredService<IListeningPorts>(), PortClaimFiles.MachineFolder))
             .AddSingleton<PortLeases>()
             .AddForwarded<IProcessEnvironment, PortLeases>()
             .AddForwarded<IPortLeases, PortLeases>()

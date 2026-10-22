@@ -62,7 +62,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     [Fact]
     public async Task AProcessLeftRunningByADiscardedJobIsReportedWithItsJobAndReapedAsync()
     {
-        await using var run = await ProcessesAsync(test: 1);
+        await using var run = await ProcessesAsync();
         var port = ServedPort(await run.TurnAsync());
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
 
@@ -80,7 +80,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     [Fact]
     public async Task AProcessOfAJobWhoseIdleAgentEndedKeepsRunningUntilTheJobEndsAndIsReapedThenAsync()
     {
-        await using var run = await ProcessesAsync(test: 6);
+        await using var run = await ProcessesAsync();
         var stopped = run.Watch<SessionStopped>();
         var port = ServedPort(await run.TurnAsync());
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
@@ -102,7 +102,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     [Fact]
     public async Task TheWorktreesPortLeaseReachesTheProcessesOfItsAgentAsync()
     {
-        await using var run = await ProcessesAsync(test: 2);
+        await using var run = await ProcessesAsync();
 
         var lease = await run.LeasedAsync();
         var port = ServedPort(await run.TurnAsync());
@@ -116,7 +116,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     public async Task TheResourcesOfAJobsProcessesAreAttributedToItsJobAndCountedGloballyAsync()
     {
         var sampling = TimeSpan.FromSeconds(0.2);
-        await using var run = await ProcessesAsync(test: 3, """ "sampleSeconds": 0.2, "diskSeconds": 0.2 """);
+        await using var run = await ProcessesAsync(""" "sampleSeconds": 0.2, "diskSeconds": 0.2 """);
         await run.StartedAsync();
         var port = ServedPort(await run.TurnAsync());
         await run.DeliveredAsync();
@@ -215,11 +215,11 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(waiting));
     }
 
-    private Task<SimulatedRun> ProcessesAsync(int test, string settings = "") =>
+    private Task<SimulatedRun> ProcessesAsync(string settings = "") =>
         SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", $"{{ {string.Join(", ", new[] { LeasedPorts.Settings(test), settings }.Where(part => part.Length > 0))} }}")],
+            [("resources.json", $"{{ {string.Join(", ", new[] { LeasedPorts.Settings(), settings }.Where(part => part.Length > 0))} }}")],
             [(".avala/permissions.json", ServicesPolicy)]);
 
     private static int ServedPort(IReadOnlyList<IAgentEvent> turn) =>

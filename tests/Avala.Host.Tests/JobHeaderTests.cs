@@ -15,7 +15,7 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             "[simulate: reply] Rewrite the importer for the new CSV export format of the bank",
-            [("resources.json", $$"""{ {{LeasedPorts.OneBlock(test: 4)}} }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.OneBlock()}} }""")],
             [("package.json", """{ "name": "orders", "scripts": { "dev": "vite --port $AVALA_PORT" } }""")]);
         _ = await run.SettledAsync();
         var workbench = await run.WorkbenchAsync();
@@ -45,7 +45,7 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             "[simulate: two-windows-spent] Rewrite the importer for the new CSV export format of the bank",
-            [("resources.json", $$"""{ {{LeasedPorts.OneBlock(test: 2)}} }""")],
+            [("resources.json", $$"""{ {{LeasedPorts.OneBlock()}} }""")],
             [("package.json", """{ "name": "orders", "scripts": { "dev": "vite --port $AVALA_PORT" } }""")]);
         _ = await run.SettledAsync();
         var workbench = await run.WorkbenchAsync();
