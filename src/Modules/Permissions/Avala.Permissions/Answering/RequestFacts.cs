@@ -26,6 +26,24 @@ internal static class RequestFacts
 
     private static PermissionRequest Edit(string target, Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths)
     {
+        var located = Placed(target, workingDirectory, scratch, readable, paths);
+
+        if (target.IndexOfAny(['*', '?', '[']) < 0 || !IsPath(target))
+        {
+            return located;
+        }
+
+        var pattern = Path.IsPathFullyQualified(target) ? target : workingDirectory.Map(root => Path.Combine(Path.GetFullPath(root), target)).Match(full => full, () => string.Empty);
+
+        return (pattern.Length > 0 ? paths.Expand(pattern) : Option<IReadOnlyList<string>>.None).Match(
+            matches => matches.Select(match => Placed(match, workingDirectory, scratch, readable, paths)).ToList() is var placed && placed.TrueForAll(match => match.InsideWorkspace)
+                ? located
+                : Outside(located.Target) with { Readable = (located.InsideWorkspace || located.Readable) && placed.TrueForAll(match => match.InsideWorkspace || match.Readable) },
+            () => Outside(located.Target));
+    }
+
+    private static PermissionRequest Placed(string target, Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths)
+    {
         var located = IsPath(target)
             ? workingDirectory.Match(root => Located(target, root, scratch, paths), () => Outside(target))
             : Outside(target);

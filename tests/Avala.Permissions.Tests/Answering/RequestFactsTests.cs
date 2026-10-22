@@ -140,14 +140,39 @@ public sealed class RequestFactsTests
     [InlineData("cat docs/*/secret.env")]
     [InlineData("grep -rn secret docs/hom?")]
     [InlineData("ls docs/h[o]me/")]
-    public void AReadThatFollowsALinkOutOfTheWorktreeRecursivelyOrThroughAGlobStillAsks(string line)
+    [InlineData("cat docs/*.md")]
+    [InlineData("head -n 1 docs/l*")]
+    [InlineData("grep -rn secret docs/h*")]
+    [InlineData("cat docs/../../*")]
+    [InlineData("ls docs/*/")]
+    public async Task AReadThatFollowsALinkOutOfTheWorktreeRecursivelyOrThroughAGlobStillAsks(string line)
     {
         using var workspace = new TemporaryFolder();
         using var elsewhere = new TemporaryFolder();
         Directory.CreateDirectory(Path.Combine(workspace.Path, "docs"));
         Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", "home"), elsewhere.Path);
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "docs", "a.md"), "a", TestContext.Current.CancellationToken);
+        File.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", "leak.md"), Path.Combine(elsewhere.Path, "secret.md"));
 
         Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Requested(ItemKind.Command, line).Facts(workspace.Path, Links)).Answer);
+    }
+
+    [Theory]
+    [InlineData("cat docs/*.md")]
+    [InlineData("grep -rn TODO docs/*")]
+    [InlineData("ls docs/*/")]
+    [InlineData("wc -l docs/guide/?.md")]
+    [InlineData("cat docs/*.txt")]
+    public async Task AnUnquotedGlobWhoseEveryMatchIsInsideTheWorktreeIsAllowedWithoutAsking(string line)
+    {
+        using var workspace = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "docs", "guide"));
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "docs", "a.md"), "a", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "docs", "b.md"), "b", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "docs", "guide", "c.md"), "c", TestContext.Current.CancellationToken);
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "docs", "shared"), Path.Combine(workspace.Path, "docs", "guide"));
+
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Requested(ItemKind.Command, line).Facts(workspace.Path, Links)).Answer);
     }
 
     private static PermissionRequested Requested(ItemKind kind, string target) =>
