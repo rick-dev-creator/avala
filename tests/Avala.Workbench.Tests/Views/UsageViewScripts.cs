@@ -96,6 +96,46 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AtItsNarrowestAConnectionPricedAtApiPricesShowsItsWholeCostAsync() =>
+        ui.RunAsync(() =>
+        {
+            var cost = Avala.Workbench.Presenting.Amounts.Costs([new Avala.Agents.Contracts.Events.Cost(9.86m, "USD") { Basis = Avala.Agents.Contracts.Events.CostBasis.ApiEquivalent }]);
+            var view = Screen.Show(new Connection("Claude Code", cost), Avalonia.Styling.ThemeVariant.Dark, 224, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var shown = view.Find<TextBlock>("Cost");
+
+            Assert.True(ReadWhole(shown, card) && shown.TranslatePoint(new Point(shown.TextLayout.WidthIncludingTrailingWhitespace, 0), card)!.Value.X <= card.Bounds.Width - card.Padding.Right + 0.5, $"'{shown.Text}' needs {shown.TextLayout.WidthIncludingTrailingWhitespace:0} and is given {shown.Bounds.Width:0}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestALongProviderNameStaysInsideItsCardAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Connection("OpenAI Codex CLI through Azure OpenAI Service", "0.42 USD"), Avalonia.Styling.ThemeVariant.Dark, 224, 900);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var provider = view.Find<TextBlock>("Provider");
+            var end = provider.TranslatePoint(new Point(provider.TextLayout.WidthIncludingTrailingWhitespace, 0), card)!.Value.X;
+
+            Assert.True(end <= card.Bounds.Width - card.Padding.Right + 0.5, $"'{provider.Text}' ends at {end:0} in a card {card.Bounds.Width:0} wide");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtSixHundredPixelsAConnectionsCostStaysBesideItsNameAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 600, 1600);
+            view.Settle();
+            var card = view.Window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Meter");
+            var name = card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "ConnectionName");
+            var cost = card.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == "Cost");
+            var at = cost.TranslatePoint(default, name)!.Value;
+
+            Assert.True(at.X >= name.Bounds.Width && at.Y < name.Bounds.Height, $"the cost sits at {at} from a name {name.Bounds.Size}");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AtItsNarrowestEveryJobsTitleShowsAtLeastItsFirstWordAsync() =>
         ui.RunAsync(() =>
         {
@@ -171,6 +211,27 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         public double Share => 1;
 
         public bool IsToday => true;
+    }
+
+    private sealed class Connection(string provider, string cost) : IConnectionMeterViewModel
+    {
+        public string Name => "claude-work";
+
+        public string Provider => provider;
+
+        public string Cost => cost;
+
+        public string Tokens => "1,412,880 tokens";
+
+        public string Unpriced => string.Empty;
+
+        public string Caps => "3 USD per job, holds at 90% of a limit";
+
+        public bool IsFocused => false;
+
+        public IReadOnlyList<ILimitViewModel> Limits { get; } = [new DesignLimitViewModel()];
+
+        public string Shared => UsagePhrases.Shared(Name);
     }
 
     private sealed class EmptyUsage : IUsageViewModel
