@@ -144,7 +144,7 @@ internal sealed class SimulatedSession : IAgentSession
         : act.Match(
             running =>
             {
-                events.Writer.TryWrite(new MessageQueued(Id, running.Turn, turn.Text) { Attachments = turn.Attachments });
+                events.Writer.TryWrite(new MessageQueued(Id, running.Turn, turn.Text) { Attachments = turn.Attachments, Author = turn.Author });
                 gates.Messages.Writer.TryWrite(turn.Text);
 
                 return Result<TurnId, AgentError>.Success(running.Turn);

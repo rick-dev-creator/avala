@@ -38,13 +38,10 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, new JobMessage(message), (found, guidance, token) => review.ContinueOnAsync(found, connection, guidance, token), cancellationToken);
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        SteerAsync(job, new JobMessage(message), cancellationToken);
-
     public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
         controls.Journal.Delivered(
             job,
-            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author)).TryGetValue(out var steering, out _)
+            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy)).TryGetValue(out var steering, out _)
                 ? await InQueueAsync(job, (found, token) => controls.Hold.SteerAsync(found, steering, token), cancellationToken)
                 : JobRejection.EmptyMessage);
 
@@ -58,7 +55,7 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         await InQueueAsync(job, (found, token) => review.ApproveAsync(found, Option<string>.Some(strategy), token), cancellationToken);
 
     public async ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
-        await WithFeedbackAsync(job, new JobMessage(feedback), review.ReopenAsync, cancellationToken);
+        await WithFeedbackAsync(job, new JobMessage(feedback) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala }, review.ReopenAsync, cancellationToken);
 
     public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         await SendBackAsync(job, new JobMessage(feedback), cancellationToken);
@@ -85,7 +82,7 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         CancellationToken cancellationToken) =>
         controls.Journal.Delivered(
             job,
-            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author)).TryGetValue(out var feedback, out _)
+            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy)).TryGetValue(out var feedback, out _)
                 ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
                 : JobRejection.EmptyMessage);
 

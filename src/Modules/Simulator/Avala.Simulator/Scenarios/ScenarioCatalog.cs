@@ -9,7 +9,7 @@ internal static class ScenarioCatalog
 {
     private const string Tag = "[simulate:";
 
-    private static readonly IStep[] FixedCalculator =
+    internal static readonly IStep[] FixedCalculator =
     [
         Thought("The feedback says the sum is wrong. ", "I will fix it."),
         new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),

@@ -1,4 +1,7 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Documentation.Contracts;
 using Avala.Forges.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -161,6 +164,87 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal(
             [(AttemptOrigin.Initial, AttemptOutcome.Passed), (AttemptOrigin.Reopen, AttemptOutcome.Interrupted)],
             history.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
+    public async Task AWokenFixHeldAtItsUsageLimitAndResumedAtTheResetIsPushedToTheSamePullRequestAsync()
+    {
+        const string Rules = """{ "approval": "pull-request", "pullRequest": { "forge": "local", "onPullRequest": "wake-on-ci", "maxWakeUps": 3 }, "limits": { "resumeAtReset": "auto" } }""";
+        await using var forge = await ForgeRun.StartAsync(plugins, Rules, "ci-fails-once", "fix-past-the-window");
+        var waits = forge.Run.Watch<JobWaitsForReset>();
+        var opened = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == forge.Job)).Wait;
+
+        forge.Run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        var redelivered = await forge.RedeliveredAsync();
+
+        Assert.Equal(opened.PullRequest.Number, redelivered.PullRequest.Number);
+        Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task APersonsMessageToAWokenFixHeldAtItsUsageLimitComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, ForgeRun.Rules("local", "wake-on-ci", 3), "ci-fails-once", "fix-past-the-window");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.HeldAsync();
+        var progressed = forge.Run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await forge.Run.Get<IJobs>().ContinueAsync(forge.Job, "Stop: keep the old signature and only fix the sum.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == forge.Job && update.Status == JobStatus.AwaitingReview);
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task TheFailingChecksAWatchWakesADocumentedJobWithAreNoChangeRequestOfThePersonAsync()
+    {
+        const string Rules = """{ "approval": "pull-request", "docs": { "enabled": true }, "pullRequest": { "forge": "local", "onPullRequest": "wake-on-ci", "maxWakeUps": 3 } }""";
+        await using var forge = await ForgeRun.StartAsync(plugins, Rules, "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+
+        _ = await forge.RedeliveredAsync();
+        await forge.Run.DeliveredAsync();
+
+        Assert.Empty(forge.Run.Get<IDocumentation>().OfJob(forge.Job).Match(documented => documented.Requests, () => []));
+    }
+
+    [Fact]
+    public async Task APersonsMessageThatJoinsAWokenFixWhileItRunsComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.PacedAsync(plugins, ForgeRun.Rules("local", "wake-on-ci", 3), "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.Running));
+
+        _ = Outcomes.Succeeds(await forge.Run.Get<IJobs>().SteerAsync(forge.Job, new JobMessage("Also rename add to sum everywhere."), Cancellation));
+        _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.AwaitingReview));
+        await forge.Run.DeliveredAsync();
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task ANoticeOfAPermissionThePersonAllowedAfterAWokenFixWasPushedComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.RedeliveredAsync();
+        _ = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
+        var progressed = forge.Run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await forge.Run.Get<IJobs>().ContinueAsync(forge.Job, new JobMessage("Avala now allows web requests to example.com in this job. You may retry it.") { Author = MessageAuthor.Avala }, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == forge.Job && update.Status == JobStatus.AwaitingReview);
+        await forge.Run.DeliveredAsync();
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
     }
 
     [Fact]
@@ -411,121 +495,5 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal("CI failed: build", headline);
         Assert.Contains($"- build: {FailingTest}", request, StringComparison.Ordinal);
         Assert.Contains(request, Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts[^1].Guidance.Match(guidance => guidance, () => string.Empty), StringComparison.Ordinal);
-    }
-
-    private sealed class ForgeRun : IAsyncDisposable
-    {
-        private EventWatch<PullRequestWatchChanged> changes;
-        private EventWatch<PullRequestWakeUp> wakeUps;
-        private EventWatch<PullRequestOpened> opened;
-        private EventWatch<JobProgressed> progress;
-        private EventWatch<JobHeld> holds;
-
-        private ForgeRun(SimulatedRun run, JobId job)
-        {
-            Run = run;
-            Job = job;
-            changes = run.Watch<PullRequestWatchChanged>();
-            wakeUps = run.Watch<PullRequestWakeUp>();
-            opened = run.Watch<PullRequestOpened>();
-            progress = run.Watch<JobProgressed>();
-            holds = run.Watch<JobHeld>();
-        }
-
-        public async Task<JobHold> HeldAsync() => (await holds.UntilAsync(found => found.Hold.Job == Job)).Hold;
-
-        public SimulatedRun Run { get; }
-
-        public JobId Job { get; }
-
-        public static string Rules(string forge, string policy, int wakeUps, string redeliver = "automatic") =>
-            $$"""{ "approval": "pull-request", "pullRequest": { "forge": "{{forge}}", "onPullRequest": "{{policy}}", "maxWakeUps": {{wakeUps}}, "redeliver": "{{redeliver}}" } }""";
-
-        public static Task<ForgeRun> StartAsync(PublishedPlugins plugins, string policy, int wakeUps, string scenario) =>
-            StartAsync(plugins, Rules("local", policy, wakeUps), scenario, "fix-after-feedback");
-
-        public static Task<ForgeRun> StartAsync(PublishedPlugins plugins, string rules, string scenario) =>
-            StartAsync(plugins, rules, scenario, "fix-after-feedback");
-
-        public static async Task<ForgeRun> StartAsync(PublishedPlugins plugins, string rules, string scenario, string agent, params (string Path, string Content)[] committed)
-        {
-            var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/jobs.json", rules), (".avala/permissions.json", Autonomous), .. committed]);
-            _ = await run.Repository.PublishAsync(Cancellation);
-            var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"[simulate: {agent}] [forge: {scenario}] Fix the calculator")));
-            var forge = new ForgeRun(run, job);
-            Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
-
-            return forge;
-        }
-
-        public async Task<PullRequestOpened> ApprovedAsync()
-        {
-            var approval = Outcomes.Succeeds(await Run.Get<IJobs>().ApproveAsync(Job, Cancellation));
-            Assert.Equal(PullRequestDelivery.Strategy, approval.Delivery.Strategy);
-            var announced = await opened.UntilAsync(found => found.Job == Job);
-            _ = await ArmedAsync();
-
-            return announced;
-        }
-
-        public async Task<WakeUpRecord> PollUntilWokenAsync()
-        {
-            Run.AdvanceTo(Outcomes.Present((await LatestAsync()).NextPoll));
-
-            return await WokenAsync();
-        }
-
-        public async Task<WakeUpRecord> WokenAsync() => (await wakeUps.UntilAsync(found => found.WakeUp.Job == Job)).WakeUp;
-
-        public async Task<PullRequestOpened> RedeliveredAsync()
-        {
-            var announced = await opened.UntilAsync(found => found.Job == Job);
-            _ = await ArmedAsync();
-
-            return announced;
-        }
-
-        public async Task<PullRequestWatchState> PollUntilAsync(Func<PullRequestWatchState, bool> match)
-        {
-            Run.AdvanceTo(Outcomes.Present((await LatestAsync()).NextPoll));
-
-            return (await changes.UntilAsync(found => found.State.Job == Job && match(found.State))).State;
-        }
-
-        public async Task<PullRequestWatchState> PolledAgainAsync()
-        {
-            var due = Outcomes.Present((await LatestAsync()).NextPoll);
-            Run.AdvanceTo(due);
-
-            return (await changes.UntilAsync(found => found.State.Job == Job && found.State.LastPolled.Match(polled => polled >= due, () => false))).State;
-        }
-
-        public async Task<JobStatus> ProgressedAsync(JobStatus status) =>
-            (await progress.UntilAsync(update => update.Job == Job && update.Status == status)).Status;
-
-        public async Task<PullRequestWatchState> ChangedAsync(Func<PullRequestWatchState, bool> match) =>
-            (await changes.UntilAsync(found => found.State.Job == Job && match(found.State))).State;
-
-        public async Task<JobStatus> StatusAsync() =>
-            Outcomes.Present(await Run.Get<IJobCatalog>().HistoryAsync(Job, Cancellation)).Summary.Status;
-
-        public Task<string> RemoteStateAsync() => File.ReadAllTextAsync(Path.Combine(Run.Repository.Remote, "avala-forge.json"), Cancellation);
-
-        public Task RestartAsync() =>
-            Run.RestartAsync(() =>
-            {
-                changes = Run.Watch<PullRequestWatchChanged>();
-                wakeUps = Run.Watch<PullRequestWakeUp>();
-                opened = Run.Watch<PullRequestOpened>();
-                progress = Run.Watch<JobProgressed>();
-                holds = Run.Watch<JobHeld>();
-            });
-
-        public ValueTask DisposeAsync() => Run.DisposeAsync();
-
-        private Task<PullRequestWatchState> LatestAsync() => Task.FromResult(Outcomes.Present(Run.Get<IPullRequests>().Of(Job)));
-
-        private async Task<PullRequestWatchState> ArmedAsync() =>
-            (await changes.UntilAsync(found => found.State.Job == Job && found.State.Status == WatchStatus.Watching && found.State.NextPoll.IsSome && found.State.Failures == 0)).State;
     }
 }

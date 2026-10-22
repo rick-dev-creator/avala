@@ -42,7 +42,7 @@ internal sealed class JobFlow
         var approvals = new Approvals(workspaces, Defaults, Strategies, Queues);
         Jobs = new JobsEntry(
             Submit,
-            new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal, new ControlRemotely(ledger, Connections)),
+            new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal, new ControlRemotely(ledger, Connections, launcher)),
             new ReviewJob(ledger, launcher, approvals, new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Plans = new DeliveryPlans(ledger, approvals);

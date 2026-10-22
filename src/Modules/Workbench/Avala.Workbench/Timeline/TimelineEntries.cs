@@ -22,6 +22,12 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public Option<HandoffRecord> Handoff { get; init; }
+
+    public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public PromptEntry WrittenAs(AttemptRecord attempt) => this with { Author = attempt.Author };
+
+    public bool IsFromPerson => Author == MessageAuthor.Person && Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device;
 }
 
 internal sealed record RetryEntry(string Key, int Attempt, int Most, TimeSpan Wait, string Reason) : ITimelineEntry
@@ -52,6 +58,10 @@ internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEnt
     public bool FromDevice { get; init; }
 
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
+    public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public InterjectionEntry WrittenAs(MessageQueued queued) => this with { Author = queued.Author };
 }
 
 internal sealed record MessageEntry(string Key, string Text, Option<ItemOutcome> Outcome) : ITimelineEntry;

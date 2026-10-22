@@ -267,6 +267,30 @@ internal sealed class Job : IAggregateRoot<JobId>
         return new RemoteControlChosen(Id, on);
     }
 
+    public Result<RoundJoined, JobError> JoinedBy(MessageAuthor cause)
+    {
+        if (cause != MessageAuthor.Person || State is not (JobState.Running or JobState.Checking or JobState.NeedsHelp) || attempts.Count == 0 || attempts[^1].Cause == MessageAuthor.Person)
+        {
+            return JobError.CannotJoin;
+        }
+
+        attempts[^1].CausedBy(cause);
+
+        return new RoundJoined(Id, attempts[^1].Number);
+    }
+
+    public Result<ConversationReopened, JobError> ReopenForDevice(SessionId session)
+    {
+        if (!AllowsRemoteControl || Resume.IsNone)
+        {
+            return JobError.CannotControlRemotely;
+        }
+
+        Join(session, resumed: true);
+
+        return new ConversationReopened(Id, session);
+    }
+
     public Result<AttemptStarted, JobError> Reopen(Feedback feedback, AttemptOrigin origin = AttemptOrigin.Reopen) =>
         machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
             .Map(_ =>
@@ -390,7 +414,9 @@ internal sealed class Job : IAggregateRoot<JobId>
         attempts.Add(new Attempt(number, origin, guidance, Session)
         {
             Attachments = origin == AttemptOrigin.Initial ? Attachments : guidance.Match(feedback => feedback.Attachments, () => []),
+            Author = guidance.Match(feedback => feedback.Author, () => origin == AttemptOrigin.Recovery ? MessageAuthor.Avala : MessageAuthor.Person),
         });
+        attempts[^1].CausedBy(guidance.Match(feedback => feedback.Cause, () => origin == AttemptOrigin.Recovery ? MessageAuthor.Avala : MessageAuthor.Person));
 
         return new AttemptStarted(Id, number, origin, guidance);
     }

@@ -41,6 +41,11 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             book.Remember(job, rule);
         }
 
+        if (asked.Delivery == DecisionDelivery.LeftToHuman)
+        {
+            await ledger.JoinedAsync(governed.Session, cancellationToken);
+        }
+
         if ((await agents.RespondAsync(governed.Session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken)).IsFailure)
         {
             Undo(kept, raised);

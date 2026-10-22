@@ -37,7 +37,7 @@ public sealed class WithdrawalTests
         var clock = new FakeTimeProvider(Now);
         book = new GovernanceBook(store);
         governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
-        answers = new HumanAnswers(book, agents, new RepositoryFiles(), new AnswerLedger(book, bus, clock));
+        answers = new HumanAnswers(book, agents, new RepositoryFiles(), new AnswerLedger(book, bus, clock, new RecordedRounds()));
         book.Keep(book.Of(session).WorkingOn(job));
     }
 

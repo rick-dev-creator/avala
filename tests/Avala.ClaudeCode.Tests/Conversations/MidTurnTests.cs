@@ -24,6 +24,17 @@ public sealed class MidTurnTests
     }
 
     [Fact]
+    public void AMessageAvalaSendsMidTurnIsQueuedAsAvalasOwn()
+    {
+        var talk = new Talk().Begin().Receive(Cli.Init());
+        talk.Drain();
+
+        talk.Take(talk.Conversation.Begin(Steering with { Author = MessageAuthor.Avala }).Match(begun => begun.Reaction, _ => Reaction.None));
+
+        Assert.Equal(MessageAuthor.Avala, Assert.IsType<MessageQueued>(Assert.Single(talk.Events)).Author);
+    }
+
+    [Fact]
     public void WithoutReportsOfItsCommandsTheResultOfTheFirstMessageKeepsTheTurnOpenUntilClaudeCodeAnswersTheQueuedOne()
     {
         var talk = new Talk().Begin().Receive(Cli.Init());

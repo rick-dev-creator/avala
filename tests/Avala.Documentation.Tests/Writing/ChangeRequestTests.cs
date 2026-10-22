@@ -53,6 +53,18 @@ public sealed class ChangeRequestTests
     }
 
     [Fact]
+    public async Task AvalasOwnNoteQueuedIntoATurnIsNoChangeRequestAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+
+        await documented.Desk.HandleAsync(new AgentActivity(new MessageQueued(session, TurnId.New(), "Avala now allows reaching https://example.com.") { Author = MessageAuthor.Avala }), Cancellation);
+
+        Assert.Empty(documented.Book.Of(job).Match<IReadOnlyList<ChangeRequest>>(found => found.Requests, () => []));
+        Assert.Empty(documented.Published<ChangeRequested>());
+    }
+
+    [Fact]
     public async Task WithDocsOffNothingIsRecordedAsync()
     {
         var documented = Documented.With(enabled: false);

@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -230,8 +231,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         var spoken = shown.Transcript.Entries.Select(entry => entry switch
             {
-                PromptEntry { Origin: AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device } prompt => prompt.Text,
-                InterjectionEntry interjection => interjection.Text,
+                PromptEntry { IsFromPerson: true } prompt => prompt.Text,
+                InterjectionEntry { Author: MessageAuthor.Person } interjection => interjection.Text,
                 _ => Option<string>.None,
             })
             .SelectMany(text => text.Match<string[]>(found => found.Trim().Length > 0 ? [found.Trim()] : [], () => []))

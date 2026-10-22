@@ -199,7 +199,10 @@ internal sealed class FakeCatalog : IJobCatalog
         ValueTask.FromResult(Status.Map(status => new JobHistory(
             new JobSummary(job, "/repo", "Fix the test", DateTimeOffset.UnixEpoch, status, Option<Agents.Contracts.Connections.ConnectionName>.None, Option<Autonomy>.None, new WorkspaceId(Guid.CreateVersion7())),
             [],
-            [.. Rounds.Select((origin, index) => new AttemptRecord(index + 1, origin, AttemptOutcome.Passed, Option<string>.None, Option<Agents.Contracts.Sessions.SessionId>.None))])));
+            [.. Rounds.Select((origin, index) => new AttemptRecord(index + 1, origin, AttemptOutcome.Passed, Option<string>.None, Option<Agents.Contracts.Sessions.SessionId>.None)
+            {
+                CausedBy = origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device ? Agents.Contracts.Sessions.MessageAuthor.Person : Agents.Contracts.Sessions.MessageAuthor.Avala,
+            })])));
 
     public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
 

@@ -139,7 +139,7 @@ internal sealed record Transcript
         ItemProgressed progressed => RetryLines.Recovered(Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)), progressed.Turn),
         ItemBackgrounded backgrounded => Backgrounded(backgrounded),
         ItemCompleted completed => Concluded(completed, now),
-        MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
+        MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }.WrittenAs(queued)),
         RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
@@ -205,7 +205,7 @@ internal sealed record Transcript
             .Change(EntryKeys.Item(withdrawn.Turn, withdrawn.Item), entry => entry is FormEntry form ? form with { Withdrawn = true } : entry);
 
     private PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
-        new(
+        new PromptEntry(
             EntryKeys.Attempt(attempt.Number),
             attempt.Number,
             attempt.Origin,
@@ -214,7 +214,7 @@ internal sealed record Transcript
         {
             Handoff = Handoffs.TryGetValue(attempt.Number, out var handoff) ? handoff : Option<HandoffRecord>.None,
             Attachments = attempt.Attachments,
-        };
+        }.WrittenAs(attempt);
 
     private Transcript Drafted(ItemDrafted drafted)
     {

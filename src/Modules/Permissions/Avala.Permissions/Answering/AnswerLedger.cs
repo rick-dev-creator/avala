@@ -6,8 +6,10 @@ using Avala.Sdk.Events;
 
 namespace Avala.Permissions.Answering;
 
-internal sealed class AnswerLedger(GovernanceBook book, IEventBus bus, TimeProvider clock)
+internal sealed class AnswerLedger(GovernanceBook book, IEventBus bus, TimeProvider clock, IJobRounds rounds)
 {
+    public ValueTask JoinedAsync(SessionId session, CancellationToken cancellationToken) => rounds.PersonJoinedAsync(session, cancellationToken);
+
     public async Task<HumanAnswer> RecordAsync(HumanAnswer answer, CancellationToken cancellationToken)
     {
         var recorded = answer with { At = clock.GetUtcNow() };

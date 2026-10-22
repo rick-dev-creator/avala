@@ -85,7 +85,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
     private async Task RetryAsync(Job job, string reason, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
     {
-        if (!Feedback.Create(string.IsNullOrWhiteSpace(reason) ? DefaultFeedback : reason).TryGetValue(out var feedback, out _))
+        if (!Feedback.Create(string.IsNullOrWhiteSpace(reason) ? DefaultFeedback : reason).Map(created => created.By(MessageAuthor.Avala)).TryGetValue(out var feedback, out _))
         {
             return;
         }

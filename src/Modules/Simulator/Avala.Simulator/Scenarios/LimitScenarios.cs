@@ -82,5 +82,22 @@ internal static class LimitScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [NearLimit, SpentWindow, WindowRunsOut, AccountExhausted, SpentElsewhere, TwoWindowsSpent];
+    public static Scenario FixPastTheWindow { get; } = new("fix-past-the-window",
+    [
+        [
+            Thought("A quick change ", "to the calculator."),
+            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
+            Message("The calculator is ready."),
+            .. Bill(3_100, 240, 0.0150m, 0.21),
+            new Finish(),
+        ],
+        [
+            Thought("The fix needs a long look ", "at every caller."),
+            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
+            new RunOutOfWindow("5h", TimeSpan.FromHours(1)),
+        ],
+        FixedCalculator,
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [NearLimit, SpentWindow, WindowRunsOut, FixPastTheWindow, AccountExhausted, SpentElsewhere, TwoWindowsSpent];
 }

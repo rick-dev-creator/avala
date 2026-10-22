@@ -92,6 +92,9 @@ internal sealed class MovingJobs : IJobs
 
     public Option<JobRejection> Refusal { get; set; }
 
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
+        ContinueAsync(job, message.Text, cancellationToken);
+
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
     {
         Calls.Add(new JobCall("continue", job, message, Option<JobHandoff>.None));
@@ -119,7 +122,7 @@ internal sealed class MovingJobs : IJobs
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 

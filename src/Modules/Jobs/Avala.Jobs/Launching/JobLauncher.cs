@@ -99,6 +99,27 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         }
     }
 
+    public async Task ReopenForDeviceAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (!job.AllowsRemoteControl
+            || job.Resume.IsNone
+            || job.Session.Match(agents.IsOpen, () => false)
+            || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
+            || !(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        {
+            return;
+        }
+
+        if (!opened.Resumed || job.ReopenForDevice(opened.Session).IsFailure)
+        {
+            _ = await agents.StopAsync(opened.Session, cancellationToken);
+
+            return;
+        }
+
+        await ledger.RecordReopenedAsync(job, opened.Session, cancellationToken);
+    }
+
     public async Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken)
     {
         if (job.Resume.IsNone || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
@@ -198,7 +219,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.SameConnection;
         }
 
-        if (!Feedback.Create(handoff.Brief).TryGetValue(out var brief, out _))
+        if (!Feedback.Create(handoff.Brief).Map(created => created.By(MessageAuthor.Avala).CausedBy(handoff.Choice.Reason == ChoiceReason.Person ? MessageAuthor.Person : handoff.CausedBy)).TryGetValue(out var brief, out _))
         {
             return JobRejection.EmptyMessage;
         }
@@ -293,7 +314,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
         await ledger.RecordSessionAsync(job, opened.Session, cancellationToken);
-        await TellAsync(job, opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author, cancellationToken);
+        await TellAsync(job, new Told(opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}", guidance.Author) { Fresh = !opened.Resumed }, cancellationToken);
 
         return new JobContinuation(job.Id, opened.Session, opened.Resumed ? ContinuedIn.ResumedConversation : ContinuedIn.NewConversation);
     }
@@ -343,11 +364,14 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     private Task TellAsync(Job job, string message, CancellationToken cancellationToken) =>
-        TellAsync(job, message, MessageAuthor.Person, cancellationToken);
+        TellAsync(job, message, job.Attempts.Count == 0 ? MessageAuthor.Person : job.Attempts[^1].Author, cancellationToken);
 
-    private async Task TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken)
+    private Task TellAsync(Job job, string message, MessageAuthor author, CancellationToken cancellationToken) =>
+        TellAsync(job, new Told(message, author), cancellationToken);
+
+    private async Task TellAsync(Job job, Told told, CancellationToken cancellationToken)
     {
-        if ((await messenger.TellAsync(job, message, author, cancellationToken)).IsFailure)
+        if ((await messenger.TellAsync(job, told, cancellationToken)).IsFailure)
         {
             await FailAsync(job, JobFailure.AgentUnavailable, cancellationToken);
         }

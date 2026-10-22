@@ -65,7 +65,7 @@ internal sealed class Conversation
             carried = carried && live.IsNone;
 
             return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
-                (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text) { Attachments = turn.Attachments }], [Messages.User(turn, commands.Send(midTurn: true), attachments)])));
+                (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text) { Attachments = turn.Attachments, Author = turn.Author }], [Messages.User(turn, commands.Send(midTurn: true), attachments)])));
         }
 
         if (live.IsSome)

@@ -14,9 +14,11 @@ public interface IJobs
 
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
 
+    ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
+
     ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken);
 
-    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken);
+    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
 
     ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
 
@@ -41,6 +43,11 @@ public interface IOpenDeliveries
 public interface IEndedJobs
 {
     ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
+}
+
+public interface IJobRounds
+{
+    ValueTask PersonJoinedAsync(SessionId session, CancellationToken cancellationToken);
 }
 
 public interface IJobSessions
@@ -75,6 +82,8 @@ public interface IJobBriefing
 
 public sealed record JobBrief(string Text)
 {
+    public bool Reminder { get; init; }
+
     public Func<CancellationToken, Task> Delivered { get; init; } = _ => Task.CompletedTask;
 
     public Func<CancellationToken, Task> Undelivered { get; init; } = _ => Task.CompletedTask;
@@ -97,17 +106,13 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public bool Companion { get; init; }
 }
 
-public enum MessageAuthor
-{
-    Person,
-    Avala,
-}
-
 public sealed record JobMessage(string Text)
 {
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
     public MessageAuthor Author { get; init; } = MessageAuthor.Person;
+
+    public MessageAuthor CausedBy { get; init; } = MessageAuthor.Person;
 }
 
 public interface IJobMessages

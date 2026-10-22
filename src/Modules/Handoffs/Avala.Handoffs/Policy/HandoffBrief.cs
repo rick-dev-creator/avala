@@ -26,6 +26,8 @@ internal sealed record BriefFacts(string Instruction, ConnectionName From, Conne
     public Option<string> LastMessage { get; init; }
 
     public IReadOnlyList<string> Unanswered { get; init; } = [];
+
+    public IReadOnlyList<string> Noted { get; init; } = [];
 }
 
 internal static class HandoffBrief
@@ -64,6 +66,9 @@ internal static class HandoffBrief
             .AppendLine()
             .AppendLine("## What the person sent during its last turn, which it did not finish")
             .AppendLine(Lines(facts.Unanswered.Select(message => $"- {Bounded(message)}"), "None."))
+            .AppendLine()
+            .AppendLine("## Avala's own notes during that turn")
+            .AppendLine(Lines(facts.Noted.Select(note => $"- {Bounded(note)}"), "None."))
             .AppendLine()
             .AppendLine("## What remains")
             .Append(Lines(Remaining(facts), "- Complete the original instruction."))
