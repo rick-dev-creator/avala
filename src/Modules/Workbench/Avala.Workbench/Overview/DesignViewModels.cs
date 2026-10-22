@@ -72,6 +72,8 @@ internal sealed record DesignConnectionCardViewModel(string Name, string Provide
 
 internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public IReadOnlyList<IConnectionCardViewModel> Connections { get; } =
     [
         new DesignConnectionCardViewModel(),
@@ -390,6 +392,8 @@ internal sealed class DesignOrchestrationViewModel : IOrchestrationViewModel
 
 internal sealed class DesignDelegationViewModel : IDelegationViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public IReadOnlyList<IOrchestrationViewModel> Trees { get; init; } =
     [
         new DesignOrchestrationViewModel(),
@@ -462,6 +466,8 @@ internal sealed class DesignOverviewViewModel : IOverviewViewModel
 
 internal sealed class DesignDelegationPaneViewModel : IDelegationPaneViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public ISubagentTreeViewModel Tree { get; } = new DesignSubagentTreeViewModel();
 
     public bool HasTree => true;

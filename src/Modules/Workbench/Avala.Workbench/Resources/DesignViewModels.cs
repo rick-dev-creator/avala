@@ -79,6 +79,8 @@ internal sealed class DesignResourceIndicatorViewModel : IResourceIndicatorViewM
 
 internal sealed class DesignResourcesViewModel : IResourcesViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public string Title => "Resources";
 
     public string Scope => Scopes.Resources;

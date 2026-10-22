@@ -5,11 +5,31 @@ using Avala.Workbench.Usage;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace Avala.Workbench.Tests.Views;
 
 public sealed class UsageViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] Headers = ["Title", "Scope", "JobsTitle", "JobsHint", "RangeTitle", "Caption", "Label", "Tokens"];
+
+    private static bool ReadWhole(TextBlock text, Visual page)
+    {
+        var typeface = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight);
+        var longest = (text.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(word => new Avalonia.Media.TextFormatting.TextLayout(word, typeface, text.FontSize, null).Width).DefaultIfEmpty(0).Max();
+        var end = text.TranslatePoint(new Point(text.Bounds.Width, 0), page)!.Value.X;
+
+        return text.Bounds.Width + 0.5 >= longest && end <= page.Bounds.Width && text.TextLayout.TextLines.All(line => !line.HasCollapsed && line.Width <= text.Bounds.Width + 0.5);
+    }
+
+    private static void Save(ViewScript view, string name)
+    {
+        if (Environment.GetEnvironmentVariable("AVALA_FEATURE_SCREENS") is { Length: > 0 } folder)
+        {
+            Avalonia.Headless.HeadlessWindowExtensions.CaptureRenderedFrame(view.Window)?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, $"{name}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
+    }
+
     [Fact]
     public Task ThePageShowsConnectionsJobsTokenWindowsAndInterventionsAsync() =>
         ui.RunAsync(() =>
@@ -18,6 +38,22 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
             Assert.Equal((2, 7, 6, 2), (view.Find<ItemsControl>("Connections").ItemCount, view.Find<ItemsControl>("Days").ItemCount, view.Find<ItemsControl>("Jobs").ItemCount, view.Find<ItemsControl>("InterventionList").ItemCount));
             Assert.Equal((false, false, true, "All recorded usage, kept across restarts"), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup"), view.TextOf("Scope")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AtItsNarrowestThePagesHeadersAreReadWholeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageViewModel(), Avalonia.Styling.ThemeVariant.Dark, 272, 1600);
+            view.Settle();
+            Save(view, "usage-272-dark");
+
+            var clipped = Headers
+                .Select(name => view.Window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Name == name && text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text)))
+                .Where(text => !ReadWhole(text, view.Window))
+                .Select(text => $"{text.Name} '{text.Text}' is given {text.Bounds.Width:0}");
+
+            Assert.Empty(clipped);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -69,6 +105,8 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
     private sealed class EmptyUsage : IUsageViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         public string Title => "Usage";
 
         public string Scope => "All recorded usage, kept across restarts";

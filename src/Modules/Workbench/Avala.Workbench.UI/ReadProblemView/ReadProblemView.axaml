@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:presenting="using:Avala.Workbench.Presenting"
+             x:Class="Avala.Workbench.UI.ReadProblemView"
+             x:ClassModifier="internal"
+             x:DataType="presenting:IReadProblemViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <presenting:DesignReadProblemViewModel />
+  </Design.DataContext>
+  <Border x:Name="Banner" Classes="quiet" Padding="12,8">
+    <TextBlock x:Name="Problem" Classes="caption failure" Text="{Binding Text}" TextWrapping="Wrap" />
+  </Border>
+</UserControl>

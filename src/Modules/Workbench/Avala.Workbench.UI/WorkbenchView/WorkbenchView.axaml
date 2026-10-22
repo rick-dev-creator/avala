@@ -38,21 +38,22 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
     </Style>
-    <Style Selector="ItemsControl#JobHeaderRegion">
+    <Style Selector="DockPanel#HeaderSide">
       <Setter Property="Grid.Column" Value="1" />
       <Setter Property="Margin" Value="12,0,0,0" />
     </Style>
-    <Style Selector="Border#Header.stacked ItemsControl#JobHeaderRegion">
+    <Style Selector="Border#Header.stacked DockPanel#HeaderSide">
       <Setter Property="Grid.Row" Value="1" />
       <Setter Property="Grid.Column" Value="0" />
       <Setter Property="Grid.ColumnSpan" Value="6" />
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="Margin" Value="0,8,0,0" />
     </Style>
-    <Style Selector="Border#Header.compact TextBlock.chip-label">
-      <Setter Property="IsVisible" Value="False" />
+    <Style Selector="Border#Header.stacked TextBlock#JobTitle">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="MaxLines" Value="2" />
     </Style>
-    <Style Selector="Border#Header.quiet ContentControl#Pill">
+    <Style Selector="Border#Header.compact TextBlock.chip-label">
       <Setter Property="IsVisible" Value="False" />
     </Style>
   </UserControl.Styles>
@@ -66,24 +67,26 @@
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
           <Grid x:Name="HeaderRow" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" Margin="{DynamicResource ChromeLeading}">
             <StackPanel x:Name="HeaderTitle" VerticalAlignment="Center">
-              <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
+              <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Conversation.Title}" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
-            <ItemsControl x:Name="JobHeaderRegion"
-                          VerticalAlignment="Center"
-                          ItemsSource="{Binding Regions.Header}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <local:ChipRow Spacing="8" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-            </ItemsControl>
-            <ContentControl x:Name="Pill"
-                            ClipToBounds="False"
-                            Grid.Column="2"
-                            Margin="12,0,0,0"
+            <DockPanel x:Name="HeaderSide" VerticalAlignment="Center">
+              <ContentControl x:Name="Pill"
+                              DockPanel.Dock="Right"
+                              ClipToBounds="False"
+                              Margin="12,0,0,0"
+                              VerticalAlignment="Center"
+                              Content="{Binding Conversation.Pill}" />
+              <ItemsControl x:Name="JobHeaderRegion"
                             VerticalAlignment="Center"
-                            Content="{Binding Conversation.Pill}" />
+                            ItemsSource="{Binding Regions.Header}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <local:ChipRow Spacing="8" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </DockPanel>
             <Button x:Name="OpenReview"
                     Grid.Column="3"
                     Classes="primary"

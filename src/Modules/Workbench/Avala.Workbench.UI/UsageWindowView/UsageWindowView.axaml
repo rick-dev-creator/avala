@@ -13,11 +13,23 @@
       <Setter Property="Height" Value="6" />
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
     </Style>
+    <Style Selector="TextBlock#Tokens">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+    </Style>
+    <ContainerQuery Name="Window" Query="max-width:520">
+      <Style Selector="TextBlock#Tokens">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+      </Style>
+      <Style Selector="TextBlock#Label">
+        <Setter Property="TextWrapping" Value="Wrap" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
-  <Expander x:Name="Disclosure" Classes="disclosure">
+  <Expander x:Name="Disclosure" Classes="disclosure" Container.Name="Window" Container.Sizing="Width">
     <Expander.Header>
       <DockPanel>
-        <TextBlock x:Name="Tokens" DockPanel.Dock="Right" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
         <TextBlock x:Name="Label" VerticalAlignment="Center" Text="{Binding Label, StringFormat='Tokens by type · {0}'}" />
       </DockPanel>
     </Expander.Header>

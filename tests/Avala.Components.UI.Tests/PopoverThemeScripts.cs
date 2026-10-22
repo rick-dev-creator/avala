@@ -171,6 +171,45 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task TheFirstDownOnAMenuOpenedUnderARestingPointerReachesTheFirstItemAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var delete = new MenuItem { Header = "Delete Project" };
+            var (view, owner, menu) = Menu(rename, archive, delete);
+            menu.ShowAt(owner);
+            view.Settle();
+            var resting = archive.TranslatePoint(new Point(20, archive.Bounds.Height / 2), view.Window)!.Value;
+            menu.Hide();
+            view.Settle();
+            Avalonia.Headless.HeadlessWindowExtensions.MouseMove(view.Window, resting);
+            view.Settle();
+            menu.ShowAt(owner);
+            view.Settle();
+            var before = (rename.IsSelected, archive.IsSelected, delete.IsSelected);
+
+            view.Press(Avalonia.Input.Key.Down);
+            view.Settle();
+
+            Assert.Equal(((false, true, false), true, false, false), (before, rename.IsSelected, archive.IsSelected, delete.IsSelected));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheFirstUpOnAMenuJustOpenedReachesItsLastItemAsync() =>
+        ui.RunAsync(() =>
+        {
+            var rename = new MenuItem { Header = "Rename" };
+            var archive = new MenuItem { Header = "Archive" };
+            var view = Opened(rename, archive);
+
+            view.Press(Avalonia.Input.Key.Up);
+            view.Settle();
+
+            Assert.Equal((false, true), (rename.IsSelected, archive.IsSelected));
+        }, Cancellation);
+
+    [Fact]
     public Task AnItemThePointerReachesIsHighlightedAsync() =>
         ui.RunAsync(() =>
         {
@@ -240,6 +279,15 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
 
     private static ViewScript Opened(params Control[] items)
     {
+        var (view, owner, menu) = Menu(items);
+        menu.ShowAt(owner);
+        view.Settle();
+
+        return view;
+    }
+
+    private static (ViewScript View, Control Owner, MenuFlyout Menu) Menu(params Control[] items)
+    {
         var owner = new Border { Width = 200, Height = 40 };
         var view = ViewScript.Show(new Panel { Children = { owner } }, new object());
         view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
@@ -250,10 +298,7 @@ public sealed class PopoverThemeScripts(HeadlessUi ui)
             menu.Items.Add(item);
         }
 
-        menu.ShowAt(owner);
-        view.Settle();
-
-        return view;
+        return (view, owner, menu);
     }
 
     private static (ViewScript View, ToolTip Tip) Hovered(Control content)

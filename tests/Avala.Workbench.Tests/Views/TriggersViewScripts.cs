@@ -104,6 +104,8 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
 
     private sealed class Recording : ITriggersViewModel
     {
+        public Avala.Workbench.Presenting.IReadProblemViewModel ReadProblem { get; } = new Avala.Workbench.Presenting.DesignReadProblemViewModel();
+
         private readonly DesignTriggersViewModel design = new();
 
         public Recording()

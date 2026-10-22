@@ -14,6 +14,7 @@
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
       </DockPanel>
     </Border>
+    <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="24,16,24,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
     <Panel>
       <StackPanel x:Name="Empty"
                   Spacing="12"

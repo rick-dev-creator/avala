@@ -21,6 +21,8 @@ internal sealed record DelegationState(IReadOnlyList<DelegationTree> Trees);
 
 internal interface IDelegationViewModel : IActivatable, IPresentation
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     IReadOnlyList<IOrchestrationViewModel> Trees { get; }
 
     DelegationScope Scope { get; }
@@ -95,6 +97,8 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     public partial string Empty { get; private set; } = DelegationPhrases.NoneYet;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
 
     public void Activate() => feed.Start(ReadAsync, Show);
 

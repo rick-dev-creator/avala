@@ -20,6 +20,8 @@ internal sealed record DelegationPaneState(Option<JobId> Viewing, Option<Delegat
 
 internal interface IDelegationPaneViewModel
 {
+    IReadProblemViewModel ReadProblem { get; }
+
     ISubagentTreeViewModel Tree { get; }
 
     bool HasTree { get; }
@@ -49,6 +51,7 @@ internal sealed partial class DelegationPaneViewModel
     {
         this.reader = reader;
         this.feed = feed;
+        ReadProblem = new ReadProblemViewModel(feed);
         this.actions = actions;
         this.messenger = messenger;
         tree = new SubagentTreeViewModel(OpenCommand, actions, feed.Clock, feed.Refresh);
@@ -64,6 +67,8 @@ internal sealed partial class DelegationPaneViewModel
     public long Revision => feed.Revision;
 
     public Task Following => feed.Following;
+
+    public IReadProblemViewModel ReadProblem { get; }
 
     public ISubagentTreeViewModel Tree => tree;
 

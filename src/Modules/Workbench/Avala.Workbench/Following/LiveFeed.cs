@@ -24,6 +24,8 @@ internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<Li
 
     public bool IsActive => active is not null;
 
+    public Option<string> Failure { get; private set; } = Option<string>.None;
+
     public void Start<T>(Func<CancellationToken, ValueTask<T>> read, Action<T> show, [CallerFilePath] string component = "") =>
         Start(read, show, _ => { }, component);
 
@@ -34,7 +36,8 @@ internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<Li
             active = new CancellationTokenSource();
             var following = active.Token;
             component = Path.GetFileNameWithoutExtension(component);
-            Following = Task.Run(() => FollowAsync(read, show, Reported(component, fail), following), CancellationToken.None);
+            Failure = Option<string>.None;
+            Following = Task.Run(() => FollowAsync(read, Shown(show), Reported(component, fail), following), CancellationToken.None);
         }
     }
 
@@ -49,9 +52,17 @@ internal sealed partial class LiveFeed(Pulse pulse, IUiDispatcher ui, ILogger<Li
 
     public void Dispose() => Stop();
 
+    private Action<T> Shown<T>(Action<T> show) =>
+        state =>
+        {
+            show(state);
+            Failure = Option<string>.None;
+        };
+
     private Action<Exception> Reported(string component, Action<Exception> fail) =>
         exception =>
         {
+            Failure = exception.Message;
             LogFailed(component, exception);
 
             try

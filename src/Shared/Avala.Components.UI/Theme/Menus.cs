@@ -59,6 +59,7 @@ public sealed class Menus
         if (e.Key is Key.Down or Key.Up)
         {
             SetIsHighlighting(menu, true);
+            Reach(menu, e.Key == Key.Down);
             e.Handled = true;
         }
         else if (e.Key is Key.Home or Key.End or Key.PageUp or Key.PageDown)
@@ -68,6 +69,16 @@ public sealed class Menus
         else if (e.Key is Key.Enter or Key.Space or Key.Right or Key.Left)
         {
             e.Handled = true;
+        }
+    }
+
+    private static void Reach(MenuBase menu, bool first)
+    {
+        var reachable = menu.GetRealizedContainers().OfType<MenuItem>().Where(item => item.IsEffectivelyEnabled && item.IsEffectivelyVisible).ToList();
+
+        foreach (var item in (first ? reachable : Enumerable.Reverse(reachable)).Take(1))
+        {
+            item.IsSelected = true;
         }
     }
 

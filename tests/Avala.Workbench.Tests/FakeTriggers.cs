@@ -21,12 +21,14 @@ internal sealed class FakeTriggers : ITriggers
 
     public bool WithForge { get; set; }
 
+    public Option<string> Unreadable { get; set; }
+
     public int Reloads { get; private set; }
 
     public WebhookEndpoint Endpoint { get; } = new("http://localhost:24010/hooks/", Option<TriggerError>.None);
 
     public ValueTask<IReadOnlyList<TriggerState>> ListAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult<IReadOnlyList<TriggerState>>(
+        Unreadable.IsSome ? throw new IOException(Unreadable.Match(reason => reason, () => string.Empty)) : ValueTask.FromResult<IReadOnlyList<TriggerState>>(
         [
             new TriggerState(Nightly, "/work/ledger-api", TriggerKind.FixedTime, TriggerTarget.Job, Autonomy.Supervised, 1, Enabled: true)
             {

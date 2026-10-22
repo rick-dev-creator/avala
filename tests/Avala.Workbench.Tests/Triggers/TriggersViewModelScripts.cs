@@ -21,6 +21,7 @@ public sealed class TriggersViewModelScripts : IDisposable
     private readonly FakeTriggers triggers = new();
     private readonly FakeAutopilot autopilot = new();
     private readonly FakeForgeEventLog forges = new();
+    private readonly JobBoard board = new();
 
     [Fact]
     public async Task ThePageListsEachTriggerWithWhatFiresItItsNextRunItsRunsTheFilesTheEndpointAndTheDeliveriesAsync()
@@ -42,6 +43,22 @@ public sealed class TriggersViewModelScripts : IDisposable
         Assert.Equal(["/data/triggers.json · applied, 2 triggers"], await ui.ReadAsync(() => page.Files.ToList()));
         Assert.Equal(["Fri 9 Oct 15:00 · /hooks/issue · bad signature"], await ui.ReadAsync(() => page.Deliveries.ToList()));
         Assert.Contains("Tailscale Funnel", page.Tunnel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ATriggersReadThatFailsMakesThePageSaySoAndTheNextReadClearsItAsync()
+    {
+        using var page = Page();
+        triggers.Unreadable = "triggers.json is being written";
+
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.ReadProblem.IsShown, () => "the page says nothing of the failed read");
+        var failed = await ui.ReadAsync(() => page.ReadProblem.Text);
+        triggers.Unreadable = Option<string>.None;
+        board.Publish(board.Jobs);
+
+        await ui.PresentedAsync(page, () => !page.ReadProblem.IsShown && page.Triggers.Count == 2, () => $"{page.Triggers.Count} triggers, problem '{page.ReadProblem.Text}'");
+        Assert.Equal(Avala.Workbench.Presenting.ReadProblemPhrases.Problem("triggers.json is being written"), failed);
     }
 
     [Fact]
@@ -157,7 +174,7 @@ public sealed class TriggersViewModelScripts : IDisposable
 
         var loops = new LoopControls(autopilot);
 
-        return new TriggersViewModel(new TriggerControls(triggers, loops, clock, [forges]), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new LoopsViewModel(loops));
+        return new TriggersViewModel(new TriggerControls(triggers, loops, clock, [forges]), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), new LoopsViewModel(loops));
     }
 }
 

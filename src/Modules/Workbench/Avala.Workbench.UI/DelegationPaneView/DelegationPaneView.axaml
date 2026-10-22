@@ -42,6 +42,7 @@
       <Border x:Name="PaneFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="18,10">
         <TextBlock x:Name="Footer" Classes="caption" Text="{Binding Footer}" TextTrimming="CharacterEllipsis" />
       </Border>
+      <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="16,12,16,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <ContentControl x:Name="Tree" Margin="16" Content="{Binding Tree}" IsVisible="{Binding HasTree}" />
       </ScrollViewer>

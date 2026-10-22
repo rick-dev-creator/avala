@@ -134,6 +134,8 @@ internal sealed record DesignInterventionViewModel(JobId Job, string Title, stri
 
 internal sealed class DesignUsageViewModel : IUsageViewModel
 {
+    public IReadProblemViewModel ReadProblem { get; init; } = new DesignReadProblemViewModel();
+
     public string Title => "Usage";
 
     public string Scope => Scopes.Usage;

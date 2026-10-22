@@ -570,6 +570,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IArchivedRowViewModel, ArchivedRowView>();
         views.Register<IArchivedEntryViewModel, ArchivedEntryView>();
         views.Register<IArchivedNoteViewModel, ArchivedNoteView>();
+        views.Register<IReadProblemViewModel, ReadProblemView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
         views.Register<IUsageRangeViewModel, UsageRangeView>();
         views.Register<IUsageDayViewModel, UsageDayView>();
