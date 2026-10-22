@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Documentation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
@@ -222,6 +223,24 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
         _ = Outcomes.Succeeds(await forge.Run.Get<IJobs>().SteerAsync(forge.Job, new JobMessage("Also rename add to sum everywhere."), Cancellation));
         _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.AwaitingReview));
+        await forge.Run.DeliveredAsync();
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task ANoticeOfAPermissionThePersonAllowedAfterAWokenFixWasPushedComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.RedeliveredAsync();
+        _ = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
+        var progressed = forge.Run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await forge.Run.Get<IJobs>().ContinueAsync(forge.Job, new JobMessage("Avala now allows web requests to example.com in this job. You may retry it.") { Author = MessageAuthor.Avala }, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == forge.Job && update.Status == JobStatus.AwaitingReview);
         await forge.Run.DeliveredAsync();
         _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
 
