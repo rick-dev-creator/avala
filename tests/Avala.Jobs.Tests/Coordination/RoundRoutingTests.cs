@@ -95,6 +95,23 @@ public sealed class RoundRoutingTests
     }
 
     [Fact]
+    public async Task OnlyAPersonsAnswerToAFormMakesAvalasRunningRoundThePersonsAsync()
+    {
+        var flow = Routed(new ScriptedRouter(RoundRoute.GoOn));
+        var job = await flow.RunningAsync();
+        await flow.FinishTurnAsync(job);
+        var session = Outcomes.Present(job.Session);
+
+        await flow.Check.HandleAsync(new AgentActivity(new FormAnswered(session, TurnId.New(), new ItemId("question"), new FormAnswer(new ItemId("question"), []) { AnsweredBy = MessageAuthor.Avala })), Cancellation);
+        await flow.SettledAsync(job);
+        var answeredByAvala = job.Attempts[^1].Cause;
+        await flow.Check.HandleAsync(new AgentActivity(new FormAnswered(session, TurnId.New(), new ItemId("question"), new FormAnswer(new ItemId("question"), []))), Cancellation);
+        await flow.SettledAsync(job);
+
+        Assert.Equal((MessageAuthor.Avala, JobState.Running, MessageAuthor.Person), (answeredByAvala, job.State, job.Attempts[^1].Cause));
+    }
+
+    [Fact]
     public async Task AMessageFromThePhoneThatBeginsATurnWhileAvalasRoundIsHeldMakesItThePersonsRoundAsync()
     {
         var flow = Routed(new ScriptedRouter(RoundRoute.GoOn));
