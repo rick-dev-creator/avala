@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Contracts.Presentation;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
@@ -31,7 +32,11 @@ public sealed class InvariantTests
                 [
                     new SentMessage(running.Summary.Job, MessageId.New(), Accepted: true, Reached: 1),
                     new SentMessage(running.Summary.Job, MessageId.New(), Accepted: false, Reached: 0),
-                    new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: true, Reached: 0),
+                    new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: true, Reached: 0) { Attempt = 1 },
+                    new SentMessage(running.Summary.Job, MessageId.New(), Accepted: false, Reached: 0) { Queue = QueueChange.Queued },
+                    new SentMessage(running.Summary.Job, MessageId.New(), Accepted: false, Reached: 0) { Queue = QueueChange.Withdrawn },
+                    new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: false, Reached: 0) { Queue = QueueChange.Returned },
+                    new SentMessage(running.Summary.Job, MessageId.New(), Accepted: true, Reached: 1) { Queue = QueueChange.Taken },
                 ],
             }));
     }
@@ -43,6 +48,27 @@ public sealed class InvariantTests
     [Fact]
     public void AMessageAcceptedThatNeverReachedTheAgentOfAJobStillGoingBreaksAnInvariant() =>
         Broken("Every message reaches the agent once", Of() with { Messages = [new SentMessage(JobId.New(), MessageId.New(), Accepted: true, Reached: 0)] });
+
+    [Fact]
+    public void AMessageLostOnAnEarlierAttemptOfAJobThatLaterFailedBreaksAnInvariant()
+    {
+        var failed = Job(JobStatus.Failed, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.Failed) with { Ended = Moment, Failure = JobFailure.AgentUnavailable } };
+        failed = failed with { Attempts = [new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Rejected, Option<string>.None, Session), .. failed.Attempts.Select(attempt => attempt with { Number = 2 })] };
+
+        Broken("Every message reaches the agent once", Of(failed) with { Messages = [new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: true, Reached: 0) { Attempt = 1 }] });
+    }
+
+    [Fact]
+    public void AMessageTakenFromTheWorkbenchsQueueThatNoJobAcceptedBreaksAnInvariant() =>
+        Broken("Every message reaches the agent once", Of() with { Messages = [new SentMessage(JobId.New(), MessageId.New(), Accepted: false, Reached: 0) { Queue = QueueChange.Taken }] });
+
+    [Fact]
+    public void AMessageLeftInTheWorkbenchsQueueOfADiscardedJobBreaksAnInvariant()
+    {
+        var discarded = Discarded();
+
+        Broken("Every message reaches the agent once", Of(discarded) with { Messages = [new SentMessage(discarded.Summary.Job, MessageId.New(), Accepted: false, Reached: 0) { Queue = QueueChange.Queued }] });
+    }
 
     [Fact]
     public void AMessageReportedUndeliveredThatReachedTheAgentBreaksAnInvariant() =>
@@ -57,9 +83,9 @@ public sealed class InvariantTests
 
         ledger.Said(turn, AgentError.TurnInProgress);
         ledger.Said(turn with { MidTurn = true }, TurnId.New());
-        ledger.Sent(job, message, Result<JobSteered, JobRejection>.Success(new JobSteered(job, Session, TurnId.New())));
+        ledger.Sent(job, message, Result<JobSteered, JobRejection>.Success(new JobSteered(job, Session, TurnId.New())), attempt: 1);
 
-        Assert.Equal([new SentMessage(job, message.Messages[0], Accepted: true, Reached: 1)], ledger.Messages);
+        Assert.Equal([new SentMessage(job, message.Messages[0], Accepted: true, Reached: 1) { Attempt = 1 }], ledger.Messages);
     }
 
     [Fact]

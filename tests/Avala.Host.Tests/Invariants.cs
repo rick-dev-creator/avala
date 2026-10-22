@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workbench.Contracts.Presentation;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -133,9 +134,13 @@ internal static class Invariants
 
     private static IEnumerable<string> DeliversEveryMessageOnceOrReportsItUndelivered(Scene scene) =>
         from message in scene.Messages
-        let failed = scene.Jobs.Any(job => job.Summary.Job == message.Job && job.Summary.Status == JobStatus.Failed)
-        where message.Reached != (message.Accepted ? 1 : 0) && !(message.Accepted && failed && message.Reached == 0)
-        select $"Every message reaches the agent once, or is reported undelivered: message {message.Message.Value} to job {message.Job.Value} was {(message.Accepted ? "accepted" : "refused")} and reached the agent {message.Reached} times.";
+        let job = scene.Jobs.FirstOrDefault(found => found.Summary.Job == message.Job)
+        let failedOnIt = job is { Summary.Status: JobStatus.Failed, Attempts: [.., var last] } && last.Number == message.Attempt
+        let ended = job is { Summary.Status: JobStatus.Discarded or JobStatus.Failed }
+        where message.Reached != (message.Accepted ? 1 : 0) && !(message.Accepted && failedOnIt && message.Reached == 0)
+            || (message.Queue == Option<QueueChange>.Some(QueueChange.Taken) && !message.Accepted)
+            || (message.Queue == Option<QueueChange>.Some(QueueChange.Queued) && ended)
+        select $"Every message reaches the agent once, or is reported undelivered: message {message.Message.Value} to job {message.Job.Value} was {(message.Accepted ? "accepted" : "refused")}{message.Queue.Match(change => $", last {change} in the Workbench's queue", () => string.Empty)} and reached the agent {message.Reached} times.";
 
     private static IEnumerable<string> NeverCountsNegativeUsage(Scene scene) =>
         from usage in scene.Usage

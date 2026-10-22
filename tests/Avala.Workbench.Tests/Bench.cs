@@ -73,7 +73,7 @@ internal sealed class Bench : IDisposable
 
     public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
 
-    public QueuedMessages Queue => field ??= new(Jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()));
+    public QueuedMessages Queue => field ??= new(Jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger());
 
     public FakePullRequests PullRequests { get; } = new();
 

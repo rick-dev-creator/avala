@@ -361,8 +361,12 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
         foreach (var back in steering.TakeBack(Job).Match<UndeliveredMessage[]>(found => [found], () => []))
         {
-            Edit(Draft.Length == 0 ? back.Message.Text : $"{back.Message.Text}\n\n{Draft}");
-            attachments.Restore(back.Message.Attachments);
+            var kept = drafts.Of(Job).Match(found => found, () => Drafting.Draft.Empty);
+            remembering = false;
+            attachments.Clear();
+            attachments.Restore(kept.Attachments);
+            Edit(kept.Text);
+            remembering = true;
             Error = ConversationPhrases.Undelivered(back);
         }
     }

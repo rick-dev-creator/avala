@@ -61,9 +61,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
                     async begun =>
                     {
                         turnEnded = turn.MidTurn ? turnEnded : new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                        await ApplyAsync(begun.Reaction);
-
-                        return Result<TurnId, AgentError>.Success(begun.Turn);
+                        return await ApplyAsync(begun.Reaction) ? Result<TurnId, AgentError>.Success(begun.Turn) : AgentError.SessionClosed;
                     },
                     error => Task.FromResult(Result<TurnId, AgentError>.Failure(error))),
             cancellationToken);
@@ -177,7 +175,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
             CancellationToken.None);
     }
 
-    private async Task ApplyAsync(Reaction reaction)
+    private async Task<bool> ApplyAsync(Reaction reaction)
     {
         foreach (var outgoing in reaction.Outgoing)
         {
@@ -187,7 +185,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
             }
             catch (IOException)
             {
-                break;
+                return false;
             }
         }
 
@@ -200,6 +198,8 @@ internal sealed class ClaudeCodeSession : IAgentSession
                 turnEnded.TrySetResult();
             }
         }
+
+        return true;
     }
 
     private static IEnumerable<JsonNode> Parsed(string line)

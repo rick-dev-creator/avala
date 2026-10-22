@@ -240,6 +240,7 @@ internal sealed class SimulatedSession : IAgentSession
     private async Task<bool> PublishAsync(Act current, IAgentEvent cue)
     {
         var ends = cue is TurnCompleted;
+        var unheard = new List<string>();
 
         if (ends)
         {
@@ -247,6 +248,11 @@ internal sealed class SimulatedSession : IAgentSession
                 _ =>
                 {
                     act = act.Bind(running => ReferenceEquals(running, current) ? Option<Act>.None : running);
+
+                    while (cue is TurnCompleted { Outcome: TurnOutcome.Finished } && gates.Messages.Reader.TryRead(out var left))
+                    {
+                        unheard.Add(left);
+                    }
 
                     return Task.CompletedTask;
                 },
@@ -257,7 +263,7 @@ internal sealed class SimulatedSession : IAgentSession
 
         if (ends)
         {
-            await stage.RunAsync(DeviceAsync, CancellationToken.None);
+            await stage.RunAsync(token => unheard.Count > 0 ? BeginAsync(new UserTurn(string.Join("\n\n", unheard)), token) : DeviceAsync(token), CancellationToken.None);
         }
 
         return ends;

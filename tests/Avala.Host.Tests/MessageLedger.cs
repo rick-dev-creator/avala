@@ -5,13 +5,16 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Contracts.Presentation;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Host.Tests;
 
 internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
 {
-    private ImmutableDictionary<MessageId, (JobId Job, bool Accepted)> sent = ImmutableDictionary<MessageId, (JobId, bool)>.Empty;
+    private ImmutableDictionary<MessageId, (JobId Job, bool Accepted, int Attempt)> sent = ImmutableDictionary<MessageId, (JobId, bool, int)>.Empty;
+    private ImmutableDictionary<MessageId, (JobId Job, QueueChange Change)> queue = ImmutableDictionary<MessageId, (JobId, QueueChange)>.Empty;
     private ImmutableDictionary<MessageId, int> reached = ImmutableDictionary<MessageId, int>.Empty;
 
     public PluginInfo Info { get; } = new("message-ledger", "Message ledger");
@@ -20,9 +23,11 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
     {
         get
         {
-            var delivered = Volatile.Read(ref reached);
+            var (delivered, accepted, queued) = (Volatile.Read(ref reached), Volatile.Read(ref sent), Volatile.Read(ref queue));
 
-            return [.. Volatile.Read(ref sent).Select(message => new SentMessage(message.Value.Job, message.Key, message.Value.Accepted, delivered.GetValueOrDefault(message.Key)))];
+            return [.. accepted.Keys.Union(queued.Keys).Select(id => accepted.TryGetValue(id, out var known)
+                ? new SentMessage(known.Job, id, known.Accepted, delivered.GetValueOrDefault(id)) { Attempt = known.Attempt, Queue = queued.TryGetValue(id, out var change) ? change.Change : Option<QueueChange>.None }
+                : new SentMessage(queued[id].Job, id, false, delivered.GetValueOrDefault(id)) { Queue = queued[id].Change })];
         }
     }
 
@@ -30,17 +35,39 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
     {
         registrar.Services.AddSingleton(this);
         registrar.Services.AddSingleton<IAgentProviderDecorator>(this);
-        Decorate<IJobMessages>(registrar.Services, (_, inner) => new WatchedMessages(inner, this));
-        Decorate<IJobs>(registrar.Services, (provider, inner) => new WatchedJobs(inner, provider.GetRequiredService<IJobMessages>(), this));
+        Decorate<IJobMessages>(registrar.Services, (provider, inner) =>
+        {
+            provider.GetRequiredService<IMessenger>().Register<MessageLedger, QueuedMessageChanged>(this, static (ledger, changed) => ledger.Changed(changed));
+
+            return new WatchedMessages(inner, provider.GetRequiredService<IJobCatalog>(), this);
+        });
+        Decorate<IJobs>(registrar.Services, (provider, inner) => new WatchedJobs(inner, provider.GetRequiredService<IJobMessages>(), provider.GetRequiredService<IJobCatalog>(), this));
     }
 
-    public void Sent<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome)
+    public void Sent<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome, int attempt)
         where T : notnull
     {
         foreach (var id in message.Messages)
         {
-            _ = ImmutableInterlocked.Update(ref sent, known => known.SetItem(id, (job, outcome.IsSuccess)));
+            _ = ImmutableInterlocked.Update(ref sent, known => known.SetItem(id, (job, outcome.IsSuccess, attempt)));
         }
+    }
+
+    public void Changed(QueuedMessageChanged changed)
+    {
+        foreach (var id in changed.Messages)
+        {
+            _ = ImmutableInterlocked.Update(ref queue, known => known.SetItem(id, (changed.Job, changed.Change)));
+        }
+    }
+
+    private async Task<Result<T, JobRejection>> WatchedAsync<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome, IJobCatalog catalog)
+        where T : notnull
+    {
+        var history = await catalog.HistoryAsync(job, CancellationToken.None);
+        Sent(job, message, outcome, history.Match(found => found.Attempts is [.., var last] ? last.Number : 0, () => 0));
+
+        return outcome;
     }
 
     public IAgentProvider Decorate(IAgentProvider provider) => new WatchedProvider(provider, this);
@@ -61,27 +88,19 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
         services.AddSingleton(provider => watch(provider, (TService)original.ImplementationFactory!(provider)));
     }
 
-    private sealed class WatchedMessages(IJobMessages inner, MessageLedger ledger) : IJobMessages
+    private sealed class WatchedMessages(IJobMessages inner, IJobCatalog catalog, MessageLedger ledger) : IJobMessages
     {
         public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            Watched(job, message, await inner.ContinueAsync(job, message, cancellationToken));
+            await ledger.WatchedAsync(job, message, await inner.ContinueAsync(job, message, cancellationToken), catalog);
 
         public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            Watched(job, message, await inner.SteerAsync(job, message, cancellationToken));
+            await ledger.WatchedAsync(job, message, await inner.SteerAsync(job, message, cancellationToken), catalog);
 
         public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            Watched(job, message, await inner.SendBackAsync(job, message, cancellationToken));
-
-        private Result<T, JobRejection> Watched<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome)
-            where T : notnull
-        {
-            ledger.Sent(job, message, outcome);
-
-            return outcome;
-        }
+            await ledger.WatchedAsync(job, message, await inner.SendBackAsync(job, message, cancellationToken), catalog);
     }
 
-    private sealed class WatchedJobs(IJobs inner, IJobMessages messages, MessageLedger ledger) : IJobs
+    private sealed class WatchedJobs(IJobs inner, IJobMessages messages, IJobCatalog catalog, MessageLedger ledger) : IJobs
     {
         public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) => inner.SubmitAsync(request, cancellationToken);
 
@@ -93,13 +112,8 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
 
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.ContinueAsync(job, message, cancellationToken);
 
-        public async ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken)
-        {
-            var continued = await inner.ContinueOnAsync(job, connection, message, cancellationToken);
-            ledger.Sent(job, message, continued);
-
-            return continued;
-        }
+        public async ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) =>
+            await ledger.WatchedAsync(job, message, await inner.ContinueOnAsync(job, connection, message, cancellationToken), catalog);
 
         public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.SteerAsync(job, message, cancellationToken);
 
@@ -158,4 +172,9 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
     }
 }
 
-internal sealed record SentMessage(JobId Job, MessageId Message, bool Accepted, int Reached);
+internal sealed record SentMessage(JobId Job, MessageId Message, bool Accepted, int Reached)
+{
+    public int Attempt { get; init; }
+
+    public Option<QueueChange> Queue { get; init; }
+}

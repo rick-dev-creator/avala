@@ -17,7 +17,7 @@ internal static class Replying
     public static HumanReplies With(IPermissionAnswers permissions, IAgents agents) => With(permissions, agents, new FakeDeniedRequests(), new FakeJobs(), new JobBoard());
 
     public static HumanReplies With(IPermissionAnswers permissions, IAgents agents, IDeniedRequests denials, FakeJobs jobs, JobBoard board) =>
-        new(permissions, agents, new DeniedRetries(denials, new JobSteering(jobs, new QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()))), board));
+        new(permissions, agents, new DeniedRetries(denials, new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), board));
 }
 
 internal sealed class FakeDeniedRequests : IDeniedRequests

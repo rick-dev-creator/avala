@@ -69,7 +69,7 @@ public sealed class ComposerChipScreens(HeadlessUi ui)
         connections.Offers["claude-work"] = CapabilitySet.None.With(new Resumable(), new OffersModels(["opus", "sonnet", "haiku"], ["low", "medium", "high", "xhigh", "max"]) { DefaultModel = "opus", DefaultEffort = "high" });
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary with { Connection = new ConnectionName("claude-work") };
         var items = new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing());
-        var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs, new Avala.Workbench.Following.Pulse(new Avala.Workbench.Board.JobBoard()))), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
+        var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs, Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections), Composing.Parts());
         var conversation = new Conversations(composers, items, new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new Avala.Testing.FakeAppearance())).Open(summary.Job);
         conversation.Show(new BoardJob(summary, Told(status)));
 

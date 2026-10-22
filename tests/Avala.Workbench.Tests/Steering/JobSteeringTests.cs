@@ -12,11 +12,13 @@ public sealed class JobSteeringTests : IAsyncDisposable
     private readonly QueuedMessages queue;
     private readonly JobSteering steering;
     private readonly JobId job = JobId.New();
-    private readonly Avala.Workbench.Following.Pulse pulse = new(new Avala.Workbench.Board.JobBoard());
+    private readonly Avala.Workbench.Board.JobBoard board = new();
+    private readonly Avala.Workbench.Drafting.DraftBook drafts;
 
     public JobSteeringTests()
     {
-        queue = new QueuedMessages(jobs, pulse);
+        drafts = new Avala.Workbench.Drafting.DraftBook(new FakeDraftStore(), board, TimeProvider.System);
+        queue = new QueuedMessages(jobs, drafts, new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger());
         steering = new JobSteering(jobs, queue);
     }
 
@@ -180,7 +182,7 @@ public sealed class JobSteeringTests : IAsyncDisposable
         jobs.Status = JobStatus.Checking;
         Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
         using var watching = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
-        await using var changes = pulse.ChangesAsync(watching.Token).GetAsyncEnumerator(Cancellation);
+        await using var changes = board.ChangesAsync(watching.Token).GetAsyncEnumerator(Cancellation);
         Assert.True(await changes.MoveNextAsync());
 
         await queue.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
@@ -256,5 +258,5 @@ public sealed class JobSteeringTests : IAsyncDisposable
     public ValueTask DisposeAsync() => queue.DisposeAsync();
 
     private (string Text, JobStatus Status, Option<JobRejection> Rejection)[] Back(JobId of) =>
-        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(back.Message.Text, back.Status, back.Rejection)], () => []);
+        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(drafts.Of(of).Match(draft => draft.Text, () => string.Empty), back.Status, back.Rejection)], () => []);
 }
