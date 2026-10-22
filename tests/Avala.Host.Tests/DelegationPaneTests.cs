@@ -34,7 +34,7 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         await run.Ui.PresentedAsync(toggle.Presentation, () => toggle["IsShown"].Value<bool>(), () => "toggle hidden");
 
         await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), TestContext.Current.CancellationToken);
-        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane).Count() == 4, () => "pane empty");
+        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane).Count() == 4 && Settled(pane), () => "pane not settled");
 
         var shown = await run.Ui.ReadAsync(() => (
             pane["IsOpen"].Value<bool>(),
@@ -64,10 +64,7 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
 
         Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(install.Session, new PermissionDecision(install.Item, PermissionAnswer.Allow), TestContext.Current.CancellationToken));
         var build = await run.DecisionAsync();
-        await run.Ui.PresentedAsync(
-            pane.Presentation,
-            () => pane["IsOpen"].Value<bool>() && Branches(pane).Count(branch => branch.Kind == "SubagentViewModel") == 1 && Branches(pane).Single(branch => branch.Kind == "SubagentViewModel")["Meter"].Text.Length > 0,
-            () => "no sub-agent in the pane");
+        await workbench.ShowsAsync(pane, () => AtTheBuild(pane) && AsksForTheBuild(conversation));
 
         var agent = await run.Ui.ReadAsync(() => Branches(pane).Single(branch => branch.Kind == "SubagentViewModel"));
         var shown = await run.Ui.ReadAsync(() => (agent["Name"].Text, agent["Activity"].Text, agent["Meter"].Text));
@@ -78,6 +75,15 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         Assert.DoesNotContain(rows, title => title.Contains("greeting", StringComparison.Ordinal) && !title.StartsWith("Subagent", StringComparison.Ordinal));
         Assert.DoesNotContain(rows, title => title.Contains("dotnet build", StringComparison.Ordinal));
     }
+
+    private static bool Settled(Bound pane) =>
+        Branches(pane).First()["Place"]["StateText"].Text == "completed";
+
+    private static bool AtTheBuild(Bound pane) =>
+        pane["IsOpen"].Value<bool>() && Branches(pane).Where(branch => branch.Kind == "SubagentViewModel").Select(agent => agent["Activity"].Text).SequenceEqual(["Run dotnet build"]);
+
+    private static bool AsksForTheBuild(Bound conversation) =>
+        conversation["Entries"].Items.Any(entry => entry.Kind == "PermissionCardViewModel" && entry["Title"].Text == "Run dotnet build");
 
     private static IEnumerable<Bound> Branches(Bound pane) =>
         pane["HasTree"].Value<bool>() ? pane["Tree"]["Branches"].Items : [];

@@ -162,7 +162,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(job);
         var pane = await OpenPaneAsync(run, workbench);
-        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane, "DelegationNodeViewModel").Count() == 1, () => "no child in the pane");
+        await run.Ui.PresentedAsync(pane.Presentation, () => Branches(pane, "DelegationNodeViewModel").Count() == 1 && Branches(pane, "OrchestratorCardViewModel").Any(card => card["Place"]["StateText"].Text == "completed"), () => "pane not settled");
 
         var (child, subagent) = await run.Ui.ReadAsync(() =>
         {
