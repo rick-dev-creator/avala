@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -16,6 +17,21 @@ namespace Avala.Workbench.Conversation;
 
 internal static class ConversationPhrases
 {
+    private static readonly FrozenDictionary<HoldReason, string> Holds = new Dictionary<HoldReason, string>
+    {
+        [HoldReason.Stalled] = "stalled",
+        [HoldReason.SessionLost] = "session lost",
+        [HoldReason.BudgetExceeded] = "over budget",
+        [HoldReason.LimitNearlyReached] = "near its limit",
+        [HoldReason.InvalidBudget] = "invalid budget",
+        [HoldReason.InvalidChecks] = "invalid checks",
+        [HoldReason.MemoryExceeded] = "out of memory",
+        [HoldReason.Stopped] = "stopped",
+        [HoldReason.NotResumable] = "its conversation cannot resume",
+        [HoldReason.CouldNotStart] = "could not start",
+        [HoldReason.TurnFailed] = "its agent's turn failed",
+    }.ToFrozenDictionary();
+
     public const string NotCopied = "The conversation could not be copied.";
 
     public const string BinaryChanges = "A binary file.";
@@ -370,21 +386,7 @@ internal static class ConversationPhrases
         _ => "The job refused the command.",
     };
 
-    private static string Held(HoldReason reason) => reason switch
-    {
-        HoldReason.Stalled => "stalled",
-        HoldReason.SessionLost => "session lost",
-        HoldReason.BudgetExceeded => "over budget",
-        HoldReason.LimitNearlyReached => "near its limit",
-        HoldReason.InvalidBudget => "invalid budget",
-        HoldReason.InvalidChecks => "invalid checks",
-        HoldReason.MemoryExceeded => "out of memory",
-        HoldReason.Stopped => "stopped",
-        HoldReason.NotResumable => "its conversation cannot resume",
-        HoldReason.CouldNotStart => "could not start",
-        HoldReason.TurnFailed => "its agent's turn failed",
-        _ => "interrupted",
-    };
+    private static string Held(HoldReason reason) => Holds.GetValueOrDefault(reason, "interrupted");
 
     public static string Link(LinkRefusal refusal, string link) => refusal switch
     {
