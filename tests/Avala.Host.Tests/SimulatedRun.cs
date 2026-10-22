@@ -186,7 +186,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool onboarded = true,
         TimeSpan pace = default,
         string repositoryName = "repository",
-        bool production = false)
+        bool production = false,
+        bool realSignIns = false)
     {
         var data = new TemporaryFolder();
 
@@ -204,6 +205,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace, Production = production };
         surroundings.Telemetry.Configured = telemetry;
+        surroundings.SignIns.Real = realSignIns;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
             surroundings.SignIns.Recorded[tool] = outcome;
