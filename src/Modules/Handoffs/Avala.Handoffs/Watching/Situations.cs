@@ -19,8 +19,10 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces, ILi
 {
     public async Task<Option<(JobHistory History, LimitRules Rules)>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            async history => Option<(JobHistory, LimitRules)>.Some((history, await RulesOfAsync(history, cancellationToken))),
+            async history => Option<(JobHistory, LimitRules)>.Some((history, Companions(history, await RulesOfAsync(history, cancellationToken)))),
             () => Task.FromResult(Option<(JobHistory, LimitRules)>.None));
+
+    private static LimitRules Companions(JobHistory history, LimitRules rules) => history.Summary.Companion ? rules.ForCompanion() : rules;
 
     private async Task<LimitRules> RulesOfAsync(JobHistory history, CancellationToken cancellationToken) =>
         await history.Summary.Workspace.Match(
@@ -75,6 +77,8 @@ internal sealed class ConnectionReadings(IConnections connections, IUsage usage)
 internal sealed class Situations(JobPlaces places, ConnectionReadings readings, TimeProvider clock)
 {
     public DateTimeOffset Now => clock.GetUtcNow();
+
+    public TimeProvider Clock => clock;
 
     public async Task<Option<JobSituation>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await places.OfAsync(job, cancellationToken)).Match(

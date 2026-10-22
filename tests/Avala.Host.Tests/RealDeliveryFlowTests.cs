@@ -37,6 +37,7 @@ public sealed class RealDeliveryFlowTests(HeadlessUi ui, PublishedPlugins plugin
 
     private static string Connections => new JsonObject
     {
+        ["default"] = "claude",
         ["connections"] = new JsonArray(new JsonObject
         {
             ["name"] = "claude",

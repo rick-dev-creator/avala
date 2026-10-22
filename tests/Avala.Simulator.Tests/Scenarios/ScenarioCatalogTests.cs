@@ -14,6 +14,8 @@ public sealed class ScenarioCatalogTests
     [InlineData("[replay: edit-allowed] Greet the team", "replay:edit-allowed")]
     [InlineData("Greet the team [Replay as recorded: edit-allowed]", "replay as recorded:edit-allowed")]
     [InlineData("Write version 1 of Refund webhooks to .avala/docs/version.md. The job asked: [simulate: plan-approval] Add webhooks", "document")]
+    [InlineData("Write version 1 of Refund webhooks to .avala/docs/version.md. The job asked: Add webhooks [companion: document-after-the-window]", "document-after-the-window")]
+    [InlineData("Write version 1 of Refund webhooks to .avala/docs/version.md. The job asked: Add webhooks [companion: unknown]", "document")]
     public void TheTagOfTheFirstMessageChoosesTheScenario(string message, string expected) =>
         Assert.Equal(expected, ScenarioCatalog.NameIn(message));
 

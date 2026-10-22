@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Delegation.Contracts;
+using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -12,6 +13,12 @@ public sealed class CapacityTests(PublishedPlugins plugins)
     private const string PassingChecks = """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""";
 
     private const string HoldNearTheLimit = """{ "holdAtLimit": 0.9 }""";
+
+    private const string HoldAboveAnyUse = """{ "holdAtLimit": 0.1 }""";
+
+    private const string DocsOn = """{ "docs": { "enabled": true } }""";
+
+    private const string Planned = "[simulate: plan-across-turns] Add the changelog";
 
 
     private static readonly (string File, string Content)[] TwoAccounts =
@@ -113,6 +120,68 @@ public sealed class CapacityTests(PublishedPlugins plugins)
         var tree = Outcomes.Present(await run.Get<IJobCatalog>().TreeAsync(parent, Cancellation));
         Assert.Equal(Option<ConnectionName>.Some(One), tree.Job.Connection);
         Assert.All(tree.Children, child => Assert.Equal(Option<ConnectionName>.Some(Two), child.Job.Connection));
+    }
+
+    [Fact]
+    public async Task ADocumentationCompanionRunsOnItsJobsAccountEvenWhenAutoWouldChooseTheOtherAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", DocsOn)]);
+        _ = await run.SettledAsync(Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply")) { Connection = One })));
+        var written = run.Watch<VersionWritten>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Planned) { Connection = One }));
+        _ = await written.UntilAsync(version => version.Job == job);
+
+        var writer = Assert.Single(await run.Get<IJobCatalog>().ChildrenAsync(job, Cancellation));
+        Assert.Equal(One, await RanOnAsync(run, writer.Job));
+    }
+
+    [Fact]
+    public async Task ACompanionHeldAtItsJobsLimitShowsItsVersionWaitingInTheJobsConversationInsteadOfLosingItAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            TwoAccounts,
+            [(".avala/budget.json", HoldAboveAnyUse), (".avala/jobs.json", DocsOn)]);
+        _ = await run.SettledAsync(Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply")) { Connection = One })));
+        var waits = run.Watch<VersionWaiting>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Planned) { Connection = One }));
+        var waiting = (await waits.UntilAsync(version => version.Job == job)).Waiting;
+
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(job);
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("DocsLineViewModel"));
+        Assert.Equal(Option<HoldReason>.Some(HoldReason.LimitNearlyReached), waiting.Hold);
+        Assert.Empty(Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Unwritten);
+        Assert.Equal(
+            ("Version waiting", "Add the changelog · proposed · its writer is held: near its usage limit and goes on when the window resets"),
+            await run.Ui.ReadAsync(() =>
+            {
+                var line = conversation["Entries"].Items.Single(entry => entry.Kind == "DocsLineViewModel");
+
+                return (line["File"].Text, line["Fact"].Text);
+            }));
+    }
+
+    [Fact]
+    public async Task ACompanionThatRunsOutOfItsWindowWaitsOnItsJobsAccountAndWritesItsVersionOnceTheWindowResetsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", DocsOn)]);
+        var waits = run.Watch<VersionWaiting>();
+        var written = run.Watch<VersionWritten>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"{Planned} [companion: document-after-the-window]") { Connection = One }));
+        _ = await waits.UntilAsync(version => version.Job == job);
+        var resumed = run.Watch<VersionWriting>();
+        run.Clock.Advance(TimeSpan.FromHours(2));
+        var writing = await resumed.UntilAsync(version => version.Job == job);
+        var version = await written.UntilAsync(version => version.Job == job);
+
+        Assert.Equal((VersionKind.Proposed, VersionKind.Proposed), (writing.Kind, version.Version.Kind));
+        Assert.Equal(One, await RanOnAsync(run, writing.Writer));
+        Assert.Equal(Option<UnwrittenVersion>.None, Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Waiting);
+        Assert.Empty(Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Unwritten);
     }
 
     [Fact]

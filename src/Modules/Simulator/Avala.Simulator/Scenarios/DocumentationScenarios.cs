@@ -45,6 +45,21 @@ internal static class DocumentationScenarios
         ],
     ]);
 
+    public static Scenario DocumentAfterTheWindow { get; } = new("document-after-the-window",
+    [
+        [
+            Thought("The plan names two containers, ", "but the usage window runs out first."),
+            new ReportUsage(new TokenUsage(900, 60, 450, 90, 15), new Cost(0.0010m, "USD")),
+            new RunOutOfWindow("5h", TimeSpan.FromHours(1)),
+        ],
+        [
+            new WriteFile(new ItemId("version"), DocumentationDraft.Path, Version),
+            Message("Wrote the version ", "once the window reset."),
+            .. Bill(1_100, 420, 0.0020m, 0.08),
+            new Finish(),
+        ],
+    ]);
+
     public const string Decision = """
         # Keep idempotency keys in the ledger
 
@@ -118,5 +133,5 @@ internal static class DocumentationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentDecision, PlanRevised, PlanWhenAsked];
+    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentAfterTheWindow, DocumentDecision, PlanRevised, PlanWhenAsked];
 }

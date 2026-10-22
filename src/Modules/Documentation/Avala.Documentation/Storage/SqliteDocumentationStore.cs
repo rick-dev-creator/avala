@@ -74,6 +74,26 @@ internal sealed class StoredRequest
         new(Number, Enum.Parse<RequestKind>(Kind), Text, At, Attempt) { Version = Version == 0 ? Option<int>.None : Version };
 }
 
+internal sealed class StoredUnwritten
+{
+    public int Key { get; init; }
+
+    public Guid Job { get; init; }
+
+    public string Kind { get; init; } = string.Empty;
+
+    public string Failure { get; init; } = string.Empty;
+
+    public string Hold { get; init; } = string.Empty;
+
+    public DateTimeOffset At { get; init; }
+
+    public int Attempt { get; init; }
+
+    public UnwrittenVersion Read() =>
+        new(Enum.Parse<VersionKind>(Kind), Enum.Parse<VersionFailure>(Failure), At, Attempt) { Hold = Hold.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(Hold) };
+}
+
 internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentationStore, IStartupTask, IAsyncDisposable
 {
     private readonly DatabaseOwner<DocumentationDbContext> owner = new(paths.Database("documentation"), file => new DocumentationDbContext(file));
@@ -90,6 +110,7 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
                 var versions = (await database.Versions.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(row => row.Job);
                 var writers = (await database.Writers.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(row => row.Job);
                 var requests = (await database.Requests.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(row => row.Job);
+                var unwritten = (await database.Unwritten.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(row => row.Job);
 
                 return (IReadOnlyList<DocumentedJob>)[.. choices.Select(row => new DocumentedJob(
                     new JobId(row.Job),
@@ -100,6 +121,7 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
                     LastPlan = row.LastPlan,
                     Plan = row.Plan.Length == 0 ? [] : [.. JsonSerializer.Deserialize<string[]>(row.Plan) ?? []],
                     Requests = [.. requests[row.Job].OrderBy(request => request.Number).Select(request => request.Read())],
+                    Unwritten = [.. unwritten[row.Job].OrderBy(missed => missed.Key).Select(missed => missed.Read())],
                 })];
             },
             cancellationToken);
@@ -169,6 +191,29 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
     {
         await owner.RunAsync(database => database.Writers.Where(row => row.Writer == writer.Value).ExecuteDeleteAsync(cancellationToken), cancellationToken);
         await ChangeAsync(job, row => row.LastPlan = plan, cancellationToken);
+    }
+
+    public async Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, Option<string> plan, CancellationToken cancellationToken)
+    {
+        await ChangeAsync(job, row => row.LastPlan = plan.Match(kept => kept, () => row.LastPlan), cancellationToken);
+        await owner.RunAsync(
+            async database =>
+            {
+                await database.Unwritten.AddAsync(
+                    new StoredUnwritten
+                    {
+                        Job = job.Value,
+                        Kind = unwritten.Kind.ToString(),
+                        Failure = unwritten.Failure.ToString(),
+                        Hold = unwritten.Hold.Match(reason => reason.ToString(), () => string.Empty),
+                        At = unwritten.At,
+                        Attempt = unwritten.Attempt,
+                    },
+                    cancellationToken);
+
+                return await SaveAsync(database, cancellationToken);
+            },
+            cancellationToken);
     }
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();

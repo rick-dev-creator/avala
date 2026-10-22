@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Documentation.Contracts;
+using Avala.Workbench.Sidebar;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -17,7 +18,7 @@ internal interface IDocsLineViewModel
 [INotifyPropertyChanged]
 internal sealed partial class DocsLineViewModel : IDocsLineViewModel, ITimelineItem
 {
-    public DocsLineViewModel(DocsEntry entry) => Update(entry);
+    public DocsLineViewModel(ITimelineEntry entry) => Update(entry);
 
     public bool IsShown => true;
 
@@ -37,6 +38,12 @@ internal sealed partial class DocsLineViewModel : IDocsLineViewModel, ITimelineI
             File = Path.GetFileName(docs.Version.Path);
             Fact = DocsLinePhrases.Fact(docs.Feature, docs.Version.Kind);
             IsDeviation = docs.Version.Kind == VersionKind.Deviation;
+        }
+        else if (entry is UnwrittenEntry unwritten)
+        {
+            File = unwritten.Waiting ? "Version waiting" : "Version not written";
+            Fact = unwritten.Waiting ? DocsLinePhrases.Waiting(unwritten.Feature, unwritten.Version) : DocsLinePhrases.Fact(unwritten.Feature, unwritten.Version);
+            IsDeviation = false;
         }
     }
 }
@@ -80,6 +87,9 @@ internal static class DocsLinePhrases
         _ => $"{feature} · as built",
     };
 
+    public static string Fact(string feature, UnwrittenVersion unwritten) =>
+        $"{Fact(feature, unwritten.Kind)} · {Why(unwritten)}";
+
     public static string Fact(ChangeRequest request)
     {
         var kind = request.Kind switch
@@ -91,6 +101,20 @@ internal static class DocsLinePhrases
 
         return request.Version.Match(version => string.Create(CultureInfo.InvariantCulture, $"{kind} → v{version}"), () => kind);
     }
+
+    public static string Waiting(string feature, UnwrittenVersion waiting) =>
+        $"{Fact(feature, waiting.Kind)} · its writer is {waiting.Hold.Match(FactPhrases.Held, () => "held")} and goes on when the window resets";
+
+    public static string Why(UnwrittenVersion unwritten) =>
+        unwritten.Hold.Match(
+            reason => $"its writer was {FactPhrases.Held(reason)}",
+            () => unwritten.Failure switch
+            {
+                VersionFailure.WriterRefused => "its writer could not start",
+                VersionFailure.NoDraft => "its writer left no draft",
+                VersionFailure.Unwritable => "it could not be saved",
+                _ => "its writer stopped",
+            });
 }
 
 internal sealed record DesignDocsLineViewModel(string File, string Fact, bool IsDeviation) : IDocsLineViewModel

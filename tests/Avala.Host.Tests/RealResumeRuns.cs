@@ -39,7 +39,7 @@ public sealed class RealResumeRuns(PublishedPlugins plugins)
     public async Task TheOvernightJobsWorkResumedWithRealClaudeCodeRunsRoundAfterRoundWithoutAvalaFailingItAsync()
     {
         var source = Environment.GetEnvironmentVariable(Gate) ?? string.Empty;
-        Assert.SkipUnless(Directory.Exists(source), $"Set {Gate} to a clone of Avala that has {Branch}, AVALA_REAL_CLAUDE_LOGIN, and optionally AVALA_REAL_MODEL, AVALA_REAL_ROUNDS and AVALA_REAL_OUTPUT, to resume the overnight job with real Claude Code.");
+        Assert.SkipUnless(Directory.Exists(source), $"Set {Gate} to a clone of Avala that has {Branch}, AVALA_REAL_CLAUDE_LOGIN, and optionally AVALA_REAL_MODEL, AVALA_REAL_ROUNDS, AVALA_REAL_OUTPUT and AVALA_REAL_KEEP (a branch of that clone to keep the approved work in), to resume the overnight job with real Claude Code.");
         var transcripts = Path.Combine(Output, "transcripts");
         Directory.CreateDirectory(transcripts);
         var log = new List<string>();
@@ -47,6 +47,7 @@ public sealed class RealResumeRuns(PublishedPlugins plugins)
         await run.Repository.GitAsync(Cancellation, "fetch", "--quiet", source, Branch);
         await run.Repository.GitAsync(Cancellation, "reset", "--quiet", "--hard", "FETCH_HEAD");
         await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, ".avala", "permissions.json"), """{ "autonomy": "autonomous" }""", Cancellation);
+        await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, ".avala", "jobs.json"), """{ "approval": "merge" }""", Cancellation);
         await run.Repository.GitAsync(Cancellation, "add", "--all");
         await run.Repository.GitAsync(Cancellation, "commit", "--quiet", "-m", "Run the resumed job autonomously");
         var started = run.Clock.GetUtcNow();
@@ -69,8 +70,21 @@ public sealed class RealResumeRuns(PublishedPlugins plugins)
             };
         }
 
+        await KeepAsync(run, job, source, log);
         await File.WriteAllLinesAsync(Path.Combine(Output, "avala-view.txt"), log, Cancellation);
         Assert.NotEqual(JobStatus.Failed.ToString(), ending);
+    }
+
+    private static async Task KeepAsync(SimulatedRun run, JobId job, string source, List<string> log)
+    {
+        if (Environment.GetEnvironmentVariable("AVALA_REAL_KEEP") is not { Length: > 0 } branch)
+        {
+            return;
+        }
+
+        Note(log, $"approved: {(await run.Get<IJobs>().ApproveAsync(job, Cancellation)).Match(_ => "yes", rejection => rejection.ToString())}");
+        await run.Repository.GitAsync(Cancellation, "push", "--quiet", "--force", source, $"HEAD:refs/heads/{branch}");
+        Note(log, $"kept in {branch} of {source}");
     }
 
     private static async Task<string> NextAsync<T>(List<string> log, ValueTask<Result<T, JobRejection>> sent)
