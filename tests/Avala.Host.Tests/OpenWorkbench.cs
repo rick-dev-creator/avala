@@ -28,6 +28,9 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
     public Task ShowsAsync(Func<bool> shown) =>
         run.Ui.PresentedAsync(new AnyOf([page.Presentation, sidebar.Presentation, toolbar["Decisions"].Presentation]), shown, Describe);
 
+    public Task ShowsAsync(Bound alongside, Func<bool> shown) =>
+        run.Ui.PresentedAsync(new AnyOf([page.Presentation, sidebar.Presentation, toolbar["Decisions"].Presentation, alongside.Presentation]), shown, Describe);
+
     public async Task<Bound> SelectAsync(JobId job)
     {
         await ShowsAsync(() => Row(job) is not null);

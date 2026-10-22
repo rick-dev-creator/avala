@@ -97,7 +97,6 @@ internal static class InspectorPhrases
 
     public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
         Decision(decision)
-        + decision.Passed.Match(reason => $" · went to you, {Cards.CardPhrases.Passed(reason)}", () => string.Empty)
         + (decision.Delivery == DecisionDelivery.Withdrawn ? " · withdrawn by the harness"
         : decision.Delivery is not (DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent) || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
             ? string.Empty

@@ -20,8 +20,6 @@ internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections
     public const int MostChildren = 16;
     public const int MostConnections = 16;
 
-    public EscalationTerms Escalation { get; init; } = EscalationTerms.Undeclared;
-
     public Option<ChildRole> Role { get; init; }
 
     public RoleSettings Settings { get; init; } = RoleSettings.Undeclared;
@@ -77,23 +75,4 @@ internal static class Roles
         "research" => ChildRole.Research,
         _ => Option<ChildRole>.None,
     };
-}
-
-internal sealed record EscalationTerms(Option<bool> AsksParent, Option<TimeSpan> Window)
-{
-    public static TimeSpan DefaultWindow { get; } = TimeSpan.FromSeconds(120);
-
-    public static TimeSpan ShortestWindow { get; } = TimeSpan.FromSeconds(10);
-
-    public static TimeSpan LongestWindow { get; } = TimeSpan.FromSeconds(3600);
-
-    public static EscalationTerms Undeclared { get; } = new(Option<bool>.None, Option<TimeSpan>.None);
-
-    public EscalationTerms Over(EscalationTerms machine) =>
-        new(AsksParent.IsSome ? AsksParent : machine.AsksParent, Window.IsSome ? Window : machine.Window);
-
-    public Option<ParentEscalation> Kept =>
-        AsksParent.Match(asks => asks, () => false)
-            ? new ParentEscalation(Window.Match(window => window, () => DefaultWindow))
-            : Option<ParentEscalation>.None;
 }

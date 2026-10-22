@@ -34,23 +34,35 @@ public sealed class DecisionsViewModelScripts : IDisposable
     }
 
     [Fact]
-    public void ADecisionOfASubAgentFollowsItsParentsUnderTheParentsTitleAndOneWaitingForTheParentSaysSo()
+    public void APermissionOfASubAgentFollowsItsParentsDecisionsUnderTheParentsTitle()
     {
         var decisions = bench.Decisions();
         var parent = Questioning();
         var stranger = Asking();
-        var child = Asking(parent.Job, DecisionDelivery.LeftToParent, minutesAgo: 9) with { Summary = bench.Job("Migrate the database", JobStatus.Running) with { Parent = parent.Job } };
+        var child = Asking(Option<JobId>.None, DecisionDelivery.LeftToHuman, minutesAgo: 9) with { Summary = bench.Job("Migrate the database", JobStatus.Running) with { Parent = parent.Job } };
 
         decisions.Show(Bench.Of(stranger, parent, child));
 
         Assert.Equal(
             [
                 ("Add invoice PDF endpoint", string.Empty, "Waiting for you"),
-                ("Migrate the database", "Sub-agents of Add invoice PDF endpoint", "Waiting for its parent"),
+                ("Migrate the database", "Sub-agents of Add invoice PDF endpoint", "Waiting for you"),
                 ("Fix flaky CheckoutForm test", string.Empty, "Waiting for you"),
             ],
             decisions.Items.Select(item => (item.JobTitle, item.Heading, item.Status)));
-        Assert.Equal((0, 1), (child.PendingDecisions, parent.PendingDecisions));
+        Assert.Equal((1, 1), (child.PendingDecisions, parent.PendingDecisions));
+    }
+
+    [Fact]
+    public void AQuestionASubAgentAsksItsOrchestratorIsNotADecisionOfThePerson()
+    {
+        var decisions = bench.Decisions();
+        var parent = Bench.OnBoard(bench.Job("Add invoice PDF endpoint", JobStatus.Running));
+        var child = Questioning(DecisionDelivery.LeftToParent, parent.Job) with { Summary = bench.Job("Choose the PDF route", JobStatus.Running) with { Parent = parent.Job } };
+
+        decisions.Show(Bench.Of(parent, child));
+
+        Assert.Equal((true, "all answered"), (decisions.IsEmpty, decisions.Pending));
     }
 
     [Fact]
@@ -306,7 +318,9 @@ public sealed class DecisionsViewModelScripts : IDisposable
         };
     }
 
-    private BoardJob Questioning()
+    private BoardJob Questioning() => Questioning(DecisionDelivery.LeftToHuman, Option<JobId>.None);
+
+    private BoardJob Questioning(DecisionDelivery delivery, Option<JobId> parent)
     {
         var turn = TurnId.New();
         var asked = bench.Time.GetUtcNow().AddSeconds(-20);
@@ -321,7 +335,7 @@ public sealed class DecisionsViewModelScripts : IDisposable
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(formSession, turn), asked)
                 .Apply(new FormRequested(formSession, turn, new ItemId("question"), form), asked)
-                .Apply(new FormDecision(formSession, turn, new ItemId("question"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToHuman, asked)),
+                .Apply(new FormDecision(formSession, turn, new ItemId("question"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], delivery, asked) { Parent = parent }),
         };
     }
 }

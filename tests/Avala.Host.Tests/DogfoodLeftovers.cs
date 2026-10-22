@@ -65,8 +65,7 @@ internal static class DogfoodLeftovers
     {
         var chained = decision.Kind == ItemKind.Command && DogfoodPolicy.Chained(decision.Target);
         var rule = decision.Rule.Match(chosen => $"{chosen.Origin} rule '{chosen.Name}'", () => "no rule");
-        var passed = decision.Passed.Match(reason => reason.ToString(), () => "none");
-        var line = $"{evidence.Name(decision.Job)} {decision.Kind} {decision.Answer} by {rule}, delivery {decision.Delivery}, parent {evidence.Name(decision.Parent)}, passed {passed}, chained {chained}: {decision.Target}";
+        var line = $"{evidence.Name(decision.Job)} {decision.Kind} {decision.Answer} by {rule}, delivery {decision.Delivery}, parent {evidence.Name(decision.Parent)}, chained {chained}: {decision.Target}";
         await journal.LogAsync("permissions.log", line);
 
         if (chained && decision.Answer == PolicyAnswer.Allow && decision.Delivery == DecisionDelivery.Answered && decision.Rule.Match(chosen => chosen.Origin == RuleOrigin.Repository, () => false))

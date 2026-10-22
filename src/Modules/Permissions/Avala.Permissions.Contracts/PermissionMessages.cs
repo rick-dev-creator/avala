@@ -24,7 +24,6 @@ public enum PolicyError
     NotAwaitingAnswer,
     NotARepositoryRule,
     RepositoryUnwritable,
-    BeyondParent,
     InvalidAnswer,
     ScopeNotOffered,
 }
@@ -43,14 +42,6 @@ public enum DecisionDelivery
     Undelivered,
     Withdrawn,
     LeftToParent,
-}
-
-public enum PassReason
-{
-    PassedByParent,
-    BeyondParent,
-    ParentTimedOut,
-    ParentUnreachable,
 }
 
 public sealed record SessionPolicy(
@@ -103,8 +94,6 @@ public sealed record PolicyDecision(
 
     public Option<JobId> Parent { get; init; }
 
-    public Option<PassReason> Passed { get; init; }
-
     public bool Contested { get; init; }
 
     public Option<JobScope> Scope { get; init; }
@@ -140,8 +129,6 @@ public sealed record FormDecision(
     DateTimeOffset At)
 {
     public Option<JobId> Parent { get; init; }
-
-    public Option<PassReason> Passed { get; init; }
 }
 
 public enum Remember

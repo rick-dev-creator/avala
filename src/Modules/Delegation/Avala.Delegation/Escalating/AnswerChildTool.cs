@@ -8,18 +8,18 @@ internal static class AnswerChildTool
 
     public static HarnessTool Definition { get; } = new(
         Name,
-        "Answer a request one of your sub-agents is waiting on, which the harness told you about in a message. allow grants it only if you would be allowed to do the same yourself, otherwise it goes to a person; deny refuses it, with an optional message telling the sub-agent what to do instead; person passes it to a person. For a question, allow answers it with fields and deny declines it.",
+        "Answer a question one of your sub-agents is waiting on, which the harness told you about. allow answers it with one answer per field; deny declines it, with an optional message telling the sub-agent what to do instead. A sub-agent's question comes to you and never to a person: if a person should decide, ask them yourself, then answer.",
         """
         {
           "type": "object",
           "properties": {
             "child": { "type": "string", "description": "The sub-agent's job, as the message names it." },
             "request": { "type": "string", "description": "The request, as the message names it." },
-            "decision": { "type": "string", "enum": ["allow", "deny", "person"] },
+            "decision": { "type": "string", "enum": ["allow", "deny"] },
             "message": { "type": "string", "description": "Optionally, what the sub-agent is told with your answer." },
             "fields": {
               "type": "array",
-              "description": "For a question: one answer per field.",
+              "description": "One answer per field of the question.",
               "items": {
                 "type": "object",
                 "properties": {

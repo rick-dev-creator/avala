@@ -10,6 +10,7 @@ using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
 using Avala.Delegation.Resuming;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,7 +42,7 @@ internal sealed class Desk : IAsyncDisposable
         Parents = new DeferredParents(Book);
         Resumption = new ParentResumption(Parents, Jobs);
         Briefing = new OwedReports(Book, journal);
-        Notes = new ParentNotes(journal, Jobs, Answers, Clock);
+        Notes = new ParentNotes(journal, new ParentWaking(Jobs, Jobs, Jobs), new UntoldQuestions(journal));
         Waits = new ChildWaits(reporter, journal, Audit, Answers);
         Stops = new ChildStops(reporter, journal, Audit);
         Parent = Jobs.Running();
@@ -79,6 +80,26 @@ internal sealed class Desk : IAsyncDisposable
 
         return reported;
     }
+
+    public FormDecision Question(JobId child) =>
+        new(
+            SessionId.New(),
+            TurnId.New(),
+            new ItemId("run"),
+            child,
+            new AgentForm(
+                FormPurpose.Question,
+                "Choose a database",
+                "The service needs to store its orders.",
+                [new FormField("database", "Database", "Which database should the service use?", FieldKind.SingleChoice, [new FormOption("PostgreSQL", "Relational."), new FormOption("SQLite", "A single file.")])]),
+            Autonomy.Supervised,
+            Option<FormAnswer>.None,
+            [],
+            DecisionDelivery.LeftToParent,
+            Clock.GetUtcNow())
+        {
+            Parent = Parent,
+        };
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
 
@@ -179,7 +200,6 @@ internal sealed class Desk : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await Notes.DisposeAsync();
         await reporter.DisposeAsync();
     }
 }

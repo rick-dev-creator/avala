@@ -11,7 +11,7 @@ internal sealed class JobRecovery(JobLedger ledger, JobQueues queues, RecoverJob
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        foreach (var active in await ledger.ActiveAsync(cancellationToken))
+        foreach (var active in (await ledger.ActiveAsync(cancellationToken)).Concat(await ledger.OpenForDevicesAsync(cancellationToken)))
         {
             _ = await queues.RunAsync(
                 active.Id,

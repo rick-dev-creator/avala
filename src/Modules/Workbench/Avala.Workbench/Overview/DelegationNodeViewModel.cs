@@ -242,8 +242,9 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         Since = node.Job.Submitted;
         IsTiming = node.Job.Ended.IsNone;
         Took = BranchPhrases.Took(node.Job);
-        NeedsYou = dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
-        StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou));
+        var waitsForParent = AgentBranches.WaitsForParent(node.Seen);
+        NeedsYou = !waitsForParent && dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
+        StateText = SubagentStates.Text(SubagentStates.Of(node.Job.Status, node.Job.Hold, dot.Kind is StatusKind.NeedsYou || waitsForParent));
         IsSettled = TreeOrder.IsSettled(node);
     }
 

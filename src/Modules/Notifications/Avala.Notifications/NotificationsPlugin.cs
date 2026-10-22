@@ -40,7 +40,6 @@ public sealed class NotificationsPlugin : IPlugin
             .AddSingleton<NotificationDesk>()
             .AddForwarded<IHandle<PermissionDecided>, NotificationDesk>()
             .AddForwarded<IHandle<FormDecided>, NotificationDesk>()
-            .AddForwarded<IHandle<ParentAsked>, NotificationDesk>()
             .AddForwarded<IHandle<PermissionAnswered>, NotificationDesk>()
             .AddForwarded<IHandle<JobHeld>, NotificationDesk>()
             .AddForwarded<IHandle<BudgetIntervened>, NotificationDesk>()

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -57,6 +58,28 @@ public sealed class RemoteControlTests(PublishedPlugins plugins)
 
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
         Assert.Equal((AttemptOrigin.Device, Option<string>.Some("Also cover partial refunds")), (history.Attempts[^1].Origin, history.Attempts[^1].Guidance));
+    }
+
+    [Fact]
+    public async Task AJobOpenForThePhoneWhenAvalaQuitIsReopenedForThePhoneWhenAvalaStartsAgainAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, Login, []);
+        var resumable = run.Watch<JobResumable>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        _ = await resumable.UntilAsync(update => update.Job == job);
+        Outcomes.Succeeds(await run.Get<IRemoteJobs>().ControlRemotelyAsync(job, true, Cancellation));
+        await run.DeliveredAsync();
+        var before = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Sessions[^1].Session;
+        var reported = run.Watch<RemoteControlReported>();
+
+        await run.RestartAfterAsync(TimeSpan.FromMinutes(10), () => reported = run.Watch<RemoteControlReported>());
+        var reopened = await reported.UntilAsync(update => update.Control.State == RemoteState.Connected);
+        await run.DeliveredAsync();
+
+        Assert.NotEqual(before, reopened.Session);
+        Assert.Equal(JobStatus.AwaitingReview, Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Status);
+        Assert.True(run.Get<IAgents>().IsOpen(reopened.Session), "The job open for the phone was not reopened when Avala started again");
     }
 
     [Fact]

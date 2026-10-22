@@ -21,7 +21,6 @@ internal sealed record Plan(JobSummary Parent, Routed Route, Autonomy Autonomy)
 
     public ChildRole Role { get; init; }
 
-    public Option<ParentEscalation> Escalation { get; init; }
 }
 
 internal sealed record Decision(string Instruction, int Depth, Result<Plan, DelegationError> Outcome)
@@ -77,7 +76,7 @@ internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catal
         return new Decision(
             asked.Instruction,
             depth,
-            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model.Or(delegation.Settings.Of(role)), Role = role, Escalation = delegation.Escalation.Kept })
+            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model.Or(delegation.Settings.Of(role)), Role = role })
         {
             Asked = asked.Connection,
             Declared = delegation.Connections,

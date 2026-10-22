@@ -54,13 +54,12 @@ internal static class CardPhrases
                 permission.Withdrawn,
                 permission.Closed,
                 permission.AwaitsParent,
-                permission.AwaitsHuman,
-                permission.Decision.Bind(decision => decision.Passed)));
+                permission.AwaitsHuman));
 
     public static string Verdict(FormEntry form) =>
         form.Answer.Match(
             answer => Answered(form, answer),
-            () => Waiting(form.Withdrawn, form.Closed || form.Outcome.IsSome, form.AwaitsParent, form.AwaitsHuman, form.Decision.Bind(decision => decision.Passed)));
+            () => Waiting(form.Withdrawn, form.Closed || form.Outcome.IsSome, form.AwaitsParent, form.AwaitsHuman));
 
     private static string Answered(FormEntry form, FormAnswer answer)
     {
@@ -72,23 +71,12 @@ internal static class CardPhrases
             : $"Answered for you: {Chosen(answer)}";
     }
 
-    private static string Waiting(bool withdrawn, bool closed, bool awaitsParent, bool awaitsHuman, Option<PassReason> passed) =>
+    private static string Waiting(bool withdrawn, bool closed, bool awaitsParent, bool awaitsHuman) =>
         withdrawn ? Withdrawn
         : closed ? "No longer waiting"
         : awaitsParent ? WaitingForParent
-        : awaitsHuman ? WaitingForYou(passed)
+        : awaitsHuman ? "Waiting for you"
         : "Deciding";
-
-    public static string Passed(PassReason reason) => reason switch
-    {
-        PassReason.PassedByParent => "its parent passed it to you",
-        PassReason.BeyondParent => "its parent's own rules do not allow it",
-        PassReason.ParentTimedOut => "its parent did not answer in time",
-        _ => "its parent could not be asked",
-    };
-
-    private static string WaitingForYou(Option<PassReason> passed) =>
-        passed.Match(reason => $"Waiting for you · {Passed(reason)}", () => "Waiting for you");
 
     private static string ByParent(Option<(Option<JobId> Parent, DecisionDelivery Delivery)> decision) =>
         decision.Match(found => found.Parent.IsSome && found.Delivery == DecisionDelivery.Answered, () => false) ? " by its parent" : string.Empty;

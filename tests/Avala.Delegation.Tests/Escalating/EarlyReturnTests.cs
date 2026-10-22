@@ -12,7 +12,7 @@ namespace Avala.Delegation.Tests.Escalating;
 
 public sealed class EarlyReturnTests
 {
-    private static readonly DelegationRules AsksParent = Desk.Declared with { Escalation = new EscalationTerms(true, TimeSpan.FromSeconds(60)) };
+    private static readonly DelegationRules AsksParent = Desk.Declared;
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -23,7 +23,7 @@ public sealed class EarlyReturnTests
         var asking = await desk.DelegateAsync("migrate", "Migrate the database");
         var sibling = await desk.DelegateAsync("seed", "Seed the database");
 
-        await desk.Notes.HandleAsync(new PermissionDecided(Asked(desk, asking)), Cancellation);
+        await desk.Notes.HandleAsync(new FormDecided(desk.Question(asking)), Cancellation);
 
         var returned = desk.Agents.Results.ToDictionary(result => result.Result.Item.Value, result => result.Result.Content);
         Assert.Contains("\"outcome\":\"asking\"", returned["migrate"], StringComparison.Ordinal);
@@ -43,7 +43,7 @@ public sealed class EarlyReturnTests
     {
         await using var desk = await StartedAsync();
         var child = await desk.DelegateAsync("migrate", "Migrate the database");
-        await desk.Notes.HandleAsync(new PermissionDecided(Asked(desk, child)), Cancellation);
+        await desk.Notes.HandleAsync(new FormDecided(desk.Question(child)), Cancellation);
 
         await desk.WaitChildAsync("wait", child);
         await desk.ReplyAsync(child, "Migrated.");
@@ -62,7 +62,7 @@ public sealed class EarlyReturnTests
         await using var desk = await StartedAsync();
         var child = await desk.DelegateAsync("migrate", "Migrate the database");
         desk.Jobs.Steerable = true;
-        await desk.Notes.HandleAsync(new PermissionDecided(Asked(desk, child)), Cancellation);
+        await desk.Notes.HandleAsync(new FormDecided(desk.Question(child)), Cancellation);
         await desk.ProgressAsync(child, JobStatus.Failed);
         _ = await desk.ReportedAsync(child);
 
@@ -118,10 +118,4 @@ public sealed class EarlyReturnTests
 
         return desk;
     }
-
-    private static PolicyDecision Asked(Desk desk, JobId child) =>
-        new(SessionId.New(), TurnId.New(), new ItemId("run"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, desk.Clock.GetUtcNow())
-        {
-            Parent = desk.Parent,
-        };
 }

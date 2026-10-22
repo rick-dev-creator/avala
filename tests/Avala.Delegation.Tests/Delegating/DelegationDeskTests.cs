@@ -373,9 +373,9 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
-    public async Task AReadOnlyChildInReviewIsReportedAndDiscardedNeverIntegratedAndKeepsItsEscalationAsync()
+    public async Task AReadOnlyChildInReviewIsReportedAndDiscardedNeverIntegratedAsync()
     {
-        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Escalation = new EscalationTerms(true, TimeSpan.FromSeconds(30)) }));
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared));
         await desk.StartedAsync();
         await desk.CallAsync("review", """{ "instruction": "Review the notes", "role": "reviewer" }""");
         var record = Assert.Single(desk.Book.All());
@@ -386,7 +386,7 @@ public sealed class DelegationDeskTests
         await desk.ProgressAsync(child, JobStatus.AwaitingReview);
         var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
 
-        Assert.Equal((ChildRole.Reviewer, Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(30)))), (record.Role, record.Escalation));
+        Assert.Equal(ChildRole.Reviewer, record.Role);
         Assert.Equal((ChildOutcome.Reported, JobStatus.Discarded, Option<ApprovalDelivery>.None, Option<string>.Some("The notes read well.")), (report.Outcome, report.Status, report.Delivery, report.Summary));
         Assert.Equal([child], desk.Jobs.Discarded);
         Assert.Contains("\"role\":\"reviewer\"", desk.Agents.Results[^1].Result.Content, StringComparison.Ordinal);

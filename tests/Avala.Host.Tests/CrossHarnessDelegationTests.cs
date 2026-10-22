@@ -89,6 +89,18 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AChildWaitingForItsOrchestratorsAnswerReadsWaitingInTheDelegationTreeAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }"""));
+        var told = run.Watch<ParentAsked>();
+        _ = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
+        _ = await told.UntilAsync(_ => true);
+        await run.DeliveredAsync();
+
+        Assert.Equal("waiting", await ChildStateAsync(run, child => child["StateText"].Text == "waiting"));
+    }
+
+    [Fact]
     public async Task APermissionAskedByACrossHarnessChildIsAttributedToItsJobAndHarnessInTheClaudeCodeParentsConversationWhichLearnsItAwaitsPermissionAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("delegate-asks-parent");
@@ -100,7 +112,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", Autonomous),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"], "escalation": "parent", "parentWindowSeconds": 600 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }"""),
             ]);
         var told = run.Watch<ParentAsked>();
         var asked = await told.UntilAsync(_ => true);
@@ -289,7 +301,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", Autonomous),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"], "escalation": "parent", "parentWindowSeconds": 600 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }"""),
             ]);
         var told = run.Watch<ParentAsked>();
         var child = Outcomes.Present((await told.UntilAsync(_ => true)).Delegation.Child);
@@ -336,7 +348,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", Autonomous),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"], "escalation": "parent", "parentWindowSeconds": 600 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }"""),
             ]);
         var told = run.Watch<ParentAsked>();
         var child = Outcomes.Present((await told.UntilAsync(_ => true)).Delegation.Child);
@@ -346,7 +358,7 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
         var listed = Returned(await run.StopAndReadRecordingsAsync(), Called);
 
         Assert.All(
-            ["Read the changelog", "\"kind\":\"inProcess\"", "\"status\":\"completed\"", child.Value.ToString(), "\"kind\":\"crossHarness\"", "\"connection\":\"sim\"", "\"status\":\"awaitingPermission\""],
+            ["Read the changelog", "\"kind\":\"inProcess\"", "\"status\":\"completed\"", child.Value.ToString(), "\"kind\":\"crossHarness\"", "\"connection\":\"sim\"", "\"status\":\"awaitingAnswer\""],
             expected => Assert.True(listed.Contains(expected, StringComparison.Ordinal), $"The listing lacks {expected}:\n{listed}"));
     }
 

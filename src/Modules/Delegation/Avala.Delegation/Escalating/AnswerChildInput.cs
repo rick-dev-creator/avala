@@ -11,7 +11,6 @@ internal enum ChildDecision
 {
     Allow,
     Deny,
-    Person,
 }
 
 internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecision Decision, Option<string> Message, IReadOnlyList<FieldAnswer> Fields)
@@ -79,7 +78,6 @@ internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecisi
     {
         "allow" => ChildDecision.Allow,
         "deny" => ChildDecision.Deny,
-        "person" => ChildDecision.Person,
         _ => Option<ChildDecision>.None,
     };
 

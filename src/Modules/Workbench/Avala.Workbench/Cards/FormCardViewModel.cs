@@ -87,7 +87,7 @@ internal sealed partial class FormCardViewModel : IFormCardViewModel, ITimelineI
         if (entry is FormEntry changed)
         {
             form = changed;
-            AwaitsYou = changed.AwaitsHuman || changed.AwaitsParent;
+            AwaitsYou = changed.AwaitsHuman;
             Verdict = CardPhrases.Verdict(changed);
         }
     }

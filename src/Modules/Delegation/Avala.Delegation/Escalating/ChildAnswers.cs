@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
-using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -14,7 +13,6 @@ internal enum ChildAnswerRefusal
     MalformedInput,
     NotWaiting,
     NotYourChild,
-    BeyondYourRules,
     InvalidAnswer,
 }
 
@@ -34,41 +32,21 @@ internal sealed class ChildAnswers(IParentAnswers answers, IPermissionAudit audi
     private async Task<Result<ChildDecision, ChildAnswerRefusal>> AnswerAsync(SessionId parent, AnswerChildInput input, CancellationToken cancellationToken)
     {
         var caller = audit.AutonomyOf(parent).Map(applied => applied.Job);
-        var permission = audit.OfJob(input.Child).LastOrDefault(decision => decision.Item == input.Request && decision.Delivery == DecisionDelivery.LeftToParent).ToOption();
-        var form = audit.FormsOfJob(input.Child).LastOrDefault(decision => decision.Item == input.Request && decision.Delivery == DecisionDelivery.LeftToParent).ToOption();
-        var waiting = permission.Map(found => (found.Session, found.Parent)).Match(Option<(SessionId, Option<JobId>)>.Some, () => form.Map(found => (found.Session, found.Parent)));
+        var waiting = audit.FormsOfJob(input.Child).LastOrDefault(decision => decision.Item == input.Request && decision.Delivery == DecisionDelivery.LeftToParent).ToOption();
 
         if (!waiting.ToResult(ChildAnswerRefusal.NotWaiting).TryGetValue(out var asked, out _))
         {
             return ChildAnswerRefusal.NotWaiting;
         }
 
-        var (child, asksParent) = asked;
-
-        if (caller.IsNone || asksParent != caller)
+        if (caller.IsNone || asked.Parent != caller)
         {
             return ChildAnswerRefusal.NotYourChild;
         }
 
-        if (input.Decision == ChildDecision.Person)
-        {
-            return await answers.PassAsync(child, input.Request, PassReason.PassedByParent, cancellationToken) ? input.Decision : ChildAnswerRefusal.NotWaiting;
-        }
-
-        var answered = permission.IsSome
-            ? (await answers.AnswerAsync(child, new ParentReply(input.Request, parent, input.Decision == ChildDecision.Allow ? PermissionAnswer.Allow : PermissionAnswer.Deny) { Message = input.Message }, cancellationToken))
-                .Match(_ => Option<PolicyError>.None, Option<PolicyError>.Some)
-            : (await answers.AnswerFormAsync(child, new ParentFormReply(parent, input.FormAnswer), cancellationToken))
-                .Match(_ => Option<PolicyError>.None, Option<PolicyError>.Some);
-
-        return answered.Match(
-            error => Result<ChildDecision, ChildAnswerRefusal>.Failure(error switch
-            {
-                PolicyError.BeyondParent => ChildAnswerRefusal.BeyondYourRules,
-                PolicyError.InvalidAnswer => ChildAnswerRefusal.InvalidAnswer,
-                _ => ChildAnswerRefusal.NotWaiting,
-            }),
-            () => input.Decision);
+        return (await answers.AnswerFormAsync(asked.Session, new ParentFormReply(parent, input.FormAnswer), cancellationToken)).Match(
+            _ => Result<ChildDecision, ChildAnswerRefusal>.Success(input.Decision),
+            error => error == PolicyError.InvalidAnswer ? ChildAnswerRefusal.InvalidAnswer : ChildAnswerRefusal.NotWaiting);
     }
 
     private static ToolResult Result(ItemId item, Result<ChildDecision, ChildAnswerRefusal> outcome) =>
@@ -80,10 +58,9 @@ internal sealed class ChildAnswers(IParentAnswers answers, IPermissionAudit audi
 
     private static string Reason(ChildAnswerRefusal refusal) => refusal switch
     {
-        ChildAnswerRefusal.MalformedInput => "the input needs child and request as the message names them, a decision of allow, deny or person, an optional message, and fields only for a question.",
-        ChildAnswerRefusal.NotYourChild => "that request belongs to a sub-agent of another job.",
-        ChildAnswerRefusal.BeyondYourRules => "your own rules would not allow you to do this, so you cannot allow it for your sub-agent; it went to a person.",
+        ChildAnswerRefusal.MalformedInput => "the input needs child and request as the message names them, a decision of allow or deny, an optional message, and one answer per field to allow.",
+        ChildAnswerRefusal.NotYourChild => "that question belongs to a sub-agent of another job.",
         ChildAnswerRefusal.InvalidAnswer => "the answer does not fit the question's fields; it still waits for your answer.",
-        _ => "that request no longer waits for you: it was answered, passed to a person, or its sub-agent stopped asking.",
+        _ => "that question no longer waits for you: it was answered, or its sub-agent stopped asking.",
     };
 }

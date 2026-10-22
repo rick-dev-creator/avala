@@ -82,7 +82,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
 
         await run.RestartAsync();
         var (workbench, conversation, pane) = await PaneAsync(run);
-        await workbench.ShowsAsync(() => Shown(conversation).Any(Mentioned) && SubagentNamed(pane, Survey).Exists);
+        await workbench.ShowsAsync(pane, () => Shown(conversation).Any(Mentioned) && SubagentNamed(pane, Survey).Exists);
         var (state, shown) = await run.Ui.ReadAsync(() => (SubagentNamed(pane, Survey).State, Shown(conversation)));
 
         Assert.Equal(("lost", true), (state, shown.Any(text => text.Contains("work is lost", StringComparison.Ordinal) && Mentioned(text))));
@@ -141,7 +141,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
             [(".avala/permissions.json", """{ "autonomy": "supervised" }""")]);
         var asked = await run.DecisionAsync();
         var (workbench, _, pane) = await PaneAsync(run);
-        await workbench.ShowsAsync(() => SubagentNamed(pane, Build).State == "waiting");
+        await workbench.ShowsAsync(pane, () => SubagentNamed(pane, Build).State == "waiting");
         var waiting = await StatesAsync(run, pane);
 
         Assert.Equal(("npm install", "waiting", "working"), (asked.Target, waiting.GetValueOrDefault(Build), waiting.GetValueOrDefault(Survey)));
@@ -236,7 +236,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
     {
         await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains(said));
         await run.DeliveredAsync();
-        await workbench.ShowsAsync(() => settled.All(agent => SubagentNamed(pane, agent.Name).State == agent.State));
+        await workbench.ShowsAsync(pane, () => settled.All(agent => SubagentNamed(pane, agent.Name).State == agent.State));
 
         return await StatesAsync(run, pane);
     }

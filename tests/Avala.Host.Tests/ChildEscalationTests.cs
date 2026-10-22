@@ -16,62 +16,108 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
-    private const string AsksParent = """{ "delegation": { "escalation": "parent", "parentWindowSeconds": 600 } }""";
+    private const string Delegates = """{ "delegation": {} }""";
+
+    private const string RetiredEscalation = """{ "delegation": { "escalation": "human", "parentWindowSeconds": 30 } }""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AParentAllowsWhatItsOwnPolicyAllowsForItsSupervisedChildAndTheAnswerIsAuditedInBothAuditsAsync()
+    public async Task AParentAnswersItsChildsQuestionThroughItsPendingCallAndTheAnswerIsTheParentsAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", AsksParent));
-        var decisions = run.Watch<PermissionDecided>();
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", Delegates));
+        var forms = run.Watch<FormDecided>();
         var reported = run.Watch<ChildReported>();
         var told = run.Watch<ParentAsked>();
         var activity = run.Watch<AgentActivity>();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Migrate the database")));
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Choose the orders database")));
 
-        var asked = (await decisions.UntilAsync(update => update.Decision.Delivery == DecisionDelivery.LeftToParent)).Decision;
+        var asked = (await forms.UntilAsync(update => update.Decision.Delivery == DecisionDelivery.LeftToParent)).Decision;
         var early = (ToolReturned)(await activity.UntilAsync(update => update.Event is ToolReturned { Item.Value: "delegate-migrate" })).Event;
-        var answered = (await decisions.UntilAsync(update => update.Decision.Item == asked.Item && update.Decision.Delivery == DecisionDelivery.Answered)).Decision;
+        var answered = (await forms.UntilAsync(update => update.Decision.Item == asked.Item && update.Decision.Delivery == DecisionDelivery.Answered)).Decision;
         var waited = (ToolCalled)(await activity.UntilAsync(update => update.Event is ToolCalled { Tool: "wait_child" })).Event;
         var report = Outcomes.Present((await reported.UntilAsync(_ => true)).Delegation.Report);
         var delivered = (ToolReturned)(await activity.UntilAsync(update => update.Event is ToolReturned returned && returned.Item == waited.Item)).Event;
 
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(parent)));
-        Assert.True((await told.UntilAsync(_ => true)).InCall, "The child's request did not reach its parent through the parent's pending delegate call");
+        Assert.True((await told.UntilAsync(_ => true)).InCall, "The child's question did not reach its parent through the parent's pending delegate call");
         Assert.Contains("\"outcome\":\"asking\"", early.Result.Content, StringComparison.Ordinal);
         Assert.Contains("\"outcome\":\"integrated\"", delivered.Result.Content, StringComparison.Ordinal);
-        Assert.Equal((Option<JobId>.Some(parent), PolicyAnswer.Ask), (asked.Parent, asked.Answer));
-        Assert.Equal(Option<JobId>.Some(parent), answered.Parent);
-        var child = Outcomes.Present(asked.Job);
-        var answer = Assert.Single(run.Get<IPermissionAudit>().AnswersOfJob(child));
-        Assert.Equal((PermissionAnswer.Allow, Option<JobId>.Some(parent), "dotnet ef database update"), (answer.Answer, answer.Parent, answer.Target));
-        Assert.Equal(answer, Assert.Single(run.Get<IPermissionAudit>().AnswersGivenBy(parent)));
-        Assert.Equal((child, ChildOutcome.Integrated), (report.Child, report.Outcome));
+        Assert.Equal((Option<JobId>.Some(parent), Option<JobId>.Some(parent)), (asked.Parent, answered.Parent));
+        Assert.Equal(["PostgreSQL"], Assert.Single(Outcomes.Present(answered.Answer).Fields).Chosen);
+        Assert.Equal((Outcomes.Present(asked.Job), ChildOutcome.Integrated), (report.Child, report.Outcome));
+        Assert.DoesNotContain(run.Get<IPermissionAudit>().FormsOfJob(report.Child), decision => decision.Delivery == DecisionDelivery.LeftToHuman);
+    }
+
+    [Fact]
+    public async Task AnOlderDelegationSectionThatStillSendsQuestionsToAPersonIsIgnoredAndTheParentIsAskedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", RetiredEscalation));
+        var forms = run.Watch<FormDecided>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Choose the orders database")));
+
+        var asked = (await forms.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(parent))).Decision;
+        var delivered = await run.ReportDeliveredAsync();
+
+        Assert.Equal((DecisionDelivery.LeftToParent, Option<JobId>.Some(parent)), (asked.Delivery, asked.Parent));
+        Assert.Equal(ChildOutcome.Integrated, Outcomes.Present(delivered.Report).Outcome);
     }
 
     [Fact]
     public async Task AParentsConversationShowsTheSubAgentWaitingForItsAnswerAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
         var told = run.Watch<ParentAsked>();
         var workbench = await run.WorkbenchAsync();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question] Choose the orders database")));
         _ = await told.UntilAsync(_ => true);
 
         var conversation = await workbench.SelectAsync(parent);
         await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
 
-        Assert.Matches("^Sub-agent \".+Migrate the.+\" on .+ is waiting for this job$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
+        Assert.Matches("^Sub-agent \".+Choose the.+\" on .+ is waiting for this job$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
+    }
+
+    [Fact]
+    public async Task AParentsConversationNamesTheSubAgentWhosePermissionWaitsForYouAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var decisions = run.Watch<PermissionDecided>();
+        var workbench = await run.WorkbenchAsync();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        _ = await decisions.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(parent) && update.Decision.Delivery == DecisionDelivery.LeftToHuman);
+
+        var conversation = await workbench.SelectAsync(parent);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
+
+        Assert.Matches("^Sub-agent \".+Migrate the.+\" on .+ is asking you$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
+    }
+
+    [Fact]
+    public async Task ASubAgentDiscardedWhileItsPermissionWaitsNoLongerAsksThePersonInItsParentsConversationAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var decisions = run.Watch<PermissionDecided>();
+        var workbench = await run.WorkbenchAsync();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        var asked = (await decisions.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(parent) && update.Decision.Delivery == DecisionDelivery.LeftToHuman)).Decision;
+        var conversation = await workbench.SelectAsync(parent);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(Outcomes.Present(asked.Job), Cancellation));
+        _ = await run.SettledAsync(parent);
+        await run.DeliveredAsync();
+
+        Assert.DoesNotContain(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Status")), status => status.StartsWith("Waiting for you", StringComparison.Ordinal));
     }
 
     [Fact]
     public async Task ASubAgentWaitingForItsParentsAnswerSaysSoUnderItsParentInTheSidebarAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
         var told = run.Watch<ParentAsked>();
         var workbench = await run.WorkbenchAsync();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
         _ = await told.UntilAsync(_ => true);
 
         await workbench.ShowsAsync(() => ChildFact(workbench, parent) == "waiting for its parent");
@@ -82,20 +128,22 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     [Fact]
     public async Task AParentBlockedOnTwoDelegateCallsHearsEachChildThroughItsCallsAndGetsBothReportsByWaitingAgainAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", AsksParent));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", Delegates));
         var delivered = run.Watch<ReportDelivered>();
         var told = run.Watch<ParentAsked>();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent-alongside] Migrate and seed the database")));
+        var forms = run.Watch<FormDecided>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent-alongside] Choose the orders and seed databases")));
 
         var asked = await told.CollectUntilAsync(_ => true);
         asked = [.. asked, .. await told.CollectUntilAsync(_ => true)];
         var reports = await delivered.CollectUntilAsync(_ => true);
         reports = [.. reports, .. await delivered.CollectUntilAsync(_ => true)];
+        var answered = 0;
+        _ = await forms.CollectUntilAsync(update => update.Decision.Delivery == DecisionDelivery.Answered && update.Decision.Parent == Option<JobId>.Some(parent) && ++answered == 2);
 
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(parent)));
         Assert.Equal(2, reports.Select(report => report.Delegation.Child).Distinct().Count());
-        Assert.True(asked[0].InCall, "The first request did not reach its parent through its pending delegate calls");
-        Assert.Equal(2, run.Get<IPermissionAudit>().AnswersGivenBy(parent).Count);
+        Assert.True(asked[0].InCall, "The first question did not reach its parent through its pending delegate calls");
         Assert.All(reports, report =>
         {
             Assert.Equal(ChildOutcome.Integrated, Outcomes.Present(report.Delegation.Report).Outcome);
@@ -115,49 +163,44 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", Autonomous),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"], "escalation": "parent", "parentWindowSeconds": 600 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }"""),
             ]);
         var told = run.Watch<ParentAsked>();
-        var decisions = run.Watch<PermissionDecided>();
+        var forms = run.Watch<FormDecided>();
 
         var asked = await told.UntilAsync(_ => true);
-        var answered = (await decisions.UntilAsync(update => update.Decision.Item == asked.Item && update.Decision.Delivery == DecisionDelivery.Answered)).Decision;
+        var answered = (await forms.UntilAsync(update => update.Decision.Item == asked.Item && update.Decision.Delivery == DecisionDelivery.Answered)).Decision;
         var reported = await run.ReportDeliveredAsync();
 
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(run.Job)));
-        Assert.True(asked.InCall, "The child's request did not reach Claude Code through its pending delegate call");
+        Assert.True(asked.InCall, "The child's question did not reach Claude Code through its pending delegate call");
         Assert.Equal(Option<JobId>.Some(run.Job), answered.Parent);
         Assert.Equal((ChildOutcome.Integrated, AnswerRoute.ToolResult), (Outcomes.Present(reported.Report).Outcome, Outcomes.Present(reported.Answered).Route));
-        Assert.Single(run.Get<IPermissionAudit>().AnswersGivenBy(run.Job));
     }
 
     [Fact]
-    public async Task AChildRequestBeyondItsParentsOwnRulesGoesToAPersonWhoAnswersItOnceAsync()
+    public async Task AChildsPermissionGoesToAPersonWhoAnswersItOnceWhileTheChildKeepsItsWorkAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
         var decisions = run.Watch<PermissionDecided>();
-        var activity = run.Watch<AgentActivity>();
         var reported = run.Watch<ChildReported>();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-asks-parent] Migrate the database")));
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the database")));
 
-        var passed = (await decisions.UntilAsync(update => update.Decision.Passed.IsSome)).Decision;
-        var refused = (ToolReturned)(await activity.UntilAsync(update => update.Event is ToolReturned { Result.IsError: true })).Event;
-        var person = Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(passed.Session, new PermissionReply(passed.Item, PermissionAnswer.Allow), Cancellation));
+        var asked = (await decisions.UntilAsync(update => update.Decision.Job != Option<JobId>.Some(parent) && update.Decision.Delivery == DecisionDelivery.LeftToHuman)).Decision;
+        var person = Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(asked.Session, new PermissionReply(asked.Item, PermissionAnswer.Allow), Cancellation));
         var report = Outcomes.Present((await reported.UntilAsync(_ => true)).Delegation.Report);
 
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(parent)));
-        Assert.Equal((DecisionDelivery.LeftToHuman, Option<PassReason>.Some(PassReason.BeyondParent)), (passed.Delivery, passed.Passed));
-        Assert.Contains("\"refused\":\"beyondYourRules\"", refused.Result.Content, StringComparison.Ordinal);
-        Assert.Equal(Option<JobId>.None, person.Parent);
+        Assert.Equal(Option<JobId>.None, asked.Parent);
         Assert.Equal([person], run.Get<IPermissionAudit>().AnswersOfJob(report.Child));
-        Assert.Empty(run.Get<IPermissionAudit>().AnswersGivenBy(parent));
+        Assert.Empty(run.Get<IPermissionAudit>().FormsOfJob(report.Child));
         Assert.Equal(ChildOutcome.Integrated, report.Outcome);
     }
 
     [Fact]
     public async Task AReviewerChildIsDeniedEveryEditByThePolicyAndReportsWithoutChangingItsParentAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "delegation": {} }"""));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", Delegates));
         var decisions = run.Watch<PermissionDecided>();
         var autonomies = run.Watch<AutonomyApplied>();
         var reported = run.Watch<ChildReported>();
@@ -178,45 +221,62 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AParentThatDoesNotAnswerWithinItsWindowLeavesTheRequestToAPersonAndNothingIsAllowedAsync()
+    public async Task AChildsQuestionLeftUnansweredForHoursStillWaitsForItsParentAndNeverGoesToAPersonAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
-        var asked = run.Watch<ParentAsked>();
-        var decisions = run.Watch<PermissionDecided>();
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the database")));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var told = run.Watch<ParentAsked>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
 
-        var waiting = await asked.UntilAsync(_ => true);
-        run.AdvanceTo(waiting.Until);
-        var passed = (await decisions.UntilAsync(update => update.Decision.Passed.IsSome)).Decision;
+        var waiting = await told.UntilAsync(_ => true);
+        run.Clock.Advance(TimeSpan.FromHours(3));
+        await run.DeliveredAsync();
 
-        Assert.Equal((DecisionDelivery.LeftToHuman, Option<PassReason>.Some(PassReason.ParentTimedOut)), (passed.Delivery, passed.Passed));
-        Assert.Equal((Option<JobId>.Some(parent), waiting.Item), (waiting.Delegation.Parent, passed.Item));
-        Assert.StartsWith("wants to run a command: dotnet ef database update", waiting.Asking, StringComparison.Ordinal);
-        Assert.Empty(run.Get<IPermissionAudit>().AnswersOfJob(Outcomes.Present(passed.Job)));
-        Assert.DoesNotContain(run.Get<IPermissionAudit>().OfJob(Outcomes.Present(passed.Job)), decision => decision.Answer == PolicyAnswer.Allow);
+        var child = Outcomes.Present(waiting.Delegation.Child);
+        var question = Assert.Single(run.Get<IPermissionAudit>().FormsOfJob(child));
+        Assert.Equal((DecisionDelivery.LeftToParent, Option<JobId>.Some(parent)), (question.Delivery, question.Parent));
+        Assert.True(run.Get<IParentAnswers>().Waits(question.Session, question.Item), "The child's question no longer waits for its parent");
     }
 
     [Fact]
-    public async Task AChildWaitingOnItsParentAtARestartAsksAgainAndAPersonAnswersItOnceAsItsDeferredParentCannotAsync()
+    public async Task AChildAskingAgainAfterARestartWakesItsDeferredParentInsteadOfAskingAPersonAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
-        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the database")));
-        var before = await run.DecisionAsync();
-        Assert.Equal(DecisionDelivery.LeftToParent, before.Delivery);
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var told = run.Watch<ParentAsked>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
+        var before = await told.UntilAsync(_ => true);
 
-        await run.RestartAsync();
-        var decisions = run.Watch<PermissionDecided>();
-        var passed = (await decisions.UntilAsync(update => update.Decision.Passed.IsSome)).Decision;
-        Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(passed.Session, new PermissionReply(passed.Item, PermissionAnswer.Allow), Cancellation));
-        var delivered = await run.ReportDeliveredAsync();
+        await run.RestartAsync(() => told = run.Watch<ParentAsked>());
+        var after = await told.UntilAsync(update => update.Woken);
 
-        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(parent));
-        Assert.Equal(Option<PassReason>.Some(PassReason.ParentUnreachable), passed.Passed);
-        Assert.NotEqual(before.Session, passed.Session);
-        var child = Outcomes.Present(passed.Job);
-        Assert.Single(run.Get<IPermissionAudit>().AnswersOfJob(child));
-        Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
+        var child = Outcomes.Present(before.Delegation.Child);
+        Assert.Equal((Option<JobId>.Some(parent), Option<JobId>.Some(child)), (after.Delegation.Parent, after.Delegation.Child));
+        Assert.NotEqual(before.Session, after.Session);
+        Assert.DoesNotContain(run.Get<IPermissionAudit>().FormsOfJob(child), decision => decision.Delivery == DecisionDelivery.LeftToHuman);
         Assert.Single(run.Get<IDelegations>().OfParent(parent));
+    }
+
+    [Fact]
+    public async Task AQuestionAskedAgainAfterARestartWhileThePersonHoldsItsParentWaitsUntilThePersonContinuesTheParentAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", Delegates));
+        var told = run.Watch<ParentAsked>();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-question-blocked] Choose the orders database")));
+        var before = await told.UntilAsync(_ => true);
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(parent, HoldReason.Interrupted, Cancellation));
+
+        await run.RestartAsync(() => told = run.Watch<ParentAsked>());
+        var after = await told.UntilAsync(update => update.Session != before.Session);
+        await run.DeliveredAsync();
+        var waiting = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(parent, Cancellation)).Summary;
+        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(parent, "Carry on with the orders.", Cancellation));
+        var steered = await told.UntilAsync(update => update.Session == after.Session && update.Item == after.Item && !ReferenceEquals(update, after));
+
+        Assert.Equal((JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Interrupted)), (waiting.Status, waiting.Hold));
+        Assert.False(after.Woken, "A parent the person held was woken by its child's question after a restart");
+        Assert.False(steered.Woken, "The question was told to the parent as a wake instead of in the round the person started");
+        Assert.Matches("^Sub-agent \".*Choose the orders database\" is waiting for you", steered.Note);
+        var continued = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(parent, Cancellation)).Attempts[^1];
+        Assert.Equal((Option<string>.Some("Carry on with the orders."), MessageAuthor.Person, MessageAuthor.Person), (continued.Guidance, continued.Author, continued.CausedBy));
     }
 
     private static string ChildFact(OpenWorkbench workbench, JobId parent) =>

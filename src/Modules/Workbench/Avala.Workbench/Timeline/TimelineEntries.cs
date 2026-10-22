@@ -179,11 +179,11 @@ internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, Ite
 internal enum ChildAskingState
 {
     Waiting,
+    Answered,
+    Declined,
     Allowed,
     Denied,
-    Answered,
-    AnsweredByPerson,
-    Passed,
+    Withdrawn,
 }
 
 internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId Item, string Child, string Asking) : ITimelineEntry
@@ -192,8 +192,12 @@ internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId It
 
     public ChildAskingState State { get; init; }
 
-    public Option<PassReason> Passed { get; init; }
+    public Option<ChildPermission> Permission { get; init; }
+
+    public bool ForYou => Permission.IsSome;
 }
+
+internal sealed record ChildPermission(ItemKind Kind, string Target);
 
 internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry
 {

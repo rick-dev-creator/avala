@@ -10,7 +10,7 @@ namespace Avala.Permissions.Answering;
 
 internal sealed class PermissionResponder(IAgents agents, RequestPlaces places, TimeProvider clock, IEnumerable<IAnswerSharing> sharing)
 {
-    public async Task<(PolicyDecision Decision, PermissionRequest Request)> DecideAsync(
+    public async Task<PolicyDecision> DecideAsync(
         GovernedSession session,
         PermissionRequested requested,
         IReadOnlyList<PolicyRule> jobRules,
@@ -22,22 +22,23 @@ internal sealed class PermissionResponder(IAgents agents, RequestPlaces places, 
         {
             PolicyAnswer.Allow => await RespondAsync(requested, PermissionAnswer.Allow, cancellationToken),
             PolicyAnswer.Deny => await RespondAsync(requested, PermissionAnswer.Deny, cancellationToken),
-            _ => session.AsksParent.IsSome ? DecisionDelivery.LeftToParent : DecisionDelivery.LeftToHuman,
+            _ => DecisionDelivery.LeftToHuman,
         };
 
         var contested = delivery == DecisionDelivery.LeftToHuman && await SharedAsync(session.Job, cancellationToken);
 
-        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested, Scope = Scoped(session, request, jobRules, verdict, delivery) }, request);
+        return Decided(session, requested, request, verdict, delivery) with { Contested = contested, Scope = Scoped(session, request, jobRules, verdict, delivery) };
     }
 
     public async Task<FormDecision> DecideAsync(GovernedSession session, FormRequested requested, CancellationToken cancellationToken)
     {
-        var automatic = session.Policy.Answer(requested.Item, requested.Form);
+        var asksParent = session.AsksParent.IsSome && requested.Form.Purpose != FormPurpose.Permission;
+        var automatic = asksParent ? Option<AutomaticAnswer>.None : session.Policy.Answer(requested.Item, requested.Form);
         var delivery = await automatic.Match(
             async answered => (await agents.AnswerAsync(requested.Session, answered.Answer, cancellationToken)).Match(
                 _ => DecisionDelivery.Answered,
                 _ => DecisionDelivery.Undelivered),
-            () => Task.FromResult(session.AsksParent.IsSome ? DecisionDelivery.LeftToParent : DecisionDelivery.LeftToHuman));
+            () => Task.FromResult(asksParent ? DecisionDelivery.LeftToParent : DecisionDelivery.LeftToHuman));
 
         return new FormDecision(
             requested.Session,
@@ -69,12 +70,11 @@ internal sealed class PermissionResponder(IAgents agents, RequestPlaces places, 
             clock.GetUtcNow())
         {
             Autonomy = session.Policy.Autonomy,
-            RepositoryRule = delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent && session.Job.IsSome ? session.Policy.InRepository(request) : Option<PolicyRule>.None,
-            Parent = delivery == DecisionDelivery.LeftToParent ? session.AsksParent : Option<JobId>.None,
+            RepositoryRule = delivery == DecisionDelivery.LeftToHuman && session.Job.IsSome ? session.Policy.InRepository(request) : Option<PolicyRule>.None,
         };
 
     private static Option<JobScope> Scoped(GovernedSession session, PermissionRequest request, IReadOnlyList<PolicyRule> jobRules, Verdict verdict, DecisionDelivery delivery) =>
-        (delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent || AutonomouslyDenied(session, verdict, delivery)) && session.Job.IsSome
+        (delivery == DecisionDelivery.LeftToHuman || AutonomouslyDenied(session, verdict, delivery)) && session.Job.IsSome
             ? session.Policy.InJob(request, jobRules)
             : Option<JobScope>.None;
 

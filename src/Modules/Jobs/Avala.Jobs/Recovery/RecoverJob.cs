@@ -17,6 +17,9 @@ internal sealed class RecoverJob(JobLedger ledger, JobLauncher launcher, Evaluat
             case JobState.Running when !await deferred.DeferAsync(job.Id, cancellationToken):
                 await launcher.RelaunchAsync(job, cancellationToken);
                 break;
+            case JobState.AwaitingReview:
+                await launcher.ReopenForDeviceAsync(job, cancellationToken);
+                break;
         }
     }
 

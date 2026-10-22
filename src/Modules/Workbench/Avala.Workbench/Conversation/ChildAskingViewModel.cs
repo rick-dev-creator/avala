@@ -1,5 +1,4 @@
-using Avala.Permissions.Contracts;
-using Avala.Workbench.Cards;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -22,10 +21,11 @@ internal sealed partial class ChildAskingViewModel : IChildAskingViewModel, ITim
 {
     public ChildAskingViewModel(ChildAskingEntry entry)
     {
+        var waitsFor = entry.ForYou ? "is asking you" : "is waiting for this job";
         Headline = entry.Harness.Match(
-            harness => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" on {harness} is waiting for this job",
-            () => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" is waiting for this job");
-        Asking = entry.Asking;
+            harness => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" on {harness} {waitsFor}",
+            () => $"Sub-agent \"{FactPhrases.Title(entry.Child)}\" {waitsFor}");
+        Asking = entry.Permission.Match(permission => $"wants to {CommandPhrases.Request(permission.Kind, permission.Target)}", () => entry.Asking);
         Status = string.Empty;
         Update(entry);
     }
@@ -53,11 +53,11 @@ internal sealed partial class ChildAskingViewModel : IChildAskingViewModel, ITim
 
     private static string Phrase(ChildAskingEntry asked) => asked.State switch
     {
-        ChildAskingState.Allowed => "Allowed by this job",
-        ChildAskingState.Denied => "Denied by this job",
         ChildAskingState.Answered => "Answered by this job",
-        ChildAskingState.AnsweredByPerson => "Answered by you",
-        ChildAskingState.Passed => $"Went to you: {asked.Passed.Match(CardPhrases.Passed, () => CardPhrases.Passed(PassReason.ParentUnreachable))}",
-        _ => "Waiting for this job's answer",
+        ChildAskingState.Declined => "Declined by this job",
+        ChildAskingState.Allowed => "Allowed by you",
+        ChildAskingState.Denied => "Denied by you",
+        ChildAskingState.Withdrawn => "No longer waiting",
+        _ => asked.ForYou ? "Waiting for you: answer it in the sub-agent's conversation or the Delegation pane" : "Waiting for this job's answer",
     };
 }

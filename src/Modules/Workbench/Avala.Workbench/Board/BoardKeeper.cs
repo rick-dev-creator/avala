@@ -75,6 +75,11 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
             Hold = integrationEvent.Status == JobStatus.NeedsHelp ? job.Hold : Option<HoldReason>.None,
             Wait = integrationEvent.Status == JobStatus.NeedsHelp ? job.Wait : Option<ResetWait>.None,
         }));
+
+        if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        {
+            Ended(integrationEvent.Job);
+        }
     }
 
     public ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken) =>
@@ -125,13 +130,20 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         Change(integrationEvent.Job, job => Audited(job with { Choice = integrationEvent.Choice }));
     }
 
-    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Event.Session, job =>
+    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Event is PermissionResolved resolved)
+        {
+            Asker(ParentOf(resolved.Session), resolved.Session, resolved.Item, asked => asked.State == ChildAskingState.Waiting ? asked with { State = ChildAskingState.Withdrawn } : asked);
+        }
+
+        return InSessionAsync(integrationEvent.Event.Session, job =>
         {
             var applied = job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) };
 
             return integrationEvent.Event is ModelReported ? Audited(applied) : applied;
         });
+    }
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });
@@ -139,9 +151,15 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken)
     {
         var decision = integrationEvent.Decision;
-        Asker(decision.Parent, decision.Session, decision.Item, asked => decision.Passed.Match(
-            reason => asked with { State = ChildAskingState.Passed, Passed = reason },
-            () => asked));
+
+        if (decision.Delivery == DecisionDelivery.LeftToHuman)
+        {
+            AskedYou(decision);
+        }
+        else if (decision.Delivery == DecisionDelivery.Withdrawn)
+        {
+            Asker(ParentOf(decision.Session), decision.Session, decision.Item, asked => asked with { State = ChildAskingState.Withdrawn });
+        }
 
         return InSessionAsync(decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(decision) }));
     }
@@ -149,11 +167,12 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     public ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
     {
         var decision = integrationEvent.Decision;
-        Asker(decision.Parent, decision.Session, decision.Item, asked => decision.Passed.Match(
-            reason => asked with { State = ChildAskingState.Passed, Passed = reason },
-            () => decision.Delivery == DecisionDelivery.Answered
-                ? asked with { State = decision.Answer.Match(answer => answer.Declined, () => false) ? ChildAskingState.Denied : ChildAskingState.Answered }
-                : asked));
+        Asker(decision.Parent, decision.Session, decision.Item, asked => decision.Delivery switch
+        {
+            DecisionDelivery.Answered => asked with { State = decision.Answer.Match(answer => answer.Declined, () => false) ? ChildAskingState.Declined : ChildAskingState.Answered },
+            DecisionDelivery.Withdrawn => asked with { State = ChildAskingState.Withdrawn },
+            _ => asked,
+        });
 
         return InSessionAsync(decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(decision) }));
     }
@@ -161,12 +180,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     public ValueTask HandleAsync(PermissionAnswered integrationEvent, CancellationToken cancellationToken)
     {
         var answer = integrationEvent.Answer;
-        var asker = answer.Parent.IsSome ? answer.Parent : ParentAsked(answer.Session, answer.Item);
-        Asker(asker, answer.Session, answer.Item, asked => asked with
+        Asker(ParentOf(answer.Session), answer.Session, answer.Item, asked => asked with
         {
-            State = answer.Parent.IsNone ? ChildAskingState.AnsweredByPerson
-                : answer.Answer == PermissionAnswer.Allow ? ChildAskingState.Allowed
-                : ChildAskingState.Denied,
+            State = answer.Answer == PermissionAnswer.Allow ? ChildAskingState.Allowed : ChildAskingState.Denied,
         });
 
         return InSessionAsync(answer.Session, job => Audited(job with { Transcript = job.Transcript.Apply(answer) }));
@@ -241,14 +257,40 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     {
         foreach (var asked in Known(parent))
         {
-            Change(asked, job => Audited(job with { Transcript = job.Transcript.ChildDecided(session, item, change) }));
+            Change(asked, job => Audited(job with { Transcript = job.Transcript.ChildDecided(entry => entry.Session == session && entry.Item == item ? change(entry) : entry) }));
         }
     }
 
-    private Option<JobId> ParentAsked(SessionId session, ItemId item) =>
-        sessions.TryGetValue(session, out var child) && jobs.TryGetValue(child, out var known)
-            ? known.Transcript.Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item)?.Decision.Bind(decision => decision.Parent) ?? Option<JobId>.None
-            : Option<JobId>.None;
+    private void Ended(JobId child)
+    {
+        var asking = sessions.Where(pair => pair.Value == child).Select(pair => pair.Key).ToHashSet();
+
+        foreach (var parent in Known(jobs.TryGetValue(child, out var known) ? known.Summary.Parent : Option<JobId>.None))
+        {
+            Change(parent, job => Audited(job with { Transcript = job.Transcript.ChildDecided(asked => asked.State == ChildAskingState.Waiting && asking.Contains(asked.Session) ? asked with { State = ChildAskingState.Withdrawn } : asked) }));
+        }
+    }
+
+    private Option<JobId> ParentOf(SessionId session) =>
+        sessions.TryGetValue(session, out var child) && jobs.TryGetValue(child, out var known) ? known.Summary.Parent : Option<JobId>.None;
+
+    private void AskedYou(PolicyDecision decision)
+    {
+        foreach (var child in Known(decision.Job).Where(jobs.ContainsKey).Select(job => jobs[job]))
+        {
+            foreach (var parent in Known(child.Summary.Parent).Where(jobs.ContainsKey))
+            {
+                Change(parent, job => Audited(job with
+                {
+                    Transcript = job.Transcript.AskedYou(new ChildAskingEntry(EntryKeys.ChildAsking(decision.Session, decision.Item), decision.Session, decision.Item, child.Summary.Instruction, decision.Target)
+                    {
+                        Harness = child.Harness,
+                        Permission = new ChildPermission(decision.Kind, decision.Target),
+                    }),
+                }));
+            }
+        }
+    }
 
     private ValueTask DelegatedAsync(DelegationRecord delegation)
     {

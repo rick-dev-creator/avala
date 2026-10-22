@@ -100,7 +100,7 @@ under your rules, with evidence for every result and a cost for every job.
 </td>
 <td width="50%" valign="top">
 
-**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. Children can ask their parent first, and reviewers only read. The tree, with each job's own sub-agents, follows the work in a pane beside the conversation.
+**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. A child's question goes to its orchestrator, which answers it or asks you, its permissions come to you, and reviewers only read. The tree, with each job's own sub-agents, follows the work in a pane beside the conversation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/delegation-dark.png">

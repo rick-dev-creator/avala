@@ -15,7 +15,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
     {
         var governed = book.Of(session);
 
-        if (governed.Decisions.LastOrDefault(decision => decision.Item == reply.Item) is not { Delivery: DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent } asked)
+        if (governed.Decisions.LastOrDefault(decision => decision.Item == reply.Item) is not { Delivery: DecisionDelivery.LeftToHuman } asked)
         {
             return PolicyError.NotAwaitingAnswer;
         }
@@ -41,10 +41,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             book.Remember(job, rule);
         }
 
-        if (asked.Delivery == DecisionDelivery.LeftToHuman)
-        {
-            await ledger.JoinedAsync(governed.Session, cancellationToken);
-        }
+        await ledger.JoinedAsync(governed.Session, cancellationToken);
 
         if ((await agents.RespondAsync(governed.Session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken)).IsFailure)
         {

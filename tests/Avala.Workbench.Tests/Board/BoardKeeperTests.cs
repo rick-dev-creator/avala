@@ -92,7 +92,35 @@ public sealed class BoardKeeperTests
     public async Task WhatAChildAsksItsParentShowsInTheParentsConversationUntilTheParentAnswersIt()
     {
         var parent = catalog.Add("Ship the release").Summary.Job;
+        var child = catalog.Add("Choose the orders database").Summary.Job;
+        var (parentSession, childSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(parent, parentSession), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(child, childSession), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(childSession, turn)), Cancellation);
+        var form = new AgentForm(FormPurpose.Question, "Choose a database", "The service stores orders.", [new FormField("database", "Database", "Which one?", FieldKind.SingleChoice, [new FormOption("PostgreSQL", "Relational."), new FormOption("SQLite", "One file.")])]);
+        await keeper.HandleAsync(new AgentActivity(new FormRequested(childSession, turn, new ItemId("database"), form)), Cancellation);
+        var asked = new FormDecision(childSession, turn, new ItemId("database"), child, form, Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToParent, time.GetUtcNow()) { Parent = parent };
+        await keeper.HandleAsync(new FormDecided(asked), Cancellation);
+        var record = new Delegation.Contracts.DelegationRecord(parentSession, new ItemId("delegate"), "Choose the orders database", time.GetUtcNow()) { Parent = parent, Child = child };
+
+        await keeper.HandleAsync(new Delegation.Contracts.ParentAsked(record, childSession, new ItemId("database"), "asks: Choose a database"), Cancellation);
+        var waiting = Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>());
+        var pending = (Joined(child).PendingDecisions, Joined(parent).PendingDecisions);
+        await keeper.HandleAsync(new FormDecided(asked with { Delivery = DecisionDelivery.Answered, Answer = new FormAnswer(new ItemId("database"), [new FieldAnswer("database") { Chosen = ["PostgreSQL"] }]) }), Cancellation);
+
+        Assert.Equal(("Choose the orders database", ChildAskingState.Waiting, false), (waiting.Child, waiting.State, waiting.ForYou));
+        Assert.Equal((0, 0), pending);
+        Assert.Equal(ChildAskingState.Answered, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
+    }
+
+    [Fact]
+    public async Task AChildsPermissionWaitingForYouShowsInItsParentsConversationUntilYouAnswerIt()
+    {
+        var parent = catalog.Add("Ship the release").Summary.Job;
         var child = catalog.Add("Migrate the database").Summary.Job;
+        catalog.Change(child, history => history with { Summary = history.Summary with { Parent = parent } });
         var (parentSession, childSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
         await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
         await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
@@ -100,19 +128,66 @@ public sealed class BoardKeeperTests
         await keeper.HandleAsync(new JobSessionStarted(child, childSession), Cancellation);
         await keeper.HandleAsync(new AgentActivity(new TurnStarted(childSession, turn)), Cancellation);
         await keeper.HandleAsync(new AgentActivity(new PermissionRequested(childSession, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update")), Cancellation);
-        var asked = new PolicyDecision(childSession, turn, new ItemId("migrate"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, time.GetUtcNow()) { Parent = parent };
-        await keeper.HandleAsync(new PermissionDecided(asked), Cancellation);
-        var record = new Delegation.Contracts.DelegationRecord(parentSession, new ItemId("delegate"), "Migrate the database", time.GetUtcNow()) { Parent = parent, Child = child };
 
-        await keeper.HandleAsync(new Delegation.Contracts.ParentAsked(record, childSession, new ItemId("migrate"), "wants to run a command: dotnet ef database update", time.GetUtcNow()), Cancellation);
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(childSession, turn, new ItemId("migrate"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
         var waiting = Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>());
         var pending = (Joined(child).PendingDecisions, Joined(parent).PendingDecisions);
-        await keeper.HandleAsync(new PermissionDecided(asked with { Delivery = DecisionDelivery.Answered }), Cancellation);
-        await keeper.HandleAsync(new PermissionAnswered(new HumanAnswer(childSession, child, new ItemId("migrate"), ItemKind.Command, "dotnet ef database update", PermissionAnswer.Deny, Option<string>.None, Option<PolicyRule>.None, time.GetUtcNow()) { Parent = parent }), Cancellation);
+        await keeper.HandleAsync(new PermissionAnswered(new HumanAnswer(childSession, child, new ItemId("migrate"), ItemKind.Command, "dotnet ef database update", PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, time.GetUtcNow())), Cancellation);
 
-        Assert.Equal(("Migrate the database", ChildAskingState.Waiting), (waiting.Child, waiting.State));
-        Assert.Equal((0, 0), pending);
-        Assert.Equal(ChildAskingState.Denied, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
+        Assert.Equal(("Migrate the database", Option<ChildPermission>.Some(new ChildPermission(ItemKind.Command, "dotnet ef database update")), ChildAskingState.Waiting), (waiting.Child, waiting.Permission, waiting.State));
+        Assert.Equal((1, 0), pending);
+        Assert.Equal(ChildAskingState.Allowed, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
+    }
+
+    [Fact]
+    public async Task AChildsPermissionSettledWithoutThePersonNoLongerAsksThemInItsParentsConversation()
+    {
+        var parent = catalog.Add("Ship the release").Summary.Job;
+        var child = catalog.Add("Migrate the database").Summary.Job;
+        catalog.Change(child, history => history with { Summary = history.Summary with { Parent = parent } });
+        var (parentSession, childSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(parent, parentSession), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(child, childSession), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(childSession, turn)), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new PermissionRequested(childSession, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update")), Cancellation);
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(childSession, turn, new ItemId("migrate"), child, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+
+        await keeper.HandleAsync(new AgentActivity(new PermissionResolved(childSession, turn, new ItemId("migrate"), PermissionAnswer.Allow)), Cancellation);
+
+        Assert.Equal(ChildAskingState.Withdrawn, Assert.Single(Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>()).State);
+    }
+
+    [Theory]
+    [InlineData(JobStatus.Approved)]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task WhatAChildThatEndedStillAskedNoLongerWaitsInItsParentsConversation(JobStatus ended)
+    {
+        var parent = catalog.Add("Ship the release").Summary.Job;
+        var child = catalog.Add("Migrate the database").Summary.Job;
+        var other = catalog.Add("Seed the database").Summary.Job;
+        catalog.Change(child, history => history with { Summary = history.Summary with { Parent = parent } });
+        catalog.Change(other, history => history with { Summary = history.Summary with { Parent = parent } });
+        var (childSession, otherSession, turn) = (SessionId.New(), SessionId.New(), TurnId.New());
+        foreach (var (job, session) in new[] { (parent, SessionId.New()), (child, childSession), (other, otherSession) })
+        {
+            await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+            await keeper.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+        }
+
+        foreach (var (job, session) in new[] { (child, childSession), (other, otherSession) })
+        {
+            await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+            await keeper.HandleAsync(new AgentActivity(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update")), Cancellation);
+            await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(session, turn, new ItemId("migrate"), job, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+        }
+
+        await keeper.HandleAsync(new JobProgressed(child, ended), Cancellation);
+
+        var states = Joined(parent).Transcript.Entries.OfType<ChildAskingEntry>().ToDictionary(entry => entry.Session, entry => entry.State);
+        Assert.Equal((ChildAskingState.Withdrawn, ChildAskingState.Waiting), (states[childSession], states[otherSession]));
     }
 
     [Theory]
