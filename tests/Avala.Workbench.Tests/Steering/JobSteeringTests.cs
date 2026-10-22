@@ -161,6 +161,19 @@ public sealed class JobSteeringTests : IAsyncDisposable
         Assert.Equal([("Drop it", JobStatus.Discarded, Option<JobRejection>.None)], Back(discarded));
     }
 
+    [Theory]
+    [InlineData(JobStatus.Discarded)]
+    [InlineData(JobStatus.Failed)]
+    public async Task AMessageSentFromAScreenThatStillShowsTheJobRunningAfterItEndedIsNotLeftQueuedForAJobThatWillNeverTakeIt(JobStatus ended)
+    {
+        jobs.Status = ended;
+        await queue.HandleAsync(new JobProgressed(job, ended), Cancellation);
+
+        var sent = await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation);
+
+        Assert.Equal((false, true), (sent.Match(delivery => delivery == MessageDelivery.Queued, _ => false), steering.Queued(job).IsNone));
+    }
+
     [Fact]
     public async Task AMessageThatComesBackUndeliveredRefreshesWhatThePersonSees()
     {
