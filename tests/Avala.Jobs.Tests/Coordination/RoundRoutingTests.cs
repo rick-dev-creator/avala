@@ -95,6 +95,20 @@ public sealed class RoundRoutingTests
     }
 
     [Fact]
+    public async Task AMessageFromThePhoneThatBeginsATurnWhileAvalasRoundIsHeldMakesItThePersonsRoundAsync()
+    {
+        var flow = Routed(new ScriptedRouter(RoundRoute.GoOn));
+        var job = await flow.RunningAsync();
+        await flow.FinishTurnAsync(job);
+        Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.LimitNearlyReached, Cancellation));
+
+        await flow.Check.HandleAsync(new RemoteMessageReceived(Outcomes.Present(job.Session), TurnId.New(), "Also rename add to sum.") { BeganTurn = true }, Cancellation);
+        await flow.SettledAsync(job);
+
+        Assert.Equal((JobState.NeedsHelp, AttemptOrigin.Retry, MessageAuthor.Person), (job.State, job.Attempts[^1].Origin, job.Attempts[^1].Cause));
+    }
+
+    [Fact]
     public async Task AHoldAtTheEndOfATurnKeepsTheSessionIdleAndSendsNothingAsync()
     {
         var flow = Routed(new ScriptedRouter(RoundRoute.Held(HoldReason.LimitNearlyReached)));
