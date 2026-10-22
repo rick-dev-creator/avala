@@ -94,6 +94,8 @@ public sealed record JobDocumentation(JobId Job, Feature Feature)
 
     public IReadOnlyList<UnwrittenVersion> Unwritten { get; init; } = [];
 
+    public Option<UnwrittenVersion> Waiting { get; init; }
+
     public Option<JobId> Writing { get; init; }
 
     public IReadOnlyList<ChangeRequest> Requests { get; init; } = [];
@@ -162,6 +164,8 @@ public sealed record ChangeRequested(JobId Job, ChangeRequest Request) : IIntegr
 public sealed record VersionWriting(JobId Job, JobId Writer, int Number, VersionKind Kind) : IIntegrationEvent;
 
 public sealed record VersionWritten(JobId Job, Feature Feature, FeatureVersion Version) : IIntegrationEvent;
+
+public sealed record VersionWaiting(JobId Job, UnwrittenVersion Waiting) : IIntegrationEvent;
 
 public sealed record VersionNotWritten(JobId Job, VersionKind Kind, VersionFailure Failure) : IIntegrationEvent
 {

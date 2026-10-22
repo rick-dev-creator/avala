@@ -31,6 +31,8 @@ internal static class EntryKeys
 
     public static string Unwritten(int index) => string.Create(CultureInfo.InvariantCulture, $"docs-unwritten:{index}");
 
+    public const string Waiting = "docs-waiting";
+
     public static string Change(int request) => string.Create(CultureInfo.InvariantCulture, $"change:{request}");
 
     public static string ChildAsking(SessionId session, ItemId item) => $"child-asking:{session.Value}:{item.Value}";

@@ -481,6 +481,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Documentation.Contracts.VersionWriting>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.VersionWritten>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.VersionNotWritten>, DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.VersionWaiting>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.ChangeRequested>, DocsKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, DocsKeeper>()
             .AddSingleton<FeatureDocsViewModel>()

@@ -51,7 +51,10 @@ internal sealed record CiEntry(string Key, int PullRequest, string Head, IReadOn
 
 internal sealed record DocsEntry(string Key, string Feature, FeatureVersion Version) : ITimelineEntry;
 
-internal sealed record UnwrittenEntry(string Key, string Feature, UnwrittenVersion Version) : ITimelineEntry;
+internal sealed record UnwrittenEntry(string Key, string Feature, UnwrittenVersion Version) : ITimelineEntry
+{
+    public bool Waiting { get; init; }
+}
 
 internal sealed record ChangeEntry(string Key, ChangeRequest Request) : ITimelineEntry;
 

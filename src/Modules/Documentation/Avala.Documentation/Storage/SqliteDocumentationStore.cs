@@ -193,9 +193,9 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
         await ChangeAsync(job, row => row.LastPlan = plan, cancellationToken);
     }
 
-    public async Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, CancellationToken cancellationToken)
+    public async Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, Option<string> plan, CancellationToken cancellationToken)
     {
-        await ChangeAsync(job, _ => { }, cancellationToken);
+        await ChangeAsync(job, row => row.LastPlan = plan.Match(kept => kept, () => row.LastPlan), cancellationToken);
         await owner.RunAsync(
             async database =>
             {

@@ -354,8 +354,8 @@ internal sealed class Documented
         public Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = plan });
 
-        public Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, CancellationToken cancellationToken) =>
-            ChangeAsync(job, found => found with { Unwritten = found.Unwritten.Add(unwritten) });
+        public Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, Option<string> plan, CancellationToken cancellationToken) =>
+            ChangeAsync(job, found => found with { Unwritten = found.Unwritten.Add(unwritten), LastPlan = plan.Match(kept => kept, () => found.LastPlan) });
 
         private Task ChangeAsync(JobId job, Func<DocumentedJob, DocumentedJob> change)
         {

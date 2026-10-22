@@ -46,8 +46,8 @@ public sealed class SqliteDocumentationStoreTests
         await using (var store = new SqliteDocumentationStore(paths))
         {
             await store.ChooseAsync(job, FeatureChoice.Of(new Feature("refund-webhooks", "Refund webhooks")), Cancellation);
-            await store.UnwrittenAsync(job, missed[0], Cancellation);
-            await store.UnwrittenAsync(job, missed[1], Cancellation);
+            await store.UnwrittenAsync(job, missed[0], Option<string>.None, Cancellation);
+            await store.UnwrittenAsync(job, missed[1], Option<string>.None, Cancellation);
         }
 
         await using var restarted = new SqliteDocumentationStore(paths);

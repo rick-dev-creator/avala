@@ -7,7 +7,7 @@ using Avala.Sdk.Events;
 namespace Avala.Workbench.Board;
 
 internal sealed class DocsKeeper(IDocumentation documentation, IJobCatalog catalog, JobBoard board)
-    : IHandle<FeatureChosen>, IHandle<VersionWriting>, IHandle<VersionWritten>, IHandle<VersionNotWritten>, IHandle<ChangeRequested>, IHandle<StartupCompleted>
+    : IHandle<FeatureChosen>, IHandle<VersionWriting>, IHandle<VersionWritten>, IHandle<VersionNotWritten>, IHandle<VersionWaiting>, IHandle<ChangeRequested>, IHandle<StartupCompleted>
 {
     private ImmutableDictionary<JobId, JobDocumentation> kept = ImmutableDictionary<JobId, JobDocumentation>.Empty;
 
@@ -18,6 +18,8 @@ internal sealed class DocsKeeper(IDocumentation documentation, IJobCatalog catal
     public ValueTask HandleAsync(VersionWritten integrationEvent, CancellationToken cancellationToken) => KeepAsync(integrationEvent.Job);
 
     public ValueTask HandleAsync(VersionNotWritten integrationEvent, CancellationToken cancellationToken) => KeepAsync(integrationEvent.Job);
+
+    public ValueTask HandleAsync(VersionWaiting integrationEvent, CancellationToken cancellationToken) => KeepAsync(integrationEvent.Job);
 
     public ValueTask HandleAsync(ChangeRequested integrationEvent, CancellationToken cancellationToken) => KeepAsync(integrationEvent.Job);
 

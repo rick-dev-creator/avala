@@ -72,6 +72,8 @@ internal sealed class Watched : IAsyncDisposable
 
     public ConnectionName Running { get; set; } = Work;
 
+    public bool Companion { get; init; }
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     public void Reading(ConnectionName connection, double used, Option<DateTimeOffset> resets) =>
@@ -79,7 +81,7 @@ internal sealed class Watched : IAsyncDisposable
 
     public void Status(JobStatus status) =>
         Catalog.Histories[Job] = new JobHistory(
-            new JobSummary(Job, "/repos/shop", Instruction, Start, status, Running, Option<Autonomy>.None, WorkspaceId.New()),
+            new JobSummary(Job, "/repos/shop", Instruction, Start, status, Running, Option<Autonomy>.None, WorkspaceId.New()) { Companion = Companion },
             [],
             []);
 

@@ -137,24 +137,25 @@ public sealed class CapacityTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ACompanionHeldAtItsJobsLimitLeavesALineInTheJobsConversationSayingWhyNoVersionWasWrittenAsync()
+    public async Task ACompanionHeldAtItsJobsLimitShowsItsVersionWaitingInTheJobsConversationInsteadOfLosingItAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
             TwoAccounts,
             [(".avala/budget.json", HoldAboveAnyUse), (".avala/jobs.json", DocsOn)]);
         _ = await run.SettledAsync(Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply")) { Connection = One })));
-        var missed = run.Watch<VersionNotWritten>();
+        var waits = run.Watch<VersionWaiting>();
 
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Planned) { Connection = One }));
-        var unwritten = await missed.UntilAsync(version => version.Job == job);
+        var waiting = (await waits.UntilAsync(version => version.Job == job)).Waiting;
 
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(job);
         await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("DocsLineViewModel"));
-        Assert.Equal((VersionFailure.WriterStopped, Option<HoldReason>.Some(HoldReason.LimitNearlyReached)), (unwritten.Failure, unwritten.Hold));
+        Assert.Equal(Option<HoldReason>.Some(HoldReason.LimitNearlyReached), waiting.Hold);
+        Assert.Empty(Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Unwritten);
         Assert.Equal(
-            ("Version not written", "Add the changelog · proposed · its writer was held: near its usage limit"),
+            ("Version waiting", "Add the changelog · proposed · its writer is held: near its usage limit and goes on when the window resets"),
             await run.Ui.ReadAsync(() =>
             {
                 var line = conversation["Entries"].Items.Single(entry => entry.Kind == "DocsLineViewModel");

@@ -38,6 +38,25 @@ public sealed class LimitWatchTests
     }
 
     [Fact]
+    public async Task ACompanionHeldAtItsLimitIsNeverHandedToAnotherAccountAndGoesOnByItselfOnItsOwnOnceTheWindowResetsAsync()
+    {
+        await using var watched = new Watched { Companion = true };
+        watched.Status(JobStatus.NeedsHelp);
+        watched.Rules.Rules = SameHarness;
+        var resets = Watched.Start.AddHours(1);
+        watched.Reading(Watched.Work, 0.95, resets);
+        watched.Reading(Watched.Personal, 0.2, Option<DateTimeOffset>.None);
+
+        await watched.HeldAsync(HoldReason.LimitNearlyReached);
+        var wait = await watched.WaitingAsync();
+        watched.Clock.Advance(TimeSpan.FromHours(1));
+        var moved = await watched.MovedAsync();
+
+        Assert.Equal((Watched.Work, false), (wait.Connection, wait.AwaitsPerson));
+        Assert.Equal(("continue", Option<JobHandoff>.None), (moved.Operation, moved.Handoff));
+    }
+
+    [Fact]
     public async Task AJobWhoseConnectionIsNoLongerDeclaredMovesWithinTheHarnessItsUsageNamesAsync()
     {
         await using var watched = new Watched { Running = new ConnectionName("retired") };

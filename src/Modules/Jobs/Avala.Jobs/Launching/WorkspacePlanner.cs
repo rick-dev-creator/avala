@@ -40,7 +40,7 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
             return preferred;
         }
 
-        var parents = job.Companion ? await ParentConnectionAsync(job, cancellationToken) : Option<ConnectionName>.None;
+        var parents = job.Companion ? await chooser.UsableAsync(await ParentConnectionAsync(job, cancellationToken), cancellationToken) : Option<ConnectionName>.None;
 
         return parents.IsSome ? parents : await chooser.ChooseAsync(job.Id, workspace.Path, cancellationToken);
     }

@@ -41,8 +41,8 @@ internal sealed partial class DocsLineViewModel : IDocsLineViewModel, ITimelineI
         }
         else if (entry is UnwrittenEntry unwritten)
         {
-            File = "Version not written";
-            Fact = DocsLinePhrases.Fact(unwritten.Feature, unwritten.Version);
+            File = unwritten.Waiting ? "Version waiting" : "Version not written";
+            Fact = unwritten.Waiting ? DocsLinePhrases.Waiting(unwritten.Feature, unwritten.Version) : DocsLinePhrases.Fact(unwritten.Feature, unwritten.Version);
             IsDeviation = false;
         }
     }
@@ -101,6 +101,9 @@ internal static class DocsLinePhrases
 
         return request.Version.Match(version => string.Create(CultureInfo.InvariantCulture, $"{kind} → v{version}"), () => kind);
     }
+
+    public static string Waiting(string feature, UnwrittenVersion waiting) =>
+        $"{Fact(feature, waiting.Kind)} · its writer is {waiting.Hold.Match(FactPhrases.Held, () => "held")} and goes on when the window resets";
 
     public static string Why(UnwrittenVersion unwritten) =>
         unwritten.Hold.Match(
