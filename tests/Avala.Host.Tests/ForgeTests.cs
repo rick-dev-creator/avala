@@ -1,3 +1,4 @@
+using Avala.Documentation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
@@ -179,6 +180,35 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
         Assert.Equal(opened.PullRequest.Number, redelivered.PullRequest.Number);
         Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task APersonsMessageToAWokenFixHeldAtItsUsageLimitComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, ForgeRun.Rules("local", "wake-on-ci", 3), "ci-fails-once", "fix-past-the-window");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.HeldAsync();
+        var progressed = forge.Run.Watch<JobProgressed>();
+
+        Outcomes.Succeeds(await forge.Run.Get<IJobs>().ContinueAsync(forge.Job, "Stop: keep the old signature and only fix the sum.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == forge.Job && update.Status == JobStatus.AwaitingReview);
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
+    public async Task TheFailingChecksAWatchWakesADocumentedJobWithAreNoChangeRequestOfThePersonAsync()
+    {
+        const string Rules = """{ "approval": "pull-request", "docs": { "enabled": true }, "pullRequest": { "forge": "local", "onPullRequest": "wake-on-ci", "maxWakeUps": 3 } }""";
+        await using var forge = await ForgeRun.StartAsync(plugins, Rules, "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+
+        _ = await forge.RedeliveredAsync();
+
+        Assert.Empty(forge.Run.Get<IDocumentation>().OfJob(forge.Job).Match(documented => documented.Requests, () => []));
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Documentation.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -247,6 +248,23 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.Equal(
             [(AttemptOrigin.Initial, AttemptOutcome.Interrupted), (AttemptOrigin.Hint, AttemptOutcome.Passed)],
             attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
+    public async Task TheResetMessageOfAJobResumedByItselfAtTheResetIsNoChangeRequestOfThePersonAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", """{ "docs": { "enabled": true }, "limits": { "resumeAtReset": "auto" } }""")]);
+        var waits = run.Watch<JobWaitsForReset>();
+        var resumed = run.Watch<JobResumedAtReset>();
+        var progress = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("window-runs-out")) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        _ = await resumed.UntilAsync(announced => announced.Job == job);
+        await ReviewedAsync(progress, job);
+
+        Assert.Empty(run.Get<IDocumentation>().OfJob(job).Match(documented => documented.Requests, () => []));
     }
 
     [Fact]
