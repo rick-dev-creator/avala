@@ -49,6 +49,7 @@ internal sealed class JobFlow
         Prepare = new PrepareJob(Queues, start, Admissions);
         var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold, Retries));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
+        Idle = new IdleSessions(ledger, Queues, agents, IdleClock);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover, start);
         RecoveryInThisRun = new JobRecovery(ledger, Queues, recover, start);
@@ -68,6 +69,8 @@ internal sealed class JobFlow
     public List<IApprovalStrategy> Strategies { get; } = [new KeepStrategy()];
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 8, 0, 0, TimeSpan.Zero)) { AutoAdvanceAmount = TimeSpan.FromSeconds(1) };
+
+    public FakeTimeProvider IdleClock { get; } = new(new DateTimeOffset(2026, 10, 9, 8, 0, 0, TimeSpan.Zero));
 
     public List<IJobAdmission> Admissions { get; } = [];
 
@@ -106,6 +109,8 @@ internal sealed class JobFlow
     public PrepareJob Prepare { get; }
 
     public CheckTurn Check { get; }
+
+    public IdleSessions Idle { get; }
 
     public JobRecovery Recovery { get; }
 

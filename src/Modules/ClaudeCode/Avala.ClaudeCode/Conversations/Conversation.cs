@@ -82,15 +82,11 @@ internal sealed class Conversation
 
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
-        "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
-        "control_request" => Requested(message),
-        "control_cancel_request" => desk.Cancel(message, live),
-        "control_response" when RemoteBridge.Answers(message) => remote.Answered(message),
-        "control_response" when acknowledging && Acknowledges(message) => Acknowledged(),
-        "system" when message.TextOr("subtype", string.Empty) == "bridge_state" => remote.Reported(message),
+        "system" => FromSystem(message),
         "user" when RemoteBridge.FromDevice(message) => Arrived(message),
         "command_lifecycle" => Tracked(message),
         "result" when stale > 0 => Swallowed(),
+        var type when type.StartsWith("control_", StringComparison.Ordinal) => Controlled(type, message),
         var type => Continued(type, message),
     };
 
@@ -119,6 +115,26 @@ internal sealed class Conversation
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
+
+    private Reaction Controlled(string type, JsonNode message) => type switch
+    {
+        "control_request" => Requested(message),
+        "control_cancel_request" => desk.Cancel(message, live),
+        "control_response" => Responded(message),
+        _ => Continued(type, message),
+    };
+
+    private Reaction FromSystem(JsonNode message) => message.TextOr("subtype", string.Empty) switch
+    {
+        "init" => Initialized(message),
+        "bridge_state" => remote.Reported(message),
+        _ => Continued("system", message),
+    };
+
+    private Reaction Responded(JsonNode response) =>
+        RemoteBridge.Answers(response) ? remote.Answered(response)
+        : acknowledging && Acknowledges(response) ? Acknowledged()
+        : Continued("control_response", response);
 
     private static bool Acknowledges(JsonNode response) =>
         response["response"]?.TextOr("request_id", string.Empty).StartsWith(Messages.InterruptPrefix, StringComparison.Ordinal) == true;

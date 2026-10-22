@@ -100,24 +100,37 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
     private void Show(Option<ConnectionSpend> spend)
     {
         var shown = spend.Match(found => found.Limits.Count > 0 ? found : Option<ConnectionSpend>.None, () => Option<ConnectionSpend>.None);
-        var holdAt = shown.Bind(found => found.Caps).Bind(caps => caps.HoldAtLimit);
         var readings = shown.Match(found => found.Limits, () => (IReadOnlyList<LimitReading>)[]);
+        ShowWindows(readings, shown.Bind(found => found.Caps).Bind(caps => caps.HoldAtLimit));
+        Connection = shown.Match(found => found.Usage.Connection.Value, () => string.Empty);
+        ShowMostUsed(readings.OrderByDescending(reading => reading.Used).FirstOrDefault());
+        Summarize(readings.Count);
+        IsShown = shown.IsSome;
+    }
+
+    private void ShowWindows(IReadOnlyList<LimitReading> readings, Option<double> holdAt)
+    {
         var mostUsed = readings.OrderByDescending(reading => reading.Used).Take(UsageLeftPhrases.Shown).ToHashSet();
         windows.ShowInPlace(
             readings.Where(mostUsed.Contains),
             (window, reading) => window.Window == reading.Limit.Window,
             reading => new LimitViewModel(reading, holdAt),
             (window, reading) => window.Show(reading, holdAt));
-        var most = readings.OrderByDescending(reading => reading.Used).FirstOrDefault();
-        Connection = shown.Match(found => found.Usage.Connection.Value, () => string.Empty);
+    }
+
+    private void ShowMostUsed(LimitReading? most)
+    {
         Used = most is null ? 0 : Math.Clamp(most.Used, 0, 1);
         Left = most is null ? string.Empty : UsageLeftPhrases.Left(Used);
         IsNear = windows.Any(window => window.IsNear) || (most is not null && Used >= 1 - MeterViewModel.AttentionMargin);
+    }
+
+    private void Summarize(int readings)
+    {
         Summary = UsageLeftPhrases.Summary(Connection, windows);
         HoldAt = windows.FirstOrDefault(window => window.IsNear)?.HoldAt ?? string.Empty;
-        More = UsageLeftPhrases.More(readings.Count - windows.Count);
+        More = UsageLeftPhrases.More(readings - windows.Count);
         Outside = windows.Any(window => window.Outside.Length > 0) ? UsageLeftPhrases.Outside : string.Empty;
-        IsShown = shown.IsSome;
     }
 
     [RelayCommand(CanExecute = nameof(IsShown))]

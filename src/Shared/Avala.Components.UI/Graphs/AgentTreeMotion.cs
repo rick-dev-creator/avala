@@ -43,6 +43,21 @@ internal sealed class AgentTreeMotion
 
     public void Retarget(object[] next, IReadOnlyList<GraphRect> targets, IReadOnlyList<int> nextParents, bool animate)
     {
+        Arrive(next, targets, animate);
+        Leave(animate);
+
+        if (!animate)
+        {
+            Snap();
+        }
+
+        keys = next;
+        parents = nextParents;
+        IsActive = animate && (ghosts.Count > 0 || tracks.Values.Any(track => track.IsActive));
+    }
+
+    private void Arrive(object[] next, IReadOnlyList<GraphRect> targets, bool animate)
+    {
         var arrives = animate && tracks.Count > 0;
         present.Clear();
 
@@ -59,7 +74,10 @@ internal sealed class AgentTreeMotion
                 tracks[next[index]] = new Track(targets[index], arrives);
             }
         }
+    }
 
+    private void Leave(bool animate)
+    {
         for (var index = 0; index < keys.Length; index++)
         {
             if (!present.Contains(keys[index]) && tracks.Remove(keys[index], out var gone) && animate)
@@ -67,20 +85,6 @@ internal sealed class AgentTreeMotion
                 ghosts.Add(new Ghost(gone.Shown, Anchor(index)));
             }
         }
-
-        if (!animate)
-        {
-            ghosts.Clear();
-
-            foreach (var track in tracks.Values)
-            {
-                track.Snap();
-            }
-        }
-
-        keys = next;
-        parents = nextParents;
-        IsActive = animate && (ghosts.Count > 0 || tracks.Values.Any(track => track.IsActive));
     }
 
     public void Snap()

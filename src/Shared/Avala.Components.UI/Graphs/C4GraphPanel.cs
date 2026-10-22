@@ -232,36 +232,51 @@ public sealed class C4GraphPanel : Panel
 
     private List<Placement> Placed(IReadOnlyList<GraphLink> links)
     {
-        var nodes = layout.Nodes;
-        var taken = new List<GraphRect>([.. nodes, .. layout.Groups.Where(group => group.Width > 0).SelectMany(Borders), .. FrameLabels()]);
-        var drawn = links.Where(link => keys.TryGetValue(link.From, out var from) && keys.TryGetValue(link.To, out var to) && from < nodes.Count && to < nodes.Count && from != to)
-            .Select(link =>
-            {
-                var (from, to) = (nodes[keys[link.From]], nodes[keys[link.To]]);
-                var (dx, dy) = LinkLanes.Shift(links, link, (from.Center.X, from.Center.Y), (to.Center.X, to.Center.Y));
-                var label = link.Label.Length > 0 ? Text(link.Label, LabelBrush, LabelWidth) : null;
-                var size = new Size((label?.Width ?? 0) + (link.Badge.Length > 0 ? (2 * BadgeRadius) + (label is null ? 0 : 5) : 0), Math.Max(label?.Height ?? 0, link.Badge.Length > 0 ? 2 * BadgeRadius : 0));
+        var taken = new List<GraphRect>([.. layout.Nodes, .. layout.Groups.Where(group => group.Width > 0).SelectMany(Borders), .. FrameLabels()]);
+        var drawn = links.Where(Drawable).Select(link => Measured(links, link)).ToList();
 
-                return new Placement(link, LinkRoutes.Route(from, to, nodes, new GraphPoint(dx, dy)), default, default, size);
-            })
-            .ToList();
         foreach (var bundle in Enumerable.Range(0, drawn.Count).Where(index => drawn[index].Size.Width > 0).GroupBy(index => Pair(drawn[index].Link)))
         {
-            var rows = bundle.ToList();
-            var width = rows.Max(row => drawn[row].Size.Width) + PlatePadding.Left + PlatePadding.Right;
-            var height = rows.Sum(row => drawn[row].Size.Height) + ((rows.Count - 1) * RowSpacing) + PlatePadding.Top + PlatePadding.Bottom;
-            var plate = Rect(LinkRoutes.Label(drawn[rows[rows.Count / 2]].Route, new GraphSize(width, height), taken, rows.Count > 1 ? 3 : 2));
-            taken.Add(new GraphRect(plate.X, plate.Y, plate.Width, plate.Height));
-            var top = plate.Y + PlatePadding.Top;
-
-            foreach (var row in rows)
-            {
-                drawn[row] = drawn[row] with { Plate = plate, Row = new Rect(plate.X, top, plate.Width, drawn[row].Size.Height) };
-                top += drawn[row].Size.Height + RowSpacing;
-            }
+            Stack(drawn, [.. bundle], taken);
         }
 
         return drawn;
+    }
+
+    private bool Drawable(GraphLink link) =>
+        keys.TryGetValue(link.From, out var from) && keys.TryGetValue(link.To, out var to) && from < layout.Nodes.Count && to < layout.Nodes.Count && from != to;
+
+    private Placement Measured(IReadOnlyList<GraphLink> links, GraphLink link)
+    {
+        var nodes = layout.Nodes;
+        var (from, to) = (nodes[keys[link.From]], nodes[keys[link.To]]);
+        var (dx, dy) = LinkLanes.Shift(links, link, (from.Center.X, from.Center.Y), (to.Center.X, to.Center.Y));
+
+        return new Placement(link, LinkRoutes.Route(from, to, nodes, new GraphPoint(dx, dy)), default, default, Footprint(link));
+    }
+
+    private Size Footprint(GraphLink link)
+    {
+        var label = link.Label.Length > 0 ? Text(link.Label, LabelBrush, LabelWidth) : null;
+        var badge = link.Badge.Length > 0 ? 2 * BadgeRadius : 0;
+        var gap = badge > 0 && label is not null ? 5 : 0;
+
+        return new Size((label?.Width ?? 0) + badge + gap, Math.Max(label?.Height ?? 0, badge));
+    }
+
+    private static void Stack(List<Placement> drawn, List<int> rows, List<GraphRect> taken)
+    {
+        var width = rows.Max(row => drawn[row].Size.Width) + PlatePadding.Left + PlatePadding.Right;
+        var height = rows.Sum(row => drawn[row].Size.Height) + ((rows.Count - 1) * RowSpacing) + PlatePadding.Top + PlatePadding.Bottom;
+        var plate = Rect(LinkRoutes.Label(drawn[rows[rows.Count / 2]].Route, new GraphSize(width, height), taken, rows.Count > 1 ? 3 : 2));
+        taken.Add(new GraphRect(plate.X, plate.Y, plate.Width, plate.Height));
+        var top = plate.Y + PlatePadding.Top;
+
+        foreach (var row in rows)
+        {
+            drawn[row] = drawn[row] with { Plate = plate, Row = new Rect(plate.X, top, plate.Width, drawn[row].Size.Height) };
+            top += drawn[row].Size.Height + RowSpacing;
+        }
     }
 
     private static (string, string) Pair(GraphLink link) =>

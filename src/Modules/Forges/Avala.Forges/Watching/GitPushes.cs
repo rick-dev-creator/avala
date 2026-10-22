@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.RegularExpressions;
 using Avala.Forges.Policy;
@@ -14,6 +15,12 @@ internal static partial class GitPushes
     private const string Next = ";";
 
     private const string Start = "";
+
+    private static readonly SearchValues<char> Substitutions = SearchValues.Create("$()`{}");
+
+    private static readonly SearchValues<char> Blanks = SearchValues.Create(" \t\r");
+
+    private static readonly SearchValues<char> Operators = SearchValues.Create("&|;");
 
     private static readonly HashSet<string> Pairs = new([Then, "||", "|&", ";;"], StringComparer.Ordinal);
 
@@ -110,18 +117,23 @@ internal static partial class GitPushes
         return segments;
     }
 
-    private static IEnumerable<PushedBranch> Push(List<string> words)
+    private static IEnumerable<PushedBranch> Push(List<string> words) =>
+        Subcommand(words) is var index && index < words.Count && words[index] == "push"
+            ? Arguments(words, index + 1).Bind(Branches).Match<IEnumerable<PushedBranch>>(found => found, () => [])
+            : [];
+
+    private static int Subcommand(List<string> words)
     {
         var index = 0;
 
-        while (index < words.Count && words[index].Contains('=', StringComparison.Ordinal) && !words[index].StartsWith('-'))
+        while (index < words.Count && Assignment(words[index]))
         {
             index++;
         }
 
-        if (index >= words.Count || !(words[index] == "git" || words[index].EndsWith("/git", StringComparison.Ordinal)))
+        if (index >= words.Count || !Git(words[index]))
         {
-            return [];
+            return words.Count;
         }
 
         index++;
@@ -131,15 +143,16 @@ internal static partial class GitPushes
             index += GlobalValues.Contains(words[index]) ? 2 : 1;
         }
 
-        if (index >= words.Count || words[index] != "push")
-        {
-            return [];
-        }
-
-        return Arguments(words, index + 1)
-            .Bind(arguments => RemoteAddresses.Parse(arguments.Repository).Map(address => arguments.Refspecs.Select(Destination).Where(branch => branch.Length > 0).Select(branch => new PushedBranch(address, branch)).ToList()))
-            .Match<IEnumerable<PushedBranch>>(found => found, () => []);
+        return index;
     }
+
+    private static bool Assignment(string word) => word.Contains('=', StringComparison.Ordinal) && !word.StartsWith('-');
+
+    private static bool Git(string word) => word == "git" || word.EndsWith("/git", StringComparison.Ordinal);
+
+    private static Option<List<PushedBranch>> Branches((string Repository, List<string> Refspecs) arguments) =>
+        RemoteAddresses.Parse(arguments.Repository)
+            .Map(address => arguments.Refspecs.Select(Destination).Where(branch => branch.Length > 0).Select(branch => new PushedBranch(address, branch)).ToList());
 
     private static Option<(string Repository, List<string> Refspecs)> Arguments(List<string> words, int start)
     {
@@ -158,7 +171,7 @@ internal static partial class GitPushes
                 break;
             }
 
-            var parsed = word.StartsWith('-') && word != "-" ? Parsed(words, index) : (1, string.Empty);
+            var parsed = Optional(word) ? Parsed(words, index) : (1, string.Empty);
 
             if (parsed.IsNone)
             {
@@ -168,7 +181,7 @@ internal static partial class GitPushes
             var (length, repository) = parsed.Match(taken => taken, () => (1, string.Empty));
             named = repository.Length > 0 ? repository : named;
 
-            if ((!word.StartsWith('-') || word == "-") && word.IndexOfAny(['<', '>']) < 0)
+            if (!Optional(word) && word.IndexOfAny(['<', '>']) < 0)
             {
                 positional.Add(word);
             }
@@ -178,6 +191,8 @@ internal static partial class GitPushes
 
         return positional.Count > 0 ? (positional[0], positional[1..]) : (named, positional);
     }
+
+    private static bool Optional(string word) => word.StartsWith('-') && word != "-";
 
     private static Option<(int Length, string Repository)> Parsed(List<string> words, int index)
     {
@@ -315,7 +330,7 @@ internal static partial class GitPushes
         {
             var character = command[Index];
 
-            if (character is '$' or '(' or ')' or '`' or '{' or '}')
+            if (Substitutions.Contains(character))
             {
                 return character == '$' && Credentialed();
             }
@@ -330,12 +345,12 @@ internal static partial class GitPushes
                 return true;
             }
 
-            if (character is ' ' or '\t' or '\r')
+            if (Blanks.Contains(character))
             {
                 End();
                 Index++;
             }
-            else if (character == '\n' || (character is '&' or '|' or ';' && !Redirecting()))
+            else if (Separates(character))
             {
                 Separate(character);
             }
@@ -453,6 +468,8 @@ internal static partial class GitPushes
             Words.Add(new Word(character == '\n' ? Next : command.Substring(Index, length), Operator: true));
             Index += length;
         }
+
+        private bool Separates(char character) => character == '\n' || (Operators.Contains(character) && !Redirecting());
 
         private bool Redirecting() =>
             command[Index] == '&' && ((current.Length > 0 && current[^1] is '>' or '<') || (Index + 1 < command.Length && command[Index + 1] == '>'));

@@ -4,11 +4,12 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Tests.Coordination;
 
-internal sealed class FakeWorkspaces : IWorkspaces
+internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceCheckpoints
 {
     private readonly ConcurrentDictionary<WorkspaceId, WorkspaceInfo> prepared = new();
     private readonly ConcurrentQueue<WorkspaceRequest> requests = new();
     private readonly ConcurrentQueue<(WorkspaceId Workspace, string Label)> checkpoints = new();
+    private readonly ConcurrentQueue<int> restored = new();
 
     public Option<WorkspaceFailure> PreparationFailure { get; init; }
 
@@ -19,6 +20,8 @@ internal sealed class FakeWorkspaces : IWorkspaces
     public IReadOnlyList<WorkspaceRequest> Prepared => [.. requests];
 
     public IReadOnlyList<string> Checkpoints => [.. checkpoints.Select(checkpoint => checkpoint.Label)];
+
+    public IReadOnlyList<int> Restored => [.. restored];
 
     public IReadOnlyList<string> CheckpointsOf(WorkspaceId workspace) =>
         [.. checkpoints.Where(checkpoint => checkpoint.Workspace == workspace).Select(checkpoint => checkpoint.Label)];
@@ -68,4 +71,17 @@ internal sealed class FakeWorkspaces : IWorkspaces
             : prepared.TryRemove(workspace, out _)
             ? Result<WorkspaceId, WorkspaceFailure>.Success(workspace)
             : Result<WorkspaceId, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace));
+
+    public ValueTask<Result<IReadOnlyList<CheckpointChanges>, WorkspaceFailure>> ListAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<IReadOnlyList<CheckpointChanges>, WorkspaceFailure>.Success(
+            [.. checkpoints.Select((checkpoint, index) => (checkpoint.Workspace, Change: new CheckpointChanges(index + 1, checkpoint.Label, new string('a', 40), [])))
+                .Where(listed => listed.Workspace == workspace)
+                .Select(listed => listed.Change)]));
+
+    public ValueTask<Result<CheckpointChanges, WorkspaceFailure>> RestoreAsync(WorkspaceId workspace, int checkpoint, CancellationToken cancellationToken)
+    {
+        restored.Enqueue(checkpoint);
+
+        return ValueTask.FromResult(Result<CheckpointChanges, WorkspaceFailure>.Success(new CheckpointChanges(checkpoint, string.Empty, new string('a', 40), [])));
+    }
 }

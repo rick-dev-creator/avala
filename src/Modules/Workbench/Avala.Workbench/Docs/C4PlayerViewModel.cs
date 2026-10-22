@@ -300,6 +300,19 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
     private void Rebuild()
     {
         var played = story.Bind(found => Version >= 0 && Version < found.Versions.Count ? Option<PlayedVersion>.Some(found.Versions[Version]) : Option<PlayedVersion>.None);
+        ShowDocument(played);
+        nodes.Clear();
+
+        foreach (var element in played.Match(found => found.Structure.Elements.Concat(found.Removed).ToList(), () => []))
+        {
+            nodes.Add(new C4NodeViewModel(element));
+        }
+
+        ListSections(played);
+    }
+
+    private void ShowDocument(Option<PlayedVersion> played)
+    {
         Title = played.Match(found => found.Document.Title, () => string.Empty);
         Lead = played.Match(found => found.Document.Lead, () => string.Empty);
         Path = played.Match(found => found.File, () => string.Empty);
@@ -308,13 +321,10 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
         Unread = IsDrawn ? [] : played.Match(
             found => (IReadOnlyList<Conversation.ICanvasViewModel>)[.. found.Document.Unread.Select((source, index) => new Conversation.CanvasViewModel(new Timeline.CanvasEntry($"unread-{index}", found.Document.Title, "text/vnd.mermaid", source, Canvas.Contracts.CanvasStatus.Completed)))],
             () => []);
-        nodes.Clear();
+    }
 
-        foreach (var element in played.Match(found => found.Structure.Elements.Concat(found.Removed).ToList(), () => []))
-        {
-            nodes.Add(new C4NodeViewModel(element));
-        }
-
+    private void ListSections(Option<PlayedVersion> played)
+    {
         sections.Clear();
 
         foreach (var shown in Steps)

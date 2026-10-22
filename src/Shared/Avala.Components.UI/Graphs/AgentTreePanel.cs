@@ -132,26 +132,27 @@ public sealed class AgentTreePanel : Panel
         var widths = Children.Select(CardWidthOf).ToList();
         layout = Lay(widths, available, Indent, railsOnly: false);
 
-        if (layout.Shape == AgentTreeShape.Tree || !double.IsFinite(available) || CardWidth <= 0 || layout.Nodes.Count == 0)
+        if (Settled(available))
         {
             return;
         }
 
-        if (Best(widths, available, layout) is { } best)
-        {
-            layout = best;
+        layout = Best(widths, available, layout) ?? Railed(widths, available);
+    }
 
-            return;
-        }
+    private bool Settled(double available) =>
+        layout.Shape == AgentTreeShape.Tree || !double.IsFinite(available) || CardWidth <= 0 || layout.Nodes.Count == 0;
 
-        layout = Lay(widths, available, Indent, railsOnly: true);
-
-        var steps = layout.Nodes.Max(node => node.X) / Indent;
+    private AgentTreeGraphLayout Railed(List<double> widths, double available)
+    {
+        var rail = Lay(widths, available, Indent, railsOnly: true);
+        var steps = rail.Nodes.Max(node => node.X) / Indent;
         var room = available - Math.Min(CardWidth, MinimumCardWidth);
         var indent = steps > 0 && steps * Indent > room ? Math.Max(MinimumIndent, room / steps) : Indent;
-        var placed = indent < Indent ? Lay(widths, available, indent, railsOnly: true) : layout;
+        var placed = indent < Indent ? Lay(widths, available, indent, railsOnly: true) : rail;
         var fitted = widths.Select((width, index) => index < placed.Nodes.Count ? Math.Max(1, Math.Min(width, available - placed.Nodes[index].X)) : width).ToList();
-        layout = fitted.SequenceEqual(widths) && indent >= Indent ? layout : Lay(fitted, available, indent, railsOnly: true);
+
+        return fitted.SequenceEqual(widths) && indent >= Indent ? rail : Lay(fitted, available, indent, railsOnly: true);
     }
 
     private AgentTreeGraphLayout? Best(List<double> widths, double available, AgentTreeGraphLayout wide)

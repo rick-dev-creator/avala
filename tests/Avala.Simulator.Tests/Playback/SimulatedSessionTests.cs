@@ -28,6 +28,22 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task TurningRemoteControlOnLetsTheDeviceBeginTheTurnTheRemoteControlScenarioWaitsForAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync("[simulate: remote-control] Add the refund endpoint", Cancellation);
+        await stage.ReadTurnAsync(Cancellation);
+
+        var state = Outcomes.Succeeds(await stage.Session.ControlRemotelyAsync(true, Cancellation));
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal(RemoteState.Connected, state);
+        Assert.Equal(RemoteState.Connected, events.OfType<RemoteControlChanged>().Single().Control.State);
+        Assert.Equal(("Also cover partial refunds", true), events.OfType<RemoteMessageArrived>().Select(arrived => (arrived.Text, arrived.BeganTurn)).Single());
+        Assert.Equal(RemoteState.Off, Outcomes.Succeeds(await stage.Session.ControlRemotelyAsync(false, Cancellation)));
+    }
+
+    [Fact]
     public async Task AMessageMidTurnNeedsARunningTurnAsync()
     {
         await using var stage = new Stage(PermissionMode.AllowAll);

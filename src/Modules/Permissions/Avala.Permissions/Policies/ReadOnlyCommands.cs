@@ -92,13 +92,14 @@ internal static class ReadOnlyCommands
                 }
             }
 
-            var pattern = options.TakesPattern && !patternGiven;
+            return Fits(options.TakesPattern && !patternGiven, locate);
+        }
 
-            return operands.Count <= options.Most
+        private bool Fits(bool pattern, Func<string, PermissionRequest> locate) =>
+            operands.Count <= options.Most
                 && (options.Most == int.MaxValue || !operands.Any(operand => operand.Expands))
                 && !(pattern && operands.Count > 0 && operands[0].Expands)
                 && (!options.Paths || operands.Skip(pattern ? 1 : 0).All(operand => operand.Value == "-" || Inside(operand.Value, locate)));
-        }
 
         private bool Takes(Argument argument)
         {

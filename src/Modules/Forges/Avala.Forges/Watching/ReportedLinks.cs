@@ -59,19 +59,29 @@ internal sealed partial class ReportedLinks
 
                 return Option<JobId>.None;
             case ItemProgressed progressed when said.TryGetValue((progressed.Session, progressed.Item), out var item) && sessions.TryGetValue(progressed.Session, out var job):
-                var text = item.Carried + progressed.Text;
-                var (carried, found, opened) = Read(job, item, text, PullRequestLinks.Settled(text));
-                said[(progressed.Session, progressed.Item)] = item with { Carried = carried, Opened = opened };
-
-                return found ? job : Option<JobId>.None;
+                return Progressed(job, progressed, item);
             case ItemCompleted completed when said.Remove((completed.Session, completed.Item), out var item) && sessions.TryGetValue(completed.Session, out var job):
-                var read = Read(job, item, item.Carried, item.Carried.Length).Found;
-                var pushed = completed.Outcome == ItemOutcome.Succeeded && Pushed(job, item.Branches);
-
-                return read || pushed ? job : Option<JobId>.None;
+                return Completed(job, completed, item);
             default:
                 return Option<JobId>.None;
         }
+    }
+
+    private Option<JobId> Progressed(JobId job, ItemProgressed progressed, Said item)
+    {
+        var text = item.Carried + progressed.Text;
+        var (carried, found, opened) = Read(job, item, text, PullRequestLinks.Settled(text));
+        said[(progressed.Session, progressed.Item)] = item with { Carried = carried, Opened = opened };
+
+        return found ? job : Option<JobId>.None;
+    }
+
+    private Option<JobId> Completed(JobId job, ItemCompleted completed, Said item)
+    {
+        var read = Read(job, item, item.Carried, item.Carried.Length).Found;
+        var pushed = completed.Outcome == ItemOutcome.Succeeded && Pushed(job, item.Branches);
+
+        return read || pushed ? job : Option<JobId>.None;
     }
 
     private static bool Opens(ItemStarted started) =>
