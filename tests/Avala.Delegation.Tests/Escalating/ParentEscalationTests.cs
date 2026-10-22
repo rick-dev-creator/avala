@@ -119,6 +119,20 @@ public sealed class ParentEscalationTests
         Assert.Empty(jobs.SentBack);
     }
 
+    [Fact]
+    public async Task AQuestionWhoseChildEndedBeforeItsParentCouldBeToldDoesNotWakeTheParentAsync()
+    {
+        await DelegatedAsync();
+
+        await notes.HandleAsync(new FormDecided(Asked()), Cancellation);
+        jobs.Is(child, JobStatus.Discarded);
+        await notes.HandleAsync(new JobProgressed(child, JobStatus.Discarded), Cancellation);
+        jobs.Is(parent, JobStatus.AwaitingReview);
+        await notes.HandleAsync(new JobProgressed(parent, JobStatus.AwaitingReview), Cancellation);
+
+        Assert.Empty(jobs.SentBack);
+    }
+
     [Theory]
     [InlineData(JobStatus.Approved)]
     [InlineData(JobStatus.Discarded)]
