@@ -27,6 +27,9 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
 
     public Task<IReadOnlyList<Job>> ActiveAsync(CancellationToken cancellationToken) => store.ActiveAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Job>> OpenForDevicesAsync(CancellationToken cancellationToken) =>
+        [.. (await store.SnapshotsAsync(cancellationToken)).Where(job => job.AllowsRemoteControl && job.State == JobState.AwaitingReview)];
+
     public async Task RecordAsync(Job job, CancellationToken cancellationToken)
     {
         await SaveAsync(job, cancellationToken);
