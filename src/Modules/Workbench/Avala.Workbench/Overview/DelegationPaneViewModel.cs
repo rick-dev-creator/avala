@@ -51,7 +51,7 @@ internal sealed partial class DelegationPaneViewModel
         this.feed = feed;
         this.actions = actions;
         this.messenger = messenger;
-        tree = new SubagentTreeViewModel(OpenCommand, actions, feed.Refresh);
+        tree = new SubagentTreeViewModel(OpenCommand, actions, feed.Clock, feed.Refresh);
         messenger.RegisterAll(this);
     }
 

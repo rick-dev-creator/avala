@@ -230,9 +230,7 @@ public sealed class SubagentLifecycleTests(PublishedPlugins plugins)
         pane["HasTree"].Value<bool>() ? pane["Tree"]["Branches"].Items.Where(branch => branch.Kind == kind) : [];
 
     private static (string State, bool Exists) SubagentNamed(Bound pane, string name) =>
-        Branches(pane, "SubagentViewModel").FirstOrDefault(agent => agent["Name"].Text == name) is { } found
-            ? (found["StateText"].Text, true)
-            : (string.Empty, false);
+        Branches(pane, "SubagentViewModel").Where(agent => agent["Name"].Text == name).Select(found => (found["StateText"].Text, true)).FirstOrDefault((string.Empty, false));
 
     private static async Task<Dictionary<string, string>> StatesWhenAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, Bound pane, string said, params (string Name, string State)[] settled)
     {
