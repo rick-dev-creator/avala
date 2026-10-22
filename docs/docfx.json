@@ -1,6 +1,6 @@
 {
   "build": {
-    "content": [ { "files": [ "**/*.{md,yml}" ], "exclude": [ "_site/**", "template/**" ] } ],
+    "content": [ { "files": [ "**/*.{md,yml}" ], "exclude": [ "_site/**", "template/**", "handoffs/**" ] } ],
     "resource": [ { "files": [ "media/**" ] } ],
     "output": "_site",
     "template": [ "default", "modern", "template" ],

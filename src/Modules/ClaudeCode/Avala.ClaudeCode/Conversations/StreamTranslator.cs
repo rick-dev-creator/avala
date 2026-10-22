@@ -34,6 +34,8 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
     public bool WorkingInBackground => tools.WorkingInBackground;
 
+    public IEnumerable<string> BackgroundShells => tools.BackgroundShells;
+
     public Reaction Close(Stamp stamp, bool interrupted) => Close(stamp, interrupted, ending: true);
 
     public Reaction Carry(Stamp stamp) => Close(stamp, interrupted: false, ending: false);
