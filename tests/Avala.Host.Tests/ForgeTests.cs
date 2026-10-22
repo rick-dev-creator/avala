@@ -213,6 +213,22 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task APersonsMessageThatJoinsAWokenFixWhileItRunsComesBackForReviewInsteadOfBeingPushedAsync()
+    {
+        await using var forge = await ForgeRun.PacedAsync(plugins, ForgeRun.Rules("local", "wake-on-ci", 3), "ci-fails-once");
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.Running));
+
+        _ = Outcomes.Succeeds(await forge.Run.Get<IJobs>().SteerAsync(forge.Job, new JobMessage("Also rename add to sum everywhere."), Cancellation));
+        _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.AwaitingReview));
+        await forge.Run.DeliveredAsync();
+        _ = await forge.Run.Get<IPullRequests>().RefreshAsync(forge.Job, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await forge.StatusAsync());
+    }
+
+    [Fact]
     public async Task ARestartWhileWatchingRestoresTheWatchAndItsNextPollWakesTheAgentAsync()
     {
         await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");
@@ -464,11 +480,14 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
     private sealed class ForgeRun : IAsyncDisposable
     {
+        private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(1234);
+
         private EventWatch<PullRequestWatchChanged> changes;
         private EventWatch<PullRequestWakeUp> wakeUps;
         private EventWatch<PullRequestOpened> opened;
         private EventWatch<JobProgressed> progress;
         private EventWatch<JobHeld> holds;
+        private Task? paced;
 
         private ForgeRun(SimulatedRun run, JobId job)
         {
@@ -505,6 +524,30 @@ public sealed class ForgeTests(PublishedPlugins plugins)
             Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
 
             return forge;
+        }
+
+        public static async Task<ForgeRun> PacedAsync(PublishedPlugins plugins, string rules, string scenario)
+        {
+            var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/jobs.json", rules), (".avala/permissions.json", Autonomous)], pace: Pace);
+            _ = await run.Repository.PublishAsync(Cancellation);
+            var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"[simulate: fix-after-feedback] [forge: {scenario}] Fix the calculator")));
+            var forge = new ForgeRun(run, job);
+            _ = await forge.PacedUntilAsync(forge.ProgressedAsync(JobStatus.AwaitingReview));
+
+            return forge;
+        }
+
+        public async Task<T> PacedUntilAsync<T>(Task<T> until)
+        {
+            paced ??= Run.PacedAsync();
+
+            while (await Task.WhenAny(paced, until) == paced)
+            {
+                paced = Run.PacedAsync();
+                Run.Pace();
+            }
+
+            return await until;
         }
 
         public async Task<PullRequestOpened> ApprovedAsync()
