@@ -83,9 +83,16 @@ public enum VersionFailure
     Unwritable,
 }
 
+public sealed record UnwrittenVersion(VersionKind Kind, VersionFailure Failure, DateTimeOffset At, int Attempt)
+{
+    public Option<HoldReason> Hold { get; init; }
+}
+
 public sealed record JobDocumentation(JobId Job, Feature Feature)
 {
     public IReadOnlyList<FeatureVersion> Versions { get; init; } = [];
+
+    public IReadOnlyList<UnwrittenVersion> Unwritten { get; init; } = [];
 
     public Option<JobId> Writing { get; init; }
 
@@ -156,7 +163,10 @@ public sealed record VersionWriting(JobId Job, JobId Writer, int Number, Version
 
 public sealed record VersionWritten(JobId Job, Feature Feature, FeatureVersion Version) : IIntegrationEvent;
 
-public sealed record VersionNotWritten(JobId Job, VersionKind Kind, VersionFailure Failure) : IIntegrationEvent;
+public sealed record VersionNotWritten(JobId Job, VersionKind Kind, VersionFailure Failure) : IIntegrationEvent
+{
+    public Option<HoldReason> Hold { get; init; }
+}
 
 public sealed record DocumentationDraft(string Content)
 {

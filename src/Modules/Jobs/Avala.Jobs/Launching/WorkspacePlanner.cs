@@ -35,8 +35,20 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
             return rejection;
         }
 
-        return preferred.IsSome ? preferred : await chooser.ChooseAsync(job.Id, workspace.Path, cancellationToken);
+        if (preferred.IsSome)
+        {
+            return preferred;
+        }
+
+        var parents = job.Companion ? await ParentConnectionAsync(job, cancellationToken) : Option<ConnectionName>.None;
+
+        return parents.IsSome ? parents : await chooser.ChooseAsync(job.Id, workspace.Path, cancellationToken);
     }
+
+    private async Task<Option<ConnectionName>> ParentConnectionAsync(Job companion, CancellationToken cancellationToken) =>
+        await companion.Parent.Match(
+            async parent => (await queues.RunAsync(parent, (found, _) => Task.FromResult(found.Connection), cancellationToken)).Bind(connection => connection),
+            () => Task.FromResult(Option<ConnectionName>.None));
 
     public async Task<ModelChoice> ModelOfAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
         job.Model.Or((await defaults.ModelAsync(workspace.Path, cancellationToken)).Match(declared => declared, _ => ModelChoice.Default));

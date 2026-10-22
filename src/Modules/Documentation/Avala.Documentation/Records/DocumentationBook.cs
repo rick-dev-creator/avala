@@ -20,13 +20,15 @@ internal sealed record DocumentedJob(JobId Job, FeatureChoice Choice)
 
     public ImmutableList<ChangeRequest> Requests { get; init; } = [];
 
+    public ImmutableList<UnwrittenVersion> Unwritten { get; init; } = [];
+
     public bool Planned => Versions.Count > 0 || Writer.IsSome || LastPlan.Length > 0 || Plan.Count > 0;
 
     public IReadOnlyList<ChangeRequest> Linked(FeatureVersion version) =>
         version.Kind == VersionKind.AsBuilt ? Requests : [.. Requests.Select(request => request.Version.IsSome ? request : request with { Version = version.Number })];
 
     public Option<JobDocumentation> Public => Choice.Feature.Map(
-        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer), Requests = Requests, Planned = Planned });
+        feature => new JobDocumentation(Job, feature) { Versions = Versions, Writing = Writer.Map(pending => pending.Writer), Requests = Requests, Planned = Planned, Unwritten = Unwritten });
 }
 
 internal interface IDocumentationStore
@@ -44,6 +46,8 @@ internal interface IDocumentationStore
     Task PlannedAsync(JobId job, IReadOnlyList<string> plan, CancellationToken cancellationToken);
 
     Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken);
+
+    Task UnwrittenAsync(JobId job, UnwrittenVersion unwritten, CancellationToken cancellationToken);
 }
 
 internal sealed class DocumentationBook(IDocumentationStore store, IEventBus bus, TimeProvider time) : IStartupTask
@@ -104,13 +108,15 @@ internal sealed class DocumentationBook(IDocumentationStore store, IEventBus bus
         await bus.PublishAsync(new VersionWritten(job, feature, stamped), cancellationToken);
     }
 
-    public async Task NotWrittenAsync(JobId job, VersionKind kind, VersionFailure failure, CancellationToken cancellationToken)
+    public async Task NotWrittenAsync(JobId job, UnwrittenVersion unwritten, CancellationToken cancellationToken)
     {
         var tried = Of(job).Bind(found => found.Writer);
+        var stamped = unwritten with { At = time.GetUtcNow() };
 
         await tried.Match(pending => store.ForgetAsync(job, pending.Writer, pending.Plan, cancellationToken), () => Task.CompletedTask);
-        Change(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = tried.Match(pending => pending.Plan, () => found.LastPlan) }, FeatureChoice.Undocumented);
-        await bus.PublishAsync(new VersionNotWritten(job, kind, failure), cancellationToken);
+        await store.UnwrittenAsync(job, stamped, cancellationToken);
+        Change(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = tried.Match(pending => pending.Plan, () => found.LastPlan), Unwritten = found.Unwritten.Add(stamped) }, FeatureChoice.Undocumented);
+        await bus.PublishAsync(new VersionNotWritten(job, stamped.Kind, stamped.Failure) { Hold = stamped.Hold }, cancellationToken);
     }
 
     private DocumentedJob Change(JobId job, Func<DocumentedJob, DocumentedJob> change, FeatureChoice choice)

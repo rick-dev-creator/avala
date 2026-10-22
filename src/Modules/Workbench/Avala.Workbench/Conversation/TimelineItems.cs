@@ -38,6 +38,7 @@ internal static class QuietItems
         RetryEntry retry => new RetryViewModel(retry),
         CiEntry ci => new CiViewModel(ci, links),
         DocsEntry docs => new DocsLineViewModel(docs),
+        UnwrittenEntry unwritten => new DocsLineViewModel(unwritten),
         ChangeEntry change => new ChangeLineViewModel(change),
         _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
     };

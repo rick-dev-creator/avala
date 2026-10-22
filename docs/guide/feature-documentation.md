@@ -68,6 +68,8 @@ On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid ou
 
 The documentation companion runs on the `research` role of the `delegation` section, so `{ "delegation": { "roles": { "research": { "model": "haiku", "effort": "low" } } } }` writes the docs with a cheaper model.
 
+The companion runs on its job's connection, the account the job itself runs on, unless the repository names a `connection` in `.avala/jobs.json`; it never goes where Auto or the machine's default would send a new job. Its usage counts where the job's does, and it is held for the same reasons the job would be, such as nearing that account's usage limit. A version a companion could not write is never dropped in silence: the job's conversation shows a line for it, such as "Version not written · Add the changelog · proposed · its writer was held: near its usage limit", and the line stays after a restart. The same plan is not tried again; a changed plan starts a new writer.
+
 ## Limits
 
 - A version for code the diff touches outside the plan is not written yet; only a new plan or an attempt that changes it writes a deviation.

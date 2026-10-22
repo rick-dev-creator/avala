@@ -9,6 +9,7 @@ internal static class DocsLines
         documented.Match(
             found => found.Versions
                 .Select(version => (version.Attempt, version.At, Entry: (ITimelineEntry)new DocsEntry(EntryKeys.Docs(version.Number), found.Feature.Title, version)))
+                .Concat(found.Unwritten.Select((missed, index) => (missed.Attempt, missed.At, Entry: (ITimelineEntry)new UnwrittenEntry(EntryKeys.Unwritten(index + 1), found.Feature.Title, missed))))
                 .Concat(found.Requests.Select(request => (request.Attempt, request.At, Entry: (ITimelineEntry)new ChangeEntry(EntryKeys.Change(request.Number), request))))
                 .OrderBy(line => line.Attempt)
                 .ThenBy(line => line.At)

@@ -88,7 +88,7 @@ internal static class FactPhrases
         _ => "asks permission",
     };
 
-    private static string Held(HoldReason reason) => reason switch
+    public static string Held(HoldReason reason) => reason switch
     {
         HoldReason.Stalled => "held: stalled",
         HoldReason.SessionLost => "held: session lost",
