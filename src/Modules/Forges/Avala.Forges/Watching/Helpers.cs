@@ -15,8 +15,12 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
 
     public async Task<bool> WokenAsync(JobId job, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            history => history.Attempts.LastOrDefault(attempt => attempt.Origin is not (AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff))?.Origin == AttemptOrigin.Reopen,
+            history => history.Attempts.Where((_, index) => !ContinuesRound(history.Attempts, index)).LastOrDefault()?.Origin == AttemptOrigin.Reopen,
             () => false);
+
+    private static bool ContinuesRound(IReadOnlyList<AttemptRecord> attempts, int index) =>
+        attempts[index].Origin is AttemptOrigin.Retry or AttemptOrigin.Recovery or AttemptOrigin.Handoff or AttemptOrigin.Woken
+        || (index > 0 && attempts[index - 1].Outcome == AttemptOutcome.Interrupted);
 
     public async Task<Option<WorkspaceInfo>> WorktreeAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Bind(history => history.Summary.Workspace).Match(

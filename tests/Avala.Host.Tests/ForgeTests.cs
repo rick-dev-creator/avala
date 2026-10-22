@@ -1,4 +1,5 @@
 using Avala.Forges.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -161,6 +162,23 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal(
             [(AttemptOrigin.Initial, AttemptOutcome.Passed), (AttemptOrigin.Reopen, AttemptOutcome.Interrupted)],
             history.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
+    public async Task AWokenFixHeldAtItsUsageLimitAndResumedAtTheResetIsPushedToTheSamePullRequestAsync()
+    {
+        const string Rules = """{ "approval": "pull-request", "pullRequest": { "forge": "local", "onPullRequest": "wake-on-ci", "maxWakeUps": 3 }, "limits": { "resumeAtReset": "auto" } }""";
+        await using var forge = await ForgeRun.StartAsync(plugins, Rules, "ci-fails-once", "fix-past-the-window");
+        var waits = forge.Run.Watch<JobWaitsForReset>();
+        var opened = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == forge.Job)).Wait;
+
+        forge.Run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        var redelivered = await forge.RedeliveredAsync();
+
+        Assert.Equal(opened.PullRequest.Number, redelivered.PullRequest.Number);
+        Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
     }
 
     [Fact]
