@@ -12,14 +12,16 @@ internal sealed class SignInGate : IPlugin
 
     public Dictionary<string, ProcessOutcome> Recorded { get; } = new(StringComparer.Ordinal);
 
+    public bool Real { get; set; }
+
     public void Register(IPluginRegistrar registrar)
     {
         var real = registrar.Services.Last(service => service.ServiceType == typeof(IProcessRunner));
         registrar.Services.Remove(real);
-        registrar.Services.AddSingleton<IProcessRunner>(provider => new RecordedTools(Real(provider, real), Recorded));
+        registrar.Services.AddSingleton<IProcessRunner>(provider => Real ? Runner(provider, real) : new RecordedTools(Runner(provider, real), Recorded));
     }
 
-    private static IProcessRunner Real(IServiceProvider provider, ServiceDescriptor real) =>
+    private static IProcessRunner Runner(IServiceProvider provider, ServiceDescriptor real) =>
         real.ImplementationInstance as IProcessRunner
         ?? real.ImplementationFactory?.Invoke(provider) as IProcessRunner
         ?? (IProcessRunner)ActivatorUtilities.CreateInstance(provider, real.ImplementationType!);
