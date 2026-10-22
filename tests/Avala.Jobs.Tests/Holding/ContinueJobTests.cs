@@ -32,6 +32,18 @@ public sealed class ContinueJobTests
     }
 
     [Fact]
+    public async Task AMessageTheOpenSessionCanNoLongerReadDoesNotEndTheJobAndIsNeitherReportedDeliveredNorLostAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.Stalled, Token);
+        flow.Agents.Unreadable.Add(Outcomes.Present(job.Session));
+
+        var continued = await flow.Jobs.ContinueAsync(job.Id, Message, Cancellation);
+
+        Assert.Equal((false, false), (job.State == JobState.Failed, continued.IsSuccess && !flow.Agents.Sent.Any(sent => sent.Message.EndsWith(Message, StringComparison.Ordinal))));
+    }
+
+    [Fact]
     public async Task ContinuingAJobWhoseSessionWasLostResumesItsConversationInANewSessionAsync()
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });

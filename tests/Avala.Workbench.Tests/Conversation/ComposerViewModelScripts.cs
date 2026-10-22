@@ -292,6 +292,21 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AQueuedMessageThatComesBackWhileThePersonIsStillTypingIsNotLostToTheirNextKeystroke()
+    {
+        var composer = Composer(JobStatus.Running);
+        composer.Draft = "Keep the alias";
+        await composer.SendCommand.ExecuteAsync(null);
+        composer.Draft = "And the changelog";
+
+        await queue.HandleAsync(new JobProgressed(shown.Job, JobStatus.Discarded), Cancellation);
+        composer.Draft = "And the changelog too";
+        Becomes(composer, JobStatus.Discarded);
+
+        Assert.Equal("Keep the alias\n\nAnd the changelog too", composer.Draft);
+    }
+
+    [Fact]
     public async Task AWithdrawnMessageIsNeverDelivered()
     {
         var composer = Composer(JobStatus.Running);

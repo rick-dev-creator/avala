@@ -14,11 +14,12 @@ public sealed class JobSteeringTests : IAsyncDisposable
     private readonly JobId job = JobId.New();
     private readonly Avala.Workbench.Board.JobBoard board = new();
     private readonly Avala.Workbench.Drafting.DraftBook drafts;
+    private readonly CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger messenger = new();
 
     public JobSteeringTests()
     {
         drafts = new Avala.Workbench.Drafting.DraftBook(new FakeDraftStore(), board, TimeProvider.System);
-        queue = new QueuedMessages(jobs, drafts, new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger());
+        queue = new QueuedMessages(jobs, drafts, messenger);
         steering = new JobSteering(jobs, queue);
     }
 
@@ -174,6 +175,19 @@ public sealed class JobSteeringTests : IAsyncDisposable
         var sent = await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation);
 
         Assert.Equal((false, true), (sent.Match(delivery => delivery == MessageDelivery.Queued, _ => false), steering.Queued(job).IsNone));
+    }
+
+    [Fact]
+    public async Task AQueuedMessageThatComesBackIsAnnouncedAsQueuedAndThenReturned()
+    {
+        List<Avala.Workbench.Contracts.Presentation.QueueChange> changes = [];
+        CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<Avala.Workbench.Contracts.Presentation.QueuedMessageChanged>(messenger, this, (_, changed) => changes.Add(changed.Change));
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
+
+        Assert.Equal([Avala.Workbench.Contracts.Presentation.QueueChange.Queued, Avala.Workbench.Contracts.Presentation.QueueChange.Returned], changes);
     }
 
     [Fact]

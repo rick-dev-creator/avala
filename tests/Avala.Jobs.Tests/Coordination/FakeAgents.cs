@@ -126,9 +126,16 @@ internal sealed class FakeAgents : IAgents
 
     public Option<Exception> SayFault { get; set; }
 
+    public ISet<SessionId> Unreadable { get; } = new HashSet<SessionId>();
+
     public ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken)
     {
         SayFault.Match(fault => throw fault, () => true);
+
+        if (Unreadable.Contains(session))
+        {
+            return ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.SessionClosed));
+        }
 
         Said.Enqueue(turn);
 

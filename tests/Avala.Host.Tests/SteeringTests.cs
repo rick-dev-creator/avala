@@ -233,6 +233,34 @@ public sealed class SteeringTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMessageStillQueuedWhenAvalaClosesIsNotLostAcrossARestartAsync()
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "hang",
+            new ConnectionName("plain"),
+            [("connections.json", """{ "connections": [ { "name": "plain", "provider": "simulator", "settings": { "withoutCapabilities": "acceptsMessagesMidTurn" } } ] }""")]);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "This agent takes no message mid-turn · queue one for when it stops…");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(Steering, await run.Ui.ReadAsync(() => conversation["Composer"]["Queued"].Text));
+
+        await run.RestartAsync();
+
+        var reopened = await OpenWorkbench.ActivateAsync(run);
+        var back = await reopened.SelectAsync(run.Job);
+        await reopened.ShowsAsync(() => back["Entries"].Items.Any(entry => entry.Kind == "TurnEndViewModel"));
+        Assert.Contains(await run.Ui.ReadAsync(() => (IReadOnlyList<string>)[back["Composer"]["Draft"].Text, back["Composer"]["Queued"].Text, .. back["Entries"].Items.Where(entry => entry.Has("SearchText")).Select(entry => entry["SearchText"].Text)]), seen => seen.Contains(Steering, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task AMessageSentBeforeARestartIsStillWatchedByTheMessageLedgerAfterItAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "hang");
