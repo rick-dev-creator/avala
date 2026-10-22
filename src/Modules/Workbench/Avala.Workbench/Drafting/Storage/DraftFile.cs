@@ -33,7 +33,7 @@ internal sealed class DraftFile(AvalaPaths paths) : IDraftStore
             await using var stream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
             var kept = await JsonSerializer.DeserializeAsync<List<KeptDraft>>(stream, Options, cancellationToken) ?? [];
 
-            return kept.Where(draft => draft.Job != Guid.Empty).ToDictionary(draft => new JobId(draft.Job), draft => new Draft(draft.Text, draft.Attachments, draft.Mentions) { Waiting = [.. draft.Waiting.Select(message => new WaitingMessage(new MessageId(message.Id), message.Text, message.Attachments, message.Returned))] });
+            return kept.Where(draft => draft.Job != Guid.Empty).ToDictionary(draft => new JobId(draft.Job), draft => new Draft(draft.Text, draft.Attachments, draft.Mentions) { Waiting = [.. draft.Waiting.Select(message => new WaitingMessage(new MessageId(message.Id), message.Text, message.Attachments, message.Returned) { Why = Undelivered(message) })] });
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -48,7 +48,7 @@ internal sealed class DraftFile(AvalaPaths paths) : IDraftStore
         try
         {
             Directory.CreateDirectory(paths.Data);
-            var kept = drafts.Select(pair => new KeptDraft(pair.Key.Value) { Text = pair.Value.Text, Attachments = pair.Value.Attachments, Mentions = pair.Value.Mentions, Waiting = [.. pair.Value.Waiting.Select(message => new KeptMessage(message.Id.Value) { Text = message.Text, Attachments = message.Attachments, Returned = message.Returned })] }).ToList();
+            var kept = drafts.Select(pair => new KeptDraft(pair.Key.Value) { Text = pair.Value.Text, Attachments = pair.Value.Attachments, Mentions = pair.Value.Mentions, Waiting = [.. pair.Value.Waiting.Select(message => new KeptMessage(message.Id.Value) { Text = message.Text, Attachments = message.Attachments, Returned = message.Returned, Why = message.Why.Match<KeptWhy[]>(why => [new KeptWhy(why.Status) { Rejection = why.Rejection.Match<JobRejection[]>(rejection => [rejection], () => []) }], () => []) })] }).ToList();
             await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(kept, Options), cancellationToken);
             File.Move(temporary, FilePath, overwrite: true);
         }
@@ -57,6 +57,11 @@ internal sealed class DraftFile(AvalaPaths paths) : IDraftStore
             File.Delete(temporary);
         }
     }
+
+    private static Option<UndeliveredMessage> Undelivered(KeptMessage message) =>
+        message.Why is [var kept, ..]
+            ? new UndeliveredMessage(kept.Status, kept.Rejection is [var rejection, ..] ? rejection : Option<JobRejection>.None)
+            : Option<UndeliveredMessage>.None;
 
     private sealed record KeptDraft(Guid Job)
     {
@@ -76,5 +81,12 @@ internal sealed class DraftFile(AvalaPaths paths) : IDraftStore
         public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 
         public bool Returned { get; init; }
+
+        public IReadOnlyList<KeptWhy> Why { get; init; } = [];
+    }
+
+    private sealed record KeptWhy(JobStatus Status)
+    {
+        public IReadOnlyList<JobRejection> Rejection { get; init; } = [];
     }
 }

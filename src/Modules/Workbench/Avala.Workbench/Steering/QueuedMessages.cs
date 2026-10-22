@@ -9,13 +9,10 @@ using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Steering;
 
-internal sealed record UndeliveredMessage(JobStatus Status, Option<JobRejection> Rejection);
-
 internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMessenger messenger) : IHandle<JobProgressed>, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
     private ImmutableDictionary<JobId, ImmutableList<JobMessage>> queued = ImmutableDictionary<JobId, ImmutableList<JobMessage>>.Empty;
-    private ImmutableDictionary<JobId, UndeliveredMessage> undelivered = ImmutableDictionary<JobId, UndeliveredMessage>.Empty;
     private ImmutableDictionary<JobId, JobStatus> ended = ImmutableDictionary<JobId, JobStatus>.Empty;
 
     public Option<string> Find(JobId job) =>
@@ -38,9 +35,6 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
 
         return !withdrawn.IsEmpty;
     }
-
-    public Option<UndeliveredMessage> TakeBack(JobId job) =>
-        ImmutableInterlocked.TryRemove(ref undelivered, job, out var message) ? message : Option<UndeliveredMessage>.None;
 
     public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
         owner.RunAsync(token => DeliveredAsync(job, Volatile.Read(ref ended).GetValueOrDefault(job, shown), message, token), cancellationToken);
@@ -191,8 +185,7 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
             return;
         }
 
-        ImmutableInterlocked.AddOrUpdate(ref undelivered, job, new UndeliveredMessage(status, rejection), (_, _) => new UndeliveredMessage(status, rejection));
-        drafts.Return(job, persons);
+        drafts.Return(job, persons, new UndeliveredMessage(status, rejection));
         Tell(job, persons, QueueChange.Returned);
     }
 

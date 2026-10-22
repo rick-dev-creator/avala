@@ -8,6 +8,7 @@ using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
+using Avala.Workbench.Drafting;
 using Avala.Workbench.Timeline;
 using Avala.Workbench.Conversation;
 
@@ -31,6 +32,14 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobRejection.InvalidRequest, "The job refused the command.")]
     public void ARefusedCommandToAJobSaysWhy(JobRejection rejection, string phrase) =>
         Assert.Equal(phrase, ConversationPhrases.Rejection(rejection));
+
+    [Theory]
+    [InlineData(JobStatus.Discarded, null, "Your queued message was not delivered, so it is back here: the job was discarded.")]
+    [InlineData(JobStatus.Discarded, JobRejection.NotHeld, "Your queued message was not delivered, so it is back here: the job was discarded.")]
+    [InlineData(JobStatus.Failed, null, "Your queued message was not delivered, so it is back here: the job failed.")]
+    [InlineData(JobStatus.Approved, JobRejection.WorkspaceUnavailable, "Your queued message was not delivered, so it is back here. The job's worktree is gone.")]
+    public void AQueuedMessageThatCameBackSaysWhyItWasNotDelivered(JobStatus status, JobRejection? rejection, string phrase) =>
+        Assert.Equal(phrase, ConversationPhrases.Undelivered(new UndeliveredMessage(status, rejection is { } refused ? refused : Option<JobRejection>.None)));
 
     [Theory]
     [InlineData(JobStatus.Running, true, "Message the agent while it works…", "Send into the running turn")]

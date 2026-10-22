@@ -7,7 +7,12 @@ using Avala.Workbench.Mentioning;
 
 namespace Avala.Workbench.Drafting;
 
-internal sealed record WaitingMessage(MessageId Id, string Text, IReadOnlyList<Attachment> Attachments, bool Returned);
+internal sealed record UndeliveredMessage(JobStatus Status, Option<JobRejection> Rejection);
+
+internal sealed record WaitingMessage(MessageId Id, string Text, IReadOnlyList<Attachment> Attachments, bool Returned)
+{
+    public Option<UndeliveredMessage> Why { get; init; }
+}
 
 internal sealed record Draft(string Text, IReadOnlyList<Attachment> Attachments, IReadOnlyList<Mention> Mentions)
 {
@@ -60,9 +65,9 @@ internal sealed class DraftBook(IDraftStore store, JobBoard board, TimeProvider 
         Change(job, kept => kept with { Waiting = [.. kept.Waiting.Where(message => message.Returned || !ids.Contains(message.Id))] });
     }
 
-    public void Return(JobId job, IEnumerable<JobMessage> messages)
+    public void Return(JobId job, IEnumerable<JobMessage> messages, UndeliveredMessage why)
     {
-        var back = messages.Select(message => new WaitingMessage(Id(message), message.Text, message.Attachments, true)).ToList();
+        var back = messages.Select(message => new WaitingMessage(Id(message), message.Text, message.Attachments, true) { Why = why }).ToList();
         var ids = back.Select(message => message.Id).ToHashSet();
         Change(job, kept => kept with { Waiting = [.. kept.Waiting.Where(message => !ids.Contains(message.Id)), .. back] });
     }

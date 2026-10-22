@@ -203,7 +203,7 @@ public sealed class SteeringTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AQueuedMessageThatCameBackUndeliveredWhileThePersonLookedAtAnotherJobIsInItsComposerAfterARestartAsync()
+    public async Task AQueuedMessageThatCameBackUndeliveredWhileThePersonLookedAtAnotherJobIsInItsComposerSayingWhyAfterARestartAsync()
     {
         await using var run = await SimulatedRun.ConnectedAsync(
             plugins,
@@ -230,6 +230,7 @@ public sealed class SteeringTests(PublishedPlugins plugins)
         var reopened = await OpenWorkbench.ActivateAsync(run);
         var back = await reopened.SelectAsync(run.Job);
         await reopened.ShowsAsync(() => back["Composer"]["Draft"].Text == Steering);
+        Assert.Equal("Your queued message was not delivered, so it is back here: the job was discarded.", await run.Ui.ReadAsync(() => back["Composer"]["Error"].Text));
     }
 
     [Fact]
