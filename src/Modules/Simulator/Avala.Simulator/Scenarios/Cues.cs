@@ -70,6 +70,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         StartSubagent agent => [Opened(agent.Item, ItemKind.Subagent, $"Subagent: {agent.Name}", agent.Prompt)],
         MeterSubagent meter => [Metered(meter.Item, meter.Tokens)],
         EndSubagent agent => [Progressed(agent.Item, agent.Output), Closed(agent.Item, ItemOutcome.Succeeded)],
+        RunTold run => [Opened(run.Item, ItemKind.Command, $"Run {Told}", Told), Closed(run.Item, ItemOutcome.Succeeded)],
+        ReturnTold use => [Opened(use.Item, ItemKind.Mcp, use.Tool, string.Empty), Progressed(use.Item, Told), Closed(use.Item, ItemOutcome.Succeeded)],
         _ => [],
     };
 

@@ -336,6 +336,81 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task APullRequestTheAgentPushedByUrlFromItsWorktreeIsAdoptedAndWatchedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ReviewedEditAsync(run, "pushes-by-url");
+        await File.WriteAllTextAsync(Path.Combine(worktree.Path, "ROUNDING.md"), "Round half to even.\n", Cancellation);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "add", "ROUNDING.md");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "-c", "user.name=Ada", "-c", "user.email=ada@localhost", "commit", "--quiet", "-m", "Round half to even");
+        var push = $"git push --quiet {new Uri(run.Repository.Remote).AbsoluteUri} HEAD:fix/rounding";
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", new Uri(run.Repository.Remote).AbsoluteUri, "HEAD:fix/rounding");
+        var number = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync("fix/rounding", "main", "Round half to even", Cancellation);
+        var progressed = run.Watch<JobProgressed>();
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, push, Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(number)}", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.Equal(Option<int>.Some(number), run.Get<IPullRequests>().Of(job).Map(watch => watch.PullRequest.Number));
+    }
+
+    [Fact]
+    public async Task APullRequestTheAgentReportedBeforeARestartIsAdoptedWhenItsJobComesBackForReviewAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var progressed = run.Watch<JobProgressed>();
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(1)}", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+        await run.RestartAsync(() => progressed = run.Watch<JobProgressed>());
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Is the pull request ready?", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.Equal(Option<int>.Some(number), run.Get<IPullRequests>().Of(job).Map(watch => watch.PullRequest.Number));
+    }
+
+    [Fact]
+    public async Task APullRequestLinkAnMcpToolOfTheAgentReturnsIsAdoptedAndWatchedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ReviewedEditAsync(run, "reports-through-tool");
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding");
+        var progressed = run.Watch<JobProgressed>();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"{{\"number\": {number}, \"html_url\": \"{PullRequestLink(number)}\"}}", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.Equal(Option<int>.Some(number), run.Get<IPullRequests>().Of(job).Map(watch => watch.PullRequest.Number));
+    }
+
+    [Fact]
+    public async Task APullRequestFromAForkIsNotAdoptedEvenWhenItsHeadIsTheCommitThisClonePushedAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var (job, worktree) = await ReviewedEditAsync(run, "mentions");
+        var number = await PullRequestFromABranchNeverCheckedOutAsync(run, worktree, "fix/rounding", fork: "mallory");
+        var progressed = run.Watch<JobProgressed>();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, $"Opened {PullRequestLink(number)}", Cancellation));
+        _ = await progressed.UntilAsync(found => found.Job == job && found.Status == JobStatus.AwaitingReview);
+        await run.DeliveredAsync();
+
+        Assert.True(run.Get<IPullRequests>().Of(job).IsNone);
+    }
+
+    [Fact]
     public async Task WithoutAUsableConnectionAPullRequestTheAgentReportsIsNamedOnceAboveItsConversationWithConnectAndNothingIsWatchedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/permissions.json", Autonomous));
@@ -358,7 +433,7 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
     internal static string PullRequestLink(int number) => $"https://forge.invalid/octo/shop/pulls/{number}";
 
-    internal static async Task<int> PullRequestFromABranchNeverCheckedOutAsync(SimulatedRun run, WorkspaceInfo worktree, string branch)
+    internal static async Task<int> PullRequestFromABranchNeverCheckedOutAsync(SimulatedRun run, WorkspaceInfo worktree, string branch, string fork = "")
     {
         await File.WriteAllTextAsync(Path.Combine(worktree.Path, "ROUNDING.md"), "Round half to even.\n", Cancellation);
         _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "add", "ROUNDING.md");
@@ -367,7 +442,7 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "branch", branch, commit);
         _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", branch);
 
-        return await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(branch, "main", "Round half to even", Cancellation);
+        return await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(branch, "main", "Round half to even", Cancellation, fork: fork);
     }
 
     internal static async Task<(JobId Job, WorkspaceInfo Worktree)> ReviewedEditAsync(SimulatedRun run, string scenario = "edit")

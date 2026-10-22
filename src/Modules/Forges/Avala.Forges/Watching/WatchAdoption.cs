@@ -27,7 +27,9 @@ internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, Ti
     }
 
     public Task AdoptFoundAsync(Delivered found, CancellationToken cancellationToken) =>
-        Volatile.Read(ref delivering).Contains(found.Job) || book.Find(found.Job).IsSome ? Task.CompletedTask : AdoptAsync(found, cancellationToken);
+        Volatile.Read(ref delivering).Contains(found.Job) || book.Find(found.Job).IsSome || Taken(found) ? Task.CompletedTask : AdoptAsync(found, cancellationToken);
+
+    public bool Follows(JobId job) => book.Find(job).IsSome;
 
     public Task RefusedAsync(JobId job, ForgeError error, CancellationToken cancellationToken) => book.RefusedAsync(job, error, cancellationToken);
 
@@ -57,4 +59,10 @@ internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, Ti
         await book.SaveAsync(kept, cancellationToken);
         await book.PublishAsync(new PullRequestOpened(delivered.Job, delivered.Rules.Forge, delivered.PullRequest), cancellationToken);
     }
+
+    private bool Taken(Delivered delivered) =>
+        book.Live.Any(kept => kept.State.Job != delivered.Job
+            && kept.State.Forge == delivered.Rules.Forge
+            && kept.State.PullRequest.Number == delivered.PullRequest.Number
+            && kept.RemoteUrl == delivered.RemoteUrl);
 }

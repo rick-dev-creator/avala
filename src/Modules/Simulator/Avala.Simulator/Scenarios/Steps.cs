@@ -88,6 +88,10 @@ internal sealed record Hangup : IStep;
 
 internal sealed record Recall(ItemId Item) : IStep;
 
+internal sealed record RunTold(ItemId Item) : IStep;
+
+internal sealed record ReturnTold(ItemId Item, string Tool) : IStep;
+
 internal sealed record IfTold(string Fragment, bool Told, IStep Step) : IStep;
 
 internal sealed record Diverge(string Reason) : IStep;

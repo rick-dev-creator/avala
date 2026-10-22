@@ -45,6 +45,21 @@ namespace Avala.Forges.Storage.Migrations
                     b.ToTable("EventEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Forges.Storage.StoredReport", b =>
+                {
+                    b.Property<Guid>("Job")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Report")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Job");
+
+                    b.ToTable("Reports", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Forges.Storage.StoredWakeUp", b =>
                 {
                     b.Property<int>("Key")

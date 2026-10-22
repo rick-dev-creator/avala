@@ -14,7 +14,7 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 {
     public const int MostReadLinks = 5;
 
-    public async Task<Option<Delivered>> FindAsync(JobId job, WorkspaceInfo worktree, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
+    public async Task<Option<Delivered>> FindAsync(JobId job, WorkspaceInfo worktree, Reported reported, CancellationToken cancellationToken)
     {
         if (!(await rules.OfWorktreeAsync(worktree.Path, cancellationToken)).TryGetValue(out var declared, out _)
             || !(await git.UrlAsync(worktree.Path, declared.Remote, cancellationToken)).TryGetValue(out var remote, out _)
@@ -33,6 +33,13 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
         return found.Map(pullRequest => new Delivered(job, declared, remote, pullRequest, pullRequest.Head));
     }
 
+    private static bool Same(RepositoryAddress left, RepositoryAddress right) =>
+        string.Equals(left.Owner, right.Owner, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase)
+            || left.Host.EndsWith($".{right.Host}", StringComparison.OrdinalIgnoreCase)
+            || right.Host.EndsWith($".{left.Host}", StringComparison.OrdinalIgnoreCase));
+
     private async Task<Option<PullRequestRef>> CheckedOutAsync(ResolvedForge forge, WorkspaceInfo worktree, CancellationToken cancellationToken)
     {
         IReadOnlyList<string> branches = [worktree.Branch, .. (await git.CheckedOutAsync(worktree.Path, cancellationToken)).Where(branch => branch != worktree.Branch)];
@@ -48,11 +55,12 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
         return Option<PullRequestRef>.None;
     }
 
-    private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, string remote, IReadOnlyList<Uri> reported, CancellationToken cancellationToken)
+    private async Task<Option<PullRequestRef>> ReportedAsync(ResolvedForge forge, WorkspaceInfo worktree, string remote, Reported reported, CancellationToken cancellationToken)
     {
+        var target = forge.Context.Target.Repository;
         var segments = new HashSet<string>([forge.Forge.Info.PullRequestSegment], StringComparer.Ordinal);
-        var candidates = reported.Reverse()
-            .SelectMany(link => PullRequestLinks.NumberOf(link, forge.Context.Target.Repository, segments).Match<(Uri Link, int Number)[]>(number => [(link, number)], () => []))
+        var candidates = reported.Links.Reverse()
+            .SelectMany(link => PullRequestLinks.NumberOf(link, target, segments).Match<(Uri Link, int Number)[]>(number => [(link, number)], () => []))
             .DistinctBy(candidate => candidate.Number)
             .Take(MostReadLinks);
 
@@ -61,7 +69,8 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
             if ((await forge.Forge.ReadAsync(forge.Context, new PullRequestRef(number, link, string.Empty, string.Empty), cancellationToken)).TryGetValue(out var state, out _)
                 && state.Lifecycle == PullRequestLifecycle.Open
                 && string.Equals(state.PullRequest.Link.Host, link.Host, StringComparison.OrdinalIgnoreCase)
-                && await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken))
+                && state.HeadRepository.Match(head => Same(head, target), () => false)
+                && await PushedHereAsync(worktree, remote, target, reported, state, cancellationToken))
             {
                 return state.PullRequest;
             }
@@ -69,53 +78,43 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
 
         return Option<PullRequestRef>.None;
     }
+
+    private async Task<bool> PushedHereAsync(WorkspaceInfo worktree, string remote, RepositoryAddress target, Reported reported, PullRequestState state, CancellationToken cancellationToken) =>
+        await git.PushedAsync(worktree.Path, remote, state.PullRequest.Head, state.HeadCommit, cancellationToken)
+        || (reported.Pushed.Any(pushed => pushed.Branch == state.PullRequest.Head && Same(pushed.Repository, target))
+            && await git.HeldAsync(worktree.Path, state.HeadCommit, cancellationToken));
 }
 
-internal sealed class PullRequestDiscovery(WatchBook book, JobPlaces places, PullRequestFinder finder, WatchAdoption adoption)
+internal sealed class PullRequestDiscovery(JobPlaces places, PullRequestFinder finder, WatchAdoption adoption, ReportedBook reported)
     : IHandle<JobProgressed>, IHandle<JobSessionStarted>, IHandle<AgentActivity>
 {
-    private readonly ReportedLinks reported = new();
-
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
     {
         if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
         {
-            reported.Forget(integrationEvent.Job);
+            await reported.ForgetAsync(integrationEvent.Job, cancellationToken);
 
             return;
         }
 
-        if (integrationEvent.Status is not (JobStatus.AwaitingReview or JobStatus.NeedsHelp) || book.Find(integrationEvent.Job).IsSome)
+        if (integrationEvent.Status is not (JobStatus.AwaitingReview or JobStatus.NeedsHelp) || adoption.Follows(integrationEvent.Job))
         {
             return;
         }
 
+        var said = await reported.OfAsync(integrationEvent.Job, cancellationToken);
         var found = await (await places.WorktreeAsync(integrationEvent.Job, cancellationToken)).Match(
-            worktree => finder.FindAsync(integrationEvent.Job, worktree, reported.Of(integrationEvent.Job), cancellationToken),
+            worktree => finder.FindAsync(integrationEvent.Job, worktree, said, cancellationToken),
             () => Task.FromResult(Option<Delivered>.None));
 
         await found.Match(
-            delivered => Taken(delivered) ? Task.CompletedTask : adoption.AdoptFoundAsync(delivered, cancellationToken),
+            delivered => adoption.AdoptFoundAsync(delivered, cancellationToken),
             () => Task.CompletedTask);
     }
 
-    public ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
-    {
-        reported.Started(integrationEvent.Job, integrationEvent.Session);
+    public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken) =>
+        await reported.StartedAsync(integrationEvent.Job, integrationEvent.Session, cancellationToken);
 
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
-    {
-        reported.Saw(integrationEvent.Event);
-
-        return ValueTask.CompletedTask;
-    }
-
-    private bool Taken(Delivered delivered) =>
-        book.Live.Any(kept => kept.State.Job != delivered.Job
-            && kept.State.Forge == delivered.Rules.Forge
-            && kept.State.PullRequest.Number == delivered.PullRequest.Number
-            && kept.RemoteUrl == delivered.RemoteUrl);
+    public async ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
+        await reported.SawAsync(integrationEvent.Event, cancellationToken);
 }

@@ -49,6 +49,7 @@ public sealed class ForgeConformanceTests
                 "a fresh pull request is not open",
                 "the pull request has no head commit",
                 "reading returned another pull request",
+                "a pull request opened from the repository's own branch does not name it as its head repository",
                 "a check has no name",
                 "a review has no id or author",
                 $"reading a pull request by its number alone does not say its head and base: {Opened with { Number = 8, Head = string.Empty }}",

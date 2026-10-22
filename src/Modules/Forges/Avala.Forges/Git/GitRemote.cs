@@ -35,6 +35,11 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
             output => output.ReplaceLineEndings("\n").Split('\n').Any(line => line.StartsWith($"{commit} update by push", StringComparison.Ordinal)),
             _ => false);
 
+    public async ValueTask<bool> HeldAsync(string worktree, string commit, CancellationToken cancellationToken) =>
+        commit.Length > 0 && (await GitAsync(worktree, ["reflog", "show", "--format=%H", "HEAD"], cancellationToken)).Match(
+            output => output.ReplaceLineEndings("\n").Split('\n').Contains(commit, StringComparer.Ordinal),
+            _ => false);
+
     private static string? Moved(string subject)
     {
         const string Checkout = "checkout: moving from ";

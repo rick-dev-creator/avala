@@ -74,7 +74,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
     {
         var path = $"{Repository(context)}/pulls/{pullRequest.Number.ToString(CultureInfo.InvariantCulture)}";
 
-        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(root, pullRequest))).TryGetValue(out var pull, out var error))
+        if (!(await GetAsync(context, path, cancellationToken)).Bind(body => Json.Read(body, root => Pull(context, root, pullRequest))).TryGetValue(out var pull, out var error))
         {
             return error;
         }
@@ -129,7 +129,7 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
     private static PullRequestRef Reference(JsonElement pull) =>
         new(pull.GetProperty("number").GetInt32(), new Uri(pull.GetProperty("html_url").GetString()!), Json.Text(pull.GetProperty("head"), "ref"), Json.Text(pull.GetProperty("base"), "ref"));
 
-    private static PullRequestState Pull(JsonElement pull, PullRequestRef known)
+    private static PullRequestState Pull(ForgeContext context, JsonElement pull, PullRequestRef known)
     {
         var lifecycle = pull.TryGetProperty("merged", out var merged) && merged.ValueKind == JsonValueKind.True ? PullRequestLifecycle.Merged
             : Json.Text(pull, "state") == "closed" ? PullRequestLifecycle.Closed
@@ -139,8 +139,14 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IF
             : mergeable == JsonValueKind.True ? Mergeability.Mergeable
             : Mergeability.Unknown;
 
-        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
+        return new PullRequestState(Known(Reference(pull), known), lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability) { HeadRepository = HeadRepository(context, pull) };
     }
+
+    private static Option<RepositoryAddress> HeadRepository(ForgeContext context, JsonElement pull) =>
+        pull.GetProperty("head").TryGetProperty("repo", out var repo) && repo.ValueKind == JsonValueKind.Object
+        && Json.Text(repo, "full_name").Split('/') is [{ Length: > 0 } owner, { Length: > 0 } name]
+            ? new RepositoryAddress(context.Target.Repository.Host, owner, name)
+            : Option<RepositoryAddress>.None;
 
     private static PullRequestRef Known(PullRequestRef read, PullRequestRef known) =>
         read with { Head = read.Head.Length > 0 ? read.Head : known.Head, Base = read.Base.Length > 0 ? read.Base : known.Base };
