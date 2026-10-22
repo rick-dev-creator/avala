@@ -1,4 +1,5 @@
 using System.Text;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
@@ -120,6 +121,9 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
         CommandLine.Unqualified(qualifiedName).Bind(name => Offered.FirstOrDefault(tool => tool.Name == name).ToOption());
 
     public bool WorkingInBackground => tools.Values.Any(tool => tool.Backgrounded && !tool.Closed);
+
+    public IEnumerable<string> BackgroundShells =>
+        tools.Values.Where(tool => tool.Backgrounded && !tool.Closed && tool.Use.Kind == ItemKind.Command && tool.Task.Length > 0).Select(tool => tool.Task);
 
     public bool Carries(TrackedTool tool) => tool.Backgrounded || tool.Nested && tools.Values.Any(other => other.Backgrounded && !other.Closed);
 

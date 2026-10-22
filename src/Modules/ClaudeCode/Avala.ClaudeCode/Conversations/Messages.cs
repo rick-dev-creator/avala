@@ -38,6 +38,8 @@ internal static class Messages
 
     public static JsonNode Interrupt(int number) => Request($"{InterruptPrefix}{number}", new JsonObject { ["subtype"] = "interrupt" });
 
+    public static JsonNode StopTask(string task) => Request($"avala-stop-{task}", new JsonObject { ["subtype"] = "stop_task", ["task_id"] = task });
+
     public static JsonNode Success(string requestId, JsonNode response) => new JsonObject
     {
         ["type"] = "control_response",

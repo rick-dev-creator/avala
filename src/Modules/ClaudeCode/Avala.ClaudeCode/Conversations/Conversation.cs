@@ -113,7 +113,7 @@ internal sealed class Conversation
             interrupting = true;
             acknowledging = acknowledging || background || generating;
 
-            return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
+            return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send([Messages.Interrupt(++interruptions), .. translator.BackgroundShells.Select(Messages.StopTask)])));
         });
 
     private Reaction Controlled(string type, JsonNode message) => type switch
