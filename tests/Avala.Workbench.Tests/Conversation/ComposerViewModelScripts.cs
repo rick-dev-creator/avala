@@ -1,4 +1,8 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -68,6 +72,29 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
         Assert.Equal("Look at @src/Checkout/Rounding.cs\n\nReferenced:\n- @src/Checkout/Rounding.cs: the file src/Checkout/Rounding.cs in the job's worktree", jobs.Messages[^1].Text);
         Assert.Equal(["screen.png"], jobs.Messages[^1].Attachments.Select(attached => attached.Name));
+    }
+
+    [Fact]
+    public async Task AConversationGoneColdIsCompactedOnRequestWithTheMessageItsHarnessTakesAsync()
+    {
+        var connections = new FakeConnections("work");
+        connections.Offers["work"] = CapabilitySet.Of(new CachesPrompt(TimeSpan.FromHours(1)), new CompactsOnRequest("/compact"));
+        var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Summary with { Connection = new ConnectionName("work") };
+        var (session, turn) = (SessionId.New(), TurnId.New());
+        IAgentEvent[] quietTurn = [new TurnStarted(session, turn), new ContextReported(session, turn, 530_000, 1_000_000), new TurnCompleted(session, turn, TurnOutcome.Finished)];
+        shown = new BoardJob(summary, quietTurn.Aggregate(Transcript.Empty, (transcript, next) => transcript.Apply(next, DateTimeOffset.UnixEpoch.AddHours(-6))));
+        jobs.Status = JobStatus.AwaitingReview;
+        queue = new QueuedMessages(jobs);
+        var harness = Composing.Harnesses(jobs, new FakeHandoffRequests(), connections).Open(summary.Job);
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, queue), Composing.Tools(keys, summary.Job), harness);
+        composer.Track(shown);
+        await harness.Loading;
+        var offered = composer.CanCompact;
+
+        await composer.CompactCommand.ExecuteAsync(null);
+
+        Assert.True(offered);
+        Assert.Equal(("/compact", string.Empty), (jobs.Messages[^1].Text, composer.Error));
     }
 
     [Fact]
