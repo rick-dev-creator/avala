@@ -73,6 +73,12 @@ public sealed class PushedByUrlTests
     public void APushThatEndsTheCommandWithANewlineOrASemicolonIsReportedAsPushedByUrl(string command) =>
         Assert.Contains(new PushedBranch(new RepositoryAddress("forge.example", "octo", "shop"), "fix/rounding"), Pushed(command));
 
+    [Theory]
+    [InlineData("git push https://x-access-token:$GITHUB_TOKEN@forge.example/octo/shop.git HEAD:fix/rounding")]
+    [InlineData("git push \"https://x-access-token:${GITHUB_TOKEN}@forge.example/octo/shop.git\" HEAD:fix/rounding")]
+    public void APushByUrlWhoseCredentialsComeFromAnEnvironmentVariableIsReportedAsPushedByUrl(string command) =>
+        Assert.Contains(new PushedBranch(new RepositoryAddress("forge.example", "octo", "shop"), "fix/rounding"), Pushed(command));
+
     [Fact]
     public void APullRequestLinkWithCredentialsInItIsKeptWithoutThem()
     {
