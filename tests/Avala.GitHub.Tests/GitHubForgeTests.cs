@@ -178,11 +178,30 @@ public sealed class GitHubForgeTests
     }
 
     [Fact]
+    public async Task TheOpenPullRequestOfABranchIsFoundAfterItsRepositoryWasRenamedAsync()
+    {
+        var pull = (await FixtureServer.FixtureAsync("github", "pull", Cancellation))
+            .Replace("\"full_name\": \"octo/shop\"", "\"full_name\": \"octo/store\"", StringComparison.Ordinal)
+            .Replace("\"name\": \"shop\"", "\"name\": \"store\"", StringComparison.Ordinal);
+        var server = (await ServerAsync()).Route("GET", $"{Repository}/pulls?state=open&head=octo:{Uri.EscapeDataString(Head)}", HttpStatusCode.OK, $"[{pull}]");
+
+        var found = Outcomes.Succeeds(await new GitHubForge().FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.Equal(Option<int>.Some(7), found.Map(pullRequest => pullRequest.Number));
+    }
+
+    [Fact]
     public async Task GitHubPassesTheForgeConformanceKitAsync()
     {
         var server = await ServerAsync();
+        const string Own = "\"full_name\": \"octo/shop\"";
+        var pull = await FixtureServer.FixtureAsync("github", "pull", Cancellation);
+        var head = pull.IndexOf(Own, StringComparison.Ordinal);
+        var fork = $"{pull[..head]}\"full_name\": \"mallory/shop\"{pull[(head + Own.Length)..]}".Replace("\"number\": 7", "\"number\": 8", StringComparison.Ordinal);
 
-        Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(new GitHubForge(), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main"), Cancellation));
+        Assert.Empty(await ForgeConformance.CheckAsync(
+            new ConformanceCase(new GitHubForge(), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main", _ => Task.FromResult(server.Route("GET", $"{Repository}/pulls?state=open&head=octo:{Uri.EscapeDataString(Head)}", HttpStatusCode.OK, $"[{fork}]", $"[{fork}, {pull}]"))),
+            Cancellation));
     }
 
     private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>

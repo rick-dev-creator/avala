@@ -11,8 +11,11 @@ internal static partial class PullRequestLinks
 
     public static IEnumerable<Uri> In(string text) =>
         Link().Matches(text)
-            .Select(found => Uri.TryCreate(found.Value.TrimEnd(Punctuation.ToCharArray()), UriKind.Absolute, out var link) ? link : null)
+            .Select(found => Uri.TryCreate(found.Value.TrimEnd(Punctuation.ToCharArray()), UriKind.Absolute, out var link) ? Anonymous(link) : null)
             .OfType<Uri>();
+
+    private static Uri Anonymous(Uri link) =>
+        link.UserInfo.Length == 0 && link.Query.Length == 0 ? link : new UriBuilder(link) { UserName = string.Empty, Password = string.Empty, Query = string.Empty }.Uri;
 
     public static int Settled(string text)
     {

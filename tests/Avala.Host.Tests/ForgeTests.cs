@@ -442,16 +442,17 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
     internal static string PullRequestLink(int number) => $"https://forge.invalid/octo/shop/pulls/{number}";
 
-    internal static async Task<int> PullRequestFromABranchNeverCheckedOutAsync(SimulatedRun run, WorkspaceInfo worktree, string branch)
+    internal static async Task<int> PullRequestFromABranchNeverCheckedOutAsync(SimulatedRun run, WorkspaceInfo worktree, string branch, string fork = "")
     {
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "checkout", "--quiet", "--detach", "origin/main");
         await File.WriteAllTextAsync(Path.Combine(worktree.Path, "ROUNDING.md"), "Round half to even.\n", Cancellation);
         _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "add", "ROUNDING.md");
-        var tree = await run.Repository.GitInAsync(worktree.Path, Cancellation, "write-tree");
-        var commit = await run.Repository.GitInAsync(worktree.Path, Cancellation, "-c", "user.name=Ada", "-c", "user.email=ada@localhost", "commit-tree", tree, "-p", "origin/main", "-m", "Round half to even");
-        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "branch", branch, commit);
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "-c", "user.name=Ada", "-c", "user.email=ada@localhost", "commit", "--quiet", "-m", "Round half to even");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "branch", branch, "HEAD");
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "checkout", "--quiet", worktree.Branch);
         _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", branch);
 
-        return await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(branch, "main", "Round half to even", Cancellation);
+        return await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(branch, "main", "Round half to even", Cancellation, fork: fork);
     }
 
     internal static async Task<(JobId Job, WorkspaceInfo Worktree)> ReviewedEditAsync(SimulatedRun run, string scenario = "edit")

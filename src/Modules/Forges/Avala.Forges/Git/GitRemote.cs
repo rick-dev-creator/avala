@@ -7,6 +7,15 @@ namespace Avala.Forges.Git;
 
 internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
 {
+    private static readonly string[] Pulled = [" (pick): ", " (reword): ", " (edit): ", " (squash): ", " (fixup): ", " (continue): ", ": Merge made by "];
+
+    private static readonly string[] Making =
+    [
+        "commit:", "commit (amend):", "commit (initial):", "commit (merge):", "cherry-pick:", "revert:", "am:",
+        "rebase (pick):", "rebase (reword):", "rebase (edit):", "rebase (squash):", "rebase (fixup):", "rebase (continue):",
+        "rebase -i (pick):", "rebase -i (reword):", "rebase -i (edit):", "rebase -i (squash):", "rebase -i (fixup):", "rebase -i (continue):",
+    ];
+
     public async ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) =>
         (await GitAsync(worktree, ["remote", "get-url", remote], cancellationToken)).Bind(output => output.Length > 0 ? Result<string, ForgeError>.Success(output) : ForgeError.InvalidRemote);
 
@@ -34,6 +43,23 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
         branch.Length > 0 && commit.Length > 0 && (await GitAsync(worktree, ["reflog", "show", "--format=%H %gs", $"refs/remotes/{remote}/{branch}"], cancellationToken)).Match(
             output => output.ReplaceLineEndings("\n").Split('\n').Any(line => line.StartsWith($"{commit} update by push", StringComparison.Ordinal)),
             _ => false);
+
+    public async ValueTask<bool> HeldAsync(string worktree, string commit, CancellationToken cancellationToken) =>
+        commit.Length > 0 && (await GitAsync(worktree, ["reflog", "show", "--format=%H %gs", "HEAD"], cancellationToken)).Match(
+            output => output.ReplaceLineEndings("\n").Split('\n').Any(line => line.StartsWith($"{commit} ", StringComparison.Ordinal) && Made(line[(commit.Length + 1)..])),
+            _ => false);
+
+    private static bool Made(string subject) =>
+        !FastForward(subject)
+        && (Making.Any(action => subject.StartsWith(action, StringComparison.Ordinal))
+            || subject.StartsWith("merge ", StringComparison.Ordinal)
+            || (subject.StartsWith("pull", StringComparison.Ordinal) && Pulled.Any(made => subject.Contains(made, StringComparison.Ordinal))));
+
+    private static bool FastForward(string subject) =>
+        !subject.StartsWith("commit", StringComparison.Ordinal)
+        && !subject.StartsWith("revert:", StringComparison.Ordinal)
+        && !subject.StartsWith("am:", StringComparison.Ordinal)
+        && subject.Contains("fast-forward", StringComparison.OrdinalIgnoreCase);
 
     private static string? Moved(string subject)
     {

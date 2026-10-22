@@ -93,11 +93,58 @@ public sealed class GiteaForgeTests
 
     [Theory]
     [MemberData(nameof(Dialects))]
+    public async Task AnOpenPullRequestFromAForkIsNotFoundForTheBranchOfTheSameNameAsync(string dialect)
+    {
+        const string Own = "\"full_name\": \"octo/shop\"";
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var head = pull.LastIndexOf(Own, StringComparison.Ordinal);
+        var fork = $"{pull[..head]}\"full_name\": \"mallory/shop\"{pull[(head + Own.Length)..]}";
+        var server = (await ServerAsync()).Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{fork}]");
+
+        var found = Outcomes.Succeeds(await Forge(dialect).FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.True(found.IsNone);
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task TheOpenPullRequestOfABranchIsFoundOnALaterPageOfOpenPullRequestsAsync(string dialect)
+    {
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var others = string.Join(", ", Enumerable.Range(1, GiteaForge.DefaultPageSize).Select(other => pull.Replace($"\"ref\": \"{Head}\"", $"\"ref\": \"other/{other}\"", StringComparison.Ordinal)));
+        var server = (await ServerAsync())
+            .Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{others}]")
+            .Route("GET", $"{Repository}/pulls?state=open&page=2", HttpStatusCode.OK, $"[{pull}]");
+
+        var found = Outcomes.Succeeds(await Forge(dialect).FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.Equal(Option<int>.Some(7), found.Map(pullRequest => pullRequest.Number));
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task TheOpenPullRequestOfABranchIsFoundAfterItsRepositoryWasRenamedAsync(string dialect)
+    {
+        var pull = (await FixtureServer.FixtureAsync("gitea", "pull", Cancellation))
+            .Replace("\"full_name\": \"octo/shop\"", "\"full_name\": \"octo/store\"", StringComparison.Ordinal);
+        var server = (await ServerAsync()).Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{pull}]");
+
+        var found = Outcomes.Succeeds(await Forge(dialect).FindAsync(new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, Cancellation));
+
+        Assert.Equal(Option<int>.Some(7), found.Map(pullRequest => pullRequest.Number));
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
     public async Task GiteaAndForgejoPassTheForgeConformanceKitAsync(string dialect)
     {
         var server = await ServerAsync();
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var fork = await ForkAsync();
 
-        Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(Forge(dialect), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main"), Cancellation));
+        Assert.Empty(await ForgeConformance.CheckAsync(
+            new ConformanceCase(Forge(dialect), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main", _ => Task.FromResult(server.Route("GET", $"{Repository}/pulls?state=open", HttpStatusCode.OK, $"[{fork}]", $"[{fork}, {pull}]"))),
+            Cancellation));
     }
 
     [Theory]
@@ -197,6 +244,15 @@ public sealed class GiteaForgeTests
             .Route("GET", $"{Repository}/branches/main", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "branch", Cancellation));
 
     private static GiteaForge Forge(string dialect) => new(dialect == "gitea" ? GiteaDialect.Gitea : GiteaDialect.Forgejo);
+
+    private static async Task<string> ForkAsync()
+    {
+        const string Own = "\"full_name\": \"octo/shop\"";
+        var pull = await FixtureServer.FixtureAsync("gitea", "pull", Cancellation);
+        var head = pull.LastIndexOf(Own, StringComparison.Ordinal);
+
+        return $"{pull[..head]}\"full_name\": \"mallory/shop\"{pull[(head + Own.Length)..]}".Replace("\"number\": 7", "\"number\": 8", StringComparison.Ordinal);
+    }
 
     private static async Task<FixtureServer> ServerAsync()
     {

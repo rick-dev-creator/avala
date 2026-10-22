@@ -13,6 +13,8 @@ internal sealed record SimulatedPull(int Number, string Head, string Base, strin
     public List<string> Heads { get; init; } = [];
 
     public List<string> Comments { get; init; } = [];
+
+    public string Fork { get; init; } = string.Empty;
 }
 
 internal sealed record SimulatedRemote
@@ -59,7 +61,7 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         await executor.RunAsync(
-            async token => (await LoadAsync(context, token)).Map(remote => remote.Pulls.Where(pull => pull.Head == head).Select(pull => Reference(context, pull)).FirstOrDefault().ToOption()),
+            async token => (await LoadAsync(context, token)).Map(remote => remote.Pulls.Where(pull => pull.Head == head && pull.Fork.Length == 0).Select(pull => Reference(context, pull)).FirstOrDefault().ToOption()),
             cancellationToken);
 
     public async ValueTask<Result<PullRequestRef, ForgeError>> OpenAsync(ForgeContext context, PullRequestDraft draft, CancellationToken cancellationToken) =>
@@ -115,6 +117,8 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
                 {
                     Checks = facts.Checks,
                     Reviews = [.. facts.Reviews.Select(review => review with { Commit = head })],
+                    HeadRepository = pull.Fork.Length > 0 ? context.Target.Repository with { Owner = pull.Fork } : context.Target.Repository,
+                    BaseRepository = context.Target.Repository,
                 });
             },
             cancellationToken);

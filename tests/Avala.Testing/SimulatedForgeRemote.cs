@@ -32,7 +32,7 @@ public sealed class SimulatedForgeRemote(string remote)
         return number;
     }
 
-    public async Task<int> OpenPullRequestAsync(string head, string target, string title, CancellationToken cancellationToken, string scenario = "green")
+    public async Task<int> OpenPullRequestAsync(string head, string target, string title, CancellationToken cancellationToken, string scenario = "green", string fork = "")
     {
         var number = 0;
         await ChangeAsync(
@@ -48,6 +48,7 @@ public sealed class SimulatedForgeRemote(string remote)
                     ["Title"] = title,
                     ["Body"] = string.Empty,
                     ["Scenario"] = scenario,
+                    ["Fork"] = fork,
                 });
             },
             cancellationToken);

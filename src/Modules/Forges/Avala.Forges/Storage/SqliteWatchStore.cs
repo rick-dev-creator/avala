@@ -1,6 +1,7 @@
 using Avala.Forges.Contracts;
 using Avala.Forges.Polling;
 using Avala.Forges.Watching;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,8 @@ internal sealed class ForgesDbContext(string database) : DbContext
     public DbSet<StoredCursor> Cursors => Set<StoredCursor>();
 
     public DbSet<StoredEventEntry> EventEntries => Set<StoredEventEntry>();
+
+    public DbSet<StoredReport> Reports => Set<StoredReport>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
@@ -44,6 +47,11 @@ internal sealed class ForgesDbContext(string database) : DbContext
             entry.ToTable("EventEntries");
             entry.HasKey(row => row.Key);
             entry.Property(row => row.Key).ValueGeneratedOnAdd();
+        });
+        modelBuilder.Entity<StoredReport>(report =>
+        {
+            report.ToTable("Reports");
+            report.HasKey(row => row.Job);
         });
     }
 }
@@ -94,7 +102,18 @@ internal sealed class StoredEventEntry
     public ForgeEventEntry Read() => StoredJson.Read<ForgeEventEntry>(Entry);
 }
 
-internal sealed class SqliteWatchStore(AvalaPaths paths) : IWatchStore, IEventStore, IStartupTask, IAsyncDisposable
+internal sealed class StoredReport
+{
+    public Guid Job { get; init; }
+
+    public string Report { get; set; } = string.Empty;
+
+    public static StoredReport Of(KeptReport kept) => new() { Job = kept.Job.Value, Report = StoredJson.Write(kept) };
+
+    public KeptReport Read() => StoredJson.Read<KeptReport>(Report);
+}
+
+internal sealed class SqliteWatchStore(AvalaPaths paths) : IWatchStore, IEventStore, IReportedStore, IStartupTask, IAsyncDisposable
 {
     private readonly DatabaseOwner<ForgesDbContext> owner = new(paths.Database("forges"), file => new ForgesDbContext(file));
 
@@ -190,6 +209,38 @@ internal sealed class SqliteWatchStore(AvalaPaths paths) : IWatchStore, IEventSt
 
                 return saved;
             },
+            cancellationToken);
+
+    public Task<IReadOnlyList<KeptReport>> ReportsAsync(CancellationToken cancellationToken) =>
+        owner.RunAsync<IReadOnlyList<KeptReport>>(
+            async database => [.. (await database.Reports.AsNoTracking().ToListAsync(cancellationToken)).Select(row => row.Read())],
+            cancellationToken);
+
+    public Task KeepReportAsync(KeptReport report, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                var row = StoredReport.Of(report);
+
+                if (await database.Reports.FindAsync([row.Job], cancellationToken) is { } stored)
+                {
+                    stored.Report = row.Report;
+                }
+                else
+                {
+                    await database.Reports.AddAsync(row, cancellationToken);
+                }
+
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task ForgetReportAsync(JobId job, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            database => database.Reports.Where(row => row.Job == job.Value).ExecuteDeleteAsync(cancellationToken),
             cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
