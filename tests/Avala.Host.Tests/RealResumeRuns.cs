@@ -64,6 +64,7 @@ public sealed class RealResumeRuns(PublishedPlugins plugins)
             ending = summary.Status switch
             {
                 JobStatus.Failed or JobStatus.Discarded or JobStatus.Approved => summary.Status.ToString(),
+                JobStatus.AwaitingReview when round == Rounds => "last round",
                 JobStatus.AwaitingReview => await NextAsync(log, run.Get<IJobs>().SendBackAsync(job, GoOn, Cancellation)),
                 JobStatus.NeedsHelp => await NextAsync(log, run.Get<IJobs>().ContinueAsync(job, GoOn, Cancellation)),
                 _ => $"unsettled {summary.Status}",
