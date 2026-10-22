@@ -44,6 +44,19 @@ public sealed class ContinueJobTests
     }
 
     [Fact]
+    public async Task AMessageNeitherTheOpenSessionNorAResumedOneCanTakeHoldsTheJobAsLostAndIsRefusedAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.Stalled, Token);
+        flow.Agents.Unreadable.Add(Outcomes.Present(job.Session));
+        flow.Agents.OpeningFails = true;
+
+        var continued = await flow.Jobs.ContinueAsync(job.Id, Message, Cancellation);
+
+        Assert.Equal((JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.SessionLost), false), (job.State, job.Held, continued.IsSuccess));
+    }
+
+    [Fact]
     public async Task ContinuingAJobWhoseSessionWasLostResumesItsConversationInANewSessionAsync()
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });

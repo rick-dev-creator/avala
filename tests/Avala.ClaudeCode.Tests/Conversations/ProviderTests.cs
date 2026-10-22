@@ -277,6 +277,36 @@ public sealed class ProviderTests
     }
 
     [Fact]
+    public async Task AnAnswerTheCliCanNoLongerReadIsReportedUndeliveredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        _ = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+        await cli.Output.Writer.WriteAsync(Cli.Prompt("r1", "Bash", """{ "command": "ls" }""", "t1").ToJsonString(), Cancellation);
+        var asked = await session.Events.OfType<PermissionRequested>().FirstAsync(Cancellation);
+        cli.StdinClosed = true;
+
+        var answered = await session.RespondAsync(new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation);
+
+        Assert.Equal(AgentError.SessionClosed, answered.Match(_ => default(AgentError?), error => error));
+    }
+
+    [Fact]
+    public async Task AnInterruptTheCliCanNoLongerReadIsReportedUndeliveredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        _ = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+        cli.StdinClosed = true;
+
+        var interrupted = await session.InterruptAsync(Cancellation).AsTask().WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.Equal(AgentError.SessionClosed, interrupted.Match(_ => default(AgentError?), error => error));
+    }
+
+    [Fact]
     public async Task ACliThatEndsOnItsOwnEndsTheEventStreamAsACrashAsync()
     {
         using var folder = new TemporaryFolder();

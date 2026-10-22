@@ -135,7 +135,7 @@ internal static class Invariants
     private static IEnumerable<string> DeliversEveryMessageOnceOrReportsItUndelivered(Scene scene) =>
         from message in scene.Messages
         let job = scene.Jobs.FirstOrDefault(found => found.Summary.Job == message.Job)
-        let failedOnIt = job is { Summary.Status: JobStatus.Failed, Attempts: [.., var last] } && last.Number == message.Attempt
+        let failedOnIt = job is { Summary.Status: JobStatus.Failed, Attempts: [.., var last] } && last.Number - message.Attempt is 0 or 1
         let ended = job is { Summary.Status: JobStatus.Discarded or JobStatus.Failed }
         where message.Reached != (message.Accepted ? 1 : 0) && !(message.Accepted && failedOnIt && message.Reached == 0)
             || (message.Queue == Option<QueueChange>.Some(QueueChange.Taken) && !message.Accepted)

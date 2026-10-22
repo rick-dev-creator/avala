@@ -61,10 +61,11 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
         }
     }
 
-    private async Task<Result<T, JobRejection>> WatchedAsync<T>(JobId job, JobMessage message, Result<T, JobRejection> outcome, IJobCatalog catalog)
+    private async Task<Result<T, JobRejection>> WatchedAsync<T>(JobId job, JobMessage message, Func<ValueTask<Result<T, JobRejection>>> send, IJobCatalog catalog)
         where T : notnull
     {
         var history = await catalog.HistoryAsync(job, CancellationToken.None);
+        var outcome = await send();
         Sent(job, message, outcome, history.Match(found => found.Attempts is [.., var last] ? last.Number : 0, () => 0));
 
         return outcome;
@@ -91,13 +92,13 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
     private sealed class WatchedMessages(IJobMessages inner, IJobCatalog catalog, MessageLedger ledger) : IJobMessages
     {
         public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            await ledger.WatchedAsync(job, message, await inner.ContinueAsync(job, message, cancellationToken), catalog);
+            await ledger.WatchedAsync(job, message, () => inner.ContinueAsync(job, message, cancellationToken), catalog);
 
         public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            await ledger.WatchedAsync(job, message, await inner.SteerAsync(job, message, cancellationToken), catalog);
+            await ledger.WatchedAsync(job, message, () => inner.SteerAsync(job, message, cancellationToken), catalog);
 
         public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-            await ledger.WatchedAsync(job, message, await inner.SendBackAsync(job, message, cancellationToken), catalog);
+            await ledger.WatchedAsync(job, message, () => inner.SendBackAsync(job, message, cancellationToken), catalog);
     }
 
     private sealed class WatchedJobs(IJobs inner, IJobMessages messages, IJobCatalog catalog, MessageLedger ledger) : IJobs
@@ -113,7 +114,7 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.ContinueAsync(job, message, cancellationToken);
 
         public async ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) =>
-            await ledger.WatchedAsync(job, message, await inner.ContinueOnAsync(job, connection, message, cancellationToken), catalog);
+            await ledger.WatchedAsync(job, message, () => inner.ContinueOnAsync(job, connection, message, cancellationToken), catalog);
 
         public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => messages.SteerAsync(job, message, cancellationToken);
 

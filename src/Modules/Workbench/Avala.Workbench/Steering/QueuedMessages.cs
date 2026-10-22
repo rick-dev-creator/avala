@@ -33,6 +33,7 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
 
             return withdrawn.IsEmpty ? known : left.IsEmpty ? known.Remove(job) : known.SetItem(job, left);
         });
+        drafts.Unwait(job, withdrawn);
         Tell(job, withdrawn, QueueChange.Withdrawn);
 
         return !withdrawn.IsEmpty;
@@ -94,9 +95,9 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
             return JobRejection.EmptyMessage;
         }
 
-        Tell(job, messages, QueueChange.Taken);
+        Take(job, messages);
         var (first, rest) = Split(messages);
-        var sent = await jobs.SendBackAsync(job, first, cancellationToken);
+        var sent = await KeptAsync(job, messages, () => jobs.SendBackAsync(job, first, cancellationToken));
         if (sent.IsSuccess)
         {
             await JoinAsync(job, rest, cancellationToken);
@@ -130,9 +131,9 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
             return;
         }
 
-        Tell(job, messages, QueueChange.Taken);
+        Take(job, messages);
         var (first, rest) = Split(messages);
-        var continued = await jobs.ContinueAsync(job, first, cancellationToken);
+        var continued = await KeptAsync(job, messages, () => jobs.ContinueAsync(job, first, cancellationToken));
 
         if (continued.IsSuccess)
         {
@@ -173,7 +174,7 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
     {
         foreach (var note in rest.Match<JobMessage[]>(found => [found], () => []))
         {
-            if (!(await jobs.SteerAsync(job, note, cancellationToken)).IsSuccess)
+            if (!(await KeptAsync(job, [note], () => jobs.SteerAsync(job, note, cancellationToken))).IsSuccess)
             {
                 Queue(job, note);
             }
@@ -190,14 +191,8 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
             return;
         }
 
-        var back = Merged(persons);
-        var kept = drafts.Of(job).Match(draft => draft, () => Draft.Empty);
         ImmutableInterlocked.AddOrUpdate(ref undelivered, job, new UndeliveredMessage(status, rejection), (_, _) => new UndeliveredMessage(status, rejection));
-        drafts.Keep(job, kept with
-        {
-            Text = string.IsNullOrWhiteSpace(kept.Text) ? back.Text : $"{back.Text}\n\n{kept.Text}",
-            Attachments = [.. back.Attachments, .. kept.Attachments],
-        });
+        drafts.Return(job, persons);
         Tell(job, persons, QueueChange.Returned);
     }
 
@@ -215,7 +210,28 @@ internal sealed class QueuedMessages(IJobMessages jobs, DraftBook drafts, IMesse
     private void Queue(JobId job, JobMessage message)
     {
         ImmutableInterlocked.AddOrUpdate(ref queued, job, [message], (_, earlier) => earlier.Add(message));
+        drafts.Wait(job, [.. Persons([message])]);
         Tell(job, [message], QueueChange.Queued);
+    }
+
+    private void Take(JobId job, ImmutableList<JobMessage> messages)
+    {
+        drafts.Unwait(job, Persons(messages));
+        Tell(job, messages, QueueChange.Taken);
+    }
+
+    private async Task<Result<T, JobRejection>> KeptAsync<T>(JobId job, IReadOnlyList<JobMessage> messages, Func<ValueTask<Result<T, JobRejection>>> send)
+        where T : notnull
+    {
+        try
+        {
+            return await send();
+        }
+        catch
+        {
+            Requeue(job, [.. messages]);
+            throw;
+        }
     }
 
     private void Tell(JobId job, IReadOnlyList<JobMessage> messages, QueueChange change)

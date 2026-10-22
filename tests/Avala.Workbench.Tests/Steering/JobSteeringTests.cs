@@ -191,6 +191,18 @@ public sealed class JobSteeringTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AMessageTakenFromTheQueueGoesBackIntoItWhenSendingItThrows()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+        (jobs.Status, jobs.Fault) = (JobStatus.NeedsHelp, new InvalidOperationException("The job store is unavailable."));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation));
+
+        Assert.Equal(Option<string>.Some("Keep the alias"), steering.Queued(job));
+    }
+
+    [Fact]
     public async Task AMessageThatComesBackUndeliveredRefreshesWhatThePersonSees()
     {
         jobs.Status = JobStatus.Checking;
@@ -272,5 +284,5 @@ public sealed class JobSteeringTests : IAsyncDisposable
     public ValueTask DisposeAsync() => queue.DisposeAsync();
 
     private (string Text, JobStatus Status, Option<JobRejection> Rejection)[] Back(JobId of) =>
-        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(drafts.Of(of).Match(draft => draft.Text, () => string.Empty), back.Status, back.Rejection)], () => []);
+        steering.TakeBack(of).Match<(string, JobStatus, Option<JobRejection>)[]>(back => [(drafts.Of(of).Match(draft => string.Join("\n\n", draft.Waiting.Where(message => message.Returned).Select(message => message.Text)), () => string.Empty), back.Status, back.Rejection)], () => []);
 }

@@ -86,6 +86,21 @@ public sealed class DraftBookTests
     }
 
     [Fact]
+    public async Task AMessageStillQueuedWhenAvalaStoppedComesBackAsReturnedAtStartupAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var waiting = new WaitingMessage(MessageId.New(), "Keep the alias", [], false);
+        await new DraftFile(new AvalaPaths(folder.Path)).WriteAsync(new Dictionary<JobId, Draft> { [Job] = Draft.Empty with { Waiting = [waiting] } }, Cancellation);
+        var (board, clock) = (new JobBoard(), new FakeTimeProvider());
+        var book = new DraftBook(new DraftFile(new AvalaPaths(folder.Path)), board, clock);
+
+        await book.RunAsync(Cancellation);
+
+        Assert.Contains(Job, board.Drafted);
+        Assert.Equal([(waiting.Id, waiting.Text, true)], book.TakeReturned(Job).Select(message => (message.Id, message.Text, message.Returned)));
+    }
+
+    [Fact]
     public async Task AnUnreadableDraftFileStartsWithNoDraftsAsync()
     {
         await using var folder = new TemporaryFolder();

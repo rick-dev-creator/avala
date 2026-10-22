@@ -79,12 +79,9 @@ internal sealed class ClaudeCodeSession : IAgentSession
     {
         var interrupted = await stage.RunAsync(
             async _ => await conversation.Interrupt().Match(
-                async begun =>
-                {
-                    await ApplyAsync(begun.Reaction);
-
-                    return Result<(TurnId, Task), AgentError>.Success((begun.Turn, turnEnded.Task));
-                },
+                async begun => await ApplyAsync(begun.Reaction)
+                    ? Result<(TurnId, Task), AgentError>.Success((begun.Turn, turnEnded.Task))
+                    : AgentError.SessionClosed,
                 error => Task.FromResult(Result<(TurnId, Task), AgentError>.Failure(error))),
             cancellationToken);
 
@@ -107,9 +104,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
                     return AgentError.SessionClosed;
                 }
 
-                await ApplyAsync(conversation.ControlRemotely(on));
-
-                return Result<RemoteState, AgentError>.Success(conversation.Remote);
+                return await ApplyAsync(conversation.ControlRemotely(on)) ? Result<RemoteState, AgentError>.Success(conversation.Remote) : AgentError.SessionClosed;
             },
             cancellationToken);
 
@@ -135,12 +130,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
             async _ => closed
                 ? AgentError.SessionClosed
                 : await answer().Match(
-                    async reaction =>
-                    {
-                        await ApplyAsync(reaction);
-
-                        return Result<ItemId, AgentError>.Success(item);
-                    },
+                    async reaction => await ApplyAsync(reaction) ? Result<ItemId, AgentError>.Success(item) : AgentError.SessionClosed,
                     error => Task.FromResult(Result<ItemId, AgentError>.Failure(error))),
             cancellationToken);
 

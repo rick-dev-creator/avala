@@ -53,7 +53,7 @@ public sealed class InvariantTests
     public void AMessageLostOnAnEarlierAttemptOfAJobThatLaterFailedBreaksAnInvariant()
     {
         var failed = Job(JobStatus.Failed, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.Failed) with { Ended = Moment, Failure = JobFailure.AgentUnavailable } };
-        failed = failed with { Attempts = [new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Rejected, Option<string>.None, Session), .. failed.Attempts.Select(attempt => attempt with { Number = 2 })] };
+        failed = failed with { Attempts = [new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Rejected, Option<string>.None, Session), new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Rejected, Option<string>.None, Session), .. failed.Attempts.Select(attempt => attempt with { Number = 3 })] };
 
         Broken("Every message reaches the agent once", Of(failed) with { Messages = [new SentMessage(failed.Summary.Job, MessageId.New(), Accepted: true, Reached: 0) { Attempt = 1 }] });
     }

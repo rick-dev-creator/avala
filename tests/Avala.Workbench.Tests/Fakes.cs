@@ -49,6 +49,8 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
 
     public bool Steerable { get; set; } = true;
 
+    public Option<Exception> Fault { get; set; }
+
     public List<JobRequest> Requests { get; } = [];
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
@@ -151,6 +153,7 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
         where T : notnull
     {
         Calls.Add(call);
+        Fault.Match(fault => throw fault, () => true);
 
         return ValueTask.FromResult(Enum.IsDefined(Refusal) ? Result<T, JobRejection>.Failure(Refusal) : Result<T, JobRejection>.Success(value));
     }

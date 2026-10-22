@@ -369,6 +369,8 @@ internal static class ConversationPhrases
 
     public static string ThoughtUnshared(TimeSpan duration) => $"{Thought(duration)} · content not shared by the harness";
 
+    public static string UndeliveredWhenAvalaClosed => "Your queued message was not delivered, so it is back here: Avala closed before the job could take it.";
+
     public static string Undelivered(UndeliveredMessage message) =>
         message.Rejection.Match(
             rejection => $"Your queued message was not delivered, so it is back here. {Rejection(rejection)}",

@@ -359,15 +359,15 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
 
-        foreach (var back in steering.TakeBack(Job).Match<UndeliveredMessage[]>(found => [found], () => []))
+        var why = steering.TakeBack(Job);
+        var returned = drafts.TakeReturned(Job);
+
+        if (returned.Count > 0)
         {
-            var kept = drafts.Of(Job).Match(found => found, () => Drafting.Draft.Empty);
-            remembering = false;
-            attachments.Clear();
-            attachments.Restore(kept.Attachments);
-            Edit(kept.Text);
-            remembering = true;
-            Error = ConversationPhrases.Undelivered(back);
+            var text = string.Join("\n\n", returned.Select(message => message.Text));
+            Edit(string.IsNullOrWhiteSpace(Draft) ? text : $"{text}\n\n{Draft}");
+            attachments.Restore([.. returned.SelectMany(message => message.Attachments)]);
+            Error = why.Match(ConversationPhrases.Undelivered, () => ConversationPhrases.UndeliveredWhenAvalaClosed);
         }
     }
 
