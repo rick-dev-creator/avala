@@ -39,6 +39,10 @@ public sealed class ValueObjectTests
         Assert.Equal([1, 2, 3], new[] { AttemptNumber.First, AttemptNumber.First.Next, AttemptNumber.First.Next.Next }.Select(number => number.Value));
 
     [Fact]
+    public void AnAttemptNumberReadsAsItsValue() =>
+        Assert.Equal("Attempt 3", $"Attempt {new AttemptNumber(3)}");
+
+    [Fact]
     public void EveryJobGetsItsOwnIdentifier() =>
         Assert.NotEqual(JobId.New(), JobId.New());
 }

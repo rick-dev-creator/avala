@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Avala.Jobs.Jobs;
 
 internal readonly record struct AttemptNumber(int Value)
@@ -5,4 +7,6 @@ internal readonly record struct AttemptNumber(int Value)
     public static AttemptNumber First { get; } = new(1);
 
     public AttemptNumber Next => new(Value + 1);
+
+    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 }
