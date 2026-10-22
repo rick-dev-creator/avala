@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -67,13 +68,44 @@ public sealed class InvariantTests
         Broken("No turn stays open once its session ended", Of() with { TurnsOpenAfterTheirSession = [new OpenTurn(Session, TurnId.New())] });
 
     [Fact]
+    public async Task AnItemStillOpenAfterItsTurnEndedBreaksAnInvariantAsync()
+    {
+        var ledger = new TurnLedger();
+        var turn = TurnId.New();
+
+        await PlayAsync(ledger, new TurnStarted(Session, turn), new ItemStarted(Session, turn, new ItemId("survey"), ItemKind.Subagent, "Survey"), new TurnCompleted(Session, turn, TurnOutcome.Finished));
+
+        Broken("No item stays open once its turn ended", Of() with { ItemsOpenAfterTheirTurn = ledger.OpenAfterTheirTurn });
+    }
+
+    [Fact]
+    public async Task ASessionRestedWhileItsBackgroundWorkRunsBreaksAnInvariantAsync()
+    {
+        var ledger = new TurnLedger();
+        var turn = TurnId.New();
+        await PlayAsync(ledger, new TurnStarted(Session, turn), new ItemStarted(Session, turn, new ItemId("survey"), ItemKind.Subagent, "Survey"), new ItemBackgrounded(Session, turn, new ItemId("survey")), new TurnCompleted(Session, turn, TurnOutcome.Finished));
+
+        await ledger.HandleAsync(new JobSessionRested(JobId.New(), Session), TestContext.Current.CancellationToken);
+
+        Broken("A session with work pending is never rested", Of() with { RestsWhileWorking = ledger.RestedWhileWorking, ItemsOpenAfterTheirTurn = [] });
+    }
+
+    [Fact]
     public void NegativeUsageBreaksAnInvariant() =>
         Broken("Usage is never negative", Of() with { Usage = [new UsageSummary(new TokenUsage(-1, 0, 0, 0, 0), [], 0, default, [])] });
+
+    private static async Task PlayAsync(TurnLedger ledger, params IAgentEvent[] events)
+    {
+        foreach (var happened in events)
+        {
+            await ledger.HandleAsync(new AgentActivity(happened), TestContext.Current.CancellationToken);
+        }
+    }
 
     private static void Broken(string invariant, Scene scene) =>
         Assert.StartsWith(invariant, Assert.Single(Invariants.BrokenIn(scene)), StringComparison.Ordinal);
 
-    private static Scene Of(params JobHistory[] jobs) => new(jobs, [], [], new Dictionary<JobId, string>(), [], []);
+    private static Scene Of(params JobHistory[] jobs) => new(jobs, [], [], new Dictionary<JobId, string>(), [], [], [], []);
 
     private static JobHistory Discarded() =>
         Job(JobStatus.Discarded, AttemptOutcome.Interrupted) with { Summary = Summary(JobStatus.Discarded) with { Ended = Moment } };
