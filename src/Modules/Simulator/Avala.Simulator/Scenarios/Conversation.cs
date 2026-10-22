@@ -14,6 +14,8 @@ internal sealed record Conversation(Guid Id, Scenario Scenario, int Played, stri
 
     public Option<string> FromDevice => Played < Scenario.Turns.Count && NextScript is [Scenarios.FromDevice device, ..] ? device.Text : Option<string>.None;
 
+    public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"Conversation {Id:N} of {Scenario.Name}, {Played} turns played, held by {Holder}");
+
     public ResumeToken Token => new(string.Create(CultureInfo.InvariantCulture, $"{Id:N}/{Scenario.Name}/{Played}/{Holder}"));
 
     public static Option<ConversationMark> Mark(ResumeToken token) =>
