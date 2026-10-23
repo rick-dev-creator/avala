@@ -62,6 +62,8 @@ public static class WorkspaceFidelity
     {
         [nameof(PlacesAndCountsAnAmbiguousChangeWhereGitDoesAsync)] =
             "The in-memory diff is plain Myers; git's xdiff also discards repeated lines, cuts long searches and slides change groups by indentation, so an ambiguous change may be placed and counted otherwise. Scenarios do not depend on it; see the plan's fast tests entry.",
+        [nameof(MergesAChangeIntoAFileTheBaseRenamedAsync)] =
+            "The in-memory merge works path by path; git's ort strategy follows a rename by content similarity, so a change into a file the base renamed is a conflict here. Scenarios do not rename files under a merge; see the plan's fast tests entry.",
     };
 
     private static async Task<IReadOnlyList<string>> MergesAChangeOnAnotherLineOfAFileTheBaseAlsoChangedAsync(FidelityBench bench, CancellationToken cancellationToken)

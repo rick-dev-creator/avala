@@ -255,7 +255,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         TestContext.Current.TestClass?.TestClassName is { } name
         && typeof(SimulatedRun).Assembly.GetType(name) is { } type
         && (type.IsDefined(typeof(UsesRealGitAttribute), inherit: false)
-            || (TestContext.Current.TestMethod?.MethodName is { } method && type.GetMethod(method)?.IsDefined(typeof(UsesRealGitAttribute), inherit: false) == true));
+            || (TestContext.Current.TestMethod?.MethodName is { } method && type.GetMethods().Any(found => found.Name == method && found.IsDefined(typeof(UsesRealGitAttribute), inherit: false))));
 
     public async Task DeliveredAsync() =>
         await application.Root.Services.GetRequiredService<IEventFeed>().DeliveredAsync(Cancellation).WaitAsync(HangGuard, Cancellation);

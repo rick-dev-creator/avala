@@ -38,9 +38,41 @@ public sealed class InMemoryGit
     public async Task CreateAsync(string repository, IReadOnlyList<(string Path, string Content)> files, CancellationToken cancellationToken)
     {
         var folder = Canonical(repository);
+        var seed = FolderSnapshot.Of([.. files]);
         Directory.CreateDirectory(Path.Combine(folder, GitEntry));
-        await FolderSnapshot.Of([.. files]).WriteToAsync(folder, cancellationToken);
+        await seed.WriteToAsync(folder, cancellationToken);
+        Advance(folder, Record(await FolderSnapshot.ReadAsync(folder, seed, cancellationToken), "Initial commit", Option<string>.None).Id);
+    }
+
+    internal async Task AdoptAsync(string repository, CancellationToken cancellationToken)
+    {
+        var folder = Canonical(repository);
+        Directory.CreateDirectory(Path.Combine(folder, GitEntry));
         Advance(folder, Record(await FolderSnapshot.ReadAsync(folder, cancellationToken), "Initial commit", Option<string>.None).Id);
+    }
+
+    internal async Task CloneAsync(string source, string destination, CancellationToken cancellationToken)
+    {
+        var head = await HeadOfAsync(Canonical(source), cancellationToken);
+        var folder = Canonical(destination);
+        Directory.CreateDirectory(Path.Combine(folder, GitEntry));
+        await head.Files.WriteToAsync(folder, cancellationToken);
+        Advance(folder, head.Id);
+    }
+
+    internal bool IsRepository(string folder)
+    {
+        var path = Canonical(folder);
+
+        lock (gate)
+        {
+            if (heads.ContainsKey(path))
+            {
+                return true;
+            }
+        }
+
+        return Directory.Exists(Path.Combine(path, GitEntry)) || File.Exists(Path.Combine(path, "HEAD"));
     }
 
     public async Task CommitAsync(string repository, string path, string content, CancellationToken cancellationToken)
@@ -50,7 +82,7 @@ public sealed class InMemoryGit
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         await File.WriteAllTextAsync(file, content, cancellationToken);
         var head = await HeadOfAsync(folder, cancellationToken);
-        Move(folder, Record(await FolderSnapshot.ReadAsync(folder, cancellationToken), $"Add {path}", head.Id));
+        Move(folder, Record(await FolderSnapshot.ReadAsync(folder, head.Files, cancellationToken), $"Add {path}", head.Id));
     }
 
     public void AddRemote(string repository, string remote, string url)

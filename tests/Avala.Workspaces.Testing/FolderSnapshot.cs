@@ -20,7 +20,9 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
     public static FolderSnapshot Of(params (string Path, string Content)[] files) =>
         files.Aggregate(Empty, (all, file) => all.With(file.Path, Encoding.UTF8.GetBytes(file.Content), Regular));
 
-    public static async Task<FolderSnapshot> ReadAsync(string folder, CancellationToken cancellationToken)
+    public static Task<FolderSnapshot> ReadAsync(string folder, CancellationToken cancellationToken) => ReadAsync(folder, Empty, cancellationToken);
+
+    public static async Task<FolderSnapshot> ReadAsync(string folder, FolderSnapshot tracked, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(folder))
         {
@@ -34,7 +36,7 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
         {
             var relative = Normal(Path.GetRelativePath(folder, entry.FullName));
 
-            if (relative == GitEntry || relative.StartsWith(GitEntry + "/", StringComparison.Ordinal) || Inside(relative, folder) || ignore.Ignores(relative))
+            if (relative.Split('/').Contains(GitEntry) || Inside(relative, folder) || (!tracked.Files.ContainsKey(relative) && ignore.Ignores(relative)))
             {
                 continue;
             }
@@ -66,6 +68,7 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
         foreach (var gone in Files.Keys.Where(path => !target.Files.ContainsKey(path)))
         {
             Remove(Path.Combine(folder, gone));
+            Prune(Path.GetDirectoryName(Path.Combine(folder, gone)), folder);
         }
 
         foreach (var (path, content) in target.Files.Where(file => !SameEntry(this, target, file.Key)))
@@ -88,7 +91,7 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
 
     public async Task<bool> TrackedUnchangedAsync(string folder, CancellationToken cancellationToken)
     {
-        var current = await ReadAsync(folder, cancellationToken);
+        var current = await ReadAsync(folder, this, cancellationToken);
 
         return Files.Keys.All(path => SameEntry(this, current, path));
     }
@@ -159,6 +162,21 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
         File.SetUnixFileMode(file, executable ? mode | Execute : mode & ~Execute);
     }
 
+    private static void Prune(string? directory, string root)
+    {
+        var top = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+
+        for (var current = directory; current is not null && Path.TrimEndingDirectorySeparator(Path.GetFullPath(current)).Length > top.Length; current = Path.GetDirectoryName(current))
+        {
+            if (!Directory.Exists(current) || Directory.EnumerateFileSystemEntries(current).Any())
+            {
+                return;
+            }
+
+            Directory.Delete(current);
+        }
+    }
+
     private static void Remove(string file)
     {
         var entry = new FileInfo(file);
@@ -166,6 +184,10 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
         if (entry.Exists || entry.LinkTarget is not null)
         {
             entry.Delete();
+        }
+        else if (Directory.Exists(file) && !Directory.EnumerateFileSystemEntries(file, "*", SearchOption.AllDirectories).Any(found => File.Exists(found)))
+        {
+            Directory.Delete(file, recursive: true);
         }
     }
 }

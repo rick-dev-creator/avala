@@ -274,6 +274,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             reports.Select(report => $"{report.Attempt} {report.Outcome} {report.Verdict.Decision}: "
                 + string.Join(", ", report.Checks.Select(check => $"{check.Name} {check.Status} {check.ExitCode.Match(code => code, () => -1)}"))));
         Assert.StartsWith("git version", reports[0].Checks[0].OutputTail, StringComparison.Ordinal);
+        Assert.Contains("\"calculator\" did not pass: `", reports[0].Verdict.Feedback, StringComparison.Ordinal);
         Assert.Contains(
             "contains calculator.txt \"add(2, 2) = 4\"` exited with code 1",
             reports[0].Verdict.Feedback,

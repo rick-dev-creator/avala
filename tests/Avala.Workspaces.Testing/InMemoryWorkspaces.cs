@@ -149,7 +149,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
     private async Task<CheckpointInfo> CheckpointAsync(HeldWorkspace workspace, string label, CancellationToken cancellationToken)
     {
-        var files = await FolderSnapshot.ReadAsync(workspace.Info.Path, cancellationToken);
+        var files = await FolderSnapshot.ReadAsync(workspace.Info.Path, Commit(workspace.Head).Files, cancellationToken);
 
         if (workspace.Checkpoints is [.., var last] && last.Label == label && Commit(last.Commit).Files.SameAs(files))
         {

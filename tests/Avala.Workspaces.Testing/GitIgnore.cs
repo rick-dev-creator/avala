@@ -60,6 +60,7 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
             yield break;
         }
 
+        text = text.EndsWith('\\') ? text + " " : text;
         var negated = text.StartsWith('!');
         text = negated ? text[1..] : text;
         var directoryOnly = text.EndsWith('/');
@@ -77,29 +78,46 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
 
         while (index < pattern.Length)
         {
-            if (pattern.AsSpan(index).StartsWith("**/"))
-            {
-                regex.Append("(?:.*/)?");
-                index += 3;
-            }
-            else if (pattern.AsSpan(index).StartsWith("**"))
-            {
-                regex.Append(".*");
-                index += 2;
-            }
-            else
-            {
-                regex.Append(pattern[index] switch
-                {
-                    '*' => "[^/]*",
-                    '?' => "[^/]",
-                    var letter => Regex.Escape(letter.ToString()),
-                });
-                index++;
-            }
+            var (piece, length) = Piece(pattern, index);
+            regex.Append(piece);
+            index += length;
         }
 
         return regex.ToString();
+    }
+
+    private static (string Piece, int Length) Piece(string pattern, int index)
+    {
+        var rest = pattern.AsSpan(index);
+
+        if (rest.StartsWith("**/"))
+        {
+            return ("(?:.*/)?", 3);
+        }
+
+        if (rest.StartsWith("**"))
+        {
+            return (".*", 2);
+        }
+
+        if (rest[0] == '\\' && rest.Length > 1)
+        {
+            return (Regex.Escape(rest[1].ToString()), 2);
+        }
+
+        if (rest[0] == '[' && pattern.IndexOf(']', index + 1) is var close and > 0)
+        {
+            var set = pattern[(index + 1)..close];
+
+            return ($"[{(set.StartsWith('!') ? "^" + set[1..] : set)}]", close - index + 1);
+        }
+
+        return (rest[0] switch
+        {
+            '*' => "[^/]*",
+            '?' => "[^/]",
+            var letter => Regex.Escape(letter.ToString()),
+        }, 1);
     }
 
     internal sealed record Rule(string Under, Regex Pattern, bool Negated, bool DirectoryOnly);

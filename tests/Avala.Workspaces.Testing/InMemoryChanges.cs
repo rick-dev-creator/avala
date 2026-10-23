@@ -36,7 +36,7 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             return new MergedWork(held.Info.Id, plan.Branch, Option<string>.None, Option<string>.None);
         }
 
-        if (!await plan.Tip.Files.TrackedUnchangedAsync(plan.Checkout, cancellationToken))
+        if (!await plan.Tip.Files.TrackedUnchangedAsync(plan.Checkout, cancellationToken) || await OverwritesUntrackedAsync(plan, cancellationToken))
         {
             return WorkspaceFailure.BaseCheckoutDirty;
         }
@@ -87,7 +87,7 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             }
             else if (Combined(mergeBase, tip.Files, work, path).Match<byte[]?>(content => content, () => null) is { } content)
             {
-                merged = merged.With(path, content, work.ModeOf(path));
+                merged = merged.With(path, content, work.ModeOf(path) == mergeBase.ModeOf(path) ? tip.Files.ModeOf(path) : work.ModeOf(path));
             }
             else
             {
@@ -101,6 +101,19 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             Target = target,
             Checkout = checkout,
         };
+    }
+
+    private static async Task<bool> OverwritesUntrackedAsync(MergePlan plan, CancellationToken cancellationToken)
+    {
+        foreach (var path in plan.Merged.Files.Keys.Where(path => !plan.Tip.Files.Files.ContainsKey(path)))
+        {
+            if ((await FolderSnapshot.ReadEntryAsync(plan.Checkout, path, cancellationToken)).IsSome)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Option<byte[]> Combined(FolderSnapshot ancestor, FolderSnapshot ours, FolderSnapshot theirs, string path) =>

@@ -45,8 +45,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
         }
 
         var path = InMemoryGit.Canonical(folder);
-        var present = await FolderSnapshot.ReadAsync(path, cancellationToken);
-        await git.CreateAsync(path, [.. present.Files.Select(file => (file.Key, Encoding.UTF8.GetString(file.Value)))], cancellationToken);
+        await git.AdoptAsync(path, cancellationToken);
 
         return path;
     }
@@ -90,7 +89,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
             return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteExists);
         }
 
-        if (MissingLocal(url))
+        if (Path.IsPathFullyQualified(url) && !git.IsRepository(url))
         {
             return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteNotFound);
         }
@@ -109,27 +108,52 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
             return WorkspaceFailure.InvalidRemoteUrl;
         }
 
-        if (MissingLocal(source))
+        if (Path.IsPathFullyQualified(source) && !git.IsRepository(source))
         {
             return WorkspaceFailure.RemoteNotFound;
         }
 
-        var held = git.RootOf(source).IsSome
-            ? [.. (await git.HeadOfAsync(git.RootOf(source).Match(found => found, () => source), cancellationToken)).Files.Files.Select(file => (file.Key, Encoding.UTF8.GetString(file.Value)))]
-            : Array.Empty<(string, string)>();
-        var cloned = await CreatedAsync(Destination(parent, name), held, cancellationToken);
-        _ = cloned.Map(path =>
+        if (!Destination(parent, name).TryGetValue(out var path, out var failure))
         {
-            git.AddRemote(path, "origin", url.Trim());
+            return failure;
+        }
 
-            return path;
-        });
+        if (Path.IsPathFullyQualified(source))
+        {
+            await git.CloneAsync(source, path, cancellationToken);
+        }
+        else
+        {
+            await git.CreateAsync(path, [], cancellationToken);
+        }
 
-        return cloned;
+        git.AddRemote(path, "origin", source);
+
+        return InMemoryGit.Canonical(path);
     }
 
-    public async ValueTask<IReadOnlyList<string>> FilesAsync(string folder, int limit, CancellationToken cancellationToken) =>
-        git.RootOf(folder).IsNone ? [] : [.. (await FolderSnapshot.ReadAsync(folder, cancellationToken)).Files.Keys.Take(limit)];
+    public async ValueTask<IReadOnlyList<string>> FilesAsync(string folder, int limit, CancellationToken cancellationToken)
+    {
+        var root = git.RootOf(folder).Match(found => found, () => string.Empty);
+
+        if (root.Length == 0)
+        {
+            return [];
+        }
+
+        var tracked = (await git.HeadOfAsync(root, cancellationToken)).Files;
+        var present = await FolderSnapshot.ReadAsync(root, tracked, cancellationToken);
+        var under = FolderSnapshot.Normal(Path.GetRelativePath(root, InMemoryGit.Canonical(folder)));
+        var prefix = under == "." ? string.Empty : under + "/";
+
+        return
+        [
+            .. present.Files.Keys.Where(path => !tracked.Files.ContainsKey(path)).Concat(tracked.Files.Keys)
+                .Where(path => path.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(path => path[prefix.Length..])
+                .Take(limit),
+        ];
+    }
 
     public async ValueTask<IReadOnlyList<CommitSummary>> CommitsAsync(string folder, int count, CancellationToken cancellationToken) =>
         await git.RootOf(folder).Match<Task<IReadOnlyList<CommitSummary>>>(
@@ -255,8 +279,6 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
 
         return Directory.Exists(path) || File.Exists(path) ? WorkspaceFailure.FolderExists : path;
     }
-
-    private static bool MissingLocal(string url) => Path.IsPathFullyQualified(url) && !Directory.Exists(url);
 
     private static bool IsUrl(string url) => url.Length > 0 && !url.StartsWith('-') && !url.Any(char.IsControl);
 
