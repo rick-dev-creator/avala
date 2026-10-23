@@ -6,13 +6,16 @@ namespace Avala.Workspaces.Testing;
 
 public static class WorkspaceFidelity
 {
-    private const string Numbers = "src/numbers.txt";
+    internal const string Numbers = "src/numbers.txt";
 
-    private const string Ignored = "bin/\nobj/\n";
+    internal const string Ignored = "bin/\nobj/\n";
 
-    private const string Tens = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n";
+    internal const string Tens = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n";
 
-    public static IReadOnlyDictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>> Cases { get; } =
+    public static IReadOnlyDictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>> Cases =>
+        Own.Concat(RepositoryFidelity.Cases).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+
+    private static IReadOnlyDictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>> Own { get; } =
         new Dictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>>(StringComparer.Ordinal)
         {
             [nameof(MergesAChangeOnAnotherLineOfAFileTheBaseAlsoChangedAsync)] = MergesAChangeOnAnotherLineOfAFileTheBaseAlsoChangedAsync,
@@ -29,12 +32,6 @@ public static class WorkspaceFidelity
             [nameof(SeesASymbolicLinkTheWorkAddedAsync)] = SeesASymbolicLinkTheWorkAddedAsync,
             [nameof(ListsChangedFilesInGitsByteOrderAsync)] = ListsChangedFilesInGitsByteOrderAsync,
             [nameof(MergesAChildIntoItsParentsWorktreeHoldingAnUntrackedFileAsync)] = MergesAChildIntoItsParentsWorktreeHoldingAnUntrackedFileAsync,
-            [nameof(NamesAMergeCommitByTheFirstLineOfItsMessageAsync)] = NamesAMergeCommitByTheFirstLineOfItsMessageAsync,
-            [nameof(ListsNoIgnoredFileAmongTheRepositorysFilesAsync)] = ListsNoIgnoredFileAmongTheRepositorysFilesAsync,
-            [nameof(ListsAFileWithAnAccentedNameByItsNameAsync)] = ListsAFileWithAnAccentedNameByItsNameAsync,
-            [nameof(ClonesWhatTheRemoteHoldsAsync)] = ClonesWhatTheRemoteHoldsAsync,
-            [nameof(RefusesToCloneARemoteThatDoesNotExistAsync)] = RefusesToCloneARemoteThatDoesNotExistAsync,
-            [nameof(RefusesToPublishToARemoteThatDoesNotExistAsync)] = RefusesToPublishToARemoteThatDoesNotExistAsync,
             [nameof(DiffsCrlfEmptyRevertedAndSpacedFilesAsGitDoesAsync)] = DiffsCrlfEmptyRevertedAndSpacedFilesAsGitDoesAsync,
             [nameof(MergesTwiceWithOnlyTheNewWorkTheSecondTimeAsync)] = MergesTwiceWithOnlyTheNewWorkTheSecondTimeAsync,
             [nameof(ReadsTheCurrentFileFromASubfolderAndCommitsInsideAWorktreeAsync)] = ReadsTheCurrentFileFromASubfolderAndCommitsInsideAWorktreeAsync,
@@ -43,19 +40,11 @@ public static class WorkspaceFidelity
             [nameof(IgnoresWhatACharacterClassNamesAsync)] = IgnoresWhatACharacterClassNamesAsync,
             [nameof(IgnoresAPatternWithAnEscapedHashAsync)] = IgnoresAPatternWithAnEscapedHashAsync,
             [nameof(LeavesAFolderNamedDotGitOutOfTheWorkAsync)] = LeavesAFolderNamedDotGitOutOfTheWorkAsync,
-            [nameof(ListsUntrackedFilesBeforeTrackedOnesAsync)] = ListsUntrackedFilesBeforeTrackedOnesAsync,
-            [nameof(ListsATrackedFileDeletedFromTheCheckoutAsync)] = ListsATrackedFileDeletedFromTheCheckoutAsync,
             [nameof(KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync)] = KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync,
             [nameof(RefusesToMergeOverAnUntrackedFileOfTheBaseCheckoutAsync)] = RefusesToMergeOverAnUntrackedFileOfTheBaseCheckoutAsync,
             [nameof(MergesAChangeIntoAFileTheBaseRenamedAsync)] = MergesAChangeIntoAFileTheBaseRenamedAsync,
-            [nameof(RefusesToCloneAFolderThatIsNotARepositoryAsync)] = RefusesToCloneAFolderThatIsNotARepositoryAsync,
-            [nameof(ClonesTheRemotesHistoryAsync)] = ClonesTheRemotesHistoryAsync,
-            [nameof(ClonesAnExecutableFileAsExecutableAsync)] = ClonesAnExecutableFileAsExecutableAsync,
-            [nameof(InitializingAFolderLeavesItsFilesAsTheyWereAsync)] = InitializingAFolderLeavesItsFilesAsTheyWereAsync,
             [nameof(RestoresACheckpointWhereAFolderWasStillAFileAsync)] = RestoresACheckpointWhereAFolderWasStillAFileAsync,
             [nameof(RestoringACheckpointRemovesTheFolderItEmptiedAsync)] = RestoringACheckpointRemovesTheFolderItEmptiedAsync,
-            [nameof(RefusesToPublishToAFolderThatIsNotARepositoryAsync)] = RefusesToPublishToAFolderThatIsNotARepositoryAsync,
-            [nameof(ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync)] = ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync,
         };
 
     public static IReadOnlyDictionary<string, string> Approximated { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -315,78 +304,6 @@ public static class WorkspaceFidelity
         return problems;
     }
 
-    private static async Task<IReadOnlyList<string>> NamesAMergeCommitByTheFirstLineOfItsMessageAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var prepared = await PrepareAsync(bench, cancellationToken);
-        await WriteAsync(prepared.Path, "added.txt", "new\n", cancellationToken);
-        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
-        _ = await bench.Services.Changes.MergeAsync(prepared.Id, "Add the file\n\nSquashed by Avala from the checkpoints of 1 attempt.\n\nAvala-Job: 1", cancellationToken);
-
-        var commits = await bench.Index.CommitsAsync(bench.Repository, 1, cancellationToken);
-        Check(commits is [{ Subject: "Add the file" }], problems, $"the latest commit reads otherwise: {string.Join(" | ", commits.Select(commit => commit.Subject))}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ListsNoIgnoredFileAmongTheRepositorysFilesAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        await bench.CommitToBase(".gitignore", Ignored, cancellationToken);
-        await WriteAsync(bench.Repository, "bin/Debug/Shop.dll", "built\n", cancellationToken);
-        await WriteAsync(bench.Repository, "notes.txt", "untracked\n", cancellationToken);
-
-        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
-        Check(files.Order(StringComparer.Ordinal).SequenceEqual([".avala/permissions.json", ".gitignore", "README.md", "notes.txt", Numbers]), problems, $"the files list otherwise: {string.Join(", ", files)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ListsAFileWithAnAccentedNameByItsNameAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        await WriteAsync(bench.Repository, "docs/canción.md", "la la\n", cancellationToken);
-
-        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
-        Check(files.Contains("docs/canción.md"), problems, $"the files list otherwise: {string.Join(", ", files)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ClonesWhatTheRemoteHoldsAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var parent = Path.GetDirectoryName(bench.Repository)!;
-
-        var cloned = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
-        Check(cloned.IsSuccess, problems, $"cloning reads otherwise: {Shown(cloned)}");
-        Check(await ReadAsync(Path.Combine(parent, "clone"), "README.md", cancellationToken) == "# Shop\n", problems, "the clone does not hold the remote's files");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> RefusesToCloneARemoteThatDoesNotExistAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var parent = Path.GetDirectoryName(bench.Repository)!;
-
-        var cloned = await bench.Remotes.CloneAsync(Path.Combine(parent, "missing.git"), parent, "clone", cancellationToken);
-        Check(cloned.IsFailure && !Directory.Exists(Path.Combine(parent, "clone")), problems, $"cloning a missing remote reads otherwise: {Shown(cloned)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> RefusesToPublishToARemoteThatDoesNotExistAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var missing = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "missing.git");
-
-        var published = await bench.Remotes.PublishAsync(bench.Repository, "origin", missing, cancellationToken);
-        Check(published.IsFailure, problems, $"publishing to a missing remote reads otherwise: {Shown(published)}");
-
-        return problems;
-    }
-
     private static async Task<IReadOnlyList<string>> DiffsCrlfEmptyRevertedAndSpacedFilesAsGitDoesAsync(FidelityBench bench, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
@@ -550,28 +467,6 @@ public static class WorkspaceFidelity
         return problems;
     }
 
-    private static async Task<IReadOnlyList<string>> ListsUntrackedFilesBeforeTrackedOnesAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        await WriteAsync(bench.Repository, "notes.txt", "untracked\n", cancellationToken);
-
-        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
-        Check(files.SequenceEqual(["notes.txt", ".avala/permissions.json", "README.md", Numbers]), problems, $"the files list otherwise: {string.Join(", ", files)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ListsATrackedFileDeletedFromTheCheckoutAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        File.Delete(Path.Combine(bench.Repository, "README.md"));
-
-        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
-        Check(files.Contains("README.md"), problems, $"the files list otherwise: {string.Join(", ", files)}");
-
-        return problems;
-    }
-
     private static async Task<IReadOnlyList<string>> KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync(FidelityBench bench, CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows())
@@ -625,66 +520,6 @@ public static class WorkspaceFidelity
         return problems;
     }
 
-    private static async Task<IReadOnlyList<string>> RefusesToCloneAFolderThatIsNotARepositoryAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var parent = Path.GetDirectoryName(bench.Repository)!;
-        var plain = Path.Combine(parent, "plain");
-        await WriteAsync(plain, "notes.txt", "not a repository\n", cancellationToken);
-
-        var cloned = await bench.Remotes.CloneAsync(plain, parent, "clone", cancellationToken);
-        Check(cloned.IsFailure && !Directory.Exists(Path.Combine(parent, "clone")), problems, $"cloning a folder that is not a repository reads otherwise: {Shown(cloned)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ClonesTheRemotesHistoryAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var parent = Path.GetDirectoryName(bench.Repository)!;
-
-        _ = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
-        var original = await bench.Index.CommitsAsync(bench.Repository, 10, cancellationToken);
-        var cloned = await bench.Index.CommitsAsync(Path.Combine(parent, "clone"), 10, cancellationToken);
-        Check(cloned.Select(commit => commit.Subject).SequenceEqual(original.Select(commit => commit.Subject)), problems, $"the clone's history reads {string.Join(" | ", cloned.Select(commit => commit.Subject))} where the remote's reads {string.Join(" | ", original.Select(commit => commit.Subject))}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ClonesAnExecutableFileAsExecutableAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return [];
-        }
-
-        var problems = new List<string>();
-        var parent = Path.GetDirectoryName(bench.Repository)!;
-        var based = Path.Combine(bench.Repository, Numbers);
-        File.SetUnixFileMode(based, File.GetUnixFileMode(based) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
-        await bench.CommitToBase(Numbers, Tens, cancellationToken);
-
-        _ = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
-        Check(File.GetUnixFileMode(Path.Combine(parent, "clone", Numbers)).HasFlag(UnixFileMode.UserExecute), problems, "the clone does not keep the remote's executable bit");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> InitializingAFolderLeavesItsFilesAsTheyWereAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var plain = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "plain");
-        byte[] picture = [0x89, 0x50, 0x4E, 0x47, 0xFF, 0xFE, 0x00, 0xC3, 0x28];
-        Directory.CreateDirectory(plain);
-        await File.WriteAllBytesAsync(Path.Combine(plain, "logo.png"), picture, cancellationToken);
-
-        var initialized = await bench.Repositories.InitializeAsync(plain, cancellationToken);
-        Check(initialized.IsSuccess, problems, $"initializing reads otherwise: {Shown(initialized)}");
-        Check((await File.ReadAllBytesAsync(Path.Combine(plain, "logo.png"), cancellationToken)).AsSpan().SequenceEqual(picture), problems, "initializing the folder rewrote its binary file");
-
-        return problems;
-    }
-
     private static async Task<IReadOnlyList<string>> RestoresACheckpointWhereAFolderWasStillAFileAsync(FidelityBench bench, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
@@ -718,53 +553,29 @@ public static class WorkspaceFidelity
         return problems;
     }
 
-    private static async Task<IReadOnlyList<string>> RefusesToPublishToAFolderThatIsNotARepositoryAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        var plain = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "plain");
-        await WriteAsync(plain, "notes.txt", "not a repository\n", cancellationToken);
-
-        var published = await bench.Remotes.PublishAsync(bench.Repository, "origin", plain, cancellationToken);
-        Check(published.IsFailure, problems, $"publishing to a folder that is not a repository reads otherwise: {Shown(published)}");
-
-        return problems;
-    }
-
-    private static async Task<IReadOnlyList<string>> ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync(FidelityBench bench, CancellationToken cancellationToken)
-    {
-        var problems = new List<string>();
-        await bench.CommitToBase(".gitignore", "bin/\n", cancellationToken);
-        await WriteAsync(bench.Repository, "src/bin/x.dll", "built\n", cancellationToken);
-
-        var files = await bench.Index.FilesAsync(Path.Combine(bench.Repository, "src"), 100, cancellationToken);
-        Check(files.SequenceEqual(["numbers.txt"]), problems, $"the files list otherwise: {string.Join(", ", files)}");
-
-        return problems;
-    }
-
-    private static async Task<WorkspaceInfo> PrepareAsync(FidelityBench bench, CancellationToken cancellationToken) =>
+    internal static async Task<WorkspaceInfo> PrepareAsync(FidelityBench bench, CancellationToken cancellationToken) =>
         (await bench.Services.Workspaces.PrepareAsync(new WorkspaceRequest(bench.Repository), cancellationToken))
             .Match(found => found, error => throw new InvalidOperationException($"preparing failed with {error}"));
 
-    private static async Task WriteAsync(string folder, string path, string content, CancellationToken cancellationToken)
+    internal static async Task WriteAsync(string folder, string path, string content, CancellationToken cancellationToken)
     {
         var file = Path.Combine(folder, path);
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         await File.WriteAllBytesAsync(file, Encoding.UTF8.GetBytes(content), cancellationToken);
     }
 
-    private static async Task<string> ReadAsync(string folder, string path, CancellationToken cancellationToken) =>
+    internal static async Task<string> ReadAsync(string folder, string path, CancellationToken cancellationToken) =>
         File.Exists(Path.Combine(folder, path)) ? await File.ReadAllTextAsync(Path.Combine(folder, path), cancellationToken) : string.Empty;
 
-    private static string Hunks(Result<FileDiff, WorkspaceFailure> file) =>
+    internal static string Hunks(Result<FileDiff, WorkspaceFailure> file) =>
         Shown(file.Map(found => string.Join(" | ", found.Hunks.Select(hunk => $"{hunk.OldStart},{hunk.OldLines} {hunk.NewStart},{hunk.NewLines} '{hunk.Section}' {string.Join("/", hunk.Lines.Select(line => $"{line.Kind}:{line.Text}"))}"))));
 
-    private static bool Same(string left, string right) =>
+    internal static bool Same(string left, string right) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)) == Path.TrimEndingDirectorySeparator(Path.GetFullPath(right));
 
-    private static string Shown<T>(Result<T, WorkspaceFailure> result) => result.Match(found => found?.ToString() ?? string.Empty, error => error.ToString());
+    internal static string Shown<T>(Result<T, WorkspaceFailure> result) => result.Match(found => found?.ToString() ?? string.Empty, error => error.ToString());
 
-    private static void Check(bool holds, List<string> problems, string problem)
+    internal static void Check(bool holds, List<string> problems, string problem)
     {
         if (!holds)
         {
