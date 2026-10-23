@@ -13,7 +13,7 @@ public static class WorkspaceFidelity
     internal const string Tens = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n";
 
     public static IReadOnlyDictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>> Cases =>
-        Own.Concat(RepositoryFidelity.Cases).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        Own.Concat(RepositoryFidelity.Cases).Concat(IgnoreRuleFidelity.Cases).Concat(CheckoutFidelity.Cases).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
 
     private static IReadOnlyDictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>> Own { get; } =
         new Dictionary<string, Func<FidelityBench, CancellationToken, Task<IReadOnlyList<string>>>>(StringComparer.Ordinal)
