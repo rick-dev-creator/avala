@@ -97,6 +97,20 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AVerifiedJobApprovedWithMergeLandsWhileTheBaseCheckoutHoldsOnlyAnUntrackedFileAsync()
+    {
+        await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
+        const string Draft = "A draft I have not added.\n";
+        await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, "draft.txt"), Draft, Cancellation);
+
+        var approval = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+
+        Assert.Equal(("merge", "main"), (approval.Delivery.Strategy, approval.Delivery.Branch));
+        Assert.Equal(Fixed, (await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "calculator.txt"), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal(Draft, await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "draft.txt"), Cancellation));
+    }
+
+    [Fact]
     public async Task AJobSentBackStartsANewRoundWithTheFeedbackAsync()
     {
         const string Feedback = "Please greet the new hires too.";
