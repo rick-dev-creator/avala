@@ -228,6 +228,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             surroundings.Environment.Variables[name] = value;
         }
 
+        surroundings.Processes.Watched = surroundings.Git;
         var root = surroundings.Compose(plugins, data);
         var processes = surroundings.Tools.GetRequiredService<IProcessRunner>();
         var repository = await surroundings.Git.Match(
@@ -442,6 +443,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
             surroundings.Notifier.Dispose();
             Ui.Dispose();
         }
+
+        Assert.True(surroundings.Processes.Violations.Count == 0, string.Join(Environment.NewLine, surroundings.Processes.Violations.Distinct()));
     }
 
     public Task<IReadOnlyList<string>> BrokenInvariantsAsync() => application.BrokenAsync();

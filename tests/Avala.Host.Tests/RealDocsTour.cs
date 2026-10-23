@@ -8,6 +8,7 @@ using Avalonia.Styling;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealDocsTour(HeadlessUi ui, PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";

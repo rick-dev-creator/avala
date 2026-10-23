@@ -9,10 +9,7 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
         ValueTask.FromResult(Held(workspace).Map(found => new WorkspaceDiff(workspace, found.Info.BaseCommit, found.Head, workspaces.Changes(found.Info.BaseCommit, found.Head))));
 
     public ValueTask<Result<FileDiff, WorkspaceFailure>> FileDiffAsync(WorkspaceId workspace, string path, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Held(workspace).Bind(found => LineDiff.Of(
-                path,
-                workspaces.Commit(found.Info.BaseCommit).Files.Entry(path),
-                workspaces.Commit(found.Head).Files.Entry(path))
+        ValueTask.FromResult(Held(workspace).Bind(found => LineDiff.Of(path, workspaces.Commit(found.Info.BaseCommit).Files, workspaces.Commit(found.Head).Files)
             .ToResult(WorkspaceFailure.FileUnchanged)));
 
     public async ValueTask<Result<IReadOnlyList<string>, WorkspaceFailure>> ConflictsAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
@@ -39,7 +36,7 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             return new MergedWork(held.Info.Id, plan.Branch, Option<string>.None, Option<string>.None);
         }
 
-        if (!(await FolderSnapshot.ReadAsync(plan.Checkout, cancellationToken)).SameAs(plan.Tip.Files))
+        if (!await plan.Tip.Files.TrackedUnchangedAsync(plan.Checkout, cancellationToken))
         {
             return WorkspaceFailure.BaseCheckoutDirty;
         }
@@ -53,7 +50,7 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
 
                 return held;
             });
-        await plan.Merged.WriteToAsync(plan.Checkout, cancellationToken);
+        await plan.Tip.Files.ApplyAsync(plan.Merged, plan.Checkout, cancellationToken);
         git.Hold(git.Workspace(held.Info.Id).Match(current => current, () => held) with { LastMerged = held.Head });
 
         return new MergedWork(held.Info.Id, plan.Branch, commit.Id, plan.Checkout);
@@ -78,19 +75,36 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
         var checkout = target.Match(found => found.Info.Path, () => workspace.Repository);
         var work = workspaces.Commit(workspace.Head).Files;
         var mergeBase = workspaces.Commit(workspace.LastMerged.Match(merged => merged, () => workspace.Info.BaseCommit)).Files;
-        var touched = mergeBase.Files.Keys.Union(work.Files.Keys, StringComparer.Ordinal).Where(path => !FolderSnapshot.Same(mergeBase.Entry(path), work.Entry(path))).ToList();
-        var conflicts = touched
-            .Where(path => !FolderSnapshot.Same(mergeBase.Entry(path), tip.Files.Entry(path)) && !FolderSnapshot.Same(work.Entry(path), tip.Files.Entry(path)))
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        var touched = mergeBase.Files.Keys.Union(work.Files.Keys, StringComparer.Ordinal).Where(path => !FolderSnapshot.SameEntry(mergeBase, work, path)).ToList();
+        var merged = tip.Files;
+        var conflicts = new List<string>();
 
-        return new MergePlan(workspace, tip, touched.Aggregate(tip.Files, (files, path) => files.With(path, work.Entry(path))), conflicts)
+        foreach (var path in touched)
+        {
+            if (FolderSnapshot.SameEntry(mergeBase, tip.Files, path) || FolderSnapshot.SameEntry(work, tip.Files, path))
+            {
+                merged = merged.WithEntryOf(work, path);
+            }
+            else if (Combined(mergeBase, tip.Files, work, path).Match<byte[]?>(content => content, () => null) is { } content)
+            {
+                merged = merged.With(path, content, work.ModeOf(path));
+            }
+            else
+            {
+                conflicts.Add(path);
+            }
+        }
+
+        return new MergePlan(workspace, tip, merged, [.. conflicts.Order(GitPathOrder.Instance)])
         {
             Branch = branch,
             Target = target,
             Checkout = checkout,
         };
     }
+
+    private static Option<byte[]> Combined(FolderSnapshot ancestor, FolderSnapshot ours, FolderSnapshot theirs, string path) =>
+        ancestor.Entry(path).Bind(common => ours.Entry(path).Bind(mine => theirs.Entry(path).Bind(other => LineDiff.Merge(common, mine, other))));
 
     private Result<HeldWorkspace, WorkspaceFailure> Held(WorkspaceId workspace) => git.Workspace(workspace).ToResult(WorkspaceFailure.UnknownWorkspace);
 

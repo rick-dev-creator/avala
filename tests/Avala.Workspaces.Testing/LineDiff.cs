@@ -10,42 +10,40 @@ internal static class LineDiff
 
     private const int BinaryProbe = 8000;
 
+    private const int SectionBytes = 80;
+
     public static bool IsBinary(byte[] content) => content.AsSpan(0, Math.Min(content.Length, BinaryProbe)).Contains((byte)0);
 
-    public static Option<FileChange> Change(string path, Option<byte[]> before, Option<byte[]> after)
+    public static Option<FileChange> Change(string path, FolderSnapshot before, FolderSnapshot after)
     {
-        if (before.IsNone && after.IsNone)
+        var (old, current) = (before.Entry(path), after.Entry(path));
+
+        if (FolderSnapshot.SameEntry(before, after, path) || (old.IsNone && current.IsNone))
         {
             return Option<FileChange>.None;
         }
 
-        var (old, current) = (before.Match(found => found, () => []), after.Match(found => found, () => []));
+        var kind = old.IsNone ? ChangeKind.Added : current.IsNone ? ChangeKind.Deleted : ChangeKind.Modified;
+        var (oldBytes, newBytes) = (old.Match(found => found, () => []), current.Match(found => found, () => []));
 
-        if (before.IsSome && after.IsSome && old.AsSpan().SequenceEqual(current))
-        {
-            return Option<FileChange>.None;
-        }
-
-        var kind = before.IsNone ? ChangeKind.Added : after.IsNone ? ChangeKind.Deleted : ChangeKind.Modified;
-
-        if (IsBinary(old) || IsBinary(current))
+        if (IsBinary(oldBytes) || IsBinary(newBytes))
         {
             return new FileChange(path, kind, Option<int>.None, Option<int>.None);
         }
 
-        var edits = Edits(Lines(old), Lines(current));
+        var edits = Edits(Lines(oldBytes), Lines(newBytes));
 
         return new FileChange(path, kind, edits.Count(edit => edit.Kind == DiffLineKind.Added), edits.Count(edit => edit.Kind == DiffLineKind.Removed));
     }
 
-    public static Option<FileDiff> Of(string path, Option<byte[]> before, Option<byte[]> after)
+    public static Option<FileDiff> Of(string path, FolderSnapshot before, FolderSnapshot after)
     {
         if (Change(path, before, after).IsNone)
         {
             return Option<FileDiff>.None;
         }
 
-        var (old, current) = (before.Match(found => found, () => []), after.Match(found => found, () => []));
+        var (old, current) = (before.Entry(path).Match(found => found, () => []), after.Entry(path).Match(found => found, () => []));
 
         if (IsBinary(old) || IsBinary(current))
         {
@@ -57,18 +55,85 @@ internal static class LineDiff
         return new FileDiff(path, Binary: false, Hunks(oldLines, Edits(oldLines, Lines(current))));
     }
 
+    public static Option<byte[]> Merge(byte[] ancestor, byte[] ours, byte[] theirs)
+    {
+        if (IsBinary(ancestor) || IsBinary(ours) || IsBinary(theirs))
+        {
+            return Option<byte[]>.None;
+        }
+
+        var lines = Lines(ancestor);
+        var (mine, other) = (Chunks(lines, Lines(ours)), Chunks(lines, Lines(theirs)));
+
+        if (mine.Any(chunk => other.Any(against => chunk.Start <= against.End && against.Start <= chunk.End && chunk != against)))
+        {
+            return Option<byte[]>.None;
+        }
+
+        var merged = new StringBuilder();
+        var position = 0;
+
+        foreach (var chunk in mine.Union(other).OrderBy(chunk => chunk.Start).ThenBy(chunk => chunk.End))
+        {
+            if (chunk.Start < position)
+            {
+                continue;
+            }
+
+            merged.Append(string.Concat(lines[position..chunk.Start])).Append(string.Concat(chunk.Replacement));
+            position = chunk.End;
+        }
+
+        return Encoding.UTF8.GetBytes(merged.Append(string.Concat(lines[position..])).ToString());
+    }
+
+    private static List<Chunk> Chunks(string[] old, string[] current)
+    {
+        var chunks = new List<Chunk>();
+        var edits = Edits(old, current);
+
+        for (var index = 0; index < edits.Count;)
+        {
+            if (edits[index].Kind == DiffLineKind.Context)
+            {
+                index++;
+                continue;
+            }
+
+            var start = edits[index].Old;
+            var added = new List<string>();
+            var removed = 0;
+
+            for (; index < edits.Count && edits[index].Kind != DiffLineKind.Context; index++)
+            {
+                removed += edits[index].Kind == DiffLineKind.Removed ? 1 : 0;
+                added.AddRange(edits[index].Kind == DiffLineKind.Added ? [edits[index].Line] : []);
+            }
+
+            chunks.Add(new Chunk(start, start + removed, [.. added]));
+        }
+
+        return chunks;
+    }
+
     private static string[] Lines(byte[] content)
     {
         var text = Encoding.UTF8.GetString(content);
+        var lines = new List<string>();
+        var start = 0;
 
-        if (text.Length == 0)
+        for (var index = text.IndexOf('\n'); index >= 0; index = text.IndexOf('\n', start))
         {
-            return [];
+            lines.Add(text[start..(index + 1)]);
+            start = index + 1;
         }
 
-        var lines = text.Split('\n');
+        if (start < text.Length)
+        {
+            lines.Add(text[start..]);
+        }
 
-        return text.EndsWith('\n') ? lines[..^1] : lines;
+        return [.. lines];
     }
 
     private static List<Edit> Edits(string[] old, string[] current)
@@ -185,8 +250,29 @@ internal static class LineDiff
         return new DiffHunk(oldStart, oldLines, newStart, newLines, Section(old, lines[0].Old), [.. lines.Select(line => new DiffLine(line.Kind, line.Text))]);
     }
 
-    private static string Section(string[] old, int before) =>
-        old.Take(Math.Min(before, old.Length)).LastOrDefault(line => line.Length > 0 && (char.IsLetter(line[0]) || line[0] is '_' or '$'))?.TrimEnd() ?? string.Empty;
+    private static string Section(string[] old, int before)
+    {
+        var line = old.Take(Math.Min(before, old.Length)).LastOrDefault(found => found.Length > 0 && (char.IsAsciiLetter(found[0]) || found[0] is '_' or '$'));
 
-    private sealed record Edit(DiffLineKind Kind, int Old, int New, string Text);
+        if (line is null)
+        {
+            return string.Empty;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(line.TrimEnd('\n', '\r'));
+
+        return Encoding.UTF8.GetString(bytes, 0, Math.Min(bytes.Length, SectionBytes)).TrimEnd();
+    }
+
+    private sealed record Edit(DiffLineKind Kind, int Old, int New, string Line)
+    {
+        public string Text => Line.EndsWith('\n') ? Line[..^1] : Line;
+    }
+
+    private sealed record Chunk(int Start, int End, string[] Replacement)
+    {
+        public bool Equals(Chunk? other) => other is not null && Start == other.Start && End == other.End && Replacement.SequenceEqual(other.Replacement);
+
+        public override int GetHashCode() => HashCode.Combine(Start, End, Replacement.Length);
+    }
 }

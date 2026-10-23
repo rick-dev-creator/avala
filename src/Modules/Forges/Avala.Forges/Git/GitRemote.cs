@@ -2,10 +2,11 @@ using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Forges.Git;
 
-internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
+internal sealed class GitRemote(IProcessRunner processes, IRemoteRepositories remotes) : IGitRemote
 {
     private static readonly string[] Pulled = [" (pick): ", " (reword): ", " (edit): ", " (squash): ", " (fixup): ", " (continue): ", ": Merge made by "];
 
@@ -17,7 +18,7 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
     ];
 
     public async ValueTask<Result<string, ForgeError>> UrlAsync(string worktree, string remote, CancellationToken cancellationToken) =>
-        (await GitAsync(worktree, ["remote", "get-url", remote], cancellationToken)).Bind(output => output.Length > 0 ? Result<string, ForgeError>.Success(output) : ForgeError.InvalidRemote);
+        (await remotes.RemoteAsync(worktree, remote, cancellationToken)).ToResult(ForgeError.GitFailed);
 
     public async ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken)
     {

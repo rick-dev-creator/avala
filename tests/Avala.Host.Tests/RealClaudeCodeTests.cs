@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";

@@ -280,6 +280,8 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
             new Avalonia.Rect(0, -16, 10, 600));
 
     [Fact]
+
+    [UsesRealGit]
     public async Task TheTriggersPageWithAForgeTriggerItsNextPollAndItsEventsWithTheirVerdictsAsync()
     {
         Gated();
@@ -343,6 +345,8 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     private static string Json(string text) => System.Text.Json.JsonSerializer.Serialize(text);
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ThePullRequestReviewButtonAndTheInspectorsWatchThroughAWakeUpAsync()
     {
         Gated();

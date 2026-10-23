@@ -7,12 +7,14 @@ public sealed class InMemoryGitGuardTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task GitRunThroughTheProcessRunnerOnAnInMemoryRepositoryFailsSayingTheTestShouldBeMarkedAsync()
+    public async Task GitRunOnAnInMemoryRepositoryFailsTheRunWhenItEndsSayingTheTestShouldBeMarkedAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins);
+        var run = await SimulatedRun.PreparedAsync(plugins);
+        _ = await run.Get<IProcessRunner>().RunAsync(new ProcessRequest("git", ["-C", run.Repository.Path, "log", "--format=%s"]), Cancellation);
 
-        var failure = await Record.ExceptionAsync(async () => await run.Get<IProcessRunner>().RunAsync(new ProcessRequest("git", ["-C", run.Repository.Path, "log", "--format=%s"]), Cancellation));
+        var failure = await Record.ExceptionAsync(async () => await run.DisposeAsync());
 
-        Assert.Contains("[UsesRealGit]", failure?.Message ?? "git ran on the in-memory repository and the test was not told to be marked", StringComparison.Ordinal);
+        Assert.Contains("git -C", failure?.Message ?? string.Empty, StringComparison.Ordinal);
+        Assert.Contains("[UsesRealGit]", failure?.Message ?? string.Empty, StringComparison.Ordinal);
     }
 }

@@ -61,6 +61,21 @@ public sealed class InMemoryGit
         }
     }
 
+    public bool Holds(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return false;
+        }
+
+        var path = Canonical(folder);
+
+        lock (gate)
+        {
+            return heads.Keys.Concat(workspaces.Values.Select(workspace => workspace.Info.Path)).Any(root => Inside(path, root));
+        }
+    }
+
     internal Option<string> RootOf(string path)
     {
         if (string.IsNullOrWhiteSpace(path))

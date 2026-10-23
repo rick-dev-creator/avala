@@ -8,6 +8,7 @@ using Avala.Testing.UI;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealSubagentScreens(HeadlessUi ui, PublishedPlugins plugins)
 {
     private const string Autonomous = """{ "autonomy": "autonomous" }""";

@@ -7,6 +7,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealDocumentationTests(PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";

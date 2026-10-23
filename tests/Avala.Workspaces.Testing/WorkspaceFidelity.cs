@@ -41,6 +41,12 @@ public static class WorkspaceFidelity
             [nameof(PreparesOnAWorktreeWithItsBranchAsTheBaseAndMergesBackIntoItAsync)] = PreparesOnAWorktreeWithItsBranchAsTheBaseAndMergesBackIntoItAsync,
         };
 
+    public static IReadOnlyDictionary<string, string> Approximated { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        [nameof(PlacesAndCountsAnAmbiguousChangeWhereGitDoesAsync)] =
+            "The in-memory diff is plain Myers; git's xdiff also discards repeated lines, cuts long searches and slides change groups by indentation, so an ambiguous change may be placed and counted otherwise. Scenarios do not depend on it; see the plan's fast tests entry.",
+    };
+
     private static async Task<IReadOnlyList<string>> MergesAChangeOnAnotherLineOfAFileTheBaseAlsoChangedAsync(FidelityBench bench, CancellationToken cancellationToken)
     {
         var problems = new List<string>();

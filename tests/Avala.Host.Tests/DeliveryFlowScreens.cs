@@ -6,6 +6,7 @@ using Avala.Testing.UI;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class DeliveryFlowScreens(HeadlessUi ui, PublishedPlugins plugins)
 {
     private const string GhStatus = """

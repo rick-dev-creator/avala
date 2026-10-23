@@ -10,14 +10,19 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken)
     {
-        var repository = git.RootOf(request.RepositoryPath).Match(found => found, () => string.Empty);
+        var top = git.RootOf(request.RepositoryPath).Match(found => found, () => string.Empty);
 
-        if (repository.Length == 0)
+        if (top.Length == 0)
         {
             return WorkspaceFailure.NotAGitRepository;
         }
 
-        var resolved = await git.ResolveAsync(repository, request.BaseRef, cancellationToken);
+        var nested = git.WorkspaceAt(top);
+        var repository = nested.Match(parent => parent.Repository, () => top);
+
+        var resolved = request.BaseRef == "HEAD" && nested.IsSome
+            ? nested.Map(parent => Commit(parent.Head))
+            : await git.ResolveAsync(repository, request.BaseRef, cancellationToken);
         var rules = await request.Rules.Match(
             reference => git.ResolveAsync(repository, reference, cancellationToken),
             () => Task.FromResult(resolved));
@@ -33,7 +38,8 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         await File.WriteAllTextAsync(Path.Combine(path, GitEntry), $"gitdir: {Path.Combine(repository, GitEntry, "worktrees", $"{id.Value:N}")}\n", cancellationToken);
         var info = new WorkspaceInfo(id, path, $"avala/{id.Value:N}", commit.Id)
         {
-            BaseBranch = request.BaseRef is "HEAD" or InMemoryGit.MainBranch ? InMemoryGit.MainBranch
+            BaseBranch = request.BaseRef == "HEAD" && nested.IsSome ? nested.Map(parent => parent.Info.Branch)
+                : request.BaseRef is "HEAD" or InMemoryGit.MainBranch ? InMemoryGit.MainBranch
                 : git.OnBranch(repository, request.BaseRef).Map(found => found.Info.Branch),
             RulesCommit = rules.Match(found => found.Id, () => commit.Id),
         };
@@ -112,7 +118,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         }
 
         var before = await CheckpointAsync(found, $"Before restoring to {target.Label}", cancellationToken);
-        await Commit(target.Commit).Files.WriteToAsync(found.Info.Path, cancellationToken);
+        await Commit(before.Commit).Files.ApplyAsync(Commit(target.Commit).Files, found.Info.Path, cancellationToken);
         var restored = await CheckpointAsync(git.Workspace(workspace).Match(held => held, () => found), $"Restored to {target.Label}", cancellationToken);
 
         return new CheckpointChanges(restored.Number, restored.Label, restored.Commit, Changes(before.Commit, restored.Commit));
@@ -134,8 +140,8 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
         return
         [
-            .. before.Files.Keys.Union(after.Files.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal)
-                .SelectMany(file => LineDiff.Change(file, before.Entry(file), after.Entry(file)).Match<FileChange[]>(change => [change], () => [])),
+            .. before.Files.Keys.Union(after.Files.Keys, StringComparer.Ordinal).Order(GitPathOrder.Instance)
+                .SelectMany(file => LineDiff.Change(file, before, after).Match<FileChange[]>(change => [change], () => [])),
         ];
     }
 

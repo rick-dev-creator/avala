@@ -67,7 +67,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
     }
 
     public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(git.RootOf(repository).Bind(root => git.Remote(root, remote)));
+        ValueTask.FromResult(git.RootOf(repository).Bind(root => git.Remote(git.WorkspaceAt(root).Match(held => held.Repository, () => root), remote)));
 
     public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
 
@@ -90,6 +90,11 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
             return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteExists);
         }
 
+        if (MissingLocal(url))
+        {
+            return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteNotFound);
+        }
+
         git.AddRemote(root, remote, url);
 
         return ValueTask.FromResult<Result<string, WorkspaceFailure>>(InMemoryGit.MainBranch);
@@ -97,12 +102,22 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
 
     public async ValueTask<Result<string, WorkspaceFailure>> CloneAsync(string url, string parent, string name, CancellationToken cancellationToken)
     {
-        if (!IsUrl(url.Trim()))
+        var source = url.Trim();
+
+        if (!IsUrl(source))
         {
             return WorkspaceFailure.InvalidRemoteUrl;
         }
 
-        var cloned = await CreatedAsync(Destination(parent, name), [], cancellationToken);
+        if (MissingLocal(source))
+        {
+            return WorkspaceFailure.RemoteNotFound;
+        }
+
+        var held = git.RootOf(source).IsSome
+            ? [.. (await git.HeadOfAsync(git.RootOf(source).Match(found => found, () => source), cancellationToken)).Files.Files.Select(file => (file.Key, Encoding.UTF8.GetString(file.Value)))]
+            : Array.Empty<(string, string)>();
+        var cloned = await CreatedAsync(Destination(parent, name), held, cancellationToken);
         _ = cloned.Map(path =>
         {
             git.AddRemote(path, "origin", url.Trim());
@@ -118,7 +133,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
 
     public async ValueTask<IReadOnlyList<CommitSummary>> CommitsAsync(string folder, int count, CancellationToken cancellationToken) =>
         await git.RootOf(folder).Match<Task<IReadOnlyList<CommitSummary>>>(
-            async root => [.. (await git.HistoryAsync(root, count, cancellationToken)).Select(commit => new CommitSummary(commit.Id[..ShortCommit], commit.Message))],
+            async root => [.. (await git.HistoryAsync(root, count, cancellationToken)).Select(commit => new CommitSummary(commit.Id[..ShortCommit], commit.Message.Split('\n')[0]))],
             () => Task.FromResult<IReadOnlyList<CommitSummary>>([]));
 
     public async ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken)
@@ -240,6 +255,8 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
 
         return Directory.Exists(path) || File.Exists(path) ? WorkspaceFailure.FolderExists : path;
     }
+
+    private static bool MissingLocal(string url) => Path.IsPathFullyQualified(url) && !Directory.Exists(url);
 
     private static bool IsUrl(string url) => url.Length > 0 && !url.StartsWith('-') && !url.Any(char.IsControl);
 
