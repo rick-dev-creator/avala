@@ -7,6 +7,10 @@ namespace Avala.Host.Tests;
 
 internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar, Bound toolbar)
 {
+    private const int QuietTrips = 16;
+
+    private const int QuietWindows = 8;
+
     public Bound Page => page;
 
     public Bound Sidebar => sidebar;
@@ -37,6 +41,30 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
         await run.Ui.InvokeAsync(() => sidebar.Execute("SelectCommand", Row(job)!.Value.Target), TestContext.Current.CancellationToken);
 
         return await run.Ui.ReadAsync(() => page["Conversation"]);
+    }
+
+    public async Task QuietAsync()
+    {
+        var climbed = new List<long> { await run.Ui.ReadAsync(() => toolbar.Presentation.Revision) };
+
+        while (climbed.Count <= QuietWindows)
+        {
+            for (var trip = 0; trip < QuietTrips; trip++)
+            {
+                await run.Ui.InvokeAsync(() => { }, TestContext.Current.CancellationToken);
+            }
+
+            var revision = await run.Ui.ReadAsync(() => toolbar.Presentation.Revision);
+
+            if (revision == climbed[^1])
+            {
+                return;
+            }
+
+            climbed.Add(revision);
+        }
+
+        Assert.Fail($"The board kept presenting with nothing happening: its revision went {string.Join(", ", climbed)} over windows of {QuietTrips} round trips of the UI thread.");
     }
 
     public async Task<IReadOnlyList<Bound>> InspectAsync(JobId job, params string[] kinds)
