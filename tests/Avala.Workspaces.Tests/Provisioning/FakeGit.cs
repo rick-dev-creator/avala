@@ -37,6 +37,10 @@ internal sealed class FakeGit : IGit
 
     public int CommittedLookups { get; private set; }
 
+    public int LookupsFailing { get; set; }
+
+    public Dictionary<string, string> InWorktree { get; } = [];
+
     public int BlobReads { get; private set; }
 
     public Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(
@@ -46,6 +50,13 @@ internal sealed class FakeGit : IGit
         CancellationToken cancellationToken)
     {
         CommittedLookups++;
+
+        if (LookupsFailing > 0)
+        {
+            LookupsFailing--;
+
+            return Task.FromResult<Result<Option<string>, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+        }
 
         return Task.FromResult<Result<Option<string>, WorkspaceFailure>>(
             Committed.TryGetValue(path, out var file) ? Option<string>.Some(file.Blob) : Option<string>.None);
@@ -65,7 +76,7 @@ internal sealed class FakeGit : IGit
         WorkspaceLocation location,
         string path,
         CancellationToken cancellationToken) =>
-        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
+        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(InWorktree.TryGetValue(path, out var blob) ? Option<string>.Some(blob) : Option<string>.None);
 
     public Task<Option<BranchName>> BranchOfAsync(string repository, string reference, CancellationToken cancellationToken) =>
         Task.FromResult(BranchName.Create("main").Match(Option<BranchName>.Some, _ => Option<BranchName>.None));
