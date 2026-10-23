@@ -100,7 +100,7 @@ jobs:
       - name: Coverage report, badges and risk hotspots
         run: >-
           dotnet tool run reportgenerator
-          -reports:"TestResults/coverage/*/*.cobertura.xml"
+          -reports:"TestResults/coverage/*.cobertura.xml;TestResults/coverage/*/*.cobertura.xml"
           -targetdir:TestResults/report
           -reporttypes:"MarkdownSummaryGithub;Html;Badges;Cobertura"
           -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay;-Avala.Forges.Testing"
