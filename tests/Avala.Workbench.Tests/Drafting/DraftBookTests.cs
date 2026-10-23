@@ -36,6 +36,29 @@ public sealed class DraftBookTests
     }
 
     [Fact]
+    public async Task TakingTheReturnedMessagesOfADraftWithNoneLeavesTheBoardAloneAsync()
+    {
+        var (book, _, board, _) = Open();
+        book.Keep(Job, Written);
+        IReadOnlyList<WaitingMessage> taken = [];
+
+        var changed = await ChangesBoardAsync(board, () => taken = book.TakeReturned(Job));
+
+        Assert.Equal((0, false), (taken.Count, changed));
+    }
+
+    [Fact]
+    public async Task KeepingTheSameDraftAgainLeavesTheBoardAloneAsync()
+    {
+        var (book, _, board, _) = Open();
+        book.Keep(Job, Written);
+
+        var changed = await ChangesBoardAsync(board, () => book.Keep(Job, new Draft(Written.Text, [.. Written.Attachments], [.. Written.Mentions])));
+
+        Assert.False(changed);
+    }
+
+    [Fact]
     public async Task ADraftLeftEmptyIsForgottenAndUnmarkedAsync()
     {
         var (book, store, board, clock) = Open();
@@ -121,6 +144,18 @@ public sealed class DraftBookTests
         await File.WriteAllTextAsync(Path.Combine(folder.Path, DraftFile.FileName), "{ not json", Cancellation);
 
         Assert.Empty(await new DraftFile(new AvalaPaths(folder.Path)).ReadAsync(Cancellation));
+    }
+
+    private static async Task<bool> ChangesBoardAsync(JobBoard board, Action action)
+    {
+        using var watching = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        await using var changes = board.ChangesAsync(watching.Token).GetAsyncEnumerator(CancellationToken.None);
+        Assert.True(await changes.MoveNextAsync());
+
+        action();
+        await watching.CancelAsync();
+
+        return await changes.MoveNextAsync();
     }
 
     private static (DraftBook Book, FakeDraftStore Store, JobBoard Board, FakeTimeProvider Clock) Open()

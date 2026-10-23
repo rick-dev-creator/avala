@@ -12,6 +12,12 @@ internal sealed record UndeliveredMessage(JobStatus Status, Option<JobRejection>
 internal sealed record WaitingMessage(MessageId Id, string Text, IReadOnlyList<Attachment> Attachments, bool Returned)
 {
     public Option<UndeliveredMessage> Why { get; init; }
+
+    public bool Equals(WaitingMessage? other) =>
+        other is not null && Id == other.Id && string.Equals(Text, other.Text, StringComparison.Ordinal) && Returned == other.Returned && Why == other.Why
+        && Attachments.SequenceEqual(other.Attachments);
+
+    public override int GetHashCode() => HashCode.Combine(Id, Text, Returned);
 }
 
 internal sealed record Draft(string Text, IReadOnlyList<Attachment> Attachments, IReadOnlyList<Mention> Mentions)
@@ -23,6 +29,12 @@ internal sealed record Draft(string Text, IReadOnlyList<Attachment> Attachments,
     public bool IsEmpty => string.IsNullOrWhiteSpace(Text) && Attachments.Count == 0 && !Waiting.Any(message => message.Returned);
 
     public bool IsGone => IsEmpty && Waiting.Count == 0;
+
+    public bool Equals(Draft? other) =>
+        other is not null && string.Equals(Text, other.Text, StringComparison.Ordinal)
+        && Attachments.SequenceEqual(other.Attachments) && Mentions.SequenceEqual(other.Mentions) && Waiting.SequenceEqual(other.Waiting);
+
+    public override int GetHashCode() => HashCode.Combine(Text, Attachments.Count, Mentions.Count, Waiting.Count);
 }
 
 internal interface IDraftStore
