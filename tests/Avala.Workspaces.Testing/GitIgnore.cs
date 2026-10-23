@@ -13,7 +13,9 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
     {
         var rules = new List<Rule>();
 
-        foreach (var file in Directory.EnumerateFiles(folder, FileName, new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }).Order(StringComparer.Ordinal))
+        foreach (var file in Directory.EnumerateFiles(folder, FileName, new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .OrderBy(found => Path.GetRelativePath(folder, found).Count(letter => letter is '/' or '\\'))
+            .ThenBy(found => found, StringComparer.Ordinal))
         {
             var directory = FolderSnapshot.Normal(Path.GetRelativePath(folder, Path.GetDirectoryName(file)!));
             var under = directory == "." ? string.Empty : directory + "/";
@@ -53,14 +55,15 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
 
     private static IEnumerable<Rule> Parse(string under, string line)
     {
+        var escapedSpace = line.EndsWith("\\ ", StringComparison.Ordinal);
         var text = line.TrimEnd(' ');
 
-        if (text.Length == 0 || text.StartsWith('#'))
+        if (text.Length == 0 || text.StartsWith('#') || (text.EndsWith('\\') && !escapedSpace))
         {
             yield break;
         }
 
-        text = text.EndsWith('\\') ? text + " " : text;
+        text = escapedSpace ? text + " " : text;
         var negated = text.StartsWith('!');
         text = negated ? text[1..] : text;
         var directoryOnly = text.EndsWith('/');
@@ -68,17 +71,36 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
         var anchored = text.Contains('/');
         text = text.TrimStart('/');
 
-        yield return new Rule(under, new Regex($"^{(anchored ? string.Empty : "(?:.*/)?")}{Glob(text)}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)), negated, directoryOnly);
+        if (Glob(text) is { } glob && Compiled($"^{(anchored ? string.Empty : "(?:.*/)?")}{glob}$") is { } pattern)
+        {
+            yield return new Rule(under, pattern, negated, directoryOnly);
+        }
     }
 
-    private static string Glob(string pattern)
+    private static Regex? Compiled(string pattern)
+    {
+        try
+        {
+            return new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static string? Glob(string pattern)
     {
         var regex = new StringBuilder();
         var index = 0;
 
         while (index < pattern.Length)
         {
-            var (piece, length) = Piece(pattern, index);
+            if (Piece(pattern, index) is not var (piece, length))
+            {
+                return null;
+            }
+
             regex.Append(piece);
             index += length;
         }
@@ -86,39 +108,69 @@ internal sealed class GitIgnore(IReadOnlyList<GitIgnore.Rule> rules)
         return regex.ToString();
     }
 
-    private static (string Piece, int Length) Piece(string pattern, int index)
+    private static (string Piece, int Length)? Piece(string pattern, int index)
     {
         var rest = pattern.AsSpan(index);
+        var bounded = index == 0 || pattern[index - 1] == '/';
 
-        if (rest.StartsWith("**/"))
+        if (bounded && rest.StartsWith("**/"))
         {
             return ("(?:.*/)?", 3);
         }
 
-        if (rest.StartsWith("**"))
+        if (bounded && rest.Length == 2 && rest.StartsWith("**"))
         {
             return (".*", 2);
         }
 
-        if (rest[0] == '\\' && rest.Length > 1)
+        return rest[0] switch
         {
-            return (Regex.Escape(rest[1].ToString()), 2);
-        }
-
-        if (rest[0] == '[' && pattern.IndexOf(']', index + 1) is var close and > 0)
-        {
-            var set = pattern[(index + 1)..close];
-
-            return ($"[{(set.StartsWith('!') ? "^" + set[1..] : set)}]", close - index + 1);
-        }
-
-        return (rest[0] switch
-        {
-            '*' => "[^/]*",
-            '?' => "[^/]",
-            var letter => Regex.Escape(letter.ToString()),
-        }, 1);
+            '\\' when rest.Length > 1 => (Regex.Escape(rest[1].ToString()), 2),
+            '[' => Class(pattern, index),
+            '*' => ("[^/]*", rest.StartsWith("**") ? 2 : 1),
+            '?' => ("[^/]", 1),
+            var letter => (Regex.Escape(letter.ToString()), 1),
+        };
     }
+
+    private static (string Piece, int Length)? Class(string pattern, int start)
+    {
+        var index = start + 1;
+        var negated = index < pattern.Length && pattern[index] is '!' or '^';
+        index += negated ? 1 : 0;
+        var set = new StringBuilder();
+
+        for (var first = true; index < pattern.Length && (first || pattern[index] != ']'); first = false)
+        {
+            var (member, length) = Member(pattern, index);
+            set.Append(member);
+            index += length;
+        }
+
+        return index >= pattern.Length ? null : ($"[{(negated ? "^/" : string.Empty)}{set}]", index - start + 1);
+    }
+
+    private static (string Member, int Length) Member(string pattern, int index)
+    {
+        if (pattern.AsSpan(index).StartsWith("[:") && pattern.IndexOf(":]", index + 2, StringComparison.Ordinal) is var end and > 0)
+        {
+            return (Posix(pattern[(index + 2)..end]), end + 2 - index);
+        }
+
+        return (pattern[index] is '\\' or ']' or '[' or '^' ? "\\" + pattern[index] : pattern[index].ToString(), 1);
+    }
+
+    private static string Posix(string name) => name switch
+    {
+        "digit" => "0-9",
+        "alpha" => "a-zA-Z",
+        "alnum" => "a-zA-Z0-9",
+        "upper" => "A-Z",
+        "lower" => "a-z",
+        "space" => "\\s",
+        "xdigit" => "0-9a-fA-F",
+        _ => string.Empty,
+    };
 
     internal sealed record Rule(string Under, Regex Pattern, bool Negated, bool DirectoryOnly);
 }

@@ -41,6 +41,15 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             return WorkspaceFailure.BaseCheckoutDirty;
         }
 
+        try
+        {
+            await plan.Tip.Files.ApplyAsync(plan.Merged, plan.Checkout, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return WorkspaceFailure.BaseCheckoutDirty;
+        }
+
         var commit = git.Record(plan.Merged, message, plan.Tip.Id);
         plan.Target.Match(
             target => git.Hold(target with { Tip = commit.Id }),
@@ -50,7 +59,6 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
 
                 return held;
             });
-        await plan.Tip.Files.ApplyAsync(plan.Merged, plan.Checkout, cancellationToken);
         git.Hold(git.Workspace(held.Info.Id).Match(current => current, () => held) with { LastMerged = held.Head });
 
         return new MergedWork(held.Info.Id, plan.Branch, commit.Id, plan.Checkout);
@@ -105,15 +113,28 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
 
     private static async Task<bool> OverwritesUntrackedAsync(MergePlan plan, CancellationToken cancellationToken)
     {
-        foreach (var path in plan.Merged.Files.Keys.Where(path => !plan.Tip.Files.Files.ContainsKey(path)))
+        var tracked = plan.Tip.Files.Files;
+
+        foreach (var path in plan.Merged.Files.Keys.Where(path => !FolderSnapshot.SameEntry(plan.Tip.Files, plan.Merged, path)))
         {
-            if ((await FolderSnapshot.ReadEntryAsync(plan.Checkout, path, cancellationToken)).IsSome)
+            var full = Path.Combine(plan.Checkout, path);
+
+            if ((!tracked.ContainsKey(path) && (await FolderSnapshot.ReadEntryAsync(plan.Checkout, path, cancellationToken)).IsSome)
+                || (Directory.Exists(full) && Directory.EnumerateFiles(full, "*", SearchOption.AllDirectories).Any(file => !tracked.ContainsKey(FolderSnapshot.Normal(Path.GetRelativePath(plan.Checkout, file)))))
+                || Ancestors(path).Any(ancestor => File.Exists(Path.Combine(plan.Checkout, ancestor)) && !(tracked.ContainsKey(ancestor) && !plan.Merged.Files.ContainsKey(ancestor))))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static IEnumerable<string> Ancestors(string path)
+    {
+        var parts = path.Split('/');
+
+        return Enumerable.Range(1, parts.Length - 1).Select(depth => string.Join('/', parts[..depth]));
     }
 
     private static Option<byte[]> Combined(FolderSnapshot ancestor, FolderSnapshot ours, FolderSnapshot theirs, string path) =>

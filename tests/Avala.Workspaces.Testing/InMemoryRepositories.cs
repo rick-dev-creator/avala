@@ -5,7 +5,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workspaces.Testing;
 
-internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, TimeProvider clock) :
+internal sealed partial class InMemoryRepositories(InMemoryGit git, string scratch, TimeProvider clock) :
     IRepositories, IScratchRepositories, IRemoteRepositories, IRepositoryIndex, IWorkingFiles, IWorkingCommits
 {
     private const int MaximumBytes = 64 * 1024;
@@ -27,6 +27,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
         return ValueTask.FromResult(
             path.Length == 0 || !Directory.Exists(path) ? RepositoryState.Missing
             : git.RootOf(path).IsNone ? RepositoryState.NotARepository
+            : git.RootOf(path).Match(root => !git.Owns(root) && WithoutCommit(root), () => false) ? RepositoryState.NoCommit
             : RepositoryState.Ready);
     }
 
@@ -70,33 +71,38 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
 
     public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
 
-    public ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken)
+    public async ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken)
     {
         if (!IsUrl(url))
         {
-            return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.InvalidRemoteUrl);
+            return WorkspaceFailure.InvalidRemoteUrl;
         }
 
         var root = git.RootOf(repository).Match(found => found, () => string.Empty);
 
         if (root.Length == 0)
         {
-            return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.NoBaseBranch);
+            return WorkspaceFailure.NoBaseBranch;
         }
 
         if (git.Remote(root, remote).Match(existing => existing != url, () => false))
         {
-            return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteExists);
+            return WorkspaceFailure.RemoteExists;
         }
 
-        if (Path.IsPathFullyQualified(url) && !git.IsRepository(url))
+        if (!Reachable(url))
         {
-            return ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.RemoteNotFound);
+            return WorkspaceFailure.RemoteNotFound;
         }
 
         git.AddRemote(root, remote, url);
 
-        return ValueTask.FromResult<Result<string, WorkspaceFailure>>(InMemoryGit.MainBranch);
+        if (Path.IsPathFullyQualified(url))
+        {
+            await git.PublishAsync(root, url, cancellationToken);
+        }
+
+        return InMemoryGit.MainBranch;
     }
 
     public async ValueTask<Result<string, WorkspaceFailure>> CloneAsync(string url, string parent, string name, CancellationToken cancellationToken)
@@ -108,7 +114,7 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
             return WorkspaceFailure.InvalidRemoteUrl;
         }
 
-        if (Path.IsPathFullyQualified(source) && !git.IsRepository(source))
+        if (!Reachable(source))
         {
             return WorkspaceFailure.RemoteNotFound;
         }
@@ -278,6 +284,21 @@ internal sealed class InMemoryRepositories(InMemoryGit git, string scratch, Time
         var path = Path.Combine(Path.GetFullPath(parent.Trim()), named);
 
         return Directory.Exists(path) || File.Exists(path) ? WorkspaceFailure.FolderExists : path;
+    }
+
+    private bool Reachable(string url) =>
+        Path.IsPathFullyQualified(url) ? git.IsRepository(url) : url.Contains("://", StringComparison.Ordinal) || RemoteAddress().IsMatch(url);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[\w.-]+@[\w.-]+:|^[\w.-]{2,}:[^/\\]")]
+    private static partial System.Text.RegularExpressions.Regex RemoteAddress();
+
+    private static bool WithoutCommit(string root)
+    {
+        var refs = Path.Combine(root, ".git", "refs", "heads");
+
+        return Directory.Exists(Path.Combine(root, ".git"))
+            && !File.Exists(Path.Combine(root, ".git", "packed-refs"))
+            && (!Directory.Exists(refs) || !Directory.EnumerateFiles(refs, "*", SearchOption.AllDirectories).Any());
     }
 
     private static bool IsUrl(string url) => url.Length > 0 && !url.StartsWith('-') && !url.Any(char.IsControl);

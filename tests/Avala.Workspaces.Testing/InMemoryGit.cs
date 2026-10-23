@@ -29,6 +29,7 @@ public sealed class InMemoryGit
     private readonly Dictionary<string, string> heads = new(StringComparer.Ordinal);
     private readonly Dictionary<WorkspaceId, HeldWorkspace> workspaces = [];
     private readonly Dictionary<(string Repository, string Remote), string> remotes = [];
+    private readonly HashSet<string> owned = new(StringComparer.Ordinal);
     private int made;
 
     public Option<string> ProjectsFolder { get; set; }
@@ -66,13 +67,34 @@ public sealed class InMemoryGit
 
         lock (gate)
         {
-            if (heads.ContainsKey(path))
+            if (owned.Contains(path) || heads.ContainsKey(path))
             {
                 return true;
             }
         }
 
-        return Directory.Exists(Path.Combine(path, GitEntry)) || File.Exists(Path.Combine(path, "HEAD"));
+        return Directory.Exists(Path.Combine(path, GitEntry)) || File.Exists(Path.Combine(path, GitEntry)) || IsBare(path);
+    }
+
+    internal static bool IsBare(string folder) =>
+        File.Exists(Path.Combine(folder, "HEAD")) && Directory.Exists(Path.Combine(folder, "objects")) && !Directory.Exists(Path.Combine(folder, GitEntry));
+
+    internal bool Owns(string folder)
+    {
+        lock (gate)
+        {
+            return owned.Contains(Canonical(folder));
+        }
+    }
+
+    internal async Task PublishAsync(string repository, string remote, CancellationToken cancellationToken)
+    {
+        var head = await HeadOfAsync(Canonical(repository), cancellationToken);
+
+        lock (gate)
+        {
+            heads[Canonical(remote)] = head.Id;
+        }
     }
 
     public async Task CommitAsync(string repository, string path, string content, CancellationToken cancellationToken)
@@ -104,7 +126,7 @@ public sealed class InMemoryGit
 
         lock (gate)
         {
-            return heads.Keys.Concat(workspaces.Values.Select(workspace => workspace.Info.Path)).Any(root => Inside(path, root));
+            return owned.Concat(workspaces.Values.Select(workspace => workspace.Info.Path)).Any(root => Inside(path, root));
         }
     }
 
@@ -143,13 +165,23 @@ public sealed class InMemoryGit
             return known;
         }
 
-        var first = Record(await FolderSnapshot.ReadAsync(repository, cancellationToken), "Initial commit", Option<string>.None);
+        var files = IsBare(repository) ? FolderSnapshot.Empty : await FolderSnapshot.ReadAsync(repository, cancellationToken);
 
         lock (gate)
         {
-            _ = heads.TryAdd(repository, first.Id);
+            if (heads.TryGetValue(repository, out var seen) && (IsBare(repository) || commits[seen].Files.SameAs(files)))
+            {
+                return commits[seen];
+            }
+        }
 
-            return commits[heads[repository]];
+        var read = Record(files, "Initial commit", Option<string>.None);
+
+        lock (gate)
+        {
+            heads[repository] = read.Id;
+
+            return read;
         }
     }
 
@@ -197,7 +229,8 @@ public sealed class InMemoryGit
         var head = await HeadOfAsync(repository, cancellationToken);
         var current = await FolderSnapshot.ReadEntryAsync(repository, path, cancellationToken);
 
-        if (FolderSnapshot.Same(current, head.Files.Entry(path)))
+        if (FolderSnapshot.Same(current, head.Files.Entry(path))
+            || (head.Files.Entry(path).IsNone && (await GitIgnore.ReadAsync(repository, cancellationToken)).Ignores(FolderSnapshot.Normal(path))))
         {
             return Option<GitCommit>.None;
         }
@@ -213,6 +246,7 @@ public sealed class InMemoryGit
         lock (gate)
         {
             heads[repository] = commit;
+            _ = owned.Add(repository);
         }
     }
 
@@ -299,7 +333,7 @@ public sealed class InMemoryGit
                 return commits[held.Head];
             }
 
-            return heads.TryGetValue(repository, out var head) ? commits[head] : null;
+            return owned.Contains(repository) && heads.TryGetValue(repository, out var head) ? commits[head] : null;
         }
     }
 
@@ -314,6 +348,7 @@ public sealed class InMemoryGit
             else
             {
                 heads[repository] = commit.Id;
+                _ = owned.Add(repository);
             }
         }
     }

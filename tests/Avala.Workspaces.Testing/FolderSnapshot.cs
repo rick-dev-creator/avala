@@ -185,7 +185,7 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
         {
             entry.Delete();
         }
-        else if (Directory.Exists(file) && !Directory.EnumerateFileSystemEntries(file, "*", SearchOption.AllDirectories).Any(found => File.Exists(found)))
+        else if (Directory.Exists(file))
         {
             Directory.Delete(file, recursive: true);
         }
