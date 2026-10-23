@@ -11,6 +11,7 @@ using Avala.Triggers.Contracts;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class ForgeTriggerTests(PublishedPlugins plugins)
 {
     private const string Fix = "[simulate: reply] Fix issue #{{payload.number}}: {{payload.title}}\n\n{{payload.body}}";

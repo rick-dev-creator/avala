@@ -21,6 +21,8 @@ using Avala.Sdk.UI;
 using Avala.Simulator;
 using Avala.ForgeSimulator;
 using Avala.Recording;
+using Avala.Workspaces;
+using Avala.Workspaces.Testing;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -104,8 +106,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
         string instruction,
         Option<Autonomy> autonomy,
         IReadOnlyList<(string File, string Content)> settings,
-        IReadOnlyList<(string Path, string Content)> committed) =>
-        StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed);
+        IReadOnlyList<(string Path, string Content)> committed,
+        bool realGit = false) =>
+        StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed, realGit: realGit);
 
     private static async Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
@@ -114,9 +117,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed,
         bool harnesses = false,
         Option<IPlugin> claudeCode = default,
-        bool realNotifier = false)
+        bool realNotifier = false,
+        bool realGit = false)
     {
-        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode, realNotifier: realNotifier);
+        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode, realNotifier: realNotifier, realGit: realGit);
         run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
 
         return run;
@@ -134,8 +138,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
         PublishedPlugins plugins,
         string instruction,
         IReadOnlyList<(string File, string Content)> data,
-        IReadOnlyList<(string Path, string Content)> committed) =>
-        StartAsync(plugins, instruction, Option<Autonomy>.None, data, committed);
+        IReadOnlyList<(string Path, string Content)> committed,
+        bool realGit = false) =>
+        StartAsync(plugins, instruction, Option<Autonomy>.None, data, committed, realGit);
 
     public static Task<SimulatedRun> ConnectedAsync(
         PublishedPlugins plugins,
@@ -187,7 +192,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         TimeSpan pace = default,
         string repositoryName = "repository",
         bool production = false,
-        bool realSignIns = false)
+        bool realSignIns = false,
+        bool realGit = false)
     {
         var data = new TemporaryFolder();
 
@@ -203,7 +209,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace, Production = production };
+        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode)
+        {
+            RealNotifier = realNotifier,
+            Pace = pace,
+            Production = production,
+            Git = realGit || UsesRealGit ? Option<InMemoryGit>.None : new InMemoryGit(),
+        };
         surroundings.Telemetry.Configured = telemetry;
         surroundings.SignIns.Real = realSignIns;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
@@ -217,7 +229,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
 
         var root = surroundings.Compose(plugins, data);
-        var repository = await TemporaryRepository.CreateAsync(surroundings.Tools.GetRequiredService<IProcessRunner>(), repositoryName, Cancellation);
+        var processes = surroundings.Tools.GetRequiredService<IProcessRunner>();
+        var repository = await surroundings.Git.Match(
+            git => TemporaryRepository.InMemoryAsync(git, processes, repositoryName, Cancellation),
+            () => TemporaryRepository.CreateAsync(processes, repositoryName, Cancellation));
 
         foreach (var (path, content) in committed)
         {
@@ -234,6 +249,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         return run;
     }
+
+    private static bool UsesRealGit =>
+        TestContext.Current.TestClass?.TestClassName is { } name
+        && typeof(SimulatedRun).Assembly.GetType(name) is { } type
+        && (type.IsDefined(typeof(UsesRealGitAttribute), inherit: false)
+            || (TestContext.Current.TestMethod?.MethodName is { } method && type.GetMethod(method)?.IsDefined(typeof(UsesRealGitAttribute), inherit: false) == true));
 
     public async Task DeliveredAsync() =>
         await application.Root.Services.GetRequiredService<IEventFeed>().DeliveredAsync(Cancellation).WaitAsync(HangGuard, Cancellation);
@@ -486,10 +507,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public bool Production { get; init; }
 
+        public Option<InMemoryGit> Git { get; init; }
+
         private IReadOnlyList<Type> Left =>
         [
             .. Harnesses || ClaudeCode.IsSome ? Array.Empty<Type>() : [typeof(ClaudeCodePlugin)],
             .. Production ? [typeof(SimulatorPlugin), typeof(ForgeSimulatorPlugin), typeof(RecordingPlugin)] : Array.Empty<Type>(),
+            .. Git.IsSome ? [typeof(WorkspacesPlugin)] : Array.Empty<Type>(),
         ];
 
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
@@ -501,6 +525,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [new TurnLedger(), Messages, Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : [new TurnLedger(), Messages, Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues]);
+                [
+                    .. Git.Match<IPlugin[]>(git => [new InMemoryWorkspacesPlugin(git)], () => []),
+                    .. RealNotifier ? [new TurnLedger(), Messages, Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : new IPlugin[] { new TurnLedger(), Messages, Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues },
+                ]);
     }
 }

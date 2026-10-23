@@ -11,6 +11,8 @@ public sealed class ScratchRepositoryTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AJobStartedWithoutARepositoryRunsInAScratchRepositoryReachesReviewMarkedScratchAndApprovingMergesItThereAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins);

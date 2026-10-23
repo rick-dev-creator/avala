@@ -9,6 +9,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class WokenRoundInputTests(PublishedPlugins plugins)
 {
     private const string Orchestrating = """{ "approval": "pull-request", "delegation": {}, "pullRequest": { "forge": "local", "onPullRequest": "wake-on-ci", "maxWakeUps": 3, "redeliver": "automatic" } }""";

@@ -9,7 +9,9 @@ internal sealed record GitCommit(string Id, FolderSnapshot Files, string Message
 
 internal sealed record HeldWorkspace(WorkspaceInfo Info, string Repository, IReadOnlyList<CheckpointInfo> Checkpoints, Option<string> LastMerged)
 {
-    public string Head => Checkpoints is [.., var last] ? last.Commit : Info.BaseCommit;
+    public Option<string> Tip { get; init; }
+
+    public string Head => Tip.Match(tip => tip, () => Info.BaseCommit);
 }
 
 public sealed class InMemoryGit
@@ -47,7 +49,8 @@ public sealed class InMemoryGit
         var file = Path.Combine(folder, path);
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         await File.WriteAllTextAsync(file, content, cancellationToken);
-        _ = await CommitPathAsync(folder, path, $"Add {path}", cancellationToken);
+        var head = await HeadOfAsync(folder, cancellationToken);
+        Move(folder, Record(await FolderSnapshot.ReadAsync(folder, cancellationToken), $"Add {path}", head.Id));
     }
 
     public void AddRemote(string repository, string remote, string url)
@@ -60,6 +63,11 @@ public sealed class InMemoryGit
 
     internal Option<string> RootOf(string path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return Option<string>.None;
+        }
+
         var folder = Canonical(path);
 
         lock (gate)
@@ -205,6 +213,16 @@ public sealed class InMemoryGit
         }
     }
 
+    internal Option<HeldWorkspace> OnBranch(string repository, string branch)
+    {
+        lock (gate)
+        {
+            return workspaces.Values.FirstOrDefault(workspace => workspace.Info.Branch == branch && workspace.Repository == repository) is { } found
+                ? found
+                : Option<HeldWorkspace>.None;
+        }
+    }
+
     internal Option<string> Remote(string repository, string remote)
     {
         lock (gate)
@@ -244,8 +262,7 @@ public sealed class InMemoryGit
         {
             if (workspaces.Values.FirstOrDefault(workspace => workspace.Info.Path == repository) is { } held)
             {
-                var checkpoint = new CheckpointInfo(held.Info.Id, held.Checkpoints.Count + 1, commit.Id, commit.Message);
-                workspaces[held.Info.Id] = held with { Checkpoints = [.. held.Checkpoints, checkpoint] };
+                workspaces[held.Info.Id] = held with { Tip = commit.Id };
             }
             else
             {

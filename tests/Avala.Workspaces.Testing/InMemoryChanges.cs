@@ -36,20 +36,27 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
         {
             git.Hold(held with { LastMerged = held.Head });
 
-            return new MergedWork(held.Info.Id, InMemoryGit.MainBranch, Option<string>.None, Option<string>.None);
+            return new MergedWork(held.Info.Id, plan.Branch, Option<string>.None, Option<string>.None);
         }
 
-        if (!(await FolderSnapshot.ReadAsync(held.Repository, cancellationToken)).SameAs(plan.Tip.Files))
+        if (!(await FolderSnapshot.ReadAsync(plan.Checkout, cancellationToken)).SameAs(plan.Tip.Files))
         {
             return WorkspaceFailure.BaseCheckoutDirty;
         }
 
         var commit = git.Record(plan.Merged, message, plan.Tip.Id);
-        git.Advance(held.Repository, commit.Id);
-        await plan.Merged.WriteToAsync(held.Repository, cancellationToken);
-        git.Hold(held with { LastMerged = held.Head });
+        plan.Target.Match(
+            target => git.Hold(target with { Tip = commit.Id }),
+            () =>
+            {
+                git.Advance(held.Repository, commit.Id);
 
-        return new MergedWork(held.Info.Id, InMemoryGit.MainBranch, commit.Id, held.Repository);
+                return held;
+            });
+        await plan.Merged.WriteToAsync(plan.Checkout, cancellationToken);
+        git.Hold(git.Workspace(held.Info.Id).Match(current => current, () => held) with { LastMerged = held.Head });
+
+        return new MergedWork(held.Info.Id, plan.Branch, commit.Id, plan.Checkout);
     }
 
     private async Task<Result<MergePlan, WorkspaceFailure>> PlanAsync(WorkspaceId id, CancellationToken cancellationToken)
@@ -59,12 +66,16 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             return WorkspaceFailure.UnknownWorkspace;
         }
 
-        if (workspace.Info.BaseBranch.IsNone)
+        var branch = workspace.Info.BaseBranch.Match(found => found, () => string.Empty);
+        var target = branch == InMemoryGit.MainBranch ? Option<HeldWorkspace>.None : git.OnBranch(workspace.Repository, branch);
+
+        if (branch.Length == 0 || (branch != InMemoryGit.MainBranch && target.IsNone))
         {
             return WorkspaceFailure.NoBaseBranch;
         }
 
-        var tip = await git.HeadOfAsync(workspace.Repository, cancellationToken);
+        var tip = await target.Match(found => Task.FromResult(workspaces.Commit(found.Head)), () => git.HeadOfAsync(workspace.Repository, cancellationToken));
+        var checkout = target.Match(found => found.Info.Path, () => workspace.Repository);
         var work = workspaces.Commit(workspace.Head).Files;
         var mergeBase = workspaces.Commit(workspace.LastMerged.Match(merged => merged, () => workspace.Info.BaseCommit)).Files;
         var touched = mergeBase.Files.Keys.Union(work.Files.Keys, StringComparer.Ordinal).Where(path => !FolderSnapshot.Same(mergeBase.Entry(path), work.Entry(path))).ToList();
@@ -73,10 +84,22 @@ internal sealed class InMemoryChanges(InMemoryGit git, InMemoryWorkspaces worksp
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        return new MergePlan(workspace, tip, touched.Aggregate(tip.Files, (files, path) => files.With(path, work.Entry(path))), conflicts);
+        return new MergePlan(workspace, tip, touched.Aggregate(tip.Files, (files, path) => files.With(path, work.Entry(path))), conflicts)
+        {
+            Branch = branch,
+            Target = target,
+            Checkout = checkout,
+        };
     }
 
     private Result<HeldWorkspace, WorkspaceFailure> Held(WorkspaceId workspace) => git.Workspace(workspace).ToResult(WorkspaceFailure.UnknownWorkspace);
 
-    private sealed record MergePlan(HeldWorkspace Workspace, GitCommit Tip, FolderSnapshot Merged, IReadOnlyList<string> Conflicts);
+    private sealed record MergePlan(HeldWorkspace Workspace, GitCommit Tip, FolderSnapshot Merged, IReadOnlyList<string> Conflicts)
+    {
+        public required string Branch { get; init; }
+
+        public required Option<HeldWorkspace> Target { get; init; }
+
+        public required string Checkout { get; init; }
+    }
 }

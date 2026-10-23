@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\src\Modules\ClaudeCode\Avala.ClaudeCode.UI\Avala.ClaudeCode.UI.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\ForgeSimulator\Avala.ForgeSimulator\Avala.ForgeSimulator.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Recording\Avala.Recording\Avala.Recording.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces\Avala.Workspaces.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Mermaid\Avala.Mermaid.UI\Avala.Mermaid.UI.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Rendering\Avala.Rendering.UI\Avala.Rendering.UI.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Preview\Avala.Preview.UI\Avala.Preview.UI.csproj" Private="false" ExcludeAssets="runtime" />

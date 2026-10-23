@@ -8,21 +8,39 @@ namespace Avala.Simulator.WorkloadModes;
 
 internal static class Modes
 {
-    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness> | stubborn <harness> | verdict <port>";
+    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness> | stubborn <harness> | verdict <port> | contains <file> <text>";
 
-    private static readonly Dictionary<string, Func<string, Task<int>>> Named = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Func<string[], Task<int>>> Named = new(StringComparer.Ordinal)
     {
         ["work"] = _ => Task.FromResult(Work()),
-        ["env"] = variable => Task.FromResult(Variable(variable)),
-        ["serve"] = harness => ServeAsync(Harness(harness)),
-        ["spawn"] = harness => Task.FromResult(Spawn(Harness(harness))),
-        ["hold"] = harness => HoldAsync(Harness(harness)),
-        ["stubborn"] = harness => StubbornAsync(Harness(harness)),
-        ["verdict"] = port => VerdictAsync(Harness(port)),
+        ["env"] = given => Task.FromResult(Variable(First(given))),
+        ["serve"] = given => ServeAsync(Harness(First(given))),
+        ["spawn"] = given => Task.FromResult(Spawn(Harness(First(given)))),
+        ["hold"] = given => HoldAsync(Harness(First(given))),
+        ["stubborn"] = given => StubbornAsync(Harness(First(given))),
+        ["verdict"] = given => VerdictAsync(Harness(First(given))),
+        ["contains"] = ContainsAsync,
     };
 
     public static Task<int> RunAsync(string[] args) =>
-        args.Length > 0 && Named.TryGetValue(args[0], out var mode) ? mode(args.Length > 1 ? args[1] : string.Empty) : RefuseAsync();
+        args.Length > 0 && Named.TryGetValue(args[0], out var mode) ? mode(args[1..]) : RefuseAsync();
+
+    private static string First(string[] given) => given.Length > 0 ? given[0] : string.Empty;
+
+    private static async Task<int> ContainsAsync(string[] given)
+    {
+        if (given is not [var file, var text] || !File.Exists(file))
+        {
+            Console.WriteLine("missing");
+
+            return 1;
+        }
+
+        var found = (await File.ReadAllTextAsync(file)).Contains(text, StringComparison.Ordinal);
+        Console.WriteLine(found ? "found" : "missing");
+
+        return found ? 0 : 1;
+    }
 
     private static async Task<int> VerdictAsync(int port)
     {

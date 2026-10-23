@@ -48,6 +48,8 @@ public sealed class RestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AJobCheckingWhenTheApplicationStopsRunsItsChecksAgainForTheSameAttemptWithoutAnotherAgentTurnAsync()
     {
         using var verdicts = new TcpListener(IPAddress.Loopback, 0);

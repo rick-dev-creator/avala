@@ -16,17 +16,13 @@ public sealed class ReviewTests(PublishedPlugins plugins)
 
     internal const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
 
-    internal const string CalculatorChecks = """
-        {
-          "checks": [
-            { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
-          ]
-        }
-        """;
+    internal static readonly string CalculatorChecks = Workloads.Checks(Workloads.ContainsCheck("calculator", "calculator.txt", "add(2, 2) = 4"));
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AVerifiedJobApprovedWithKeepLeavesItsBranchReadyAndTouchesNothingElseAsync()
     {
         await using var run = await VerifiedAsync();
@@ -43,6 +39,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AVerifiedJobApprovedWithMergeLandsOnTheBaseBranchAsOneCommitAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
@@ -64,6 +62,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ABaseThatMovedIntoAConflictIsReportedAndTheJobStaysAwaitingReviewAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
@@ -79,6 +79,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ABaseCheckoutWithUncommittedChangesIsRefusedAndLeftAsItWasAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));

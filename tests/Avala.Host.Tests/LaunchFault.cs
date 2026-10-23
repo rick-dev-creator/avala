@@ -16,8 +16,13 @@ internal sealed class LaunchFault : IPlugin
     {
         var files = registrar.Services.Single(descriptor => descriptor.ServiceType == typeof(IBaseFiles));
         registrar.Services.Remove(files);
-        registrar.Services.AddSingleton<IBaseFiles>(services => new FaultyFiles((IBaseFiles)ActivatorUtilities.CreateInstance(services, files.ImplementationType!), this));
+        registrar.Services.AddSingleton<IBaseFiles>(services => new FaultyFiles(Real(services, files), this));
     }
+
+    private static IBaseFiles Real(IServiceProvider services, ServiceDescriptor real) =>
+        real.ImplementationInstance as IBaseFiles
+        ?? real.ImplementationFactory?.Invoke(services) as IBaseFiles
+        ?? (IBaseFiles)ActivatorUtilities.CreateInstance(services, real.ImplementationType!);
 
     public void Arm(Exception fault) => Volatile.Write(ref armed, fault);
 

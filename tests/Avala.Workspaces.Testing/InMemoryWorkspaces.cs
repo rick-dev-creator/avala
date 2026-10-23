@@ -33,7 +33,8 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         await File.WriteAllTextAsync(Path.Combine(path, GitEntry), $"gitdir: {Path.Combine(repository, GitEntry, "worktrees", $"{id.Value:N}")}\n", cancellationToken);
         var info = new WorkspaceInfo(id, path, $"avala/{id.Value:N}", commit.Id)
         {
-            BaseBranch = request.BaseRef is "HEAD" or InMemoryGit.MainBranch ? InMemoryGit.MainBranch : Option<string>.None,
+            BaseBranch = request.BaseRef is "HEAD" or InMemoryGit.MainBranch ? InMemoryGit.MainBranch
+                : git.OnBranch(repository, request.BaseRef).Map(found => found.Info.Branch),
             RulesCommit = rules.Match(found => found.Id, () => commit.Id),
         };
         git.Hold(new HeldWorkspace(info, repository, [], Option<string>.None));
@@ -151,7 +152,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
         var commit = git.Record(files, label, workspace.Head);
         var checkpoint = new CheckpointInfo(workspace.Info.Id, workspace.Checkpoints.Count + 1, commit.Id, label);
-        git.Hold(workspace with { Checkpoints = [.. workspace.Checkpoints, checkpoint] });
+        git.Hold(workspace with { Checkpoints = [.. workspace.Checkpoints, checkpoint], Tip = commit.Id });
 
         return checkpoint;
     }

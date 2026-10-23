@@ -13,6 +13,8 @@ public sealed class ProjectDocsTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task DocumentFeaturesFromAProjectsMenuTurnsDocsOnInTheWorkingCopyAndItsCommitCommitsThatFileAloneAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", Keep));
