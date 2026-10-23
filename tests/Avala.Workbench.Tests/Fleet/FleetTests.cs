@@ -6,6 +6,7 @@ using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Board;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Spending;
@@ -48,6 +49,36 @@ public sealed class FleetTests
                 connection.Account.Match(account => account.Label, () => string.Empty),
                 connection.Usage.Match(used => used.Limits.Count, () => 0),
                 string.Join('|', connection.Agents.Select(job => job.Summary.Instruction).Order(StringComparer.Ordinal)))));
+    }
+
+    [Fact]
+    public async Task AnArchivedJobLeavesItsConnectionTogetherWithItsChildrenAsync()
+    {
+        var archived = Pages.Summary("Rate-limit the login", JobStatus.AwaitingReview, connection: "work");
+        var child = Pages.Summary("Write the tests", JobStatus.NeedsHelp, connection: "work", parent: archived.Job);
+        var grandchild = Pages.Summary("Check the links", JobStatus.AwaitingReview, connection: "work", parent: child.Job);
+        var kept = Pages.Summary("Fix the failing test", JobStatus.AwaitingReview, connection: "work");
+        var board = Pages.Board(archived, child, grandchild, kept);
+        board.Publish(board.Projects with { Archived = [archived.Job] });
+
+        var fleet = await new FleetReader(new FakeConnections("work"), Pages.Readings(usage), sessions, board).ReadAsync(Cancellation);
+
+        Assert.Equal(["Fix the failing test"], fleet.Connections.Single().Agents.Select(job => job.Summary.Instruction));
+    }
+
+    [Fact]
+    public async Task AnArchivedOrchestratorIsNotListedByDelegationAsync()
+    {
+        var catalog = new TreeCatalog();
+        var archived = Pages.Summary("Ship the release", JobStatus.NeedsHelp);
+        var kept = Pages.Summary("Plan the sprint", JobStatus.NeedsHelp);
+        catalog.Jobs.AddRange([archived, kept, Pages.Summary("Write the notes", JobStatus.AwaitingReview, parent: archived.Job), Pages.Summary("Size the stories", JobStatus.AwaitingReview, parent: kept.Job)]);
+        var board = Pages.Board(archived, kept);
+        board.Publish(board.Projects with { Archived = [archived.Job] });
+
+        var orchestrators = await Reader(catalog, new FakeDelegations(), board).OrchestratorsAsync(Cancellation);
+
+        Assert.Equal([kept.Job], orchestrators.Select(job => job.Job));
     }
 
     [Fact]
@@ -99,8 +130,8 @@ public sealed class FleetTests
         Assert.Equal([DelegationError.DepthExceeded], tree.Refused.Select(record => Avala.Testing.Outcomes.Present(record.Refusal)));
     }
 
-    private DelegationReader Reader(TreeCatalog catalog, FakeDelegations delegations) =>
-        new(catalog, delegations, new JobSpending(usage, budgets, new FakeSupervision(), sessions), Pages.Board());
+    private DelegationReader Reader(TreeCatalog catalog, FakeDelegations delegations, JobBoard? board = null) =>
+        new(catalog, delegations, new JobSpending(usage, budgets, new FakeSupervision(), sessions), board ?? Pages.Board());
 
     private static DelegationTree Outcomes(Option<DelegationTree> tree) => Avala.Testing.Outcomes.Present(tree);
 }
