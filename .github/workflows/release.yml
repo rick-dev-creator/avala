@@ -14,9 +14,13 @@ concurrency:
 
 jobs:
   verify:
-    name: Build and test the tagged commit
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Build and test the tagged commit (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
