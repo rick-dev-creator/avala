@@ -55,6 +55,7 @@ public static class WorkspaceFidelity
             [nameof(RestoresACheckpointWhereAFolderWasStillAFileAsync)] = RestoresACheckpointWhereAFolderWasStillAFileAsync,
             [nameof(RestoringACheckpointRemovesTheFolderItEmptiedAsync)] = RestoringACheckpointRemovesTheFolderItEmptiedAsync,
             [nameof(RefusesToPublishToAFolderThatIsNotARepositoryAsync)] = RefusesToPublishToAFolderThatIsNotARepositoryAsync,
+            [nameof(ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync)] = ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync,
         };
 
     public static IReadOnlyDictionary<string, string> Approximated { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -723,6 +724,18 @@ public static class WorkspaceFidelity
 
         var published = await bench.Remotes.PublishAsync(bench.Repository, "origin", plain, cancellationToken);
         Check(published.IsFailure, problems, $"publishing to a folder that is not a repository reads otherwise: {Shown(published)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        await bench.CommitToBase(".gitignore", "bin/\n", cancellationToken);
+        await WriteAsync(bench.Repository, "src/bin/x.dll", "built\n", cancellationToken);
+
+        var files = await bench.Index.FilesAsync(Path.Combine(bench.Repository, "src"), 100, cancellationToken);
+        Check(files.SequenceEqual(["numbers.txt"]), problems, $"the files list otherwise: {string.Join(", ", files)}");
 
         return problems;
     }
