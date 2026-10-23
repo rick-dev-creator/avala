@@ -4,6 +4,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class DocsSettingTests(PublishedPlugins plugins)
 {
     private const string OnlyInTheWorkingCopy = "On in your working copy only: new jobs run without docs until .avala/jobs.json is committed.";

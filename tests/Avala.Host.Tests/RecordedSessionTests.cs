@@ -28,7 +28,7 @@ public sealed class RecordedSessionTests(PublishedPlugins plugins)
     {
         var fixture = await RegressionFixture.LoadAsync(name, Cancellation);
         Assert.SkipWhen(fixture.Record is null, $"{name} was recorded from a provider the tests cannot run.");
-        await using var run = await SimulatedRun.InstructedAsync(plugins, fixture.Record, [("recording.json", """{ "enabled": true }""")], fixture.Committed);
+        await using var run = await SimulatedRun.InstructedAsync(plugins, fixture.Record, [("recording.json", """{ "enabled": true }""")], fixture.Committed, ChecksRunGit(fixture));
 
         var recorded = await OutcomeAsync(run, fixture);
         var recording = Assert.Single(await run.StopAndReadRecordingsAsync());
@@ -49,10 +49,14 @@ public sealed class RecordedSessionTests(PublishedPlugins plugins)
             plugins,
             RecordingFixtures.Replay(name),
             [($"recordings/{name}.json", recording)],
-            fixture.Committed);
+            fixture.Committed,
+            ChecksRunGit(fixture));
 
         return await OutcomeAsync(run, fixture);
     }
+
+    private static bool ChecksRunGit(RegressionFixture fixture) =>
+        fixture.Committed.Any(file => file.Path == ".avala/checks.json" && file.Content.Contains("\"command\": \"git\"", StringComparison.Ordinal));
 
     internal static async Task<Outcome> OutcomeAsync(SimulatedRun run, RegressionFixture fixture)
     {

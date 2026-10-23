@@ -70,6 +70,8 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task EveryActionOfAnEditJobMeetsThePolicyAndTheEditLandsInTheWorktreeAndInItsCheckpointAsync()
     {
         const string Greeting = "# Hello\n\nWritten by the simulator.\n";
@@ -272,14 +274,17 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             reports.Select(report => $"{report.Attempt} {report.Outcome} {report.Verdict.Decision}: "
                 + string.Join(", ", report.Checks.Select(check => $"{check.Name} {check.Status} {check.ExitCode.Match(code => code, () => -1)}"))));
         Assert.StartsWith("git version", reports[0].Checks[0].OutputTail, StringComparison.Ordinal);
+        Assert.Contains("\"calculator\" did not pass: `", reports[0].Verdict.Feedback, StringComparison.Ordinal);
         Assert.Contains(
-            "\"calculator\" did not pass: `git grep --quiet --fixed-strings \"add(2, 2) = 4\" -- calculator.txt` exited with code 1",
+            "contains calculator.txt \"add(2, 2) = 4\"` exited with code 1",
             reports[0].Verdict.Feedback,
             StringComparison.Ordinal);
         Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, "calculator.txt"), Cancellation));
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AnAgentThatEmptiesTheCheckDeclarationIsStillVerifiedByTheChecksOfItsBaseCommitAsync()
     {
         await using var run = await SimulatedRun.StartAsync(
@@ -371,14 +376,9 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
 
     private const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
 
-    private const string CalculatorChecks = """
-        {
-          "checks": [
-            { "name": "git", "command": "git", "arguments": ["--version"] },
-            { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
-          ]
-        }
-        """;
+    private static readonly string CalculatorChecks = Workloads.Checks(
+        Workloads.Check("git", "git", "--version"),
+        Workloads.ContainsCheck("calculator", "calculator.txt", "add(2, 2) = 4"));
 
     private static string MigrationsPolicy(string answer) =>
         $$"""{ "rules": [ { "name": "migrations", "kind": "command", "target": "dotnet ef *", "answer": "{{answer}}" } ] }""";

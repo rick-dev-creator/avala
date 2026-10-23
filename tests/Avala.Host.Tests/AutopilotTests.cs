@@ -11,13 +11,15 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
 {
     private const string PassingChecks = """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""";
 
-    private const string FailingChecks = """{ "checks": [ { "name": "tests", "command": "git", "arguments": ["ls-files", "--error-unmatch", "RELEASE-NOTES.md"], "timeoutSeconds": 60 } ] }""";
+    private static readonly string FailingChecks = Workloads.Checks(Workloads.ContainsCheck("tests", "RELEASE-NOTES.md", string.Empty));
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ABacklogRunsUnattendedWithItsCleanJobsMergedAndItsExceptionalJobLeftForReviewAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(

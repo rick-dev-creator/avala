@@ -1,4 +1,6 @@
+using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workspaces.Testing;
 using Xunit;
 
 namespace Avala.Testing;
@@ -10,12 +12,14 @@ public sealed class TemporaryRepository : IAsyncDisposable
     private readonly DirectoryInfo scratch;
     private readonly IProcessRunner processes;
     private readonly string name;
+    private readonly Option<InMemoryGit> inMemory;
 
-    private TemporaryRepository(DirectoryInfo scratch, IProcessRunner processes, string name)
+    private TemporaryRepository(DirectoryInfo scratch, IProcessRunner processes, string name, Option<InMemoryGit> inMemory)
     {
         this.scratch = scratch;
         this.processes = processes;
         this.name = name;
+        this.inMemory = inMemory;
     }
 
     public string Path => System.IO.Path.Combine(scratch.FullName, name);
@@ -29,7 +33,7 @@ public sealed class TemporaryRepository : IAsyncDisposable
 
     public static async Task<TemporaryRepository> CreateAsync(IProcessRunner processes, string name, CancellationToken cancellationToken)
     {
-        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes, name);
+        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes, name, Option<InMemoryGit>.None);
         Directory.CreateDirectory(repository.Path);
 
         await repository.GitAsync(cancellationToken, "init", "--quiet", "--initial-branch=main");
@@ -40,8 +44,23 @@ public sealed class TemporaryRepository : IAsyncDisposable
         return repository;
     }
 
+    public static async Task<TemporaryRepository> InMemoryAsync(InMemoryGit git, IProcessRunner processes, string name, CancellationToken cancellationToken)
+    {
+        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes, name, git);
+        await git.CreateAsync(repository.Path, [("README.md", "# Shop\n")], cancellationToken);
+
+        return repository;
+    }
+
     public async Task CommitAsync(string relativePath, string content, CancellationToken cancellationToken)
     {
+        if (inMemory.Match(git => git, () => null!) is { } git)
+        {
+            await git.CommitAsync(Path, relativePath, content, cancellationToken);
+
+            return;
+        }
+
         var file = System.IO.Path.Combine(Path, relativePath);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file) ?? Path);
         await File.WriteAllTextAsync(file, content, cancellationToken);
@@ -81,6 +100,7 @@ public sealed class TemporaryRepository : IAsyncDisposable
 
     public async Task<string> GitInAsync(string directory, CancellationToken cancellationToken, params string[] arguments)
     {
+        Assert.True(inMemory.IsNone, "This test runs git itself on a repository whose git is in memory; mark its class [UsesRealGit] if it proves git's own behavior, or prove the behavior without git.");
         var outcome = Outcomes.Succeeds(await processes.RunAsync(new ProcessRequest("git", ["-C", directory, .. arguments]), cancellationToken));
 
         Assert.True(outcome.Succeeded, outcome.Error);

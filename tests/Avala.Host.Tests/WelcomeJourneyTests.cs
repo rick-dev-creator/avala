@@ -75,6 +75,8 @@ public sealed class WelcomeJourneyTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ARepositoryClonedFromTheWelcomesListRunsAJobThatIsApprovedAsync()
     {
         await using var projects = new TemporaryFolder();

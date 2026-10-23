@@ -363,6 +363,8 @@ public sealed class CrossHarnessDelegationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ACrossHarnessChildWorksInItsOwnWorktreeAndItsAcceptedWorkReachesOnlyItsParentsBranchAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(

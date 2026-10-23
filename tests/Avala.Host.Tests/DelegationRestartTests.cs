@@ -25,6 +25,8 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AChildRunningAtARestartResumesAndItsWaitingParentIsToldItsReportOnceInItsResumedConversationAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, Delegating);
@@ -47,6 +49,8 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AChildWaitingForAPersonAcrossTwoRestartsAsksAgainAndItsParentIsToldItsReportOnceAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, Delegating);
@@ -69,6 +73,8 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AChildThatFinishedWhileItsParentWasHeldIsToldToTheParentOnceWhenAPersonContinuesItAfterARestartAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, Delegating);

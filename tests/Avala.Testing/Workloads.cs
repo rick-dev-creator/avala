@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 
@@ -12,6 +13,13 @@ public static class Workloads
     private const int BlockRangeLast = 23_999;
 
     public static string Program { get; } = Path.Combine(AppContext.BaseDirectory, "Avala.Simulator.Workload.dll");
+
+    public static object Check(string name, string command, params string[] arguments) =>
+        new { name, command, arguments, timeoutSeconds = 60 };
+
+    public static object ContainsCheck(string name, string file, string text) => Check(name, "dotnet", Program, "contains", file, text);
+
+    public static string Checks(params object[] checks) => JsonSerializer.Serialize(new { checks });
 
     public static ProcessStartInfo Command(string mode, string argument)
     {

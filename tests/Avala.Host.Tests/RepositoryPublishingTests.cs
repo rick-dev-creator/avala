@@ -6,6 +6,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RepositoryPublishingTests(PublishedPlugins plugins)
 {
     private static readonly (string File, string Content)[] LocalForge =

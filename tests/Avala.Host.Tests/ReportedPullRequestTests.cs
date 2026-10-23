@@ -5,6 +5,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class ReportedPullRequestTests(PublishedPlugins plugins)
 {
     private const string Autonomous = """{ "autonomy": "autonomous" }""";

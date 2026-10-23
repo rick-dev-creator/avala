@@ -10,6 +10,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class LongScenarioTests(PublishedPlugins plugins)
 {
     private const string Connections = """

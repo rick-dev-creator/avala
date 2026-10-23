@@ -16,17 +16,13 @@ public sealed class ReviewTests(PublishedPlugins plugins)
 
     internal const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
 
-    internal const string CalculatorChecks = """
-        {
-          "checks": [
-            { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
-          ]
-        }
-        """;
+    internal static readonly string CalculatorChecks = Workloads.Checks(Workloads.ContainsCheck("calculator", "calculator.txt", "add(2, 2) = 4"));
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AVerifiedJobApprovedWithKeepLeavesItsBranchReadyAndTouchesNothingElseAsync()
     {
         await using var run = await VerifiedAsync();
@@ -43,6 +39,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AVerifiedJobApprovedWithMergeLandsOnTheBaseBranchAsOneCommitAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
@@ -64,6 +62,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ABaseThatMovedIntoAConflictIsReportedAndTheJobStaysAwaitingReviewAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
@@ -79,6 +79,8 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task ABaseCheckoutWithUncommittedChangesIsRefusedAndLeftAsItWasAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
@@ -92,6 +94,20 @@ public sealed class ReviewTests(PublishedPlugins plugins)
         Assert.False(File.Exists(Path.Combine(run.Repository.Path, "calculator.txt")));
         Assert.Equal(tip, await run.Repository.GitAsync(Cancellation, "rev-parse", "main"));
         Assert.Equal(JobStatus.AwaitingReview, await StatusAsync(run));
+    }
+
+    [Fact]
+    public async Task AVerifiedJobApprovedWithMergeLandsWhileTheBaseCheckoutHoldsOnlyAnUntrackedFileAsync()
+    {
+        await using var run = await VerifiedAsync((".avala/jobs.json", MergeFile));
+        const string Draft = "A draft I have not added.\n";
+        await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, "draft.txt"), Draft, Cancellation);
+
+        var approval = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+
+        Assert.Equal(("merge", "main"), (approval.Delivery.Strategy, approval.Delivery.Branch));
+        Assert.Equal(Fixed, (await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "calculator.txt"), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal(Draft, await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "draft.txt"), Cancellation));
     }
 
     [Fact]

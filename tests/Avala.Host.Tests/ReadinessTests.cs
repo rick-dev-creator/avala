@@ -5,6 +5,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class ReadinessTests(PublishedPlugins plugins)
 {
     private const string GhStatus = """

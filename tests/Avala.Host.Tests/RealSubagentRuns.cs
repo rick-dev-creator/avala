@@ -7,6 +7,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealSubagentRuns(PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";

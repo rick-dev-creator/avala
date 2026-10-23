@@ -9,6 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class ForgeTests(PublishedPlugins plugins)
 {
     private const string Autonomous = """{ "autonomy": "autonomous" }""";

@@ -35,6 +35,8 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task UnderMergeTheReviewOffersToMergeIntoTheBaseAndSaysWhereTheCommitLandedAsync()
     {
         await using var run = await VerifiedAsync((".avala/jobs.json", ReviewTests.MergeFile));
@@ -49,6 +51,8 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AUsableForgeHostingOriginMakesOpenPullRequestTheReviewsFirstActionWithoutAPullRequestSectionAsync()
     {
         await using var run = await SettledAsync(SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("forges.json", """{ "pollSeconds": 60, "forges": [{ "name": "local", "forge": "simulated" }] }""")], []));
@@ -66,6 +70,8 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AnOriginOnAForgeWithoutAConnectionIsToldWithTheSettingsCommandAndNoPullRequestIsOfferedAsync()
     {
         var signedIn = new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>(StringComparer.Ordinal)

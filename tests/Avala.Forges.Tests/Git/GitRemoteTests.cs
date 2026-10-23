@@ -1,6 +1,9 @@
+using Avala.Forges.Contracts;
 using Avala.Forges.Git;
 using Avala.Forges.Tests.Transport;
+using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Forges.Tests.Git;
 
@@ -33,6 +36,33 @@ public sealed class GitRemoteTests
     public async Task ACommitTheWorktreeOnlyMovedToIsNotHeldByItAsync(string subject) =>
         Assert.False(await HeldAsync(subject));
 
+    [Theory]
+    [InlineData("https://github.com/octocat/shop.git", true)]
+    [InlineData("", false)]
+    public async Task AWorktreesRemoteIsReadThroughItsRepositoryWithoutRunningGitAsync(string url, bool declared)
+    {
+        var runner = new ScriptedRunner(new ProcessOutcome(0, "https://elsewhere.example/other.git", string.Empty));
+        var remotes = new DeclaredRemotes(declared ? url : Option<string>.None);
+
+        var read = await new GitRemote(runner, remotes).UrlAsync("/work/fix", "origin", Cancellation);
+
+        Assert.Equal(declared ? url : nameof(ForgeError.GitFailed), read.Match(found => found, error => error.ToString()));
+        Assert.Empty(runner.Requests);
+    }
+
     private static async Task<bool> HeldAsync(string subject) =>
-        await new GitRemote(new ScriptedRunner(new ProcessOutcome(0, $"{Commit} {subject}\n", string.Empty))).HeldAsync("/work/fix", Commit, Cancellation);
+        await new GitRemote(new ScriptedRunner(new ProcessOutcome(0, $"{Commit} {subject}\n", string.Empty)), new DeclaredRemotes(Option<string>.None)).HeldAsync("/work/fix", Commit, Cancellation);
+
+    private sealed class DeclaredRemotes(Option<string> url) : IRemoteRepositories
+    {
+        public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(url);
+
+        public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
+
+        public ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+
+        public ValueTask<Result<string, WorkspaceFailure>> CloneAsync(string url, string parent, string name, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+    }
 }

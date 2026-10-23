@@ -12,9 +12,9 @@ internal sealed class GitIndex(IProcessRunner processes) : IRepositoryIndex
 
     public async ValueTask<IReadOnlyList<string>> FilesAsync(string folder, int limit, CancellationToken cancellationToken)
     {
-        var listed = await RunAsync(["-C", folder, "ls-files", "--cached", "--others", "--exclude-standard"], cancellationToken);
+        var listed = await RunAsync(["-C", folder, "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cancellationToken);
 
-        return [.. Lines(listed).Take(limit)];
+        return [.. listed.Split('\0', StringSplitOptions.RemoveEmptyEntries).Take(limit)];
     }
 
     public async ValueTask<IReadOnlyList<CommitSummary>> CommitsAsync(string folder, int count, CancellationToken cancellationToken)

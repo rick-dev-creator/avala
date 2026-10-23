@@ -293,6 +293,8 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task CreatingTheSiteFromSettingsWritesNothingInTheWorkingCopyAndShowsTheJobThatPreparesItLinkedAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
@@ -313,6 +315,8 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task TheSiteJobDeliveredByMergeBringsTheSiteWithAvalasPlayerIntoTheBaseBranchAndSettingsShowsItAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", """{ "docs": { "enabled": true }, "approval": "merge" }"""));

@@ -4,6 +4,7 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class DeliveredJobTests(PublishedPlugins plugins)
 {
     private static readonly (string File, string Content)[] LocalForge =

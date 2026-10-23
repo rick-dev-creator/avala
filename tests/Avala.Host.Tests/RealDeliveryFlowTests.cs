@@ -11,6 +11,7 @@ using Avalonia.Controls;
 
 namespace Avala.Host.Tests;
 
+[UsesRealGit]
 public sealed class RealDeliveryFlowTests(HeadlessUi ui, PublishedPlugins plugins)
 {
     private const string Gate = "AVALA_REAL_CLAUDE";

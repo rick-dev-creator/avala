@@ -126,6 +126,23 @@ public sealed class WorkloadTests
         Assert.Equal(3, waiting.ExitCode);
     }
 
+    [Theory]
+    [InlineData("add(2, 2) = 4", 0)]
+    [InlineData("add(2, 2) = 5", 1)]
+    public async Task AContainsCheckPassesOnlyWhenTheFileHoldsTheTextAsync(string text, int exitCode)
+    {
+        await using var folder = new TemporaryFolder();
+        var file = Path.Combine(folder.Path, "calculator.txt");
+        await File.WriteAllTextAsync(file, "add(1, 1) = 2\nadd(2, 2) = 4\n", Cancellation);
+        var command = Workloads.Command("contains", file);
+        command.ArgumentList.Add(text);
+
+        var (checking, said) = await Workloads.StartAsync(UncontainedProcesses.Instance, command, Cancellation);
+        await checking.WaitForExitAsync(Cancellation);
+
+        Assert.Equal((exitCode, exitCode == 0 ? "found" : "missing"), (checking.ExitCode, said));
+    }
+
     [Fact]
     public async Task AnUnknownModeIsRefusedAsync()
     {
