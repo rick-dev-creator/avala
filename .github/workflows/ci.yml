@@ -4,17 +4,59 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build and test (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build Avala.slnx
+      - name: Unit tests with coverage
+        run: >-
+          dotnet test --solution Avala.UnitTests.slnf --no-build
+          --hangdump --hangdump-timeout 15m --hangdump-type Mini
+          --coverage --coverage-output-format cobertura
+          --results-directory TestResults/coverage
+      - name: Architecture, documentation, integration and host tests
+        run: >-
+          dotnet test --solution Avala.SystemTests.slnf --no-build
+          --hangdump --hangdump-timeout 15m --hangdump-type Mini
+          --results-directory TestResults/tests
+      - name: Coverage paths relative to the repository
+        run: dotnet run scripts/coverage-paths.cs -- TestResults/coverage
+      - uses: actions/upload-artifact@v7
+        with:
+          name: unit-coverage-ubuntu-latest
+          path: TestResults/coverage/*.cobertura.xml
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: failure() || cancelled()
+        with:
+          name: hang-dumps-ubuntu-latest
+          path: |
+            TestResults/**/*_hang.dmp
+            TestResults/**/*_hang.log
+          if-no-files-found: ignore
+
+  platforms:
     name: Build and test (${{ matrix.os }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     steps:
@@ -29,19 +71,6 @@ jobs:
           dotnet test --solution Avala.slnx --no-build
           --hangdump --hangdump-timeout 15m --hangdump-type Mini
           --results-directory TestResults/tests
-      - name: Unit tests with coverage
-        run: >-
-          dotnet test --solution Avala.UnitTests.slnf --no-build
-          --hangdump --hangdump-timeout 15m --hangdump-type Mini
-          --coverage --coverage-output-format cobertura
-          --results-directory TestResults/coverage
-      - name: Coverage paths relative to the repository
-        run: dotnet run scripts/coverage-paths.cs -- TestResults/coverage
-      - uses: actions/upload-artifact@v7
-        with:
-          name: unit-coverage-${{ matrix.os }}
-          path: TestResults/coverage/*.cobertura.xml
-          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         if: failure() || cancelled()
         with:
@@ -71,7 +100,7 @@ jobs:
       - name: Coverage report, badges and risk hotspots
         run: >-
           dotnet tool run reportgenerator
-          -reports:"TestResults/coverage/*/*.cobertura.xml"
+          -reports:"TestResults/coverage/*.cobertura.xml;TestResults/coverage/*/*.cobertura.xml"
           -targetdir:TestResults/report
           -reporttypes:"MarkdownSummaryGithub;Html;Badges;Cobertura"
           -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay;-Avala.Forges.Testing"

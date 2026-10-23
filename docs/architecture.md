@@ -332,7 +332,7 @@ The simulator, the simulated forge and Recording exist only to develop and test 
 
 ### Tests
 
-- One test per behavior, named after what it proves; behavior across modules is proven through the simulator, never a real agent.
+- One test per behavior, named after what it proves. Unit tests by default, with a fake for every port the component uses; only a component's own integration test uses its real dependency, such as git, SQLite or a process. Behavior across modules is proven through the simulator, never a real agent.
 - Views are tested headless: every component has scripted acceptance tests that drive it as a user would, and leak tests check that a surface's managed memory does not keep growing across thirty cycles: they take the floor of the managed memory measured after each cycle in each third of them and fail only when it rises from the first third to the second and again to the last, so a cache that fills and empties, as image decoding does on macOS, or settles once at a higher level passes, while memory that keeps growing fails with every reading.
 - No test waits on time: it awaits the event that states the thing happened, and a fake clock replaces the views' clock.
 - A host test's `EventWatch` gives up only when the application has gone quiet: no awaited event, no job step and no process of its own, such as git preparing a worktree or a check running, for 30 seconds. A running process counts as work, so a slow machine makes a test slower instead of failing it, and five minutes is the most any single wait takes, so a hung process still fails the test with what it last saw.
@@ -348,13 +348,13 @@ The rules are code, and a failing rule explains itself.
 
 - **Architecture tests** in `tests/Avala.ArchitectureTests` enforce the module boundaries, the layer map, the domain's purity, the view rules, the absence of comments, type and component size limits, the concurrency and timing rules, and that every script is C#. The one exception is the docs site's template in `src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/`: the `<avala-c4>` player runs in the reader's browser, where only JavaScript runs, so that folder may hold `.js` files; they are embedded in the Documentation module and written into a repository's docs site by **Create site**, which puts them in `docs/template/public/`, the one other folder that may hold them, since Avala's own docs site is laid out the same way. Each rule runs against the production code, a compliant fixture module and a violating fixture module, so it can never pass vacuously.
 - **Analyzers** run on every project as errors: banned symbols for blocking calls, timed waits and coordination primitives, the threading analyzers, SonarAnalyzer.CSharp and the .NET code metrics rules, with their limits in `SonarLint.xml` and `CodeMetricsConfig.txt`.
-- **CI** builds and tests on Linux, Windows and macOS on every push to `main` and every pull request, using only `dotnet` steps.
+- **CI** builds and tests on Linux on every push to `main` and every pull request, running each test project once: the unit tests of `Avala.UnitTests.slnf` with coverage, then the architecture, documentation, integration and host tests of `Avala.SystemTests.slnf`. Windows and macOS build and test every night, on demand and before every release. CI uses only `dotnet` steps.
 
 ### Quality metrics
 
 On every push to `main` and every pull request, CI also measures coverage, code metrics, technical debt and lines of code with open-source tools and no external service, and shows them in the run summary.
 
-- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on every operating system and merged, so platform-specific code counts where it runs.
+- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on Linux.
 - **Code metrics** are the maintainability index, cyclomatic complexity, class coupling and lines of every production assembly, type and member, computed by `scripts/code-metrics.cs`.
 - **Lines of code** are physical lines of C# outside tests and generated code. They are compared with [T3 Code](https://github.com/pingdotgg/t3code), about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, as a fixed yardstick: Avala aims for a better product in no more than 15% of that.
 

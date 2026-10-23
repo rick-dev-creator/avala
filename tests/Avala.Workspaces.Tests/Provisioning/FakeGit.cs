@@ -33,21 +33,50 @@ internal sealed class FakeGit : IGit
     public Task<Result<CommitSha, WorkspaceFailure>> ResolveCommitAsync(string repository, string reference, CancellationToken cancellationToken) =>
         Task.FromResult<Result<CommitSha, WorkspaceFailure>>(Head);
 
+    public Dictionary<string, (string Blob, string Content)> Committed { get; } = [];
+
+    public int CommittedLookups { get; private set; }
+
+    public int LookupsFailing { get; set; }
+
+    public Dictionary<string, string> InWorktree { get; } = [];
+
+    public int BlobReads { get; private set; }
+
     public Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(
         string repository,
         CommitSha commit,
         string path,
-        CancellationToken cancellationToken) =>
-        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
+        CancellationToken cancellationToken)
+    {
+        CommittedLookups++;
 
-    public Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken) =>
-        Task.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+        if (LookupsFailing > 0)
+        {
+            LookupsFailing--;
+
+            return Task.FromResult<Result<Option<string>, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+        }
+
+        return Task.FromResult<Result<Option<string>, WorkspaceFailure>>(
+            Committed.TryGetValue(path, out var file) ? Option<string>.Some(file.Blob) : Option<string>.None);
+    }
+
+    public Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken)
+    {
+        BlobReads++;
+
+        return Task.FromResult<Result<string, WorkspaceFailure>>(
+            Committed.Values.Where(file => file.Blob == blob).Select(file => file.Content).FirstOrDefault() is { } content
+                ? content
+                : WorkspaceFailure.GitFailed);
+    }
 
     public Task<Result<Option<string>, WorkspaceFailure>> WorktreeBlobAsync(
         WorkspaceLocation location,
         string path,
         CancellationToken cancellationToken) =>
-        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
+        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(InWorktree.TryGetValue(path, out var blob) ? Option<string>.Some(blob) : Option<string>.None);
 
     public Task<Option<BranchName>> BranchOfAsync(string repository, string reference, CancellationToken cancellationToken) =>
         Task.FromResult(BranchName.Create("main").Match(Option<BranchName>.Some, _ => Option<BranchName>.None));
