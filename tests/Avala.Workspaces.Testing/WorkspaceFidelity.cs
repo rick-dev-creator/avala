@@ -39,6 +39,22 @@ public static class WorkspaceFidelity
             [nameof(MergesTwiceWithOnlyTheNewWorkTheSecondTimeAsync)] = MergesTwiceWithOnlyTheNewWorkTheSecondTimeAsync,
             [nameof(ReadsTheCurrentFileFromASubfolderAndCommitsInsideAWorktreeAsync)] = ReadsTheCurrentFileFromASubfolderAndCommitsInsideAWorktreeAsync,
             [nameof(PreparesOnAWorktreeWithItsBranchAsTheBaseAndMergesBackIntoItAsync)] = PreparesOnAWorktreeWithItsBranchAsTheBaseAndMergesBackIntoItAsync,
+            [nameof(KeepsATrackedFileThatAnIgnoreRuleMatchesAsync)] = KeepsATrackedFileThatAnIgnoreRuleMatchesAsync,
+            [nameof(IgnoresWhatACharacterClassNamesAsync)] = IgnoresWhatACharacterClassNamesAsync,
+            [nameof(IgnoresAPatternWithAnEscapedHashAsync)] = IgnoresAPatternWithAnEscapedHashAsync,
+            [nameof(LeavesAFolderNamedDotGitOutOfTheWorkAsync)] = LeavesAFolderNamedDotGitOutOfTheWorkAsync,
+            [nameof(ListsUntrackedFilesBeforeTrackedOnesAsync)] = ListsUntrackedFilesBeforeTrackedOnesAsync,
+            [nameof(ListsATrackedFileDeletedFromTheCheckoutAsync)] = ListsATrackedFileDeletedFromTheCheckoutAsync,
+            [nameof(KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync)] = KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync,
+            [nameof(RefusesToMergeOverAnUntrackedFileOfTheBaseCheckoutAsync)] = RefusesToMergeOverAnUntrackedFileOfTheBaseCheckoutAsync,
+            [nameof(MergesAChangeIntoAFileTheBaseRenamedAsync)] = MergesAChangeIntoAFileTheBaseRenamedAsync,
+            [nameof(RefusesToCloneAFolderThatIsNotARepositoryAsync)] = RefusesToCloneAFolderThatIsNotARepositoryAsync,
+            [nameof(ClonesTheRemotesHistoryAsync)] = ClonesTheRemotesHistoryAsync,
+            [nameof(ClonesAnExecutableFileAsExecutableAsync)] = ClonesAnExecutableFileAsExecutableAsync,
+            [nameof(InitializingAFolderLeavesItsFilesAsTheyWereAsync)] = InitializingAFolderLeavesItsFilesAsTheyWereAsync,
+            [nameof(RestoresACheckpointWhereAFolderWasStillAFileAsync)] = RestoresACheckpointWhereAFolderWasStillAFileAsync,
+            [nameof(RestoringACheckpointRemovesTheFolderItEmptiedAsync)] = RestoringACheckpointRemovesTheFolderItEmptiedAsync,
+            [nameof(RefusesToPublishToAFolderThatIsNotARepositoryAsync)] = RefusesToPublishToAFolderThatIsNotARepositoryAsync,
         };
 
     public static IReadOnlyDictionary<string, string> Approximated { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -466,6 +482,247 @@ public static class WorkspaceFidelity
         Check(merged.Match(found => found.BaseBranch == parent.Branch && found.Checkout.Match(checkout => Same(checkout, parent.Path), () => false), _ => false), problems, $"merging the nested work reads otherwise: {Shown(merged)}");
         var diff = await bench.Services.Changes.DiffAsync(parent.Id, cancellationToken);
         Check(diff.Match(found => found.Files.Any(file => file.Path == "nested.txt"), _ => false), problems, $"the nested work did not reach the parent's branch: {Shown(diff.Map(found => string.Join(", ", found.Files.Select(file => file.Path))))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> KeepsATrackedFileThatAnIgnoreRuleMatchesAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        await bench.CommitToBase("logs/keep.log", "kept\n", cancellationToken);
+        await bench.CommitToBase(".gitignore", "*.log\n", cancellationToken);
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        Check(await ReadAsync(prepared.Path, "logs/keep.log", cancellationToken) == "kept\n", problems, "the worktree does not hold the tracked file an ignore rule matches");
+        await WriteAsync(prepared.Path, "logs/keep.log", "kept\nmore\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var diff = await bench.Services.Changes.DiffAsync(prepared.Id, cancellationToken);
+        Check(diff.Match(found => found.Files.SequenceEqual([new FileChange("logs/keep.log", ChangeKind.Modified, 1, 0)]), _ => false), problems, $"the diff lists otherwise: {Shown(diff.Map(found => string.Join(", ", found.Files)))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> IgnoresWhatACharacterClassNamesAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        await bench.CommitToBase(".gitignore", "*.[oa]\n", cancellationToken);
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(prepared.Path, "build/main.o", "object\n", cancellationToken);
+        await WriteAsync(prepared.Path, "build/lib.a", "archive\n", cancellationToken);
+        await WriteAsync(prepared.Path, "added.txt", "new\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var diff = await bench.Services.Changes.DiffAsync(prepared.Id, cancellationToken);
+        Check(diff.Match(found => found.Files.Select(file => file.Path).SequenceEqual(["added.txt"]), _ => false), problems, $"the diff lists otherwise: {Shown(diff.Map(found => string.Join(", ", found.Files.Select(file => file.Path))))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> IgnoresAPatternWithAnEscapedHashAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        await bench.CommitToBase(".gitignore", "\\#scratch.txt\n", cancellationToken);
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(prepared.Path, "#scratch.txt", "scratch\n", cancellationToken);
+        await WriteAsync(prepared.Path, "added.txt", "new\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var diff = await bench.Services.Changes.DiffAsync(prepared.Id, cancellationToken);
+        Check(diff.Match(found => found.Files.Select(file => file.Path).SequenceEqual(["added.txt"]), _ => false), problems, $"the diff lists otherwise: {Shown(diff.Map(found => string.Join(", ", found.Files.Select(file => file.Path))))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> LeavesAFolderNamedDotGitOutOfTheWorkAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(prepared.Path, "vendor/.git/config", "[core]\n", cancellationToken);
+        await WriteAsync(prepared.Path, "vendor/lib.txt", "library\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var diff = await bench.Services.Changes.DiffAsync(prepared.Id, cancellationToken);
+        Check(diff.Match(found => found.Files.Select(file => file.Path).SequenceEqual(["vendor/lib.txt"]), _ => false), problems, $"the diff lists otherwise: {Shown(diff.Map(found => string.Join(", ", found.Files.Select(file => file.Path))))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ListsUntrackedFilesBeforeTrackedOnesAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        await WriteAsync(bench.Repository, "notes.txt", "untracked\n", cancellationToken);
+
+        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
+        Check(files.SequenceEqual(["notes.txt", ".avala/permissions.json", "README.md", Numbers]), problems, $"the files list otherwise: {string.Join(", ", files)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ListsATrackedFileDeletedFromTheCheckoutAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        File.Delete(Path.Combine(bench.Repository, "README.md"));
+
+        var files = await bench.Index.FilesAsync(bench.Repository, 100, cancellationToken);
+        Check(files.Contains("README.md"), problems, $"the files list otherwise: {string.Join(", ", files)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> KeepsTheBasesExecutableBitWhenMergingAChangeToTheFileAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return [];
+        }
+
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        var based = Path.Combine(bench.Repository, Numbers);
+        File.SetUnixFileMode(based, File.GetUnixFileMode(based) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+        await bench.CommitToBase(Numbers, Tens, cancellationToken);
+        await WriteAsync(prepared.Path, Numbers, Tens.Replace("ten\n", "TEN\n", StringComparison.Ordinal), cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var merged = await bench.Services.Changes.MergeAsync(prepared.Id, "Merge", cancellationToken);
+        Check(merged.Match(found => found.Commit.IsSome, _ => false), problems, $"merging reads otherwise: {Shown(merged)}");
+        Check(File.GetUnixFileMode(based).HasFlag(UnixFileMode.UserExecute), problems, "the merge dropped the executable bit the base gave the file");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> RefusesToMergeOverAnUntrackedFileOfTheBaseCheckoutAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(bench.Repository, "added.txt", "a draft of the developer\n", cancellationToken);
+        await WriteAsync(prepared.Path, "added.txt", "new\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var merged = await bench.Services.Changes.MergeAsync(prepared.Id, "Merge", cancellationToken);
+        Check(merged.Match(_ => false, error => error == WorkspaceFailure.BaseCheckoutDirty), problems, $"merging over an untracked file of the base checkout reads otherwise: {Shown(merged)}");
+        Check(await ReadAsync(bench.Repository, "added.txt", cancellationToken) == "a draft of the developer\n", problems, "the merge overwrote the developer's untracked file");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> MergesAChangeIntoAFileTheBaseRenamedAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        File.Delete(Path.Combine(bench.Repository, Numbers));
+        await bench.CommitToBase("src/counted.txt", Tens, cancellationToken);
+        await WriteAsync(prepared.Path, Numbers, Tens.Replace("ten\n", "TEN\n", StringComparison.Ordinal), cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+
+        var merged = await bench.Services.Changes.MergeAsync(prepared.Id, "Merge", cancellationToken);
+        Check(merged.Match(found => found.Commit.IsSome, _ => false), problems, $"merging a change into a file the base renamed reads otherwise: {Shown(merged)}");
+        Check(await ReadAsync(bench.Repository, "src/counted.txt", cancellationToken) == Tens.Replace("ten\n", "TEN\n", StringComparison.Ordinal), problems, "the renamed file does not hold the work's change");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> RefusesToCloneAFolderThatIsNotARepositoryAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var parent = Path.GetDirectoryName(bench.Repository)!;
+        var plain = Path.Combine(parent, "plain");
+        await WriteAsync(plain, "notes.txt", "not a repository\n", cancellationToken);
+
+        var cloned = await bench.Remotes.CloneAsync(plain, parent, "clone", cancellationToken);
+        Check(cloned.IsFailure && !Directory.Exists(Path.Combine(parent, "clone")), problems, $"cloning a folder that is not a repository reads otherwise: {Shown(cloned)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ClonesTheRemotesHistoryAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var parent = Path.GetDirectoryName(bench.Repository)!;
+
+        _ = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
+        var original = await bench.Index.CommitsAsync(bench.Repository, 10, cancellationToken);
+        var cloned = await bench.Index.CommitsAsync(Path.Combine(parent, "clone"), 10, cancellationToken);
+        Check(cloned.Select(commit => commit.Subject).SequenceEqual(original.Select(commit => commit.Subject)), problems, $"the clone's history reads {string.Join(" | ", cloned.Select(commit => commit.Subject))} where the remote's reads {string.Join(" | ", original.Select(commit => commit.Subject))}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ClonesAnExecutableFileAsExecutableAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return [];
+        }
+
+        var problems = new List<string>();
+        var parent = Path.GetDirectoryName(bench.Repository)!;
+        var based = Path.Combine(bench.Repository, Numbers);
+        File.SetUnixFileMode(based, File.GetUnixFileMode(based) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+        await bench.CommitToBase(Numbers, Tens, cancellationToken);
+
+        _ = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
+        Check(File.GetUnixFileMode(Path.Combine(parent, "clone", Numbers)).HasFlag(UnixFileMode.UserExecute), problems, "the clone does not keep the remote's executable bit");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> InitializingAFolderLeavesItsFilesAsTheyWereAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var plain = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "plain");
+        byte[] picture = [0x89, 0x50, 0x4E, 0x47, 0xFF, 0xFE, 0x00, 0xC3, 0x28];
+        Directory.CreateDirectory(plain);
+        await File.WriteAllBytesAsync(Path.Combine(plain, "logo.png"), picture, cancellationToken);
+
+        var initialized = await bench.Repositories.InitializeAsync(plain, cancellationToken);
+        Check(initialized.IsSuccess, problems, $"initializing reads otherwise: {Shown(initialized)}");
+        Check((await File.ReadAllBytesAsync(Path.Combine(plain, "logo.png"), cancellationToken)).AsSpan().SequenceEqual(picture), problems, "initializing the folder rewrote its binary file");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> RestoresACheckpointWhereAFolderWasStillAFileAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(prepared.Path, "notes", "draft\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+        File.Delete(Path.Combine(prepared.Path, "notes"));
+        await WriteAsync(prepared.Path, "notes/today.md", "today\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 2", cancellationToken);
+
+        var restored = await bench.Services.Checkpoints.RestoreAsync(prepared.Id, 1, cancellationToken);
+        Check(restored.IsSuccess, problems, $"restoring reads otherwise: {Shown(restored)}");
+        Check(await ReadAsync(prepared.Path, "notes", cancellationToken) == "draft\n", problems, "restoring did not bring the file back where the folder was");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> RestoringACheckpointRemovesTheFolderItEmptiedAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var prepared = await PrepareAsync(bench, cancellationToken);
+        await WriteAsync(prepared.Path, "added.txt", "new\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 1", cancellationToken);
+        await WriteAsync(prepared.Path, "old/a.txt", "a\n", cancellationToken);
+        _ = await bench.Services.Workspaces.CheckpointAsync(prepared.Id, "Attempt 2", cancellationToken);
+
+        var restored = await bench.Services.Checkpoints.RestoreAsync(prepared.Id, 1, cancellationToken);
+        Check(restored.IsSuccess, problems, $"restoring reads otherwise: {Shown(restored)}");
+        Check(!Directory.Exists(Path.Combine(prepared.Path, "old")), problems, "restoring left behind the folder it emptied");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> RefusesToPublishToAFolderThatIsNotARepositoryAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var plain = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "plain");
+        await WriteAsync(plain, "notes.txt", "not a repository\n", cancellationToken);
+
+        var published = await bench.Remotes.PublishAsync(bench.Repository, "origin", plain, cancellationToken);
+        Check(published.IsFailure, problems, $"publishing to a folder that is not a repository reads otherwise: {Shown(published)}");
 
         return problems;
     }
