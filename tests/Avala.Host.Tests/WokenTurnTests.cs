@@ -38,6 +38,8 @@ public sealed class WokenTurnTests(PublishedPlugins plugins)
     }
 
     [Fact]
+
+    [UsesRealGit]
     public async Task AllowingADenialWhileATurnTheAgentWokeOnItsOwnIsLiveTellsTheAgentInThatTurnWhichRunsItsJobAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("woken-unannounced");
