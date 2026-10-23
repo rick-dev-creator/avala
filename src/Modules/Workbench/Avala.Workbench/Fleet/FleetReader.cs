@@ -23,11 +23,7 @@ internal sealed class FleetReader(IConnections connections, LimitReadings readin
         var catalog = await connections.CatalogAsync(cancellationToken);
         var used = readings.ByConnection().ToDictionary(found => found.Connection);
         var declared = catalog.Connections.ToDictionary(connection => connection.Name);
-        var agents = board.Jobs.Values
-            .Where(job => job.Group != JobGroup.Done)
-            .Select(job => (Job: job, Connection: ConnectionOf(job)))
-            .Where(found => found.Connection.IsSome)
-            .ToLookup(found => found.Connection.Match(name => name, () => default), found => found.Job);
+        var agents = Agents();
         var names = catalog.Connections.Select(connection => connection.Name)
             .Concat(used.Keys.Where(name => !declared.ContainsKey(name)).OrderBy(name => name.Value, StringComparer.Ordinal));
 
@@ -46,6 +42,17 @@ internal sealed class FleetReader(IConnections connections, LimitReadings readin
                     Limits = used.TryGetValue(name, out var read) ? readings.Judged(read.Usage.Limits) : [],
                 }),
             ]);
+    }
+
+    private ILookup<ConnectionName, BoardJob> Agents()
+    {
+        var archived = ArchivedJobs.On(board);
+
+        return board.Jobs.Values
+            .Where(job => job.Group != JobGroup.Done && !archived.Hides(job.Job))
+            .Select(job => (Job: job, Connection: ConnectionOf(job)))
+            .Where(found => found.Connection.IsSome)
+            .ToLookup(found => found.Connection.Match(name => name, () => default), found => found.Job);
     }
 
     private Option<ConnectionName> ConnectionOf(BoardJob job) =>

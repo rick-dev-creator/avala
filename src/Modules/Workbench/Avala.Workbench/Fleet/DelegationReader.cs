@@ -31,8 +31,9 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
             .Concat(delegations.All().Select(record => record.Parent))
             .SelectMany(parent => parent.Match<JobId[]>(found => [found], () => []))
             .ToHashSet();
+        var archived = ArchivedJobs.On(board);
 
-        return [.. jobs.Where(job => job.Parent.IsNone && parents.Contains(job.Job))];
+        return [.. jobs.Where(job => job.Parent.IsNone && parents.Contains(job.Job) && !archived.Hides(job.Job))];
     }
 
     public async ValueTask<Option<DelegationTree>> TreeAsync(JobId root, CancellationToken cancellationToken) =>
