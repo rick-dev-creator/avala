@@ -1,0 +1,49 @@
+Avala
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+repository
+5
+[simulate: hang] Profile the slow checkout endpoint
+working
+0s
+[simulate: delegate] Write the release notes and the to-do list
+verified
+[simulate: notes] Write the release notes
+[simulate: todo] Write the to-do list
+[simulate: reply] Explain the rounding rules to the team
+verified
+[simulate: edit] Add a greeting to the README and run the tests
+verified
+[simulate: near-limit] Rewrite the importer for the new CSV format
+verified
+Overview
+Connections
+Delegation
+1 orchestration
+Active · 0
+Finished · 1
+All
+All repositories
+All connections
+3 jobs
+8.1k tokens
+0.018 USD at API prices
+[simulate: delegate] Write the release notes and the to-do list
+repository
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
+Delegation

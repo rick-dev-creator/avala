@@ -1,0 +1,85 @@
+Avala
+1
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Needs you
+[simulate: subagents] Greet the team
+wants to run a command
+0s
+1
+Projects
+repository
+0
+[simulate: subagents] Greet the team
+repository · simulator · simulated-medium · medium effort
+Needs you
+Before this repository works well
+Without .avala/checks.json Avala cannot verify the work
+Declare checks
+Message the agent while it works…
+S
+simulator · simulated-medium · medium
+Wants to run a command
+Waiting for you
+Run dotnet build
+dotnet build
+Once
+Always dotnet in this job
+Everything in this job
+…
+Add a note
+Deny
+Allow
+Subagent: Survey the greeting
+Allowed
+npm install
+npm install
+Thought for 1s
+[simulate: subagents] Greet the team
+Waiting for you
+·
+0s
+stopped
+Open in browser
+1 job · 1 agent
+Delegation
+simulator · 1 job
+1 agent
+1 needs you
+SC
+simulator
+working
+[simulate: subagents] Greet the team
+Run npm install
+repository · waiting on 1 sub-agent
+1
+no cost spent
+·
+0s
+Survey the greeting
+sub-agent
+inside
+SC
+simulator
+waiting
+Run dotnet build
+asks: dotnet build
+3 tool uses · 3,600 tokens
+·
+0s
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
+Delegation

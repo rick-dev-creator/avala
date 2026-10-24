@@ -1,0 +1,52 @@
+Avala
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+repository
+5
+[simulate: hang] Profile the slow checkout endpoint
+working
+0s
+[simulate: delegate] Write the release notes and the to-do list
+verified
+[simulate: notes] Write the release notes
+[simulate: todo] Write the to-do list
+[simulate: reply] Explain the rounding rules to the team
+verified
+[simulate: edit] Add a greeting to the README and run the tests
+verified
+[simulate: near-limit] Rewrite the importer for the new CSV format
+verified
+Overview
+Connections
+Delegation
+1 agent · 3 connections on 2 harnesses · hover for a summary, click to open
+In progress · 1
+Ready for review · 4
+All · 5
+work
+Simulated Claude Code
+5h · 22%
+personal
+Simulated Claude Code
+5h · 20%
+second
+Second simulated harness
+5h · 12%
+[simulate: hang] Profile the slow checkout endpoint
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
+Delegation
