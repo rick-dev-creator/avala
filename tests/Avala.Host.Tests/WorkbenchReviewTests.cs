@@ -219,12 +219,12 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
             usage["Spent"].Text,
             evidence["Summary"].Text,
             evidence["Attempts"].Value<IReadOnlyList<string>>(),
-            audit["Decisions"].Value<IReadOnlyList<string>>()));
+            audit["Decisions"].Items.Select(decision => decision["Caption"].Text).ToList()));
         Assert.EndsWith("tokens", spent, StringComparison.Ordinal);
         Assert.Equal("Verified on attempt 2 of 2", summary);
         Assert.Equal(2, attempts.Count);
         Assert.StartsWith("Attempt 1: failed", attempts[0], StringComparison.Ordinal);
-        Assert.Contains(decisions, decision => decision.EndsWith("· rule tests", StringComparison.Ordinal));
+        Assert.Contains(decisions, decision => decision.EndsWith("by rule tests", StringComparison.Ordinal));
     }
 
     [Fact]

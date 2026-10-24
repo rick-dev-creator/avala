@@ -279,7 +279,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageSectionViewModel, UsageSectionView>();
         views.Register<IAutonomySectionViewModel, AutonomySectionView>();
         views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
-        views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
@@ -303,7 +302,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageSectionViewModel>()
             .AddSingleton<AutonomySectionViewModel>()
             .AddSingleton<WorktreeSectionViewModel>()
-            .AddSingleton<DelegationSectionViewModel>()
             .AddTransient<PublishRepositoryViewModel>()
             .AddSingleton<PullRequestSectionViewModel>();
         registrar
@@ -312,7 +310,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<UsageSectionViewModel>(ShellRegions.Inspector, 30)
             .AddToRegion<AutonomySectionViewModel>(ShellRegions.Inspector, 40)
             .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
-            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
 

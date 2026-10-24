@@ -44,7 +44,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.StartsWith("The harness restarted while you were working on this job.", told, StringComparison.Ordinal);
         Assert.Equal(1, Mentions(told, child));
         Assert.True(File.Exists(Path.Combine(await WorktreeAsync(run, parent), "NOTES.md")));
-        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
+        await AssertShownAsync(run, parent);
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
     }
 
@@ -68,7 +68,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(parent));
         Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
         Assert.Equal(1, Mentions(told, child));
-        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
+        await AssertShownAsync(run, parent);
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
     }
 
@@ -87,7 +87,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
 
         await run.RestartAsync();
         await run.StartedAsync();
-        await AssertShownAsync(run, parent, "integrated into its parent · not yet told to its parent", "NeedsYou");
+        await AssertShownAsync(run, parent, "NeedsYou");
         var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(parent, "Carry on with the release.", Cancellation));
 
         var delivered = await run.ReportDeliveredAsync();
@@ -98,7 +98,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.StartsWith("Carry on with the release.", told, StringComparison.Ordinal);
         Assert.Equal(1, Mentions(told, child));
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
-        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
+        await AssertShownAsync(run, parent);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Equal((parent, HoldReason.NotResumable), (hold.Job, hold.Reason));
         Assert.Equal(ChildOutcome.Integrated, Outcomes.Present(reported.Report).Outcome);
         Assert.True(Outcomes.Present(run.Get<IDelegations>().OfChild(child)).Answered.IsNone);
-        await AssertShownAsync(run, parent, "integrated into its parent · not yet told to its parent", "NeedsYou");
+        await AssertShownAsync(run, parent, "NeedsYou");
         var workbench = await run.WorkbenchAsync();
         Assert.Equal(("NeedsYou", "held: its conversation cannot resume"), await workbench.RowAsync(parent, "NeedsYou"));
     }
@@ -186,7 +186,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Single(await run.Get<IJobCatalog>().ListAsync(Cancellation), summary => summary.Parent == Option<JobId>.Some(parent));
     }
 
-    private static async Task AssertShownAsync(SimulatedRun run, JobId parent, string inspected, string group = "ReadyForReview")
+    private static async Task AssertShownAsync(SimulatedRun run, JobId parent, string group = "ReadyForReview")
     {
         var overview = run.Page("Overview");
         await run.Ui.RunAsync(() =>
@@ -203,11 +203,6 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
             () => string.Join(", ", TreeBranches.Children(delegation["Trees"].Items[0]).Select(item => item["Activity"].Text)));
         var workbench = await run.WorkbenchAsync();
         await workbench.ShowsInGroupAsync(parent, group);
-        var section = Assert.Single(await workbench.InspectAsync(parent, "DelegationSectionViewModel"));
-        await run.Ui.PresentedAsync(
-            section.Presentation,
-            () => section["Children"].Value<IReadOnlyList<string>>() is [var line] && line.EndsWith(inspected, StringComparison.Ordinal),
-            () => string.Join(" | ", section["Children"].Value<IReadOnlyList<string>>()));
     }
 
     private static (Option<CallAnswer> Answered, Option<ChildOutcome> Outcome, Option<DateTimeOffset> At) Delivery(DelegationRecord record) =>

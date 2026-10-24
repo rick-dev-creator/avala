@@ -26,6 +26,7 @@ Every edit, command, question and plan an agent proposes goes through rules it c
 3. **Answer a question or a plan** on its card with **Answer** or **Decline**, or reply in your own words.
 4. **Under Autonomous, recover a denial.** A denied request leaves a **Denied** card that never holds the turn. When a job rule could allow it, **Allow and retry** allows it for the rest of the job and tells the agent it may retry; a request a guard keeps for a person offers nothing.
 5. **Answer many at once** from **Decisions** (Ctrl/⌘+D): Up/Down or J/K move, 1–9 choose an option, Enter answers and Backspace denies.
+6. **Audit what was decided** in the job inspector's **Decisions** section. Each request shows once, its target on one line with how many times it came up, and under it what it was and who decided: a rule by name, the default, you, its parent, or nobody yet. A red cross marks a denial and an amber mark a request still waiting; those come first, then what you answered, then what the rules allowed. A long list shows the first five until you choose **Show** *n* **more**. What the agent assumed on your behalf follows, under **Assumptions**.
 
 ## Settings and files
 

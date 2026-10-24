@@ -60,7 +60,7 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal([typeof(Workbench.Archive.ArchivedEntryViewModel), typeof(ResourceIndicatorViewModel), typeof(UpdateNoticeViewModel), typeof(Workbench.Telemetry.TelemetryNoticeViewModel)], regions[ShellRegions.SidebarFooter]);
         Assert.Equal([typeof(Workbench.Onboarding.OnboardingViewModel)], regions[ShellRegions.Overlay]);
         Assert.Equal(
-            [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
+            [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel)],
             regions[ShellRegions.Inspector]);
         Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
