@@ -1,0 +1,46 @@
+Avala
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+repository
+1
+[simulate: request-folder] Greet the team
+verified
+[simulate: request-folder] Greet the team
+repository · simulator · simulated-medium · medium effort
+Ready for review
+99% context left
+90% usage left
+Review
+Send the agent more to do before you review…
+S
+simulator · simulated-medium · medium
+Worked for 1s
+·
+2,550 tokens
+·
+0.007 USD at API prices
+Checkpoint · no file changed
+Restore to here
+Edit ../contracts.txt
+Granted read and edit
+~/.local/share/Avala/temp/d733ef81d5db6468/avala-AkRW1A/worktrees
+For the rest of this job, reads and edits in ~/.local/share/Avala/temp/d733ef81d5db6468/avala-AkRW1A/worktrees no longer ask. Its .git and .avala/permissions.json still come to you.
+request_folder
+Thought for 1s
+[simulate: request-folder] Greet the team
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request

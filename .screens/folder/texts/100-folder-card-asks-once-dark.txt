@@ -1,0 +1,47 @@
+Avala
+1
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Needs you
+[simulate: request-folder] Greet the team
+asks permission
+0s
+1
+Projects
+repository
+0
+[simulate: request-folder] Greet the team
+repository · simulator · simulated-medium · medium effort
+Needs you
+Message the agent while it works…
+S
+simulator · simulated-medium · medium
+Wants to read and edit a folder outside its worktree
+Waiting for you
+Update the shared contracts the API depends on
+~/.local/share/Avala/temp/d733ef81d5db6468/avala-AkRW1A/worktrees
+Add a note
+Deny
+Read only
+Read and edit
+request_folder
+Thought for 1s
+[simulate: request-folder] Greet the team
+Waiting for you
+·
+0s
+Inspector
+Evidence
+Decisions
+Usage & caps
+Autonomy & connection
+Worktree
+Pull request
