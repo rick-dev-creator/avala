@@ -114,6 +114,14 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     public IAsyncRelayCommand AllowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand DenyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public bool IsFolder => false;
+
+    public string AllowLabel => "Allow";
+
+    public bool OffersReadOnly => false;
+
+    public IAsyncRelayCommand ReadOnlyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignDeniedCardViewModel : IDeniedCardViewModel

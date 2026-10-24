@@ -46,5 +46,17 @@ internal static class FileScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Previews, ScratchFiles, SiblingReads];
+    public static Scenario FolderRequest { get; } = new("request-folder",
+    [
+        [
+            Thought("The shared contracts live ", "beside this worktree."),
+            new CallTools([new CallTool(new ItemId("ask-folder"), "request_folder", """{ "path": "..", "access": "edit", "reason": "Update the shared contracts the API depends on" }""")]),
+            new WriteFile(new ItemId("contract"), "../contracts.txt", "Orders v2\n"),
+            Message("Updated the shared contracts."),
+            .. Bill(1_500, 120, 0.0070m, 0.10),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [Previews, ScratchFiles, SiblingReads, FolderRequest];
 }

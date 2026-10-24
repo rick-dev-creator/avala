@@ -69,8 +69,8 @@
                    PlaceholderText="Say why, or what to do instead"
                    AutomationProperties.Name="Note for the agent" />
         </StackPanel>
-        <ContentControl x:Name="Scope" Content="{Binding Scope}" />
-        <Grid x:Name="Answer" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+        <ContentControl x:Name="Scope" Content="{Binding Scope}" IsVisible="{Binding !IsFolder}" />
+        <Grid x:Name="Answer" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
           <ToggleButton x:Name="AddNote"
                         Classes="quiet"
                         Content="Add a note"
@@ -80,10 +80,15 @@
                   Content="Deny"
                   Command="{Binding DenyCommand}"
                   ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandBackLabel}, StringFormat='Deny ({0})'}" />
-          <Button x:Name="Allow"
+          <Button x:Name="ReadOnly"
                   Grid.Column="3"
+                  Content="Read only"
+                  Command="{Binding ReadOnlyCommand}"
+                  IsVisible="{Binding OffersReadOnly}" />
+          <Button x:Name="Allow"
+                  Grid.Column="4"
                   Classes="primary"
-                  Content="Allow"
+                  Content="{Binding AllowLabel}"
                   Command="{Binding AllowCommand}"
                   ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandEnterLabel}, StringFormat='Allow ({0})'}" />
         </Grid>
@@ -114,7 +119,7 @@
                Classes="caption"
                Margin="10,0"
                TextWrapping="Wrap"
-               Text="{Binding Notice}"
+               privacy:PersonalDetails.Scrubbed="{Binding Notice}"
                IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <TextBlock x:Name="Error"
                Classes="caption failure"

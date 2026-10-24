@@ -10,12 +10,14 @@ internal static class RuleMatching
     extension(PolicyRule rule)
     {
         public bool Matches(PermissionRequest request) =>
-            rule.Kind.Match(kind => kind == request.Kind, () => true)
+            rule.Scope == RuleScope.Granted
+                ? rule.Kind.Match(kind => kind == request.Kind, () => false) && request.Granted.IsSome && rule.Target == request.Granted
+                : rule.Kind.Match(kind => kind == request.Kind, () => true)
             && rule.Target.Match(pattern => Targets(rule, pattern, request), () => true)
             && rule.Scope switch
             {
                 RuleScope.Workspace => request.InsideWorkspace,
-                RuleScope.OutsideWorkspace => !request.InsideWorkspace,
+                RuleScope.OutsideWorkspace => !request.InsideWorkspace && request.Granted.IsNone,
                 RuleScope.ReadOnly => request.ReadOnly,
                 RuleScope.Readable => request.Readable && request.Kind != ItemKind.FileEdit,
                 _ => true,

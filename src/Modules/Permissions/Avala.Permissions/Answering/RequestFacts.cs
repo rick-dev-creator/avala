@@ -10,12 +10,15 @@ internal static class RequestFacts
     {
         public PermissionRequest Facts(Option<string> workingDirectory, IRealPaths paths) => requested.Facts(workingDirectory, Option<string>.None, [], paths);
 
-        public PermissionRequest Facts(Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths) => requested.Kind switch
+        public PermissionRequest Facts(Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths) =>
+            requested.Facts(workingDirectory, scratch, readable, [], paths);
+
+        public PermissionRequest Facts(Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IReadOnlyList<string> editable, IRealPaths paths) => requested.Kind switch
         {
-            ItemKind.FileEdit => Edit(requested.Target, workingDirectory, scratch, readable, paths),
+            ItemKind.FileEdit => Granted(Edit(requested.Target, workingDirectory, scratch, readable, paths), editable, paths),
             ItemKind.Command => new PermissionRequest(ItemKind.Command, requested.Target, InsideWorkspace: false)
             {
-                Locate = written => Edit(written, workingDirectory, scratch, readable, paths),
+                Locate = written => Granted(Edit(written, workingDirectory, scratch, readable, paths), editable, paths),
             },
             _ => new PermissionRequest(requested.Kind, requested.Target, InsideWorkspace: false)
             {
@@ -59,6 +62,36 @@ internal static class RequestFacts
             real => readable.Where(folder => IsPath(folder) && Path.IsPathFullyQualified(folder))
                 .Any(folder => paths.Resolve(Path.GetFullPath(folder)).Match(root => Contains(root, real), () => false)),
             () => false);
+
+    private static PermissionRequest Granted(PermissionRequest located, IReadOnlyList<string> editable, IRealPaths paths)
+    {
+        if (located.InsideWorkspace || !IsPath(located.Target) || !Path.IsPathFullyQualified(located.Target) || located.Target.IndexOfAny(['*', '?']) >= 0)
+        {
+            return located;
+        }
+
+        return paths.Resolve(Path.GetFullPath(located.Target)).Match(
+            real => located with
+            {
+                Granted = editable.FirstOrDefault(folder => Editable(folder, real, paths)).ToOption(),
+                Grantable = paths.Repository(real).Bind(root => Guarded(root, real) ? Option<string>.None : root),
+            },
+            () => located);
+    }
+
+    private static bool Editable(string folder, string real, IRealPaths paths) =>
+        IsPath(folder)
+        && Path.IsPathFullyQualified(folder)
+        && paths.Resolve(Path.GetFullPath(folder)).Match(root => Contains(root, real) && !Guarded(root, real), () => false);
+
+    public static bool Within(string path, IReadOnlyList<string> folders, IRealPaths paths) => Readable(path, folders, paths);
+
+    private static bool Guarded(string root, string real)
+    {
+        var relative = "/" + Path.GetRelativePath(root, real).Replace(Path.DirectorySeparatorChar, '/');
+
+        return relative.Contains("/.git/", StringComparison.Ordinal) || relative.EndsWith("/.git", StringComparison.Ordinal) || relative.EndsWith("/" + PermissionPolicy.PolicyFile, StringComparison.Ordinal);
+    }
 
     private static PermissionRequest Outside(string target) => new(ItemKind.FileEdit, target, InsideWorkspace: false);
 

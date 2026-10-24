@@ -67,7 +67,7 @@ internal sealed partial class AnswerScopeViewModel : IAnswerScopeViewModel
 
     public bool IsInRepository => Scope == AnswerScope.InRepository;
 
-    public string AlwaysLabel => ScopePhrases.Always(kind, Offered.Bind(scope => scope.Rule), Contested);
+    public string AlwaysLabel => Folder.Match(ScopePhrases.InFolder, () => ScopePhrases.Always(kind, Offered.Bind(scope => scope.Rule), Contested));
 
     public string EverythingLabel => ScopePhrases.Everything(Contested);
 
@@ -77,12 +77,13 @@ internal sealed partial class AnswerScopeViewModel : IAnswerScopeViewModel
 
     public bool OffersInRepository => RepositoryRule.IsSome;
 
-    public string AlwaysUnavailable => ScopePhrases.AlwaysUnavailable(kind, Offered);
+    public string AlwaysUnavailable => Folder.IsSome ? string.Empty : ScopePhrases.AlwaysUnavailable(kind, Offered);
 
     public string EverythingUnavailable => ScopePhrases.EverythingUnavailable(Offered);
 
     public Remember Remember => Scope switch
     {
+        AnswerScope.Always when Folder.IsSome => Remember.EditsInThisFolder,
         AnswerScope.Always when Offers(AnswerScope.Always) => Contested ? Remember.ForThisContest : Remember.ForThisJob,
         AnswerScope.Everything when Offers(AnswerScope.Everything) => Contested ? Remember.EverythingInThisContest : Remember.EverythingInThisJob,
         AnswerScope.InRepository when Offers(AnswerScope.InRepository) => Remember.InThisRepository,
@@ -90,6 +91,8 @@ internal sealed partial class AnswerScopeViewModel : IAnswerScopeViewModel
     };
 
     private Option<JobScope> Offered => decision.Bind(found => found.Scope);
+
+    private Option<string> Folder => Offered.Bind(found => found.Rule.IsSome ? Option<string>.None : found.Folder);
 
     private Option<PolicyRule> RepositoryRule => decision.Bind(found => found.RepositoryRule);
 
@@ -113,7 +116,7 @@ internal sealed partial class AnswerScopeViewModel : IAnswerScopeViewModel
 
     private bool Offers(AnswerScope scope) => scope switch
     {
-        AnswerScope.Always => Offered.Bind(found => found.Rule).IsSome,
+        AnswerScope.Always => Offered.Bind(found => found.Rule).IsSome || Folder.IsSome,
         AnswerScope.Everything => Offered.Match(found => found.Raisable, () => false),
         AnswerScope.InRepository => RepositoryRule.IsSome,
         _ => true,

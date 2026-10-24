@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
+using Avala.Permissions.Folders;
 using Avala.Permissions.Governance;
 using Avala.Permissions.Links;
 using Avala.Permissions.PolicyFiles;
@@ -47,6 +48,10 @@ public sealed class PermissionsPlugin : IPlugin
             .AddForwarded<IHandle<SessionOpened>, SessionGovernor>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionGovernor>()
             .AddForwarded<IHandle<AgentActivity>, SessionGovernor>()
-            .AddForwarded<IHandle<JobProgressed>, SessionGovernor>();
+            .AddForwarded<IHandle<JobProgressed>, SessionGovernor>()
+            .AddSingleton(FolderTool.Definition)
+            .AddSingleton<FolderCoverage>()
+            .AddSingleton<FolderAsking>()
+            .AddSingleton<IHandle<AgentActivity>, FolderDesk>();
     }
 }

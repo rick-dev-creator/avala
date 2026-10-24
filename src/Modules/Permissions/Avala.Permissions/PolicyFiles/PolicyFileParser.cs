@@ -123,7 +123,7 @@ internal static class PolicyFileParser
         Text(element, "answer").Bind(text => text.IsSome ? Named<PolicyAnswer>(text, PolicyError.UnknownAnswer) : PolicyError.MissingAnswer);
 
     private static Result<Option<RuleScope>, PolicyError> Declarable(Option<RuleScope> scope) =>
-        scope.Match(value => value is RuleScope.OutsideWorkspace or RuleScope.ReadOnly or RuleScope.Readable, () => false) ? PolicyError.UnknownScope : scope;
+        scope.Match(value => value is RuleScope.OutsideWorkspace or RuleScope.ReadOnly or RuleScope.Readable or RuleScope.Granted, () => false) ? PolicyError.UnknownScope : scope;
 
     private static Result<Option<string>, PolicyError> Text(JsonElement rule, string field) =>
         !rule.TryGetProperty(field, out var value) ? Option<string>.None

@@ -13,6 +13,8 @@ internal static class ScopePhrases
     public static string Always(ItemKind kind, Option<PolicyRule> rule, bool contest) =>
         $"Always {rule.Bind(found => found.Target).Match(target => Subjects(kind, target), () => Unnamed(kind))} in this {Where(contest)}";
 
+    public static string InFolder(string folder) => $"Always in {Path.GetFileName(Path.TrimEndingDirectorySeparator(folder))} for this job";
+
     public static string Everything(bool contest) => $"Everything in this {Where(contest)}";
 
     public static string AlwaysUnavailable(ItemKind kind, Option<JobScope> scope) =>

@@ -41,6 +41,14 @@ internal interface IPermissionCardViewModel
     IAsyncRelayCommand AllowCommand { get; }
 
     IAsyncRelayCommand DenyCommand { get; }
+
+    bool IsFolder { get; }
+
+    string AllowLabel { get; }
+
+    bool OffersReadOnly { get; }
+
+    IAsyncRelayCommand ReadOnlyCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -62,11 +70,19 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
         Update(entry);
     }
 
-    public string Title => CommandPhrases.Title(request.Kind, request.Title, request.Target);
+    public string Title => Folder.Match(CardPhrases.FolderTitle, () => CommandPhrases.Title(request.Kind, request.Title, request.Target));
 
     public ItemKind Kind => request.Kind;
 
-    public string Headline => CardPhrases.Headline(request.Kind);
+    public string Headline => Folder.Match(CardPhrases.FolderHeadline, () => CardPhrases.Headline(request.Kind));
+
+    public bool IsFolder => Folder.IsSome;
+
+    public string AllowLabel => Folder.Match(CardPhrases.FolderAllow, () => CardPhrases.Allow);
+
+    public bool OffersReadOnly => Folder.Match(found => found.Access == FolderAccess.Edit, () => false);
+
+    private Option<FolderRequest> Folder => request.Decision.Bind(decision => decision.Folder);
 
     public string Target => request.Target;
 
@@ -78,7 +94,7 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
     public partial bool IsShown { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand), nameof(ReadOnlyCommand))]
     public partial bool AwaitsYou { get; private set; }
 
     [ObservableProperty]
@@ -111,29 +127,38 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
             IsDenied = permission.Resolution.Match(answer => answer == PermissionAnswer.Deny, () => false);
             Notice = permission.Answered.Match(CardPhrases.Remembered, () => Notice);
             scope.Update(permission.Kind, permission.Decision);
+            OnPropertyChanged(nameof(Title));
+            OnPropertyChanged(nameof(Headline));
+            OnPropertyChanged(nameof(IsFolder));
+            OnPropertyChanged(nameof(AllowLabel));
+            OnPropertyChanged(nameof(OffersReadOnly));
         }
     }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand), nameof(ReadOnlyCommand))]
     public partial bool IsAnswering { get; private set; }
 
     [RelayCommand(CanExecute = nameof(CanAnswer))]
-    private Task AllowAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Allow, cancellationToken);
+    private Task AllowAsync(CancellationToken cancellationToken) =>
+        AnswerAsync(PermissionAnswer.Allow, Folder.Match(found => found.Access == FolderAccess.Edit ? Remember.EditsInThisFolder : Remember.ReadsInThisFolder, () => scope.Remember), cancellationToken);
 
     [RelayCommand(CanExecute = nameof(CanAnswer))]
-    private Task DenyAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Deny, cancellationToken);
+    private Task DenyAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Deny, IsFolder ? Remember.Once : scope.Remember, cancellationToken);
+
+    [RelayCommand(CanExecute = nameof(CanAnswer))]
+    private Task ReadOnlyAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Allow, Remember.ReadsInThisFolder, cancellationToken);
 
     private bool CanAnswer() => AwaitsYou && !IsAnswering;
 
-    private async Task AnswerAsync(PermissionAnswer answer, CancellationToken cancellationToken)
+    private async Task AnswerAsync(PermissionAnswer answer, Remember remember, CancellationToken cancellationToken)
     {
         IsAnswering = true;
 
         try
         {
             var note = string.IsNullOrWhiteSpace(Note) ? Option<string>.None : Note.Trim();
-            var answered = await replies.AnswerAsync(request, answer, note, scope.Remember, cancellationToken);
+            var answered = await replies.AnswerAsync(request, answer, note, remember, cancellationToken);
             Error = answered.Match(_ => string.Empty, CardPhrases.Error);
             Notice = answered.Match(CardPhrases.Remembered, _ => string.Empty);
         }

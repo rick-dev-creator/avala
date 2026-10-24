@@ -58,6 +58,7 @@ public sealed class PolicyFileParserTests
     [InlineData("""{ "rules": [ { "answer": "yes" } ] }""", PolicyError.UnknownAnswer)]
     [InlineData("""{ "rules": [ { "kind": "command", "within": "workspace", "answer": "allow" } ] }""", PolicyError.ScopeNeedsFileEdits)]
     [InlineData("""{ "rules": [ { "kind": "fileEdit", "within": "outsideWorkspace", "answer": "allow" } ] }""", PolicyError.UnknownScope)]
+    [InlineData("""{ "rules": [ { "kind": "fileEdit", "within": "granted", "answer": "allow" } ] }""", PolicyError.UnknownScope)]
     [InlineData("""{ "autonomy": "yolo" }""", PolicyError.UnknownAutonomy)]
     [InlineData("""{ "autonomy": true }""", PolicyError.Malformed)]
     [InlineData("""{ "formAnswers": "random" }""", PolicyError.UnknownStrategy)]

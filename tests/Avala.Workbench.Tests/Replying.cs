@@ -29,12 +29,12 @@ internal sealed class FakeDeniedRequests : IDeniedRequests
     public ValueTask<Result<HumanAnswer, PolicyError>> AllowAsync(SessionId session, ItemId item, CancellationToken cancellationToken)
     {
         Allowed.Add((session, item));
-        var rule = new PolicyRule(RuleOrigin.Job, "always example.com in this job", ItemKind.Web, "example.com", RuleScope.Anywhere, PolicyAnswer.Allow);
-
         return ValueTask.FromResult(Refuse
             ? Result<HumanAnswer, PolicyError>.Failure(PolicyError.NotAwaitingAnswer)
-            : Result<HumanAnswer, PolicyError>.Success(new HumanAnswer(session, Job, item, ItemKind.Web, "https://example.com/style", PermissionAnswer.Allow, Option<string>.None, rule, DateTimeOffset.UnixEpoch)));
+            : Result<HumanAnswer, PolicyError>.Success(new HumanAnswer(session, Job, item, Rule.Kind.Match(kind => kind, () => ItemKind.Web), "https://example.com/style", PermissionAnswer.Allow, Option<string>.None, Rule, DateTimeOffset.UnixEpoch)));
     }
+
+    public PolicyRule Rule { get; set; } = new(RuleOrigin.Job, "always example.com in this job", ItemKind.Web, "example.com", RuleScope.Anywhere, PolicyAnswer.Allow);
 
     public JobId Job { get; } = JobId.New();
 }

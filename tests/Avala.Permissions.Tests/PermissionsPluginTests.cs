@@ -1,6 +1,8 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Permissions.Folders;
 using Avala.Permissions.Governance;
 using Avala.Permissions.PolicyFiles;
 using Avala.Permissions.Storage;
@@ -46,8 +48,18 @@ public sealed class PermissionsPluginTests
         Assert.Same(composition.Get<PolicyFileReader>(), composition.Get<IRepositoryPolicies>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<JobSessionStarted>>());
-        Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<SessionGovernor>(), composition.All<IHandle<AgentActivity>>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<JobProgressed>>());
+    }
+
+    [Fact]
+    public async Task TheFolderToolIsOfferedAndItsCallsAreHandledAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var composition = Compose(data);
+
+        Assert.Contains(FolderTool.Definition, composition.All<HarnessTool>());
+        Assert.Single(composition.All<IHandle<AgentActivity>>().OfType<FolderDesk>());
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>

@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-19T01:36:34.2412051+00:00",
+  "recordedAt": "2026-10-24T12:57:42.6804946+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -93,6 +93,10 @@
       },
       {
         "name": "subagents",
+        "surface": "executed"
+      },
+      {
+        "name": "request_folder",
         "surface": "executed"
       }
     ]

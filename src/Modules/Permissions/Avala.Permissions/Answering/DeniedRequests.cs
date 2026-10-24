@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Policies;
 using Avala.Sdk;
 
 namespace Avala.Permissions.Answering;
@@ -17,7 +18,7 @@ internal sealed class DeniedRequests(GovernanceBook book, AnswerLedger ledger) :
             : Option<(JobId Job, PolicyDecision Decision)>.None;
 
         return await denied.Match(
-            known => known.Decision.Scope.Bind(scope => scope.Rule).Match(
+            known => known.Decision.Scope.Bind(scope => scope.Rule.Match(Option<PolicyRule>.Some, () => scope.Folder.Map(folder => Remembering.Granted(folder, FolderAccess.Edit)))).Match(
                 rule => AllowAsync(known.Job, known.Decision, rule with { Answer = PolicyAnswer.Allow }, cancellationToken),
                 () => Task.FromResult(Result<HumanAnswer, PolicyError>.Failure(PolicyError.ScopeNotOffered))),
             () => Task.FromResult(Result<HumanAnswer, PolicyError>.Failure(PolicyError.NotAwaitingAnswer)));
