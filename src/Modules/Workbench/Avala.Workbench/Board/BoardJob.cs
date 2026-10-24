@@ -42,6 +42,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public IReadOnlyList<JobCheckpoint> Checkpoints { get; init; } = [];
 
+    public bool FindsChecks { get; init; }
+
     public bool TakesMessagesMidTurn { get; init; }
 
     public int PendingDecisions => Transcript.Awaiting.Count();

@@ -35,6 +35,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
+    public static (string File, string Content) DiscoveryOff { get; } = ("verification.json", """{ "discoverChecks": false }""");
+
+    public static (string File, string Content) DiscoveryOn { get; } = ("verification.json", """{ "discoverChecks": true }""");
+
     private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
@@ -200,6 +204,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
         if (onboarded)
         {
             await File.WriteAllTextAsync(Path.Combine(data.Path, "onboarding.json"), """{ "onboarded": true }""", Cancellation);
+        }
+
+        if (!settings.Any(setting => setting.File == DiscoveryOff.File))
+        {
+            await File.WriteAllTextAsync(Path.Combine(data.Path, DiscoveryOff.File), DiscoveryOff.Content, Cancellation);
         }
 
         foreach (var (file, content) in settings)

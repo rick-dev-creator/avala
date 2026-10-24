@@ -24,6 +24,8 @@ internal sealed class DesignReadinessItemViewModel : IReadinessItemViewModel
 
     public bool IsDone { get; init; }
 
+    public bool IsWorking { get; init; }
+
     public string Error { get; init; } = string.Empty;
 
     public IReadOnlyList<IReadinessAccountViewModel> Accounts { get; init; } = [];

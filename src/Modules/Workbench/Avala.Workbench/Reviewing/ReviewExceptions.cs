@@ -14,7 +14,10 @@ internal enum VerdictKind
     Unverified,
 }
 
-internal sealed record ReviewVerdict(VerdictKind Kind, int Attempt, int Attempts);
+internal sealed record ReviewVerdict(VerdictKind Kind, int Attempt, int Attempts)
+{
+    public bool Discovered { get; init; }
+}
 
 internal interface IReviewException;
 
@@ -61,7 +64,7 @@ internal static class ReviewExceptions
         evidence.Exceptions.Contains(ExceptionReason.ChangesUnknown) ? [new UnreadableChanges()] : [];
 
     private static ReviewVerdict Verdict(VerificationReport last, int attempts) =>
-        new(Kind(last.Outcome), last.Attempt, Math.Max(last.Attempt, attempts));
+        new(Kind(last.Outcome), last.Attempt, Math.Max(last.Attempt, attempts)) { Discovered = last.Discovered };
 
     private static bool Failing(CheckEvidence check) => check.Status is CheckStatus.Failed or CheckStatus.TimedOut or CheckStatus.NotFound;
 

@@ -4,15 +4,16 @@ A job is done only when your repository's own checks pass in its worktree, and i
 
 ## What it does
 
+- **Avala finds the checks for you.** When a repository has no `.avala/checks.json`, its first job starts a helper that runs the repository's own build, lint and test commands, whatever its languages and tools, and keeps the ones that pass. The job works meanwhile; the card above its conversation says "Avala is running this repository's own commands to find how to check the work", and then "Avala found how to check this repository: tests, lint. They ship with this job in .avala/checks.json". The checks verify that job, and `.avala/checks.json` is in its diff, so approving it declares them for every later job.
 - **Checks run after every finished turn**, in the job's worktree, in the order the repository declares them. After the first failure the rest are skipped.
 - **A failing check sends the agent back** in the same session with the check's name and the end of its output, until it passes or the job runs out of attempts (three by default).
-- **The review leads with the verdict**: "Verified on attempt 2 of 3", "Not verified", or "No checks declared: nothing proves the work". Then it lists what deserves a look, such as a failed attempt, a denied request, an assumption the agent made or an edit to a rule file, then the diff.
+- **The review leads with the verdict**: "Verified on attempt 2 of 3", "Verified on attempt 1 of 3 with the checks Avala found", "Not verified", or "No checks declared: nothing proves the work". Then it lists what deserves a look, such as a failed attempt, a denied request, an assumption the agent made or an edit to a rule file, then the diff.
 - **The review names what approving does**: "Keep branch avala/<id>", "Merge into main", or "Open pull request on <connection>" when a forge Avala can use hosts the repository's `origin`. When `origin` is on a forge you have not connected, the review says "Connect github.com in Settings to open and follow pull requests", with **Open Settings**.
 - **Approving delivers the work** as the repository chooses: the branch is kept as it is, the work is squashed into the base branch, or a pull request is opened and the job stays among the open jobs as Delivered until it is merged or closed.
 
 ## How to use it
 
-1. **Declare checks** in `.avala/checks.json` and commit it.
+1. **Start a job.** In a repository without checks, Avala finds them while the job runs; nothing to set up. To choose them yourself instead, declare them in `.avala/checks.json` and commit it.
 2. **Open the review** of a job that is Ready for review with Review, or Ctrl/⌘+R.
 3. **Decide:**
    - **The primary action** delivers the work and says what happened: "Merged into main as 3f9a1c2.", or "Branch avala/<id> kept. Merge it when you are ready."
@@ -22,6 +23,8 @@ A job is done only when your repository's own checks pass in its worktree, and i
 4. **Resubmit** a job held for an invalid `.avala/checks.json`: fix the file, commit it, then Resubmit, which starts it again as a new job against the fixed file.
 
 ## Settings and files
+
+**`verification.json`** in the data folder: `{ "discoverChecks": false }` stops Avala from finding checks; it is on by default.
 
 **`.avala/checks.json`**:
 
@@ -37,6 +40,10 @@ A job is done only when your repository's own checks pass in its worktree, and i
 **`.avala/jobs.json`**, `approval`: `"keep"` (the default) leaves the job's branch for you, `"merge"` squashes it into the base branch with an `Avala-Job:` trailer.
 
 ## Good to know
+
+- Finding the checks runs as a hidden helper job on the repository's `research` role, so its cost counts in the job's usage. It never asks you anything; when it finds no command that passes, the card says "Avala found no command that checks this repository, so nothing verifies the work" and offers **Declare checks**.
+- If the agent finishes before Avala has found the checks, the job waits for them: "Finding how to check the work". It is never passed unverified because the checks were slow.
+- `.avala/checks.json` written by Avala is not counted as an edit to a rule file. If the agent changes it, the review flags it like any rule file.
 
 - Checks come from the commit the job started from: an agent that edits `.avala/checks.json` is told its change does not apply to this job.
 - Without `.avala/checks.json`, a job passes with "no checks declared"; a file that cannot be read holds the job as "invalid checks".

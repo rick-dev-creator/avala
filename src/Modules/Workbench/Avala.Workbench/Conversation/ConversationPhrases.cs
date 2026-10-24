@@ -282,6 +282,8 @@ internal static class ConversationPhrases
         },
     };
 
+    public const string FindingChecks = "Avala is finding how to check the work · queue a message for when the checks end…";
+
     private static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
         JobStatus.Running when takesMessagesMidTurn => "Message the agent while it works…",

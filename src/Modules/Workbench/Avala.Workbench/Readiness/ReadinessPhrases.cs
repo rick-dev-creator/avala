@@ -1,6 +1,7 @@
 using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Readying;
 
 namespace Avala.Workbench.Readiness;
@@ -14,6 +15,8 @@ internal enum ReadinessNeed
 
 internal sealed record ReadinessStep(ReadinessNeed Need, PersonalPhrase Text, string Action)
 {
+    public bool Working { get; init; }
+
     public string Command { get; init; } = string.Empty;
 
     public IReadOnlyList<AccountStatus> Accounts { get; init; } = [];
@@ -35,19 +38,39 @@ internal static class ReadinessPhrases
 
     public const string ChecksMissing = "Without .avala/checks.json Avala cannot verify the work";
 
-    public static IReadOnlyList<ReadinessStep> Steps(ReadinessFacts facts) =>
+    public const string ChecksFinding = "Avala is running this repository's own commands to find how to check the work";
+
+    public const string ChecksNotFound = "Avala found no command that checks this repository, so nothing verifies the work";
+
+    public static IReadOnlyList<ReadinessStep> Steps(ReadinessFacts facts, Option<ChecksDiscovery> discovery) =>
     [
         .. Forge(facts.Forge).Match<ReadinessStep[]>(step => [step], () => []),
         .. facts.RulesUncommitted ? [new ReadinessStep(ReadinessNeed.Rules, new PersonalPhrase(RulesUncommitted), Commit)] : Array.Empty<ReadinessStep>(),
-        .. facts.ChecksMissing ? [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksMissing), DeclareChecks)] : Array.Empty<ReadinessStep>(),
+        .. facts.ChecksMissing ? Checks(discovery) : [],
     ];
 
-    public static PersonalPhrase Done(ReadinessNeed need, ReadinessFacts facts) => need switch
+    public static bool FoundChecks(ReadinessFacts facts, Option<ChecksDiscovery> discovery) =>
+        facts.ChecksMissing && discovery.Match(found => found.State == DiscoveryState.Found, () => false);
+
+    public static PersonalPhrase Done(ReadinessNeed need, ReadinessFacts facts, Option<ChecksDiscovery> discovery) => need switch
     {
         ReadinessNeed.Forge => new PersonalPhrase($"Connected {facts.Forge.Host} {Purpose}"),
         ReadinessNeed.Rules => new PersonalPhrase("Committed .avala/jobs.json, so new jobs follow it"),
+        _ when FoundChecks(facts, discovery) => new PersonalPhrase(Found(discovery.Match<IReadOnlyList<CheckDeclared>>(found => found.Checks, () => []))),
         _ => new PersonalPhrase("Checks declared in .avala/checks.json"),
     };
+
+    public static string Found(IReadOnlyList<CheckDeclared> checks) =>
+        $"Avala found how to check this repository: {string.Join(", ", checks.Select(check => check.Name))}. They ship with this job in .avala/checks.json";
+
+    private static ReadinessStep[] Checks(Option<ChecksDiscovery> discovery) => discovery.Match<ReadinessStep[]>(
+        found => found.State switch
+        {
+            DiscoveryState.Running => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksFinding), string.Empty) { Working = true }],
+            DiscoveryState.Found => [],
+            _ => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksNotFound), DeclareChecks)],
+        },
+        () => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksMissing), DeclareChecks)]);
 
     public static string Tool(AccountStatus account, Option<SignInTool> tool) =>
         account.Source == CredentialSource.Cli

@@ -91,6 +91,7 @@ Your own harness connections, beside the ones found on their own: `~/.claude`, e
 | `limits.json` | The `limits` section below, for every repository. |
 | `autopilot.json` | The loop limits of the `autopilot` section below, for every repository; a repository can only tighten them. |
 | `supervision.json` | `silenceSeconds`: how long a silent job runs before it is held, above 0 and at most a day; 900 by default. |
+| `verification.json` | `discoverChecks`: `false` stops Avala from finding the checks of a repository that declares none; on by default. |
 | `resources.json` | `sampleSeconds`: 5 by default. `diskSeconds`: 60 by default. `orphans`: `kill` (default) or `report`, for processes a session leaves behind. `ports`: `first` 24000, `last` 24999 and `perWorktree` 10 by default. `worktrees`: `keepDiscardedHours` 0, `keepFailedHours` 168 and `keepApprovedHours` kept by default, `null` keeps, and `reconcile`: `report` (default) or `clean`. |
 | `notifications.json` | `enabled`. `channel`: `ntfy` (default) or `webhook`. `ntfy`: `server` (`https://ntfy.sh` by default), `topic` (a private random topic by default) and `tokenEnv`. `webhook`: `url` and `secretEnv`. `events`: `decision`, `held`, `budget`, `failed`, `loopEnded` on and `review` off by default. `detail`: `minimal` (default) or `detailed`. `quietHours`: `from`, `to` and `days`, every day by default. |
 | `triggers.json` | `repositories` and `triggers`; see [Autopilot and triggers](../guide/autopilot-and-triggers.md#settings-and-files). A trigger's `autonomy` is `supervised`, `attempts` 3 (1 to 10) and `concurrency` 1 (1 to 16) by default. |
@@ -142,7 +143,7 @@ One JSON object; each module reads its own section, and Jobs rejects a field the
 | File | Keys and defaults |
 | --- | --- |
 | `permissions.json` | At most 64 KB. `autonomy`: `supervised` (default) or `autonomous`. `formAnswers`: `recommended` (default) or `bestJudgment`. `rules[]`: `answer` (`allow`, `deny` or `ask`), and optionally `kind`, `target`, `within` (`anywhere` by default, or `workspace`) and `name`. A rejected file leaves the built-in rules, at Supervised. |
-| `checks.json` | `checks[]`: `command` (required), `arguments`, `name` and `timeoutSeconds`, up to 86400 and 600 by default. Without checks, verification says so. |
+| `checks.json` | `checks[]`: `command` (required), `arguments`, `name` and `timeoutSeconds`, up to 86400 and 600 by default. Without it, Avala finds the checks while the repository's first job runs and ships them with that job; without any, verification says so. |
 | `budget.json` | `costPerJob`, `tokensPerJob`, `memoryPerJobMegabytes`, `holdAtLimit` (above 0, at most 1), `carvePerChild` (0 to 1, 0.5 by default) and `connections`. No cap by default. |
 | `backlog.json` | `tasks[]` and `recurring[]`, each with an `id` and an `instruction`, a recurring task with `everyMinutes`. |
 | `triggers.json` | `triggers` only; no webhook or forge triggers. |

@@ -16,6 +16,8 @@ internal interface IReadinessItemViewModel
 
     bool IsDone { get; }
 
+    bool IsWorking { get; }
+
     string Error { get; }
 
     IReadOnlyList<IReadinessAccountViewModel> Accounts { get; }
@@ -70,6 +72,9 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
     public partial bool IsDone { get; private set; }
 
     [ObservableProperty]
+    public partial bool IsWorking { get; private set; }
+
+    [ObservableProperty]
     public partial string Error { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -82,6 +87,7 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
         Action = step.Action;
         Command = step.Command;
         Accounts = choices;
+        IsWorking = step.Working;
         IsDone = false;
     }
 
@@ -92,6 +98,7 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
         Command = string.Empty;
         Accounts = [];
         Error = string.Empty;
+        IsWorking = false;
         IsDone = true;
     }
 

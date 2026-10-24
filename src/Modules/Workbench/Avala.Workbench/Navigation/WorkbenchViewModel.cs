@@ -125,7 +125,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
             _ = feed.Find(message.Job).Match(
                 job =>
                 {
-                    opened.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)) });
+                    opened.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)), FindsChecks = feed.FindsChecks(job.Job) });
                     return true;
                 },
                 () => false);
@@ -227,7 +227,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     {
         if (Conversation is { } open && jobs.TryGetValue(open.Job, out var job))
         {
-            open.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)) });
+            open.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)), FindsChecks = feed.FindsChecks(job.Job) });
             OpenReviewCommand.NotifyCanExecuteChanged();
         }
 

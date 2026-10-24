@@ -42,4 +42,45 @@ public sealed class CheckDeclarationTests
     [InlineData("""{ "checks": [{ "command": "dotnet", "timeoutSeconds": "60" }] }""", nameof(VerificationError.InvalidTimeout))]
     public void AnInvalidDeclarationIsRejectedWithItsProblem(string declaration, string expected) =>
         Assert.Equal(expected, Outcomes.FailsWith(CheckDeclaration.Parse(declaration)).ToString());
+
+    [Fact]
+    public void AWrittenDeclarationReadsBackAsTheSameChecksLeavingOutWhatIsDefault()
+    {
+        var checks = Outcomes.Succeeds(CheckDeclaration.Parse("""
+            { "checks": [
+              { "name": "tests", "command": "npm", "arguments": ["test", "--", "--grep", "café <ok> & \"quoted\""], "timeoutSeconds": 90.5 },
+              { "name": "build", "command": "make" }
+            ] }
+            """));
+
+        var written = CheckDeclaration.Write(checks);
+
+        Assert.Equal(
+            """
+            {
+              "checks": [
+                {
+                  "name": "tests",
+                  "command": "npm",
+                  "arguments": [
+                    "test",
+                    "--",
+                    "--grep",
+                    "café <ok> & \"quoted\""
+                  ],
+                  "timeoutSeconds": 91
+                },
+                {
+                  "name": "build",
+                  "command": "make"
+                }
+              ]
+            }
+
+            """.ReplaceLineEndings("\n"),
+            written);
+        Assert.Equal(
+            [.. checks.Select(check => check with { Timeout = TimeSpan.FromSeconds(Math.Ceiling(check.Timeout.TotalSeconds)) }).Select(check => (check.Name, check.CommandLine, check.Timeout))],
+            Outcomes.Succeeds(CheckDeclaration.Parse(written)).Select(check => (check.Name, check.CommandLine, check.Timeout)));
+    }
 }

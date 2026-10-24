@@ -4,7 +4,10 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
+using Avala.Components.Privacy;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Accounts;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Readying;
 using Avala.Workbench.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,12 +22,13 @@ internal interface IReadinessCardViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readiness, ReadinessActions actions)
+internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readiness, ReadinessActions actions, BoardFeed feed)
     : IReadinessCardViewModel, IRegionAware<JobId>, IActivatable, IPresentation
 {
     private readonly ObservableCollection<ReadinessItemViewModel> items = [];
     private Option<JobId> job;
     private Option<ReadinessFacts> shown;
+    private Option<ChecksDiscovery> discovery;
 
     public event EventHandler<Presented>? Presented;
 
@@ -52,11 +56,28 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
         {
             Loading = RefreshAsync(CancellationToken.None);
         }
+
+        feed.Start(_ => Rediscovered() ? [RediscoveredAsync] : []);
     }
 
-    public void Deactivate()
-    {
-    }
+    public void Deactivate() => feed.Stop();
+
+    private bool Rediscovered() =>
+        shown.IsSome && job.Match(found => feed.DiscoveryOf(found), () => Option<ChecksDiscovery>.None).Map(State) != discovery.Map(State);
+
+    private static (DiscoveryState, int) State(ChecksDiscovery found) => (found.State, found.Checks.Count);
+
+    private Task RediscoveredAsync(CancellationToken cancellationToken) =>
+        shown.Match(
+            facts => feed.LoadAsync(
+                token => readiness.ReadAsync(facts.Repository, token),
+                read =>
+                {
+                    shown = read;
+                    Show(read);
+                    Present();
+                }),
+            () => Task.CompletedTask);
 
     private async Task OpenAsync(Option<JobId> context, CancellationToken cancellationToken)
     {
@@ -95,7 +116,8 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
 
     private void Show(ReadinessFacts facts)
     {
-        var steps = ReadinessPhrases.Steps(facts);
+        discovery = job.Match(found => feed.DiscoveryOf(found), () => Option<ChecksDiscovery>.None);
+        var steps = ReadinessPhrases.Steps(facts, discovery);
 
         foreach (var item in items)
         {
@@ -103,7 +125,7 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
 
             if (step is null)
             {
-                item.Finish(ReadinessPhrases.Done(item.Need, facts));
+                item.Finish(ReadinessPhrases.Done(item.Need, facts, discovery));
             }
             else
             {
@@ -114,6 +136,13 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
         foreach (var step in steps.Where(found => items.All(item => item.Need != found.Need)))
         {
             items.Add(new ReadinessItemViewModel(step, Act(step, facts), Choices(step, facts)));
+        }
+
+        if (ReadinessPhrases.FoundChecks(facts, discovery) && items.All(item => item.Need != ReadinessNeed.Checks))
+        {
+            var found = new ReadinessItemViewModel(new ReadinessStep(ReadinessNeed.Checks, PersonalPhrase.Empty, string.Empty), _ => Task.CompletedTask, []);
+            found.Finish(ReadinessPhrases.Done(ReadinessNeed.Checks, facts, discovery));
+            items.Add(found);
         }
 
         IsShown = items.Count > 0;

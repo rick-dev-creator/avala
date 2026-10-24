@@ -1,9 +1,14 @@
+using Avala.Delegation.Contracts;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Verification.Contracts;
+using Avala.Verification.Discovering;
 using Avala.Verification.Evidence;
 using Avala.Verification.Storage;
+using Avala.Verification.Tests.Discovering;
 using Avala.Verification.Tests.Verifying;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,10 +46,21 @@ public sealed class VerificationPluginTests
         Assert.Contains(composition.Get<SqliteEvidenceStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<EvidenceBook>(), composition.Get<IVerifications>());
         Assert.Contains(composition.Get<EvidenceBook>(), composition.All<IStartupTask>());
+        Assert.Same(composition.Get<SqliteEvidenceStore>(), composition.Get<IDiscoveryStore>());
+        Assert.Same(composition.Get<DiscoveryBook>(), composition.Get<IChecksDiscoveries>());
+        Assert.Contains(composition.Get<DiscoveryBook>(), composition.All<IStartupTask>());
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new VerificationPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IProcessRunner>(new ScriptedProcesses(new FakeTimeProvider()))
-            .AddSingleton<IBaseFiles>(new CommittedFiles()));
+            .AddSingleton<IBaseFiles>(new CommittedFiles())
+            .AddSingleton<IWorkingFiles>(new Scouted.WorkingFolders())
+            .AddSingleton<Scouted.FakeJobs>()
+            .AddSingleton<IJobs>(provider => provider.GetRequiredService<Scouted.FakeJobs>())
+            .AddSingleton<IJobCatalog>(provider => provider.GetRequiredService<Scouted.FakeJobs>())
+            .AddSingleton<IWorkspaces>(provider => provider.GetRequiredService<Scouted.FakeJobs>())
+            .AddSingleton<IScratchRepositories>(new Scouted.Scratch())
+            .AddSingleton<IRoleSettings>(new Scouted.FixedRoles())
+            .AddSingleton<IEventBus>(new RecordingBus()));
 }

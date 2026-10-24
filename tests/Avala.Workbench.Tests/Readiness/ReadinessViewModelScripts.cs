@@ -3,6 +3,7 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Readiness;
 using Avala.Workbench.Readying;
 using Avala.Workbench.Tests.Accounts;
@@ -10,12 +11,59 @@ using Avala.Workbench.Tests.RepositoryChoice;
 
 namespace Avala.Workbench.Tests.Readiness;
 
-public sealed class ReadinessCardViewModelScripts
+public sealed class ReadinessCardViewModelScripts : IDisposable
 {
     private readonly FakeCatalog catalog = new();
     private readonly FakeScratch scratch = new();
     private readonly FakeSourceControl forges = new();
     private readonly FakeForgeReadiness readiness = new();
+    private readonly Avala.Workbench.Board.JobBoard board = new();
+    private readonly TestUiDispatcher ui = new();
+
+    public void Dispose() => ui.Dispose();
+
+    [Fact]
+    public async Task WhileAvalaFindsTheChecksTheCardSaysSoAndOffersNothingToDoAsync()
+    {
+        var job = catalog.Add("Fix the build").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.Running, [])));
+
+        var card = await ShownAsync(job, declared: false);
+
+        var item = Assert.Single(card.Items);
+        Assert.Equal((ReadinessPhrases.ChecksFinding, string.Empty, false), (item.Text.Show(hidden: false), item.Action, item.ActCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public async Task ChecksAvalaFoundFinishTheItemWithTheirNamesAsync()
+    {
+        var job = catalog.Add("Fix the build").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.Running, [])));
+        var card = await ShownAsync(job, declared: false);
+        await ui.InvokeAsync(card.Activate, TestContext.Current.CancellationToken);
+        var revision = await ui.ReadAsync(() => card.Revision);
+
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.Found, [new CheckDeclared("tests", "npm test", TimeSpan.FromMinutes(5)), new CheckDeclared("lint", "npm run lint", TimeSpan.FromMinutes(2))])));
+
+        await ui.PresentedAsync(card, () => card.Revision > revision, () => $"revision {card.Revision}");
+        var item = Assert.Single(card.Items);
+        Assert.Equal(
+            (true, "Avala found how to check this repository: tests, lint. They ship with this job in .avala/checks.json"),
+            await ui.ReadAsync(() => (item.IsDone, item.Text.Show(hidden: false))));
+        await ui.InvokeAsync(card.Deactivate, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task WhenAvalaFindsNoChecksTheCardOffersToDeclareThemAsync()
+    {
+        var job = catalog.Add("Fix the build").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.NoneFound, [])));
+
+        var card = await ShownAsync(job, declared: false);
+
+        var item = Assert.Single(card.Items);
+        Assert.Equal((ReadinessPhrases.ChecksNotFound, ReadinessPhrases.DeclareChecks), (item.Text.Show(hidden: false), item.Action));
+    }
 
     [Fact]
     public async Task TwoLoginsForTheHostAreListedWithTheirToolAndOnlyTheChosenOneIsConnectedAsync()
@@ -69,17 +117,24 @@ public sealed class ReadinessCardViewModelScripts
         Assert.NotEqual(string.Empty, item.Error);
     }
 
-    private async Task<ReadinessCardViewModel> ShownAsync(JobId job)
+    private async Task<ReadinessCardViewModel> ShownAsync(JobId job, bool declared = true)
     {
         var files = new CommittedFiles().With("/repo", ".avala/checks.json", """{ "checks": [] }""");
         var card = new ReadinessCardViewModel(
-            new RepositoryReadiness(new FirstJobs(catalog, Scratching.Folders(scratch)), readiness, files, new FakeRules()),
-            new ReadinessActions(forges.Source, new FakeDocumentation(), new FakeReadinessLinks()));
+            new RepositoryReadiness(new FirstJobs(catalog, Scratching.Folders(scratch)), readiness, files, declared ? new FakeRules() : new NoChecks()),
+            new ReadinessActions(forges.Source, new FakeDocumentation(), new FakeReadinessLinks()),
+            new Avala.Workbench.Presenting.BoardFeed(board, ui, Microsoft.Extensions.Logging.Abstractions.NullLogger<Avala.Workbench.Presenting.BoardFeed>.Instance));
         card.OnRegionContextChanged(job);
         await card.Loading;
 
         return card;
     }
+}
+
+internal sealed class NoChecks : IRepositoryChecks
+{
+    public ValueTask<RepositoryChecks> OfRepositoryAsync(string repository, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new RepositoryChecks(ChecksFileStatus.Absent, [], Option<Workspaces.Contracts.FileOrigin>.None));
 }
 
 public sealed class ReadinessItemViewModelScripts

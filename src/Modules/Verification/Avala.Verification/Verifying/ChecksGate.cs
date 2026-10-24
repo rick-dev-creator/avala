@@ -7,40 +7,36 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Verification.Verifying;
 
-internal sealed class ChecksGate(IBaseFiles files, CheckRunner runner, EvidenceLedger ledger, TimeProvider clock) : ICompletionGate
+internal sealed class ChecksGate(AttemptChecks declarations, CheckRunner runner, EvidenceLedger ledger, TimeProvider clock) : ICompletionGate
 {
     public async ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken)
     {
-        var report = await (await files.ReadAsync(attempt.WorkingDirectory, CheckDeclaration.RelativePath, cancellationToken)).Match(
-            file => VerifyAsync(attempt, file, cancellationToken),
-            _ => Task.FromResult(Invalid(attempt, Option<FileOrigin>.None, VerificationError.UnreadableDeclaration)));
+        var declaration = await declarations.OfAsync(attempt, cancellationToken);
+        var report = await declaration.Error.Match(
+            error => Task.FromResult(Invalid(attempt, declaration.Origin, error)),
+            () => declaration.Declared
+                ? RunAsync(attempt, declaration, cancellationToken)
+                : Task.FromResult(Report(attempt, declaration.Origin, VerificationOutcome.NoChecksDeclared, [], GateVerdict.Pass) with { Missing = true }));
 
         await ledger.RecordAsync(report, cancellationToken);
 
         return report.Verdict;
     }
 
-    private Task<VerificationReport> VerifyAsync(CompletedAttempt attempt, BaseFile file, CancellationToken cancellationToken) =>
-        file.Content.Match(
-            declaration => CheckDeclaration.Parse(declaration).Match(
-                checks => RunAsync(attempt, file.Origin, checks, cancellationToken),
-                error => Task.FromResult(Invalid(attempt, file.Origin, error))),
-            () => Task.FromResult(Report(attempt, file.Origin, VerificationOutcome.NoChecksDeclared, [], GateVerdict.Pass) with { Missing = true }));
-
-    private async Task<VerificationReport> RunAsync(
-        CompletedAttempt attempt,
-        FileOrigin declaration,
-        IReadOnlyList<DeclaredCheck> checks,
-        CancellationToken cancellationToken)
+    private async Task<VerificationReport> RunAsync(CompletedAttempt attempt, AttemptDeclaration declaration, CancellationToken cancellationToken)
     {
         var evidence = new List<CheckEvidence>();
 
-        foreach (var check in checks)
+        foreach (var check in declaration.Checks)
         {
             evidence.Add(evidence.AnyFailed ? check.Skipped : await runner.RunAsync(check, attempt.WorkingDirectory, cancellationToken));
         }
 
-        return Report(attempt, declaration, evidence.Outcome, evidence, AgentFeedback.Judge(evidence));
+        return Report(attempt, declaration.Origin, evidence.Outcome, evidence, AgentFeedback.Judge(evidence)) with
+        {
+            Discovered = declaration.Discovered,
+            DiscoveryShipped = declaration.Shipped,
+        };
     }
 
     private VerificationReport Invalid(CompletedAttempt attempt, Option<FileOrigin> declaration, VerificationError error) =>

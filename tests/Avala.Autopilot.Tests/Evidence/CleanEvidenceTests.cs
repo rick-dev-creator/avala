@@ -40,6 +40,7 @@ public sealed class CleanEvidenceTests
         { "a rule file in the diff", nameof(ExceptionReason.RuleFileEdited) },
         { "a check declaration edited in the worktree", nameof(ExceptionReason.RuleFileEdited) },
         { "a policy edited in the worktree", nameof(ExceptionReason.RuleFileEdited) },
+        { "found checks the agent changed", nameof(ExceptionReason.RuleFileEdited) },
         { "a continuation after a hold", nameof(ExceptionReason.Held) },
         { "a diff that cannot be read", nameof(ExceptionReason.ChangesUnknown) },
     };
@@ -52,6 +53,14 @@ public sealed class CleanEvidenceTests
     [Fact]
     public void AJobVerifiedAfterARetryIsStillCleanSinceOnlyItsLastVerificationCounts() =>
         Assert.Empty((Clean with { Verifications = [Report(VerificationOutcome.Failed), Report(VerificationOutcome.Passed, Tests)] }).Exceptions);
+
+    [Fact]
+    public void ChecksAvalaFoundAndShippedUnchangedAreNoRuleFileEdit() =>
+        Assert.Empty((Clean with
+        {
+            Verifications = [Report(VerificationOutcome.Passed, Tests) with { Discovered = true, DiscoveryShipped = true, Declaration = new FileOrigin("ba5e", EditedInWorktree: false) }],
+            ChangedFiles = Option<IReadOnlyList<string>>.Some(["GREETING.md", ".avala/checks.json"]),
+        }).Exceptions);
 
     [Fact]
     public void TheEvidenceOfARunNamesEveryExceptionalItemAndLeavesTheApprovalRuleToTheLoop()
@@ -112,6 +121,11 @@ public sealed class CleanEvidenceTests
             Verifications = [Report(VerificationOutcome.Passed, Tests) with { Declaration = new FileOrigin("ba5e", EditedInWorktree: true) }],
         },
         "a policy edited in the worktree" => Clean with { RuleOrigins = [new FileOrigin("ba5e", EditedInWorktree: true)] },
+        "found checks the agent changed" => Clean with
+        {
+            Verifications = [Report(VerificationOutcome.Passed, Tests) with { Discovered = true, Declaration = new FileOrigin("ba5e", EditedInWorktree: true) }],
+            ChangedFiles = Option<IReadOnlyList<string>>.Some(["GREETING.md", ".avala/checks.json"]),
+        },
         "a continuation after a hold" => Clean with
         {
             Attempts = [Pilot.Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted), Pilot.Attempt(2, AttemptOrigin.Hint, AttemptOutcome.Passed)],
