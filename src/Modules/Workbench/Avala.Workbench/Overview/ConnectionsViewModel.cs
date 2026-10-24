@@ -15,6 +15,13 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
+internal enum FleetScope
+{
+    InProgress,
+    ForReview,
+    All,
+}
+
 internal interface IConnectionsViewModel : IActivatable, IPresentation
 {
     IReadProblemViewModel ReadProblem { get; }
@@ -25,6 +32,16 @@ internal interface IConnectionsViewModel : IActivatable, IPresentation
 
     string Caption { get; }
 
+    FleetScope Scope { get; }
+
+    string InProgressLabel { get; }
+
+    string ForReviewLabel { get; }
+
+    string AllLabel { get; }
+
+    IRelayCommand<FleetScope> ScopeCommand { get; }
+
     IRelayCommand<JobId> OpenCommand { get; }
 }
 
@@ -32,6 +49,7 @@ internal interface IConnectionsViewModel : IActivatable, IPresentation
 internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed feed, JobFocus focus, JobSpending spending) : IConnectionsViewModel, IDisposable
 {
     private readonly ObservableCollection<ConnectionCardViewModel> connections = [];
+    private FleetState shown = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, []);
 
     public event EventHandler<Presented>? Presented
     {
@@ -49,6 +67,18 @@ internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed 
     [ObservableProperty]
     public partial string Caption { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial FleetScope Scope { get; private set; }
+
+    [ObservableProperty]
+    public partial string InProgressLabel { get; private set; } = "In progress";
+
+    [ObservableProperty]
+    public partial string ForReviewLabel { get; private set; } = "Ready for review";
+
+    [ObservableProperty]
+    public partial string AllLabel { get; private set; } = "All";
+
     public Task Following => feed.Following;
 
     public IReadProblemViewModel ReadProblem { get; } = new ReadProblemViewModel(feed);
@@ -62,8 +92,28 @@ internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed 
     [RelayCommand]
     private void Open(JobId job) => focus.Select(job);
 
+    [RelayCommand]
+    private void ChooseScope(FleetScope scope)
+    {
+        Scope = scope;
+        Filter();
+    }
+
+    IRelayCommand<FleetScope> IConnectionsViewModel.ScopeCommand => ChooseScopeCommand;
+
     private void Show(FleetState fleet)
     {
+        shown = fleet;
+        var agents = fleet.Connections.SelectMany(connection => connection.Agents).ToList();
+        InProgressLabel = $"In progress · {agents.Count(agent => In(FleetScope.InProgress, agent))}";
+        ForReviewLabel = $"Ready for review · {agents.Count(agent => In(FleetScope.ForReview, agent))}";
+        AllLabel = $"All · {agents.Count}";
+        Filter();
+    }
+
+    private void Filter()
+    {
+        var fleet = shown with { Connections = [.. shown.Connections.Select(connection => connection with { Agents = [.. connection.Agents.Where(agent => In(Scope, agent))] })] };
         FileNote = fleet.File == ConnectionFileStatus.Rejected
             ? $"connections.json is rejected: {fleet.Error.Match(error => error.ToString(), () => "invalid")}"
             : string.Empty;
@@ -75,6 +125,13 @@ internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed 
             (card, connection) => card.Update(connection, Hold(connection)));
         Caption = OverviewPhrases.Fleet(connections.Sum(card => card.Agents.Count), connections.Count, connections.Select(card => card.Provider).Where(name => name.Length > 0).Distinct().Count());
     }
+
+    private static bool In(FleetScope scope, Board.BoardJob agent) => scope switch
+    {
+        FleetScope.InProgress => agent.Group is Board.JobGroup.NeedsYou or Board.JobGroup.Running or Board.JobGroup.Waiting,
+        FleetScope.ForReview => agent.Group is Board.JobGroup.ReadyForReview or Board.JobGroup.Delivered,
+        _ => true,
+    };
 
     private Option<double> Hold(ConnectionState connection) => spending.CapsOn(connection.Name).Bind(caps => caps.HoldAtLimit);
 }

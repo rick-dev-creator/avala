@@ -440,6 +440,24 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheDelegationPaneOfAJobCentresItsTreeAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "subagents");
+        var install = await run.DecisionAsync();
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        var pane = workbench.Page["Regions"]["Preview"].Items.Single(item => item.Kind == "DelegationPaneViewModel");
+
+        Outcomes.Succeeds(await run.Get<Avala.Agents.Contracts.IAgents>().RespondAsync(install.Session, new Avala.Agents.Contracts.Sessions.PermissionDecision(install.Item, Avala.Agents.Contracts.Events.PermissionAnswer.Allow), Cancellation));
+        _ = await run.DecisionAsync();
+        await workbench.ShowsAsync(pane, () => pane["IsOpen"].Value<bool>() && pane["HasTree"].Value<bool>() && pane["Tree"]["Branches"].Items.Any(branch => branch.Kind == "SubagentViewModel"));
+
+        await Camera.ShootAsync(run, "26-delegation-pane-centred-tree-dark");
+        await Camera.ShootAsync(run, "26-delegation-pane-centred-tree-light", ThemeVariant.Light);
+    }
+
+    [Fact]
     public async Task TheInspectorsUsageHeadlineReadsWholeUnderACostCapAsync()
     {
         Gated();

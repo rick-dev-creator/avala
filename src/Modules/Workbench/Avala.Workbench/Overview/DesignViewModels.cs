@@ -110,6 +110,16 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
 
     public string Caption => "10 agents · 4 connections on 3 harnesses · hover for a summary, click to open";
 
+    public FleetScope Scope => FleetScope.InProgress;
+
+    public string InProgressLabel => "In progress · 8";
+
+    public string ForReviewLabel => "Ready for review · 2";
+
+    public string AllLabel => "All · 10";
+
+    public IRelayCommand<FleetScope> ScopeCommand { get; } = new RelayCommand<FleetScope>(_ => { });
+
     public IRelayCommand<JobId> OpenCommand { get; } = new RelayCommand<JobId>(_ => { });
 
     public long Revision => 0;
