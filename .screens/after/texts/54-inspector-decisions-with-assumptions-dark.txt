@@ -1,0 +1,62 @@
+Avala
+New job
+Avala's agents
+Memory
+0 MB
+CPU
+0%
+Overview
+Usage
+Triggers
+Settings
+Projects
+repository
+1
+[simulate: governed] Greet the team
+no checks declared
+[simulate: governed] Greet the team
+repository · simulator · simulated-medium · medium effort
+Ready for review
+98% context left
+72% usage left
+Review
+Before this repository works well
+Without .avala/checks.json Avala cannot verify the work
+Declare checks
+Send the agent more to do before you review…
+S
+simulator · simulated-medium · medium
+Denied
+Run dotnet ef database update
+A guard keeps this for a person, so it can't be allowed while the job runs on its own.
+Worked for 1s
+·
+4,200 tokens
+·
+0.01 USD at API prices
+Checkpoint · no file changed
+Restore to here
+dotnet ef database update
+denied
+Answered for you: PostgreSQL
+Thought for 1s
+[simulate: governed] Greet the team
+Inspector
+Evidence
+no checks declared
+Decisions
+1 denied
+1 denied · 1 assumption
+dotnet ef database update
+Run · denied by rule no-⁠migrations
+Assumptions
+Which database should the service use?
+PostgreSQL
+Usage & caps
+0.01 USD at API prices
+Autonomy & connection
+Autonomous
+Worktree
+01a16dd from main
+Pull request
+none
