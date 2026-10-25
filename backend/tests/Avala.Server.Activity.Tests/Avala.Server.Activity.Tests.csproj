@@ -3,7 +3,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\tests\FleetWire\**\*.json" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\tests\FleetWire\**\*.*" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Fleet\Modules\Activity\Avala.Server.Activity.Module\Avala.Server.Activity.Module.csproj" />

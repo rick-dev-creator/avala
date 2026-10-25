@@ -2,11 +2,13 @@ using Avala.Server.Activity.Contracts;
 using Avala.Server.Activity.Contracts.Ingestion;
 using Avala.Server.Activity.Contracts.Repositories;
 using Avala.Server.Activity.Contracts.RepositoryJobs;
+using Avala.Server.Activity.Contracts.Usage;
 using Avala.Server.Activity.Domain;
 using Avala.Server.Activity.Infrastructure.Ingestion;
 using Avala.Server.Activity.Infrastructure.Repositories;
 using Avala.Server.Activity.Infrastructure.RepositoryJobs;
 using Avala.Server.Activity.Infrastructure.Storage;
+using Avala.Server.Activity.Infrastructure.Usage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -68,6 +70,16 @@ internal sealed class Fleet(PostgresFixture database)
         await using var context = database.Context();
 
         return (await new ListRepositoryJobsHandler(context).Handle(new ListRepositoryJobs(key), Cancellation)).Value;
+    }
+
+    public static UsageReportedEvent Spent(Guid? job, long input, decimal amount, string currency, CostBasis basis, DateTimeOffset at, string? model = null) =>
+        new(Guid.NewGuid(), at, job, input, 0, 0, 0, 0, new IncomingCost(amount, currency, basis), model);
+
+    public async Task<UsageReport> UsageAsync(string from, string to, string zone = "UTC", string step = "day", string? repository = null)
+    {
+        await using var context = database.Context();
+
+        return (await new ListUsageHandler(context).Handle(new ListUsage(from, to, zone, step, repository), Cancellation)).Value;
     }
 
     public async Task<FleetJob> JobAsync(Guid instance, Guid job)

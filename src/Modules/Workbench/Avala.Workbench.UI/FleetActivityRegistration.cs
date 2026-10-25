@@ -15,7 +15,14 @@ internal static class FleetActivityRegistration
     public static void RegisterFleetViews(this IViewRegistrar views)
     {
         views.Register<IFleetActivityViewModel, FleetActivityView>();
-        views.Register<IFleetRepositoryRowViewModel, FleetRepositoryRowView>();
+        views.Register<IFleetRangeViewModel, FleetRangeView>();
+        views.Register<IFleetRangeOptionViewModel, FleetRangeOptionView>();
+        views.Register<IFleetTileViewModel, FleetTileView>();
+        views.Register<IFleetTrendViewModel, FleetTrendView>();
+        views.Register<IFleetColumnViewModel, FleetColumnView>();
+        views.Register<IFleetShareListViewModel, FleetShareListView>();
+        views.Register<IFleetShareRowViewModel, FleetShareRowView>();
+        views.Register<IFleetRepositoryJobsViewModel, FleetRepositoryJobsView>();
         views.Register<IFleetJobRowViewModel, FleetJobRowView>();
     }
 }

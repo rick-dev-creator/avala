@@ -45,14 +45,37 @@ public sealed class WireJsonTests
     }
 
     [Fact]
-    public async Task TheRepositoriesAreReadFromTheirGoldenFileAsync()
+    public async Task TheUsageQueryIsWrittenAsItsGoldenFileAsync() =>
+        Assert.Equal(
+            (await GoldenAsync("requests/usage.query")).Trim(),
+            WireJson.UsageQuery(new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, "remote:github.com/rick/avala"), "Europe/Madrid"));
+
+    [Fact]
+    public async Task TheUsageIsReadFromItsGoldenFileAsync()
     {
-        var view = WireJson.ReadRepositories(await GoldenAsync("responses/repositories.json")).Match(found => found, () => FleetView.Of(FleetReadState.Unreachable));
-        var repository = Assert.Single(view.Repositories);
+        var usage = WireJson.ReadUsage(await GoldenAsync("responses/usage.json")).Match(found => found, () => FleetUsage.Empty);
 
         Assert.Equal(
-            (FleetReadState.Read, "remote:github.com/rick/avala", 3, 2, 1500m, new FleetCost("USD", "apiEquivalent", 0.75m), 1),
-            (view.State, repository.Key, repository.Jobs, repository.Instances, repository.Tokens.Input, Assert.Single(repository.Costs), view.UnattributedJobs));
+            ("USD apiEquivalent", 3000m, 1.25m, 3, 2, 7, 0.75m),
+            (usage.Reference.Match(kind => $"{kind.Currency} {kind.Basis}", () => string.Empty), usage.Totals.Tokens.Input, usage.Totals.Costs.Single().Amount, usage.Totals.Jobs, usage.Totals.Instances, usage.Series.Count, usage.Series[^1].Costs.Single().Amount));
+        Assert.Equal(
+            ["Repository remote:github.com/rick/avala 2", "Unknown  1", "OutsideAnyJob  0", "Instance desktop 2", "Instance laptop 1", "Model opus 0", "Model  0"],
+            usage.Repositories.Concat(usage.Instances).Concat(usage.Models).Select(share => $"{share.Kind} {share.Name} {share.Jobs}"));
+    }
+
+    [Fact]
+    public void AnUnknownKindIsNeverTakenForARepository() =>
+        Assert.Equal(
+            FleetShareKind.Unknown,
+            WireJson.ReadUsage("""{"reference":null,"totals":{"tokens":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"reasoning":0},"costs":[],"jobs":0,"instances":0},"series":[],"repositories":[{"key":"x","kind":"archived","tokens":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"reasoning":0},"costs":[],"jobs":0}],"instances":[],"models":[]}""")
+                .Match(usage => usage.Repositories[0].Kind, () => FleetShareKind.Repository));
+
+    [Fact]
+    public async Task AUsageWithoutCostHasNoReferenceAsync()
+    {
+        var usage = WireJson.ReadUsage(await GoldenAsync("responses/usage-without-cost.json")).Match(found => found, () => FleetUsage.Empty);
+
+        Assert.Equal((true, 10m, 1), (usage.Reference.IsNone, usage.Totals.Tokens.Input, usage.Series.Count));
     }
 
     [Fact]

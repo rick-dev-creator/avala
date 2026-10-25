@@ -41,20 +41,25 @@ internal static class WireJson
     public static Option<Identity> ReadIdentity(string text) =>
         Read<IdentityBody>(text).Map(body => new Identity(body.Id, body.Name));
 
-    public static Option<FleetView> ReadRepositories(string text) =>
-        Read<RepositoriesBody>(text).Map(body => new FleetView(
-            FleetReadState.Read,
+    public static string UsageQuery(FleetUsageQuery query, string zone) =>
+        string.Join(
+            '&',
             [
-                .. body.Repositories.Select(repository => new FleetRepository(
-                    repository.Key,
-                    repository.Jobs,
-                    repository.Instances,
-                    TokensOf(repository.Tokens),
-                    CostsOf(repository.Costs),
-                    repository.FirstActivityAt,
-                    repository.LastActivityAt)),
-            ],
-            body.UnattributedJobs));
+                $"from={Date(query.From)}",
+                $"to={Date(query.To)}",
+                $"zone={Uri.EscapeDataString(zone)}",
+                $"step={query.Step.ToString().ToLowerInvariant()}",
+                .. query.Repository.Match<string[]>(repository => [$"repository={Uri.EscapeDataString(repository)}"], () => []),
+            ]);
+
+    public static Option<FleetUsage> ReadUsage(string text) =>
+        Read<UsageBody>(text).Map(body => new FleetUsage(
+            KindOf(body.Reference),
+            new FleetTotals(TokensOf(body.Totals.Tokens), CostsOf(body.Totals.Costs), body.Totals.Jobs, body.Totals.Instances),
+            [.. body.Series.Select(period => new FleetPeriod(period.Start, TokensOf(period.Tokens), CostsOf(period.Costs)))],
+            [.. body.Repositories.Select(share => new FleetShare(KindOf(share.Kind), share.Key, share.Key, TokensOf(share.Tokens), CostsOf(share.Costs), share.Jobs))],
+            [.. body.Instances.Select(share => new FleetShare(FleetShareKind.Instance, share.Instance, share.Name, TokensOf(share.Tokens), CostsOf(share.Costs), share.Jobs))],
+            [.. body.Models.Select(share => new FleetShare(FleetShareKind.Model, share.Model, share.Model, TokensOf(share.Tokens), CostsOf(share.Costs), 0))]));
 
     public static Option<FleetJobsView> ReadJobs(string text) =>
         Read<JobsBody>(text).Map(body => new FleetJobsView(
@@ -72,6 +77,22 @@ internal static class WireJson
                     CostsOf(job.Costs),
                     job.LastActivityAt)),
             ]));
+
+    private static string Date(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static Option<FleetCostKind> KindOf(JsonElement reference) =>
+        reference.ValueKind == JsonValueKind.Object
+            && reference.TryGetProperty("currency", out var currency)
+            && reference.TryGetProperty("basis", out var basis)
+            ? new FleetCostKind(Text(currency), Text(basis))
+            : Option<FleetCostKind>.None;
+
+    private static FleetShareKind KindOf(string kind) => kind switch
+    {
+        "repository" => FleetShareKind.Repository,
+        "outsideAnyJob" => FleetShareKind.OutsideAnyJob,
+        _ => FleetShareKind.Unknown,
+    };
 
     private static string Instant(DateTimeOffset at) => at.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture);
 
@@ -170,16 +191,23 @@ internal static class WireJson
 
     private sealed record CostBody(string Currency, string Basis, decimal Amount);
 
-    private sealed record RepositoryBody(
-        string Key,
-        int Jobs,
-        int Instances,
-        TokensBody Tokens,
-        IReadOnlyList<CostBody> Costs,
-        DateTimeOffset FirstActivityAt,
-        DateTimeOffset LastActivityAt);
+    private sealed record TotalsBody(TokensBody Tokens, IReadOnlyList<CostBody> Costs, int Jobs, int Instances);
 
-    private sealed record RepositoriesBody(IReadOnlyList<RepositoryBody> Repositories, int UnattributedJobs);
+    private sealed record PeriodBody(DateOnly Start, TokensBody Tokens, IReadOnlyList<CostBody> Costs);
+
+    private sealed record RepositoryShareBody(string Key, string Kind, TokensBody Tokens, IReadOnlyList<CostBody> Costs, int Jobs);
+
+    private sealed record InstanceShareBody(string Instance, string Name, TokensBody Tokens, IReadOnlyList<CostBody> Costs, int Jobs);
+
+    private sealed record ModelShareBody(string Model, TokensBody Tokens, IReadOnlyList<CostBody> Costs);
+
+    private sealed record UsageBody(
+        JsonElement Reference,
+        TotalsBody Totals,
+        IReadOnlyList<PeriodBody> Series,
+        IReadOnlyList<RepositoryShareBody> Repositories,
+        IReadOnlyList<InstanceShareBody> Instances,
+        IReadOnlyList<ModelShareBody> Models);
 
     private sealed record JobBody(
         Guid Instance,

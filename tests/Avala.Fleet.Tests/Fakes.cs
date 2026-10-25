@@ -223,7 +223,7 @@ internal sealed class FakeFleetServer : IFleetServer
 
     public Identity Identity { get; set; } = new(Guid.Parse("0199f6a0-0000-7000-8000-00000000000a"), "desktop");
 
-    public FleetView Repositories { get; set; } = FleetView.Of(FleetReadState.Read);
+    public FleetUsageView Usage { get; set; } = new(FleetReadState.Read, FleetUsage.Empty);
 
     public List<string> Asked { get; } = [];
 
@@ -241,11 +241,11 @@ internal sealed class FakeFleetServer : IFleetServer
     public Task<IdentifyOutcome> IdentifyAsync(string server, string key, CancellationToken cancellationToken) =>
         Task.FromResult(Identifies == ServerAnswer.Answered ? new IdentifyOutcome(ServerAnswer.Answered, Identity) : new IdentifyOutcome(Identifies, Option<Identity>.None));
 
-    public Task<FleetView> RepositoriesAsync(string server, string key, CancellationToken cancellationToken)
+    public Task<FleetUsageView> UsageAsync(string server, string key, FleetUsageQuery query, string zone, CancellationToken cancellationToken)
     {
-        Asked.Add($"repositories {server} {key}");
+        Asked.Add($"usage {server} {key} {query.From:yyyy-MM-dd} {query.To:yyyy-MM-dd} {query.Step} {zone}");
 
-        return Task.FromResult(Repositories);
+        return Task.FromResult(Usage);
     }
 
     public Task<FleetJobsView> JobsAsync(string server, string key, string repository, CancellationToken cancellationToken)

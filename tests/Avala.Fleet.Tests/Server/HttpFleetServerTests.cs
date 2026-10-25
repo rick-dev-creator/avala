@@ -2,6 +2,7 @@ using System.Net;
 using Avala.Fleet.Contracts;
 using Avala.Fleet.Delivering;
 using Avala.Fleet.Server;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Fleet.Tests.Server;
@@ -47,7 +48,20 @@ public sealed class HttpFleetServerTests
         using var endpoint = new FakeNotifierEndpoint { Unreachable = true };
         using var http = new FleetHttp(endpoint, owned: false);
 
-        Assert.Equal(FleetReadState.Unreachable, (await new HttpFleetServer(http).RepositoriesAsync(Fleets.Server, Fleets.Key, Cancellation)).State);
+        Assert.Equal(FleetReadState.Unreachable, (await new HttpFleetServer(http).UsageAsync(Fleets.Server, Fleets.Key, new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None), "UTC", Cancellation)).State);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, FleetReadState.Outdated)]
+    [InlineData(HttpStatusCode.BadRequest, FleetReadState.Refused)]
+    public async Task AServerThatCannotAnswerTheUsageSaysWhy(HttpStatusCode status, FleetReadState state)
+    {
+        using var endpoint = new FakeNotifierEndpoint().Replying(status);
+        using var http = new FleetHttp(endpoint, owned: false);
+
+        var view = await new HttpFleetServer(http).UsageAsync(Fleets.Server, Fleets.Key, new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None), "UTC", Cancellation);
+
+        Assert.Equal(state, view.State);
     }
 
     [Fact]

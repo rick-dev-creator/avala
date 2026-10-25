@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Testing.UI;
 using Avala.Workbench.FleetActivity;
 using Avalonia.Controls;
@@ -7,68 +8,218 @@ namespace Avala.Workbench.Tests.Views;
 
 public sealed class FleetActivityViewScripts(HeadlessUi ui)
 {
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
     [Fact]
-    public Task ThePageListsTheRepositoriesAndTheUnattributedJobsAsync() =>
+    public Task ThePageShowsItsTilesTrendAndListsAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignFleetActivityViewModel());
 
-            Assert.Equal((1, true, false), (view.Find<ItemsControl>("RepositoryList").ItemCount, view.Shows("UnattributedText"), view.Shows("NoticeText")));
-        }, TestContext.Current.CancellationToken);
+            Assert.Equal(
+                (4, true, 3, false, false),
+                (view.Find<ItemsControl>("TileList").ItemCount, view.Shows("TrendContent"), view.Find<ItemsControl>("ShareLists").ItemCount, view.Shows("NoticeText"), view.Shows("ScopeChip")));
+        }, Cancellation);
 
     [Fact]
-    public Task RefreshRunsTheCommandAsync() =>
+    public Task ANoticeReplacesTheFiguresAsync() =>
         ui.RunAsync(() =>
         {
-            var refreshed = 0;
+            var view = Screen.Show(new DesignFleetActivityViewModel { Notice = "The fleet is paused in Settings › Fleet.", HasFigures = false });
+
+            Assert.Equal((true, false), (view.Shows("NoticeText"), view.Shows("Figures")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AScopedPageShowsItsRepositoryAndItsJobsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var cleared = 0;
             var view = Screen.Show(new DesignFleetActivityViewModel
             {
-                RefreshCommand = new AsyncRelayCommand(() =>
+                Scope = Personal.AccountName("remote:github.com/rick/avala"),
+                ClearScopeCommand = new AsyncRelayCommand(() =>
                 {
-                    refreshed++;
+                    cleared++;
 
                     return Task.CompletedTask;
                 }),
             });
 
-            view.Click("RefreshButton");
+            view.Click("ClearScopeButton");
 
-            Assert.Equal(1, refreshed);
-        }, TestContext.Current.CancellationToken);
+            Assert.Equal((true, true, 1), (view.Shows("ScopeChip"), view.Shows("JobsContent"), cleared));
+        }, Cancellation);
 
     [Fact]
-    public Task ANoticeReplacesTheListAsync() =>
+    public Task DatesInUtcAreSaidAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignFleetActivityViewModel { Notice = "This instance is not connected to a fleet server.", Repositories = [], Unattributed = string.Empty });
+            var view = Screen.Show(new DesignFleetActivityViewModel { ZoneNote = "Dates are in UTC" });
 
-            Assert.Equal((true, false), (view.Shows("NoticeText"), view.Shows("UnattributedText")));
+            Assert.True(view.Shows("ZoneNoteText"));
+        }, Cancellation);
+}
+
+public sealed class FleetRangeViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task EveryRangeIsOfferedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetRangeViewModel());
+
+            Assert.Equal((7, false), (view.Find<ItemsControl>("RangeOptions").ItemCount, view.Shows("CustomPanel")));
+        }, Cancellation);
+
+    [Fact]
+    public Task ACustomRangeOffersItsDatesAndSaysWhyItWasRefusedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetRangeViewModel { IsCustomOpen = true, Refusal = "Choose at most a year" });
+
+            Assert.Equal((true, true), (view.Shows("CustomPanel"), view.Shows("RefusalText")));
+        }, Cancellation);
+}
+
+public sealed class FleetRangeOptionViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task ClickingAnOptionChoosesItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var chosen = 0;
+            var view = Screen.Show(new DesignFleetRangeOptionViewModel { ChooseCommand = new RelayCommand(() => chosen++) });
+
+            view.Click("OptionButton");
+
+            Assert.Equal(1, chosen);
         }, TestContext.Current.CancellationToken);
 }
 
-public sealed class FleetRepositoryRowViewScripts(HeadlessUi ui)
+public sealed class FleetTileViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AnExpandedRowListsItsJobsAsync() =>
+    public Task ATileShowsItsLabelValueAndCaptionAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignFleetRepositoryRowViewModel());
+            var view = Screen.Show(new DesignFleetTileViewModel());
 
-            Assert.Equal((true, 1), (view.Shows("JobList"), view.Find<ItemsControl>("JobList").ItemCount));
+            Assert.Equal(("Spend", "12.40 USD", "at API prices"), (view.TextOf("LabelText"), view.TextOf("ValueText"), view.TextOf("CaptionText")));
         }, TestContext.Current.CancellationToken);
+}
+
+public sealed class FleetTrendViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task EveryColumnIsDrawnAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetTrendViewModel());
+
+            Assert.Equal((7, false), (view.Find<ItemsControl>("ColumnList").ItemCount, view.Shows("EmptyText")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnEmptyRangeSaysNothingWasSpentAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetTrendViewModel { IsEmpty = true });
+
+            Assert.Equal((true, false), (view.Shows("EmptyText"), view.Shows("ColumnList")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheMetricCanBeSwitchedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var tokens = 0;
+            var view = Screen.Show(new DesignFleetTrendViewModel { ShowTokensCommand = new RelayCommand(() => tokens++) });
+
+            view.Click("ShowTokensButton");
+
+            Assert.Equal(1, tokens);
+        }, Cancellation);
+}
+
+public sealed class FleetColumnViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task EveryColumnHasItsTooltipAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetColumnViewModel());
+
+            Assert.Equal(
+                ("19 Oct", 0.6, "Mon 19 Oct · 2.1M tokens · 2.04 USD at API prices"),
+                (view.TextOf("TickText"), view.Find<ProgressBar>("ColumnBar").Value, ToolTip.GetTip((Control)view.Find<ProgressBar>("ColumnBar").Parent!)));
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class FleetShareListViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AListShowsItsRowsAndHowManyMoreAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetShareListViewModel { More = "and 4 more" });
+
+            Assert.Equal((1, true), (view.Find<ItemsControl>("RowList").ItemCount, view.Shows("MoreText")));
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class FleetShareRowViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
     public Task PersonalDetailsAreHiddenWhenAskedAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignFleetRepositoryRowViewModel());
-            var hidden = view.TextOf("KeyText");
+            var view = Screen.Show(new DesignFleetShareRowViewModel());
+            var hidden = view.TextOf("NameText");
 
             Components.UI.Privacy.PersonalDetails.SetAreHidden(view.Window, false);
             view.Settle();
 
-            Assert.NotEqual("remote:github.com/rick/avala", hidden);
-            Assert.Equal("remote:github.com/rick/avala", view.TextOf("KeyText"));
+            Assert.Equal((false, "remote:github.com/rick/avala"), (hidden == "remote:github.com/rick/avala", view.TextOf("NameText")));
+        }, Cancellation);
+
+    [Fact]
+    public Task ChoosingARowRunsItsCommandAsync() =>
+        ui.RunAsync(() =>
+        {
+            var chosen = 0;
+            var view = Screen.Show(new DesignFleetShareRowViewModel
+            {
+                CanChoose = true,
+                ChooseCommand = new AsyncRelayCommand(() =>
+                {
+                    chosen++;
+
+                    return Task.CompletedTask;
+                }),
+            });
+
+            view.Click("RowButton");
+
+            Assert.Equal(1, chosen);
+        }, Cancellation);
+}
+
+public sealed class FleetRepositoryJobsViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheRepositorysJobsAreListedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetRepositoryJobsViewModel());
+
+            Assert.Equal((1, true), (view.Find<ItemsControl>("JobList").ItemCount, view.Shows("NoticeText")));
         }, TestContext.Current.CancellationToken);
 }
 

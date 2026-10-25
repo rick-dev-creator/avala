@@ -3,7 +3,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\tests\FleetWire\**\*.json" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\tests\FleetWire\**\*.*" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Fleet\Avala.Server\Avala.Server.csproj" />

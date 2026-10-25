@@ -1,6 +1,8 @@
 using Avala.Fleet.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.FleetActivity;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Workbench.Tests.FleetActivity;
 
@@ -8,30 +10,56 @@ internal sealed class FakeFleetActivity : IFleetActivity
 {
     public static readonly DateTimeOffset Noon = new(2026, 10, 25, 12, 0, 0, TimeSpan.Zero);
 
-    public FleetView View { get; set; } = new(
-        FleetReadState.Read,
-        [new FleetRepository("remote:github.com/rick/avala", 3, 2, new FleetTokens(1500, 150, 9000, 0, 0), [new FleetCost("USD", "apiEquivalent", 0.75m)], Noon.AddHours(-1), Noon)],
-        1);
+    public static readonly FleetCostKind Usd = new("USD", "apiEquivalent");
+
+    public FleetZone Zone { get; set; } = new("Europe/Madrid", InUtc: false);
+
+    public FleetUsageView Usage { get; set; } = new(FleetReadState.Read, Fleet());
 
     public FleetJobsView Jobs { get; set; } = new(
         FleetReadState.Read,
         [new FleetJob(Guid.NewGuid(), "laptop", Guid.NewGuid(), "needsHelp", "budgetExceeded", 2, "failed", new FleetTokens(500, 50, 0, 0, 0), [], Noon)]);
 
-    public List<string> Asked { get; } = [];
+    public List<FleetUsageQuery> Asked { get; } = [];
 
-    public ValueTask<FleetView> RepositoriesAsync(CancellationToken cancellationToken)
+    public List<string> AskedJobs { get; } = [];
+
+    public Queue<TaskCompletionSource<FleetUsageView>> Held { get; } = [];
+
+    public static FleetUsage Fleet(int repositories = 2, bool costed = true) =>
+        new(
+            costed ? Usd : Option<FleetCostKind>.None,
+            new FleetTotals(new FleetTokens(3000, 300, 20000, 1000, 50), Costs(costed, 1.25m), 3, 2),
+            [Period(0, 0m), Period(1, 0.5m), Period(2, 0.75m)],
+            [
+                .. Enumerable.Range(0, repositories).Select(index => Share(FleetShareKind.Repository, $"remote:github.com/rick/repo{index}", costed, 1m - (index * 0.05m))),
+                Share(FleetShareKind.Unknown, string.Empty, costed, 0.01m),
+                Share(FleetShareKind.OutsideAnyJob, string.Empty, costed, 0.005m),
+            ],
+            [Share(FleetShareKind.Instance, "laptop", costed, 0.75m)],
+            [Share(FleetShareKind.Model, "opus", costed, 1.05m)]);
+
+    public ValueTask<FleetUsageView> UsageAsync(FleetUsageQuery query, CancellationToken cancellationToken)
     {
-        Asked.Add("repositories");
+        Asked.Add(query);
 
-        return ValueTask.FromResult(View);
+        return Held.TryDequeue(out var held) ? new ValueTask<FleetUsageView>(held.Task) : ValueTask.FromResult(Usage);
     }
 
     public ValueTask<FleetJobsView> JobsAsync(string repository, CancellationToken cancellationToken)
     {
-        Asked.Add($"jobs {repository}");
+        AskedJobs.Add(repository);
 
         return ValueTask.FromResult(Jobs);
     }
+
+    private static IReadOnlyList<FleetCost> Costs(bool costed, decimal amount) => costed ? [new FleetCost("USD", "apiEquivalent", amount)] : [];
+
+    private static FleetPeriod Period(int day, decimal amount) =>
+        new(new DateOnly(2026, 10, 23).AddDays(day), new FleetTokens(amount * 1000, 0, 0, 0, 0), Costs(amount > 0, amount));
+
+    private static FleetShare Share(FleetShareKind kind, string key, bool costed, decimal amount) =>
+        new(kind, key, key, new FleetTokens(amount * 1000, 0, 0, 0, 0), Costs(costed, amount), 1);
 }
 
 public sealed class FleetActivityViewModelScripts : IDisposable
@@ -40,108 +68,211 @@ public sealed class FleetActivityViewModelScripts : IDisposable
 
     private readonly TestUiDispatcher ui = new();
 
-    [Fact]
-    public async Task OpeningThePageReadsTheFleetsRepositories()
-    {
-        var page = new FleetActivityViewModel(activity, ui);
+    private readonly FakeTimeProvider clock = new(FakeFleetActivity.Noon);
 
+    public static TheoryData<int, string, string, string> Ranges => new()
+    {
+        { 1, "2026-09-26", "2026-10-26", nameof(FleetStep.Day) },
+        { 2, "2026-10-01", "2026-10-26", nameof(FleetStep.Day) },
+        { 3, "2026-07-27", "2026-10-26", nameof(FleetStep.Week) },
+        { 4, "2026-04-27", "2026-10-26", nameof(FleetStep.Week) },
+        { 5, "2025-11-01", "2026-11-01", nameof(FleetStep.Month) },
+    };
+
+    [Fact]
+    public async Task OpeningReadsTheLastSevenDays()
+    {
+        var page = await OpenedAsync();
+
+        Assert.Equal(
+            ("2026-10-19", "2026-10-26", FleetStep.Day, true, true),
+            (Iso(activity.Asked[0].From), Iso(activity.Asked[0].To), activity.Asked[0].Step, activity.Asked[0].Repository.IsNone, await ui.ReadAsync(() => page.Range.Options[0].IsSelected)));
+    }
+
+    [Theory]
+    [MemberData(nameof(Ranges))]
+    public async Task EachRangeReadsItsDatesAndStep(int option, string from, string to, string step)
+    {
+        var page = await OpenedAsync();
+
+        page.Range.Options[option].ChooseCommand.Execute(null);
+        await page.Loading;
+
+        Assert.Equal((from, to, step), (Iso(activity.Asked[^1].From), Iso(activity.Asked[^1].To), activity.Asked[^1].Step.ToString()));
+    }
+
+    [Fact]
+    public async Task ACustomRangeOverAYearIsRefused()
+    {
+        var page = await OpenedAsync();
+        page.Range.Options[6].ChooseCommand.Execute(null);
+        page.Range.CustomFrom = "2025-01-01";
+        page.Range.CustomTo = "2026-10-25";
+
+        page.Range.ApplyCustomCommand.Execute(null);
+
+        Assert.Equal((1, "Choose at most a year"), (activity.Asked.Count, page.Range.Refusal));
+    }
+
+    [Fact]
+    public async Task AFittingCustomRangeIsRead()
+    {
+        var page = await OpenedAsync();
+        page.Range.Options[6].ChooseCommand.Execute(null);
+        page.Range.CustomFrom = "2026-10-01";
+        page.Range.CustomTo = "2026-10-10";
+
+        page.Range.ApplyCustomCommand.Execute(null);
+        await page.Loading;
+
+        Assert.Equal(("2026-10-01", "2026-10-11"), (Iso(activity.Asked[^1].From), Iso(activity.Asked[^1].To)));
+    }
+
+    [Fact]
+    public async Task ChoosingARepositoryScopesThePageAndListsItsJobs()
+    {
+        var page = await OpenedAsync();
+
+        await (await ui.ReadAsync(() => page.Lists[0].Rows[0])).ChooseCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            ("remote:github.com/rick/repo0", "remote:github.com/rick/repo0", true, "laptop"),
+            (activity.Asked[^1].Repository.Match(key => key, () => string.Empty), activity.AskedJobs[^1], await ui.ReadAsync(() => page.IsScoped), await ui.ReadAsync(() => page.Jobs.Jobs[0].Instance.Value)));
+    }
+
+    [Fact]
+    public async Task TheSpecialRowsCannotBeChosen()
+    {
+        var page = await OpenedAsync();
+        var rows = await ui.ReadAsync(() => page.Lists[0].Rows.ToList());
+
+        await rows[^1].ChooseCommand.ExecuteAsync(null);
+
+        Assert.Equal(("True,True,False,False", 1), (string.Join(",", rows.Select(row => row.CanChoose)), activity.Asked.Count));
+    }
+
+    [Fact]
+    public async Task ClearingTheScopeReadsTheWholeFleet()
+    {
+        var page = await OpenedAsync();
+        await (await ui.ReadAsync(() => page.Lists[0].Rows[0])).ChooseCommand.ExecuteAsync(null);
+
+        await page.ClearScopeCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, false), (activity.Asked[^1].Repository.IsNone, await ui.ReadAsync(() => page.IsScoped)));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task TheMetricIsSpendWithCostsAndTokensWithout(bool costed, bool spend)
+    {
+        activity.Usage = new FleetUsageView(FleetReadState.Read, FakeFleetActivity.Fleet(costed: costed));
+
+        var page = await OpenedAsync();
+
+        Assert.Equal(spend, await ui.ReadAsync(() => page.Trend.ShowsSpend));
+    }
+
+    [Fact]
+    public async Task TheTilesSayWhatTheServerAnswered()
+    {
+        var page = await OpenedAsync();
+
+        Assert.Equal(
+            "Spend 1.25 USD|Tokens 24.4K|Jobs 3|Instances 2",
+            await ui.ReadAsync(() => string.Join("|", page.Tiles.Select(tile => $"{tile.Label} {tile.Value}"))));
+    }
+
+    [Fact]
+    public async Task AListShowsItsTopEightAndHowManyMore()
+    {
+        activity.Usage = new FleetUsageView(FleetReadState.Read, FakeFleetActivity.Fleet(repositories: 10));
+
+        var page = await OpenedAsync();
+
+        Assert.Equal((8, "and 4 more"), (await ui.ReadAsync(() => page.Lists[0].Rows.Count), await ui.ReadAsync(() => page.Lists[0].More)));
+    }
+
+    [Fact]
+    public async Task ANoticeReplacesTheFigures()
+    {
+        activity.Usage = FleetUsageView.Of(FleetReadState.Paused);
+
+        var page = await OpenedAsync();
+
+        Assert.Equal((true, false), (await ui.ReadAsync(() => page.HasNotice), await ui.ReadAsync(() => page.HasFigures)));
+    }
+
+    [Fact]
+    public async Task AnEmptyRangeSaysNothingWasSpent()
+    {
+        activity.Usage = new FleetUsageView(FleetReadState.Read, FleetUsage.Empty);
+
+        var page = await OpenedAsync();
+
+        Assert.True(await ui.ReadAsync(() => page.Trend.IsEmpty));
+    }
+
+    [Fact]
+    public async Task DatesInUtcAreSaid()
+    {
+        activity.Zone = new FleetZone("UTC", InUtc: true);
+
+        var page = await OpenedAsync();
+
+        Assert.True(await ui.ReadAsync(() => page.HasZoneNote));
+    }
+
+    [Fact]
+    public async Task AnOlderLoadNeverOverwritesANewerOne()
+    {
+        var page = await OpenedAsync();
+        var slow = new TaskCompletionSource<FleetUsageView>(TaskCreationOptions.RunContinuationsAsynchronously);
+        activity.Held.Enqueue(slow);
+        page.Range.Options[5].ChooseCommand.Execute(null);
+        var year = page.Loading;
+        activity.Usage = new FleetUsageView(FleetReadState.Read, FakeFleetActivity.Fleet(repositories: 1));
+
+        page.Range.Options[0].ChooseCommand.Execute(null);
+        await page.Loading;
+        slow.SetResult(new FleetUsageView(FleetReadState.Read, FakeFleetActivity.Fleet(repositories: 6)));
+        await year;
+
+        Assert.Equal(3, await ui.ReadAsync(() => page.Lists[0].Rows.Count));
+    }
+
+    [Fact]
+    public async Task TheChosenMetricSurvivesAReload()
+    {
+        var page = await OpenedAsync();
+        await ui.InvokeAsync(() => page.Trend.ShowTokensCommand.Execute(null), TestContext.Current.CancellationToken);
+
+        await page.RefreshCommand.ExecuteAsync(null);
+
+        Assert.False(await ui.ReadAsync(() => page.Trend.ShowsSpend));
+    }
+
+    [Fact]
+    public async Task ChoosingTokensRedrawsTheListsByTokens()
+    {
+        var page = await OpenedAsync();
+
+        await ui.InvokeAsync(() => page.Trend.ShowTokensCommand.Execute(null), TestContext.Current.CancellationToken);
+
+        Assert.Equal("1K", await ui.ReadAsync(() => page.Lists[0].Rows[0].Value));
+    }
+
+    public void Dispose() => ui.Dispose();
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task<FleetActivityViewModel> OpenedAsync()
+    {
+        var page = new FleetActivityViewModel(activity, ui, clock);
         page.Activate();
         await page.Loading;
 
-        Assert.Equal(
-            (1, "3 jobs on 2 instances", false, true),
-            (await ui.ReadAsync(() => page.Repositories.Count), (await ui.ReadAsync(() => page.Repositories[0].Summary))[..21], await ui.ReadAsync(() => page.HasNotice), await ui.ReadAsync(() => page.HasUnattributed)));
-    }
-
-    [Theory]
-    [InlineData(FleetReadState.NotConnected, "Settings › Fleet")]
-    [InlineData(FleetReadState.Paused, "paused")]
-    [InlineData(FleetReadState.KeyRefused, "refused")]
-    [InlineData(FleetReadState.Unreachable, "did not answer")]
-    public async Task AFleetThatCannotBeReadSaysWhy(FleetReadState state, string said)
-    {
-        activity.View = FleetView.Of(state);
-        var page = new FleetActivityViewModel(activity, ui);
-
-        await page.RefreshCommand.ExecuteAsync(null);
-
-        Assert.Contains(said, await ui.ReadAsync(() => page.Notice), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task RefreshingReadsAgain()
-    {
-        var page = new FleetActivityViewModel(activity, ui);
-
-        await page.RefreshCommand.ExecuteAsync(null);
-        await page.RefreshCommand.ExecuteAsync(null);
-
-        Assert.Equal(["repositories", "repositories"], activity.Asked);
-    }
-
-    public void Dispose() => ui.Dispose();
-}
-
-public sealed class FleetRepositoryRowViewModelScripts : IDisposable
-{
-    private readonly FakeFleetActivity activity = new();
-
-    private readonly TestUiDispatcher ui = new();
-
-    [Fact]
-    public async Task ExpandingARepositoryReadsItsJobsOnEveryInstance()
-    {
-        var row = new FleetRepositoryRowViewModel(activity.View.Repositories[0], activity, ui);
-
-        await row.ToggleCommand.ExecuteAsync(null);
-
-        Assert.Equal(
-            (true, "laptop", "jobs remote:github.com/rick/avala"),
-            (await ui.ReadAsync(() => row.IsExpanded), await ui.ReadAsync(() => row.Jobs[0].Instance.Value), activity.Asked[^1]));
-    }
-
-    [Fact]
-    public async Task ExpandingAgainFolds()
-    {
-        var row = new FleetRepositoryRowViewModel(activity.View.Repositories[0], activity, ui);
-
-        await row.ToggleCommand.ExecuteAsync(null);
-        await row.ToggleCommand.ExecuteAsync(null);
-
-        Assert.False(await ui.ReadAsync(() => row.IsExpanded));
-    }
-
-    [Theory]
-    [InlineData(0.75, "0.75 USD")]
-    [InlineData(0.0042, "0.0042 USD")]
-    [InlineData(14.504, "14.5 USD")]
-    public void ACostIsShownWithTheDigitsThatMatter(double amount, string shown) =>
-        Assert.Contains(
-            shown,
-            FleetActivityViewModel.Spent(new FleetTokens(0, 0, 0, 0, 0), [new FleetCost("USD", "apiEquivalent", (decimal)amount)]),
-            StringComparison.Ordinal);
-
-    [Fact]
-    public void OneJobOnOneInstanceIsSaidInTheSingular() =>
-        Assert.StartsWith(
-            "1 job on 1 instance",
-            new FleetRepositoryRowViewModel(activity.View.Repositories[0] with { Jobs = 1, Instances = 1 }, activity, ui).Summary,
-            StringComparison.Ordinal);
-
-    [Fact]
-    public void ARowSaysWhatItsRepositorySpent() =>
-        Assert.Contains("0.75 USD at API prices", new FleetRepositoryRowViewModel(activity.View.Repositories[0], activity, ui).Spending, StringComparison.Ordinal);
-
-    public void Dispose() => ui.Dispose();
-}
-
-public sealed class FleetJobRowViewModelScripts
-{
-    [Fact]
-    public void AJobShowsItsStateHoldAndAttempts()
-    {
-        var row = new FleetJobRowViewModel(new FakeFleetActivity().Jobs.Jobs[0]);
-
-        Assert.StartsWith("needsHelp · held: budgetExceeded · 2 attempts, last failed", row.State, StringComparison.Ordinal);
+        return page;
     }
 }

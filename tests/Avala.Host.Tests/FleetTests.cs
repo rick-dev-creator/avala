@@ -100,7 +100,7 @@ public sealed class FleetTests(PublishedPlugins plugins)
         await ReviewedAsync(run);
         run.Clock.Advance(TimeSpan.FromHours(1));
         await run.DeliveredAsync();
-        var view = await run.Get<IFleetActivity>().RepositoriesAsync(Cancellation);
+        var view = await run.Get<IFleetActivity>().UsageAsync(new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None), Cancellation);
 
         Assert.Equal((1, FleetReadState.KeyRefused), (run.Fleet.Endpoint.Received.Count(request => request.PathAndQuery == "/activity/v1/events"), view.State));
         Assert.Contains("\"keyRefused\": true", await File.ReadAllTextAsync(Path.Combine(run.DataFolder, "fleet.json"), Cancellation), StringComparison.Ordinal);
@@ -158,23 +158,32 @@ public sealed class FleetTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task TheFleetPageShowsTheServersRepositoriesAsync()
+    public async Task TheFleetPageShowsSpendOverTimeAndItsBreakdownsAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, Connected, []);
-        run.Fleet.Endpoint.Repositories = """{"repositories":[{"key":"remote:github.com/rick/avala","jobs":2,"instances":2,"tokens":{"input":1500,"output":150,"cacheRead":9000,"cacheWrite":0,"reasoning":0},"costs":[{"currency":"USD","basis":"apiEquivalent","amount":0.75}],"firstActivityAt":"2026-10-25T11:00:00+00:00","lastActivityAt":"2026-10-25T12:00:00+00:00"}],"unattributedJobs":0}""";
-        run.Fleet.Endpoint.Jobs = """{"jobs":[{"instance":"0199f6a0-0000-7000-8000-00000000000b","instanceName":"laptop","job":"0199f6a0-0000-7000-8000-000000000101","status":"running","hold":null,"attempts":0,"lastOutcome":null,"tokens":{"input":500,"output":50,"cacheRead":0,"cacheWrite":0,"reasoning":0},"costs":[],"firstActivityAt":"2026-10-25T11:30:00+00:00","lastActivityAt":"2026-10-25T11:30:00+00:00"}]}""";
+        run.Fleet.Endpoint.Usage = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "FleetWire", "v1", "responses", "usage.json"), Cancellation);
         await run.StartedAsync();
         var page = run.Page("Fleet");
 
         await page.ExecuteAsync("RefreshCommand");
-        await run.Ui.UntilAsync(() => page["Repositories"].Items.Count == 1, () => $"the page says '{page["Notice"].Text}' after {string.Join(", ", run.Fleet.Endpoint.Received.Select(request => request.PathAndQuery))}");
-        var row = await run.Ui.ReadAsync(() => page["Repositories"].Items[0]);
-        await row.ExecuteAsync("ToggleCommand");
-        await run.Ui.UntilAsync(() => row["Jobs"].Items.Count == 1, () => "the repository's jobs did not show");
+        await run.Ui.UntilAsync(() => page["Tiles"].Items.Count == 4, () => $"the page says '{page["Notice"].Text}'");
+        var asked = run.Fleet.Endpoint.Received[^1].PathAndQuery;
+        var shown = await run.Ui.ReadAsync(() => (
+            page["Tiles"].Items[0]["Value"].Text,
+            page["Trend"]["Columns"].Items.Count,
+            page["Lists"].Items[0]["Rows"].Items.Count,
+            page["Lists"].Items[1]["Rows"].Items[0]["Name"]["Value"].Text));
+        var repository = await run.Ui.ReadAsync(() => page["Lists"].Items[0]["Rows"].Items[0]);
+        await repository.ExecuteAsync("ChooseCommand");
+        await run.Ui.UntilAsync(() => page["IsScoped"].Value<bool>(), () => "the page was not scoped to the repository");
 
+        Assert.Equal(("1.25 USD", 7, 3, "desktop"), shown);
+        Assert.StartsWith("/activity/v1/usage?from=", asked, StringComparison.Ordinal);
+        Assert.Contains("&step=day", asked, StringComparison.Ordinal);
         Assert.Equal(
-            ("remote:github.com/rick/avala", "laptop", "/activity/v1/repositories/jobs?key=remote%3Agithub.com%2Frick%2Favala"),
-            (await run.Ui.ReadAsync(() => row["Key"]["Value"].Text), await run.Ui.ReadAsync(() => row["Jobs"].Items[0]["Instance"]["Value"].Text), run.Fleet.Endpoint.Received[^1].PathAndQuery));
+            ["/activity/v1/usage", "/activity/v1/repositories/jobs"],
+            run.Fleet.Endpoint.Received.TakeLast(2).Select(request => request.PathAndQuery.Split('?')[0]));
+        Assert.Contains("repository=remote%3Agithub.com%2Frick%2Favala", run.Fleet.Endpoint.Received[^2].PathAndQuery, StringComparison.Ordinal);
     }
 
     private static Func<JsonNode, bool> Kind(string kind) => found => found["kind"]?.GetValue<string>() == kind;

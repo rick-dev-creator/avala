@@ -8,6 +8,7 @@ internal enum ServerAnswer
 {
     Answered,
     BadRequest,
+    NotFound,
     KeyRefused,
     Unreachable,
 }
@@ -24,7 +25,7 @@ internal interface IFleetServer
 
     Task<IdentifyOutcome> IdentifyAsync(string server, string key, CancellationToken cancellationToken);
 
-    Task<FleetView> RepositoriesAsync(string server, string key, CancellationToken cancellationToken);
+    Task<FleetUsageView> UsageAsync(string server, string key, FleetUsageQuery query, string zone, CancellationToken cancellationToken);
 
     Task<FleetJobsView> JobsAsync(string server, string key, string repository, CancellationToken cancellationToken);
 }

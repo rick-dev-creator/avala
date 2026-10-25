@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Avala.Server.Activity.Contracts;
 using Avala.Server.Activity.Contracts.Repositories;
 using Avala.Server.Activity.Contracts.RepositoryJobs;
+using Avala.Server.Activity.Contracts.Usage;
 using Avala.Server.Instances.Contracts.Authentication;
 
 namespace Avala.Server.Tests;
@@ -27,6 +28,8 @@ public sealed class GoldenResponseTests
         { "/instances/me", "identity" },
         { "/activity/v1/repositories", "repositories" },
         { "/activity/v1/repositories/jobs?key=remote:github.com/rick/avala", "repository-jobs" },
+        { "/activity/v1/usage?from=2026-10-19&to=2026-10-26&zone=Europe/Madrid&step=day", "usage" },
+        { "/activity/v1/usage?from=2026-10-25&to=2026-10-26&zone=UTC&step=day", "usage-without-cost" },
     };
 
     [Theory]
@@ -82,7 +85,68 @@ public sealed class GoldenResponseTests
                 new RepositoryJob(Desktop, "desktop", Id(256), JobStatus.NeedsHelp, HoldReason.BudgetExceeded, 2, VerificationOutcome.Failed, new TokenSums(1000, 100, 9000, 400, 20), [new CostSum("USD", CostBasis.Billed, 0.5m)], Eleven, Eleven.AddHours(1)),
                 new RepositoryJob(Laptop, "laptop", Id(257), null, null, 0, null, new TokenSums(500, 50, 0, 0, 0), [], Eleven.AddMinutes(30), Eleven.AddMinutes(30)),
             ],
+            Usage = query => query.Zone == "UTC" ? WithoutCost : Costed,
         };
+
+    private static UsageReport Costed
+    {
+        get
+        {
+            var day = new DateOnly(2026, 10, 19);
+            var avala = new TokenSums(2000, 200, 15000, 1000, 50);
+            var laptop = new TokenSums(1000, 100, 5000, 0, 0);
+            var none = new TokenSums(0, 0, 0, 0, 0);
+
+            return new UsageReport(
+                day,
+                day.AddDays(7),
+                "Europe/Madrid",
+                "day",
+                new CostKind("USD", CostBasis.ApiEquivalent),
+                new UsageTotals(new TokenSums(3000, 300, 20000, 1000, 50), Usd(1.25m), 3, 2),
+                [
+                    .. Enumerable.Range(0, 5).Select(offset => new UsagePeriodSum(day.AddDays(offset), none, [])),
+                    new UsagePeriodSum(day.AddDays(5), laptop, Usd(0.5m)),
+                    new UsagePeriodSum(day.AddDays(6), avala, Usd(0.75m)),
+                ],
+                [
+                    new UsageShare(UsageShareKind.Repository, "remote:github.com/rick/avala", "remote:github.com/rick/avala", avala, Usd(0.75m), 2),
+                    new UsageShare(UsageShareKind.Unknown, string.Empty, string.Empty, new TokenSums(600, 60, 3000, 0, 0), Usd(0.3m), 1),
+                    new UsageShare(UsageShareKind.OutsideAnyJob, string.Empty, string.Empty, new TokenSums(400, 40, 2000, 0, 0), Usd(0.2m), 0),
+                ],
+                [
+                    new UsageShare(UsageShareKind.Instance, Desktop.ToString(), "desktop", avala, Usd(0.75m), 2),
+                    new UsageShare(UsageShareKind.Instance, Laptop.ToString(), "laptop", laptop, Usd(0.5m), 1),
+                ],
+                [
+                    new UsageShare(UsageShareKind.Model, "opus", "opus", new TokenSums(2600, 260, 18000, 1000, 50), Usd(1.05m), 0),
+                    new UsageShare(UsageShareKind.Model, string.Empty, string.Empty, new TokenSums(400, 40, 2000, 0, 0), Usd(0.2m), 0),
+                ]);
+        }
+    }
+
+    private static UsageReport WithoutCost
+    {
+        get
+        {
+            var day = new DateOnly(2026, 10, 25);
+            var tokens = new TokenSums(10, 1, 0, 0, 0);
+
+            return new UsageReport(
+                day,
+                day.AddDays(1),
+                "UTC",
+                "day",
+                null,
+                new UsageTotals(tokens, [], 1, 1),
+                [new UsagePeriodSum(day, tokens, [])],
+                [new UsageShare(UsageShareKind.Repository, "root:0123456789abcdef0123456789abcdef01234567", "root:0123456789abcdef0123456789abcdef01234567", tokens, [], 1)],
+                [new UsageShare(UsageShareKind.Instance, Desktop.ToString(), "desktop", tokens, [], 1)],
+                [new UsageShare(UsageShareKind.Model, "sonnet", "sonnet", tokens, [], 0)]);
+        }
+    }
+
+    private static IReadOnlyList<CostSum> Usd(decimal amount) => [new CostSum("USD", CostBasis.ApiEquivalent, amount)];
 
     private static async Task SameAsync(string golden, string written)
     {

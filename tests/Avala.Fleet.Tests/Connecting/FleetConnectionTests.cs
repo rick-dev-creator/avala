@@ -223,43 +223,59 @@ public sealed class FleetConnectionTests : IAsyncDisposable
 
 public sealed class FleetActivityReaderTests
 {
+    private static readonly FleetUsageQuery Week = new(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None);
+
     private readonly FakeKeychain keychain = new();
 
     private readonly FakeFleetServer server = new();
 
+    private readonly Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new();
+
+    public FleetActivityReaderTests() => clock.SetLocalTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid"));
+
     [Fact]
     public async Task NotConnectedIsSaidWithoutAsking()
     {
-        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Option<FleetSettings>.None), server);
+        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Option<FleetSettings>.None), server, clock);
 
-        Assert.Equal((FleetReadState.NotConnected, 0), ((await reader.RepositoriesAsync(TestContext.Current.CancellationToken)).State, server.Asked.Count));
+        Assert.Equal((FleetReadState.NotConnected, 0), ((await reader.UsageAsync(Week, TestContext.Current.CancellationToken)).State, server.Asked.Count));
     }
 
     [Fact]
-    public async Task RepositoriesAreReadWithTheKey()
+    public async Task UsageIsReadWithTheKeyInTheLocalZone()
     {
-        var reader = new FleetActivityReader(await Fleets.ConnectedAsync(keychain), server);
+        var reader = new FleetActivityReader(await Fleets.ConnectedAsync(keychain), server, clock);
 
-        await reader.RepositoriesAsync(TestContext.Current.CancellationToken);
+        await reader.UsageAsync(Week, TestContext.Current.CancellationToken);
 
-        Assert.Equal([$"repositories {Fleets.Server} {Fleets.Key}"], server.Asked);
+        Assert.Equal([$"usage {Fleets.Server} {Fleets.Key} 2026-10-19 2026-10-26 Day Europe/Madrid"], server.Asked);
     }
 
     [Fact]
     public async Task ARefusedKeyIsSaid()
     {
         keychain.Keys[Fleets.Server] = Fleets.Key;
-        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Fleets.Settings(refused: true)), server);
+        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Fleets.Settings(refused: true)), server, clock);
 
-        Assert.Equal(FleetReadState.KeyRefused, (await reader.RepositoriesAsync(TestContext.Current.CancellationToken)).State);
+        Assert.Equal(FleetReadState.KeyRefused, (await reader.UsageAsync(Week, TestContext.Current.CancellationToken)).State);
     }
 
     [Fact]
     public async Task APausedFleetIsSaidWithoutAsking()
     {
         keychain.Keys[Fleets.Server] = Fleets.Key;
-        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Fleets.Settings(enabled: false)), server);
+        var reader = new FleetActivityReader(await Fleets.SessionAsync(keychain, Fleets.Settings(enabled: false)), server, clock);
 
-        Assert.Equal((FleetReadState.Paused, 0), ((await reader.RepositoriesAsync(TestContext.Current.CancellationToken)).State, server.Asked.Count));
+        Assert.Equal((FleetReadState.Paused, 0), ((await reader.UsageAsync(Week, TestContext.Current.CancellationToken)).State, server.Asked.Count));
     }
+
+    [Fact]
+    public void AWindowsZoneIsSentByItsIanaId() =>
+        Assert.Equal(new FleetZone("Europe/Berlin", InUtc: false), FleetActivityReader.ZoneOf(TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time")));
+
+    [Fact]
+    public void AZoneWithoutAnIanaIdIsSentAsUtcAndSaidSo() =>
+        Assert.Equal(
+            new FleetZone("UTC", InUtc: true),
+            FleetActivityReader.ZoneOf(TimeZoneInfo.CreateCustomTimeZone("Avala Nowhere", TimeSpan.FromHours(3), "Nowhere", "Nowhere")));
 }

@@ -2,6 +2,7 @@ using Ardalis.Result;
 using Avala.Server.Activity.Contracts.Ingestion;
 using Avala.Server.Activity.Contracts.Repositories;
 using Avala.Server.Activity.Contracts.RepositoryJobs;
+using Avala.Server.Activity.Contracts.Usage;
 using Avala.Server.Instances.Contracts.Authentication;
 using Avala.Server.Testing;
 using Mediator;
@@ -29,6 +30,18 @@ public sealed class ServerUnderTest : WebApplicationFactory<Program>
 
     internal IReadOnlyList<RepositoryJob> Jobs { get; init; } = [];
 
+    internal Func<ListUsage, Result<UsageReport>> Usage { get; init; } = query => Result<UsageReport>.Success(new UsageReport(
+        DateOnly.FromDayNumber(0),
+        DateOnly.FromDayNumber(1),
+        query.Zone ?? string.Empty,
+        query.Step ?? string.Empty,
+        null,
+        new UsageTotals(new Activity.Contracts.TokenSums(0, 0, 0, 0, 0), [], 0, 0),
+        [],
+        [],
+        [],
+        []));
+
     public FakeSender Sender { get; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -50,6 +63,7 @@ public sealed class ServerUnderTest : WebApplicationFactory<Program>
         IngestEvents ingest => Result<IngestionReceipt>.Success(new IngestionReceipt([.. ingest.Events.Select(incoming => incoming.Id)], [], [])),
         ListRepositories => Result<FleetRepositories>.Success(Repositories),
         ListRepositoryJobs => Result<IReadOnlyList<RepositoryJob>>.Success(Jobs),
+        ListUsage usage => Usage(usage),
         _ => Result.Success(),
     };
 }

@@ -16,6 +16,8 @@ public sealed class ActivityTests(ServerUnderTest server) : IClassFixture<Server
 
     private const string Time = "2026-10-25T12:00:00Z";
 
+    private const string Usage = "/activity/v1/usage?from=2026-10-19&to=2026-10-26&zone=UTC&step=day";
+
     private static readonly Guid Job = Guid.Parse("0199f6a0-0000-7000-8000-000000000010");
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -35,6 +37,9 @@ public sealed class ActivityTests(ServerUnderTest server) : IClassFixture<Server
         { "/activity/v1/repositories/jobs?key=remote:github.com/rick/avala", ServerUnderTest.AdministratorKey, HttpStatusCode.OK },
         { "/activity/v1/repositories/jobs?key=remote:github.com/rick/avala", AnInstanceKey, HttpStatusCode.OK },
         { "/activity/v1/repositories/jobs?key=remote:github.com/rick/avala", null, HttpStatusCode.Unauthorized },
+        { Usage, ServerUnderTest.AdministratorKey, HttpStatusCode.OK },
+        { Usage, AnInstanceKey, HttpStatusCode.OK },
+        { Usage, null, HttpStatusCode.Unauthorized },
     };
 
     [Theory]
@@ -96,6 +101,35 @@ public sealed class ActivityTests(ServerUnderTest server) : IClassFixture<Server
         using var response = await server.CreateClient().SendAsync(request, Cancellation);
 
         Assert.Contains(server.Sender.Sent.OfType<ListRepositoryJobs>(), query => query.Key == "remote:github.com/owner/name");
+    }
+
+    [Fact]
+    public async Task AUsageQueryTheModuleRefusesIsABadRequestAsync()
+    {
+        await using var refusing = new ServerUnderTest
+        {
+            Usage = _ => Ardalis.Result.Result<Activity.Contracts.Usage.UsageReport>.Invalid(new Ardalis.Result.ValidationError("To", "the range must end after it starts")),
+        };
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/activity/v1/usage?from=2026-10-26&to=2026-10-19&zone=UTC&step=day", UriKind.Relative));
+        Authorize(request, AnInstanceKey);
+
+        using var response = await refusing.CreateClient().SendAsync(request, Cancellation);
+
+        Assert.Equal((HttpStatusCode.BadRequest, true), (response.StatusCode, (await response.Content.ReadAsStringAsync(Cancellation)).Contains("the range must end after it starts", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task TheGoldenUsageRequestReachesTheQueryAsItWasSentAsync()
+    {
+        var query = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "FleetWire", "v1", "requests", "usage.query"), Cancellation);
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/activity/v1/usage?{query}", UriKind.Relative));
+        Authorize(request, AnInstanceKey);
+
+        using var response = await server.CreateClient().SendAsync(request, Cancellation);
+
+        Assert.Contains(
+            new Activity.Contracts.Usage.ListUsage("2026-10-19", "2026-10-26", "Europe/Madrid", "day", "remote:github.com/rick/avala"),
+            server.Sender.Sent.OfType<Activity.Contracts.Usage.ListUsage>());
     }
 
     [Fact]

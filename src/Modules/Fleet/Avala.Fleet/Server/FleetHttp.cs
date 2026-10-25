@@ -30,6 +30,7 @@ internal sealed class FleetHttp(HttpMessageHandler handler, bool owned) : IDispo
             >= 200 and < 300 => ServerAnswer.Answered,
             401 or 403 => ServerAnswer.KeyRefused,
             400 => ServerAnswer.BadRequest,
+            404 => ServerAnswer.NotFound,
             _ => ServerAnswer.Unreachable,
         };
 

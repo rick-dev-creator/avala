@@ -31,15 +31,17 @@ internal sealed class HttpFleetServer(FleetHttp http) : IFleetServer
                 () => new IdentifyOutcome(ServerAnswer.Unreachable, Option<Identity>.None));
     }
 
-    public async Task<FleetView> RepositoriesAsync(string server, string key, CancellationToken cancellationToken)
+    public async Task<FleetUsageView> UsageAsync(string server, string key, FleetUsageQuery query, string zone, CancellationToken cancellationToken)
     {
-        var answer = await http.GetAsync(server, "/activity/v1/repositories", key, cancellationToken);
+        var answer = await http.GetAsync(server, $"/activity/v1/usage?{WireJson.UsageQuery(query, zone)}", key, cancellationToken);
 
         return answer.Answer switch
         {
-            ServerAnswer.Answered => WireJson.ReadRepositories(answer.Body).Match(view => view, () => FleetView.Of(FleetReadState.Unreachable)),
-            ServerAnswer.KeyRefused => FleetView.Of(FleetReadState.KeyRefused),
-            _ => FleetView.Of(FleetReadState.Unreachable),
+            ServerAnswer.Answered => WireJson.ReadUsage(answer.Body).Match(usage => new FleetUsageView(FleetReadState.Read, usage), () => FleetUsageView.Of(FleetReadState.Unreachable)),
+            ServerAnswer.KeyRefused => FleetUsageView.Of(FleetReadState.KeyRefused),
+            ServerAnswer.NotFound => FleetUsageView.Of(FleetReadState.Outdated),
+            ServerAnswer.BadRequest => FleetUsageView.Of(FleetReadState.Refused),
+            _ => FleetUsageView.Of(FleetReadState.Unreachable),
         };
     }
 

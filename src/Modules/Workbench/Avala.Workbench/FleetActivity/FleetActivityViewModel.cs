@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using Avala.Components.Privacy;
 using Avala.Fleet.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -10,29 +10,93 @@ namespace Avala.Workbench.FleetActivity;
 
 internal interface IFleetActivityViewModel
 {
+    IFleetRangeViewModel Range { get; }
+
     string Notice { get; }
 
     bool HasNotice { get; }
 
-    IReadOnlyList<IFleetRepositoryRowViewModel> Repositories { get; }
+    bool HasFigures { get; }
 
-    string Unattributed { get; }
+    string ZoneNote { get; }
 
-    bool HasUnattributed { get; }
+    bool HasZoneNote { get; }
+
+    Personal Scope { get; }
+
+    bool IsScoped { get; }
+
+    IReadOnlyList<IFleetTileViewModel> Tiles { get; }
+
+    IFleetTrendViewModel Trend { get; }
+
+    IReadOnlyList<IFleetShareListViewModel> Lists { get; }
+
+    IFleetRepositoryJobsViewModel Jobs { get; }
 
     IAsyncRelayCommand RefreshCommand { get; }
+
+    IAsyncRelayCommand ClearScopeCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class FleetActivityViewModel(IFleetActivity activity, IUiDispatcher ui) : IFleetActivityViewModel, IPage, IActivatable
+internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, IPage, IActivatable
 {
-    private readonly ObservableCollection<IFleetRepositoryRowViewModel> repositories = [];
+    private readonly IFleetActivity activity;
+
+    private readonly IUiDispatcher ui;
+
+    private readonly TimeProvider clock;
+
+    private readonly FleetRangeViewModel range;
+
+    private readonly FleetTrendViewModel trend = new();
+
+    private readonly FleetShareListViewModel repositories = new("Repositories");
+
+    private readonly FleetShareListViewModel instances = new("Instances");
+
+    private readonly FleetShareListViewModel models = new("Models");
+
+    private readonly FleetRepositoryJobsViewModel jobs = new();
+
+    private readonly ObservableCollection<IFleetTileViewModel> tiles = [];
+
+    private FleetUsage usage = FleetUsage.Empty;
+
+    private Option<string> scope = Option<string>.None;
+
+    private int loads;
+
+    public FleetActivityViewModel(IFleetActivity activity, IUiDispatcher ui, TimeProvider clock)
+    {
+        this.activity = activity;
+        this.ui = ui;
+        this.clock = clock;
+        range = new FleetRangeViewModel(Today);
+        range.Chosen += (_, _) => Loading = LoadAsync(CancellationToken.None);
+        trend.MetricChanged += (_, _) => ShowLists();
+    }
 
     public string Title => "Fleet";
 
     public string Icon => "IconFleet";
 
-    public IReadOnlyList<IFleetRepositoryRowViewModel> Repositories => repositories;
+    public IFleetRangeViewModel Range => range;
+
+    public IReadOnlyList<IFleetTileViewModel> Tiles => tiles;
+
+    public IFleetTrendViewModel Trend => trend;
+
+    public IReadOnlyList<IFleetShareListViewModel> Lists => [repositories, instances, models];
+
+    public IFleetRepositoryJobsViewModel Jobs => jobs;
+
+    [ObservableProperty]
+    public partial string ZoneNote { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasZoneNote { get; private set; }
 
     [ObservableProperty]
     public partial string Notice { get; private set; } = string.Empty;
@@ -41,155 +105,102 @@ internal sealed partial class FleetActivityViewModel(IFleetActivity activity, IU
     public partial bool HasNotice { get; private set; }
 
     [ObservableProperty]
-    public partial string Unattributed { get; private set; } = string.Empty;
+    public partial bool HasFigures { get; private set; }
 
     [ObservableProperty]
-    public partial bool HasUnattributed { get; private set; }
+    public partial Personal Scope { get; private set; } = Personal.None;
+
+    [ObservableProperty]
+    public partial bool IsScoped { get; private set; }
 
     public Task Loading { get; private set; } = Task.CompletedTask;
 
-    public void Activate() => Loading = RefreshAsync(CancellationToken.None);
+    public void Activate()
+    {
+        range.Refresh();
+        Loading = LoadAsync(CancellationToken.None);
+    }
 
     public void Deactivate()
     {
     }
 
-    public static string Spent(FleetTokens tokens, IReadOnlyList<FleetCost> costs) =>
-        string.Join(
-            " · ",
-            [
-                string.Create(CultureInfo.CurrentCulture, $"{tokens.Input:N0} in, {tokens.Output:N0} out, {tokens.CacheRead:N0} cache read"),
-                .. costs.Select(cost => string.Create(CultureInfo.CurrentCulture, $"{Amount(cost.Amount)} {cost.Currency} {(cost.Basis == "billed" ? "billed" : "at API prices")}")),
-            ]);
-
-    public static string Counted(long count, string noun) =>
-        string.Create(CultureInfo.CurrentCulture, $"{count:N0} {noun}{(count == 1 ? string.Empty : "s")}");
-
-    private static string Amount(decimal amount) =>
-        amount.ToString(amount >= 1 || amount == 0 ? "0.##" : "0.####", CultureInfo.CurrentCulture);
-
-    public static string Said(FleetReadState state) => state switch
+    [RelayCommand]
+    private Task RefreshAsync(CancellationToken cancellationToken)
     {
-        FleetReadState.NotConnected => "This instance is not connected to a fleet server. Connect it in Settings › Fleet.",
-        FleetReadState.Paused => "The fleet is paused in Settings › Fleet.",
-        FleetReadState.KeyRefused => "The fleet server refused this instance's key. Check it in Settings › Fleet.",
-        FleetReadState.Unreachable => "The fleet server did not answer.",
-        _ => string.Empty,
-    };
+        range.Refresh();
+
+        return LoadAsync(cancellationToken);
+    }
 
     [RelayCommand]
-    private async Task RefreshAsync(CancellationToken cancellationToken)
+    private Task ClearScopeAsync(CancellationToken cancellationToken)
     {
-        var view = await activity.RepositoriesAsync(cancellationToken);
+        scope = Option<string>.None;
+
+        return LoadAsync(cancellationToken);
+    }
+
+    private Task ChooseAsync(string repository)
+    {
+        scope = scope.Match(chosen => chosen == repository, () => false) ? Option<string>.None : repository;
+
+        return LoadAsync(CancellationToken.None);
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        var load = Interlocked.Increment(ref loads);
+        var zone = activity.Zone;
+        var chosen = range.Current;
+        var scoped = scope;
+        var view = await activity.UsageAsync(new FleetUsageQuery(chosen.From, chosen.To, chosen.Step, scoped), cancellationToken);
+        var repositoryJobs = await scoped.Match(
+            key => activity.JobsAsync(key, cancellationToken).AsTask(),
+            () => Task.FromResult(FleetJobsView.Of(FleetReadState.Read)));
 
         await ui.InvokeAsync(
             () =>
             {
-                Notice = view.State == FleetReadState.Read && view.Repositories.Count == 0 ? "No repository has been worked on in this fleet yet." : Said(view.State);
+                if (load != Volatile.Read(ref loads))
+                {
+                    return;
+                }
+
+                ZoneNote = zone.InUtc ? "Dates are in UTC: this computer's time zone has no name the fleet server knows." : string.Empty;
+                HasZoneNote = zone.InUtc;
+                Notice = FleetFigures.Said(view.State);
                 HasNotice = Notice.Length > 0;
-                repositories.Clear();
+                HasFigures = view.State == FleetReadState.Read;
+                usage = view.Usage;
+                tiles.ShowOnly(FleetTileViewModel.Of(usage));
+                trend.Show(usage, chosen.Step);
+                ShowLists();
+                IsScoped = scoped.IsSome;
+                Scope = scoped.Match(key => Personal.AccountName(FleetFigures.Repository(key)), () => Personal.None);
+                scoped.Match(
+                    key =>
+                    {
+                        jobs.Show(key, repositoryJobs);
 
-                foreach (var repository in view.Repositories)
-                {
-                    repositories.Add(new FleetRepositoryRowViewModel(repository, activity, ui));
-                }
-
-                Unattributed = string.Create(CultureInfo.CurrentCulture, $"{view.UnattributedJobs} jobs whose repository is not known yet");
-                HasUnattributed = view.UnattributedJobs > 0;
+                        return true;
+                    },
+                    () => false);
             },
             cancellationToken);
     }
-}
 
-internal interface IFleetRepositoryRowViewModel
-{
-    Personal Key { get; }
-
-    string Summary { get; }
-
-    string Spending { get; }
-
-    bool IsExpanded { get; }
-
-    string Notice { get; }
-
-    IReadOnlyList<IFleetJobRowViewModel> Jobs { get; }
-
-    IAsyncRelayCommand ToggleCommand { get; }
-}
-
-[INotifyPropertyChanged]
-internal sealed partial class FleetRepositoryRowViewModel(FleetRepository repository, IFleetActivity activity, IUiDispatcher ui) : IFleetRepositoryRowViewModel
-{
-    private readonly ObservableCollection<IFleetJobRowViewModel> jobs = [];
-
-    public Personal Key { get; } = Personal.AccountName(repository.Key);
-
-    public string Summary { get; } = string.Create(
-        CultureInfo.CurrentCulture,
-        $"{FleetActivityViewModel.Counted(repository.Jobs, "job")} on {FleetActivityViewModel.Counted(repository.Instances, "instance")} · last {repository.LastActivityAt.ToLocalTime():g}");
-
-    public string Spending { get; } = FleetActivityViewModel.Spent(repository.Tokens, repository.Costs);
-
-    public IReadOnlyList<IFleetJobRowViewModel> Jobs => jobs;
-
-    [ObservableProperty]
-    public partial bool IsExpanded { get; private set; }
-
-    [ObservableProperty]
-    public partial string Notice { get; private set; } = string.Empty;
-
-    [RelayCommand]
-    private async Task ToggleAsync(CancellationToken cancellationToken)
+    private void ShowLists()
     {
-        if (IsExpanded)
-        {
-            IsExpanded = false;
-
-            return;
-        }
-
-        var view = await activity.JobsAsync(repository.Key, cancellationToken);
-
-        await ui.InvokeAsync(
-            () =>
-            {
-                jobs.Clear();
-
-                foreach (var job in view.Jobs)
-                {
-                    jobs.Add(new FleetJobRowViewModel(job));
-                }
-
-                Notice = FleetActivityViewModel.Said(view.State);
-                IsExpanded = true;
-            },
-            cancellationToken);
+        repositories.Show(usage.Repositories, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
+        instances.Show(usage.Instances, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
+        models.Show(usage.Models, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
     }
-}
 
-internal interface IFleetJobRowViewModel
-{
-    Personal Instance { get; }
+    private DateOnly Today()
+    {
+        var zone = TimeZoneInfo.TryFindSystemTimeZoneById(activity.Zone.Id, out var found) ? found : TimeZoneInfo.Utc;
 
-    string State { get; }
-
-    string Spending { get; }
-}
-
-internal sealed class FleetJobRowViewModel(FleetJob job) : IFleetJobRowViewModel
-{
-    public Personal Instance { get; } = Personal.AccountName(job.InstanceName);
-
-    public string State { get; } = string.Join(
-        " · ",
-        new[]
-        {
-            job.Status,
-            job.Hold.Length > 0 ? $"held: {job.Hold}" : string.Empty,
-            job.Attempts > 0 ? string.Create(CultureInfo.CurrentCulture, $"{FleetActivityViewModel.Counted(job.Attempts, "attempt")}, last {job.LastOutcome}") : string.Empty,
-            job.LastActivityAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture),
-        }.Where(part => part.Length > 0));
-
-    public string Spending { get; } = FleetActivityViewModel.Spent(job.Tokens, job.Costs);
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).DateTime);
+    }
 }

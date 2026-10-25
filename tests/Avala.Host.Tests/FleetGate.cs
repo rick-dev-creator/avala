@@ -74,7 +74,7 @@ internal sealed class FakeFleetEndpoint : HttpMessageHandler
     public IReadOnlyList<JsonNode> Events =>
         [.. Received.Where(request => request.PathAndQuery == "/activity/v1/events").SelectMany(request => JsonNode.Parse(request.Body)!["events"]!.AsArray()).Select(node => node!)];
 
-    public string Repositories { get; set; } = """{ "repositories": [], "unattributedJobs": 0 }""";
+    public string Usage { get; set; } = string.Empty;
 
     public string Jobs { get; set; } = """{ "jobs": [] }""";
 
@@ -137,7 +137,7 @@ internal sealed class FakeFleetEndpoint : HttpMessageHandler
         var (status, answer) = path switch
         {
             "/instances/me" => (HttpStatusCode.OK, """{ "id": "0199f6a0-0000-7000-8000-00000000000a", "name": "desktop" }"""),
-            "/activity/v1/repositories" => (HttpStatusCode.OK, Repositories),
+            _ when path.StartsWith("/activity/v1/usage", StringComparison.Ordinal) => (HttpStatusCode.OK, Usage),
             _ when path.StartsWith("/activity/v1/repositories/jobs", StringComparison.Ordinal) => (HttpStatusCode.OK, Jobs),
             "/activity/v1/events" => Answer(body),
             _ => (HttpStatusCode.NotFound, string.Empty),

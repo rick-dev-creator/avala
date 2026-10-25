@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetColumnView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetColumnViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetColumnViewModel />
+  </Design.DataContext>
+  <Grid RowDefinitions="*,20" Margin="2,0" ToolTip.Tip="{Binding Tip}" Background="Transparent">
+    <ProgressBar x:Name="ColumnBar" Classes="column" Value="{Binding Share}" />
+    <TextBlock x:Name="TickText" Grid.Row="1" Classes="hint" Text="{Binding Tick}" HorizontalAlignment="Center" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
+  </Grid>
+</UserControl>

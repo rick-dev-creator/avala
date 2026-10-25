@@ -1,8 +1,12 @@
+using Avala.Sdk;
+
 namespace Avala.Fleet.Contracts;
 
 public interface IFleetActivity
 {
-    ValueTask<FleetView> RepositoriesAsync(CancellationToken cancellationToken);
+    FleetZone Zone { get; }
+
+    ValueTask<FleetUsageView> UsageAsync(FleetUsageQuery query, CancellationToken cancellationToken);
 
     ValueTask<FleetJobsView> JobsAsync(string repository, CancellationToken cancellationToken);
 }
@@ -13,6 +17,8 @@ public enum FleetReadState
     Paused,
     Unreachable,
     KeyRefused,
+    Outdated,
+    Refused,
     Read,
 }
 
@@ -20,18 +26,49 @@ public sealed record FleetTokens(decimal Input, decimal Output, decimal CacheRea
 
 public sealed record FleetCost(string Currency, string Basis, decimal Amount);
 
-public sealed record FleetRepository(
-    string Key,
-    int Jobs,
-    int Instances,
-    FleetTokens Tokens,
-    IReadOnlyList<FleetCost> Costs,
-    DateTimeOffset FirstActivityAt,
-    DateTimeOffset LastActivityAt);
+public sealed record FleetZone(string Id, bool InUtc);
 
-public sealed record FleetView(FleetReadState State, IReadOnlyList<FleetRepository> Repositories, int UnattributedJobs)
+public enum FleetStep
 {
-    public static FleetView Of(FleetReadState state) => new(state, [], 0);
+    Day,
+    Week,
+    Month,
+}
+
+public sealed record FleetUsageQuery(DateOnly From, DateOnly To, FleetStep Step, Option<string> Repository);
+
+public sealed record FleetCostKind(string Currency, string Basis);
+
+public sealed record FleetTotals(FleetTokens Tokens, IReadOnlyList<FleetCost> Costs, int Jobs, int Instances);
+
+public sealed record FleetPeriod(DateOnly Start, FleetTokens Tokens, IReadOnlyList<FleetCost> Costs);
+
+public enum FleetShareKind
+{
+    Repository,
+    Unknown,
+    OutsideAnyJob,
+    Instance,
+    Model,
+}
+
+public sealed record FleetShare(FleetShareKind Kind, string Key, string Name, FleetTokens Tokens, IReadOnlyList<FleetCost> Costs, int Jobs);
+
+public sealed record FleetUsage(
+    Option<FleetCostKind> Reference,
+    FleetTotals Totals,
+    IReadOnlyList<FleetPeriod> Series,
+    IReadOnlyList<FleetShare> Repositories,
+    IReadOnlyList<FleetShare> Instances,
+    IReadOnlyList<FleetShare> Models)
+{
+    public static FleetUsage Empty { get; } =
+        new(Option<FleetCostKind>.None, new FleetTotals(new FleetTokens(0, 0, 0, 0, 0), [], 0, 0), [], [], [], []);
+}
+
+public sealed record FleetUsageView(FleetReadState State, FleetUsage Usage)
+{
+    public static FleetUsageView Of(FleetReadState state) => new(state, FleetUsage.Empty);
 }
 
 public sealed record FleetJob(
