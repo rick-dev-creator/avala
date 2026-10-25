@@ -22,12 +22,12 @@ internal sealed class ResourceSettingsFile(AvalaPaths paths) : IResourceSettings
     public async ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken) =>
         await LazyInitializer.EnsureInitialized(ref loading, () => ReadAsync(FilePath)).WaitAsync(cancellationToken);
 
-    public async ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken) =>
-        await writes.RunAsync(token => WriteAsync(policy, token), cancellationToken);
+    public async ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken) =>
+        await writes.RunAsync(token => WriteAsync(policy, reconcile, token), cancellationToken);
 
     public ValueTask DisposeAsync() => writes.DisposeAsync();
 
-    private async Task<Result<ResourceSettings, ResourceError>> WriteAsync(WorktreePolicy policy, CancellationToken cancellationToken)
+    private async Task<Result<ResourceSettings, ResourceError>> WriteAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken)
     {
         var current = await LoadAsync(cancellationToken);
 
@@ -41,7 +41,7 @@ internal sealed class ResourceSettingsFile(AvalaPaths paths) : IResourceSettings
             return failure;
         }
 
-        root[ResourceSettingsParser.Worktrees] = ResourceSettingsParser.Node(policy, current.Reconcile);
+        root[ResourceSettingsParser.Worktrees] = ResourceSettingsParser.Node(policy, reconcile);
         var text = $"{root.ToJsonString(Indented)}\n";
 
         if (!ResourceSettingsParser.Parse(text).TryGetValue(out var changed, out failure))

@@ -99,6 +99,48 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void LeavingTheJobsPageClosesThePageAndComingBackOpensItAgain()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var script = Opened();
+        var left = bench.Surfaces.Last;
+
+        script.ViewModel.Deactivate();
+
+        Assert.True(left.IsClosed);
+        Assert.Null(script.ViewModel.Surface);
+
+        script.ViewModel.Activate();
+
+        script.Then(pane =>
+        {
+            Assert.True(pane.IsOpen);
+            Assert.NotSame(left, pane.Surface);
+            Assert.Equal([FakeGateways.Through(target)], bench.Surfaces.Last.Visited);
+        });
+    }
+
+    [Fact]
+    public void EveryPageThePaneOpenedIsClosedOnceItsJobIsLeft()
+    {
+        var pane = bench.Pane();
+
+        for (var round = 0; round < 5; round++)
+        {
+            var job = JobId.New();
+            bench.Serve(job, 24_000 + round);
+            pane.OnRegionContextChanged(job);
+            bench.Messenger.Send(new PreviewRequested(job));
+        }
+
+        pane.OnRegionContextChanged(bench.Other);
+
+        Assert.Equal(5, bench.Surfaces.Opened.Count);
+        Assert.All(bench.Surfaces.Opened, surface => Assert.True(surface.IsClosed));
+        pane.Dispose();
+    }
+
+    [Fact]
     public void CloseClosesThePageAndThePane()
     {
         bench.Serve(bench.Job, 24_000);
@@ -124,6 +166,188 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
         await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_001), Cancellation);
         script.Then(pane => Assert.Equal(("localhost:24001", true), (pane.Address, pane.IsLive)));
         Assert.Equal(new Uri("http://127.0.0.1:34001/"), bench.Surfaces.Last.Visited[^1]);
+    }
+
+    [Fact]
+    public async Task AModelAskedForFromTheConversationOpensInTheViewerWithoutARunningServerAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        var asked = new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "models/robot.glb");
+
+        bench.Messenger.Send(asked);
+        await pane.Viewing;
+
+        Assert.True(asked.IsShown);
+        Assert.Equal((true, "robot.glb", PreviewPhrases.Viewing, true), (pane.IsOpen, pane.Address, pane.State, pane.IsLive));
+        Assert.Equal([Viewer("models%2Frobot.glb", 1)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public async Task AskingForTheSameFileAgainReloadsItInTheSamePageAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        Assert.Single(bench.Surfaces.Opened);
+        Assert.Equal([Viewer("robot.glb", 1), Viewer("robot.glb", 2)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public void AFileOfAnotherJobIsLeftForItsOwnConversation()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        var asked = new WorktreeFileRequested(bench.Other, FakePreviews.Worktree + "robot.glb");
+
+        bench.Messenger.Send(asked);
+
+        Assert.Equal((false, false), (asked.IsShown, pane.IsOpen));
+        Assert.Empty(bench.Previews.FilesServed);
+    }
+
+    [Fact]
+    public async Task AFileOutsideTheWorktreeSaysSoInsteadOfShowingItAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, "/elsewhere/robot.glb"));
+        await pane.Viewing;
+
+        Assert.Equal((true, PreviewPhrases.Problem(PreviewError.Outside), false), (pane.IsOpen, pane.State, pane.IsLive));
+        Assert.Empty(bench.Surfaces.Opened);
+    }
+
+    [Fact]
+    public async Task TheRunningChipBringsTheServerBackAfterAFileAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        bench.Messenger.Send(new PreviewRequested(bench.Job));
+        await pane.Navigating;
+
+        Assert.Equal(("localhost:24000", FakeGateways.Through(target)), (pane.Address, bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task LeavingTheJobsPageClosesAFileAndComingBackShowsItAgainAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+        var left = bench.Surfaces.Last;
+
+        pane.Deactivate();
+        Assert.True(left.IsClosed);
+        pane.Activate();
+        await pane.Viewing;
+
+        Assert.NotSame(left, bench.Surfaces.Last);
+        Assert.Equal([Viewer("robot.glb", 2)], bench.Surfaces.Last.Visited);
+        pane.Deactivate();
+    }
+
+    [Fact]
+    public async Task ThreeDimensionsShowTheRunningPageInsideTheDeviceModelAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 393, 852, FakeGateways.Through(target)), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task LeavingThreeDimensionsShowsThePageOnTheFlatScreenAgainAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "Pixel 9").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("pixel-9", 412, 915, FakeGateways.Through(target), screen: "screen"), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task ATurnedDeviceShowsThePageAtTheDevicesOwnWidthAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.TurnCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 852, 393, FakeGateways.Through(target), turned: true, screen: "screen"), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task ResponsiveShowsThePageItselfAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.Choices.Single(choice => choice.Name == "Responsive").Choose.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(FakeGateways.Through(target), bench.Surfaces.Last.Visited[^1]);
+    }
+
+    [Fact]
+    public async Task TurningTheDeviceInThreeDimensionsShowsItTurnedAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.TurnCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 852, 393, FakeGateways.Through(target), turned: true), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task AModelIsShownInItsViewerEvenInThreeDimensionsAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        Assert.Equal([Viewer("robot.glb", 1)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public async Task OpenInBrowserFromThreeDimensionsOpensThePageNotTheDeviceAsync()
+    {
+        bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        await pane.OpenInBrowserCommand.ExecuteAsync(null);
+
+        Assert.Equal([new Uri("http://localhost:24000/")], bench.Links.Opened);
     }
 
     [Fact]
@@ -244,6 +468,13 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     public void Dispose() => bench.Dispose();
+
+    private static Uri Device(string model, int width, int height, Uri page, bool turned = false, string screen = "device") =>
+        new(FakePreviews.Files, $"/__avala/viewer/{screen}.html?device={model}&w={width}&h={height}&turned={(turned ? 1 : 0)}&page={Uri.EscapeDataString(page.AbsoluteUri)}");
+
+    private static Uri Unversioned(Uri address) => new(address.AbsoluteUri[..address.AbsoluteUri.LastIndexOf("&v=", StringComparison.Ordinal)]);
+
+    private static Uri Viewer(string model, int version) => new(FakePreviews.Files, $"/__avala/viewer/index.html?model={model}&v={version}");
 
     private ViewModelScript<PreviewPaneViewModel> Selected(PreviewPaneViewModel pane)
     {

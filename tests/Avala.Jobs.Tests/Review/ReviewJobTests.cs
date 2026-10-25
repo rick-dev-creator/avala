@@ -180,6 +180,19 @@ public sealed class ReviewJobTests
     }
 
     [Fact]
+    public async Task ApprovingAJobWhoseWorktreeWasFreedWhileItWaitedRebuildsItFirstAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await ReviewedAsync(flow);
+        _ = await flow.Workspaces.ShelveAsync(Outcomes.Present(job.Workspace), Cancellation);
+
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(job.Id, Cancellation));
+
+        Assert.Equal([Outcomes.Present(job.Workspace)], flow.Workspaces.Rebuilt);
+        Assert.Equal(JobState.Approved, job.State);
+    }
+
+    [Fact]
     public async Task AFreedWorktreeThatCannotBeRebuiltLeavesTheJobApprovedAsync()
     {
         var flow = JobFlow.With();

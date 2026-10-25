@@ -39,6 +39,7 @@
   <StreamGeometry x:Key="IconTree">M6.5 2H9.5A1 1 0 0 1 10.5 3V5A1 1 0 0 1 9.5 6H6.5A1 1 0 0 1 5.5 5V3A1 1 0 0 1 6.5 2ZM2.5 10.5H5.5A1 1 0 0 1 6.5 11.5V13A1 1 0 0 1 5.5 14H2.5A1 1 0 0 1 1.5 13V11.5A1 1 0 0 1 2.5 10.5ZM10.5 10.5H13.5A1 1 0 0 1 14.5 11.5V13A1 1 0 0 1 13.5 14H10.5A1 1 0 0 1 9.5 13V11.5A1 1 0 0 1 10.5 10.5ZM8 6V8.25M4 10.5V8.25H12V10.5</StreamGeometry>
   <StreamGeometry x:Key="IconAttach">M12.5 7.5L7.6 12.4A3 3 0 0 1 3.4 8.2L8.9 2.7A2 2 0 0 1 11.7 5.5L6.3 10.9A1 1 0 0 1 4.9 9.5L9.6 4.8</StreamGeometry>
   <StreamGeometry x:Key="IconPhone">M5.5 1.5H10.5A1.5 1.5 0 0 1 12 3V13A1.5 1.5 0 0 1 10.5 14.5H5.5A1.5 1.5 0 0 1 4 13V3A1.5 1.5 0 0 1 5.5 1.5ZM7.25 12.25H8.75</StreamGeometry>
+  <StreamGeometry x:Key="IconTurn">M2.5 7H9.5A1 1 0 0 1 10.5 8V13.5A1 1 0 0 1 9.5 14.5H2.5A1 1 0 0 1 1.5 13.5V8A1 1 0 0 1 2.5 7ZM7.5 1.8A5.5 5.5 0 0 1 14.2 7.4M14.2 7.4L12.4 6.1M14.2 7.4L15.2 5.4</StreamGeometry>
   <StreamGeometry x:Key="IconEye">M1.5 8C3 5 5.3 3.5 8 3.5C10.7 3.5 13 5 14.5 8C13 11 10.7 12.5 8 12.5C5.3 12.5 3 11 1.5 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>
   <StreamGeometry x:Key="IconEyeSlash">M1.5 8C3 5 5.3 3.5 8 3.5C10.7 3.5 13 5 14.5 8C13 11 10.7 12.5 8 12.5C5.3 12.5 3 11 1.5 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8ZM2.5 2.5L13.5 13.5</StreamGeometry>
   <StreamGeometry x:Key="IconCommit">M1.5 8H5M11 8H14.5M5 8A3 3 0 1 1 11 8A3 3 0 1 1 5 8Z</StreamGeometry>
@@ -66,7 +67,8 @@
   <StreamGeometry x:Key="IconPreview">M1.8 8C3.2 5.3 5.4 3.8 8 3.8C10.6 3.8 12.8 5.3 14.2 8C12.8 10.7 10.6 12.2 8 12.2C5.4 12.2 3.2 10.7 1.8 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>
   <StreamGeometry x:Key="IconPreviewImage">M1.8 8C3.2 5.3 5.4 3.8 8 3.8C10.6 3.8 12.8 5.3 14.2 8C12.8 10.7 10.6 12.2 8 12.2C5.4 12.2 3.2 10.7 1.8 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>
   <StreamGeometry x:Key="IconPreviewSvg">M1.8 8C3.2 5.3 5.4 3.8 8 3.8C10.6 3.8 12.8 5.3 14.2 8C12.8 10.7 10.6 12.2 8 12.2C5.4 12.2 3.2 10.7 1.8 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>
-  <StreamGeometry x:Key="IconPreviewPage">M9 3H13V7M13 3L7.5 8.5M11.5 9.5V12A1 1 0 0 1 10.5 13H4A1 1 0 0 1 3 12V5.5A1 1 0 0 1 4 4.5H6.5</StreamGeometry>
+  <StreamGeometry x:Key="IconPreviewPage">M2.5 3.5H13.5A1 1 0 0 1 14.5 4.5V11.5A1 1 0 0 1 13.5 12.5H2.5A1 1 0 0 1 1.5 11.5V4.5A1 1 0 0 1 2.5 3.5ZM1.5 6H14.5</StreamGeometry>
+  <StreamGeometry x:Key="IconPreviewModel">M8 1.8L13.5 4.9V11.1L8 14.2L2.5 11.1V4.9ZM2.5 4.9L8 8L13.5 4.9M8 8V14.2</StreamGeometry>
   <StreamGeometry x:Key="IconAttention">M8 2.6L14 13.2H2ZM8 6.6V9.4M8 11.3V11.4</StreamGeometry>
   <StreamGeometry x:Key="IconShield">M8 1.8L13 3.7V7.6C13 10.5 10.9 12.8 8 14.2C5.1 12.8 3 10.5 3 7.6V3.7ZM5.9 8.1L7.4 9.6L10.2 6.8</StreamGeometry>
   <StreamGeometry x:Key="LogoMark">M12 3.5L20.5 19H3.5Z</StreamGeometry>

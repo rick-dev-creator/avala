@@ -19,7 +19,7 @@ internal sealed class BaseFileReader(IGit git, IWorkspaceStore store) : IBaseFil
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken) =>
         await (await store.FindAtAsync(worktree, cancellationToken))
             .ToResult(WorkspaceFailure.UnknownWorkspace)
-            .BindAsync(workspace => ReadAsync(workspace.Location, workspace.Rules, path, cancellationToken));
+            .BindAsync(workspace => ReadAsync(workspace.Location, workspace.Rules, path, token => CurrentAsync(workspace, path, token), cancellationToken));
 
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken)
     {
@@ -30,18 +30,25 @@ internal sealed class BaseFileReader(IGit git, IWorkspaceStore store) : IBaseFil
             return failure;
         }
 
-        return await ReadAsync(checkout, commit, path, cancellationToken);
+        return await ReadAsync(checkout, commit, path, token => git.WorktreeBlobAsync(checkout, path, token), cancellationToken);
     }
+
+    private async Task<Result<Option<string>, WorkspaceFailure>> CurrentAsync(Workspace workspace, string path, CancellationToken cancellationToken) =>
+        workspace.IsShelved
+            ? await git.ShelvedTipAsync(workspace.Location.Repository, workspace.Id, cancellationToken)
+                .BindAsync(tip => CommittedBlobAsync(workspace.Location.Repository, tip, path, cancellationToken))
+            : await git.WorktreeBlobAsync(workspace.Location, path, cancellationToken);
 
     private async Task<Result<BaseFile, WorkspaceFailure>> ReadAsync(
         WorkspaceLocation location,
         CommitSha commit,
         string path,
+        Func<CancellationToken, Task<Result<Option<string>, WorkspaceFailure>>> worktreeBlob,
         CancellationToken cancellationToken)
     {
         if (!(await CommittedBlobAsync(location.Repository, commit, path, cancellationToken)).TryGetValue(out var committed, out var failure)
             || !(await ContentAsync(location.Repository, committed, cancellationToken)).TryGetValue(out var content, out failure)
-            || !(await git.WorktreeBlobAsync(location, path, cancellationToken)).TryGetValue(out var current, out failure))
+            || !(await worktreeBlob(cancellationToken)).TryGetValue(out var current, out failure))
         {
             return failure;
         }

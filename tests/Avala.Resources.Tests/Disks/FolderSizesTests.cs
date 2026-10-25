@@ -36,6 +36,24 @@ public sealed class FolderSizesTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AWorktreeSaysHowMuchOfItIsBuildOutputAsync()
+    {
+        await File.WriteAllTextAsync(Path.Combine(data.Path, "Program.cs"), new string('a', 10), Cancellation);
+        Directory.CreateDirectory(Path.Combine(data.Path, "src", "obj", "Debug"));
+        await File.WriteAllTextAsync(Path.Combine(data.Path, "src", "obj", "Debug", "app.dll"), new string('b', 200), Cancellation);
+        Directory.CreateDirectory(Path.Combine(data.Path, "node_modules", "left-pad"));
+        await File.WriteAllTextAsync(Path.Combine(data.Path, "node_modules", "left-pad", "index.js"), new string('c', 30), Cancellation);
+
+        var measured = await new FolderSizes(new AvalaPaths(data.Path)).MeasureAsync(data.Path, Cancellation);
+
+        Assert.Equal((240L, 230L), measured);
+    }
+
+    [Fact]
+    public void TheDiskHoldingTheDataFolderIsMeasured() =>
+        Assert.True(new FolderSizes(new AvalaPaths(data.Path)).Disk().Match(disk => disk.Total > 0 && disk.Available <= disk.Total, () => false));
+
+    [Fact]
     public async Task AFolderThatDoesNotExistWeighsNothingAsync()
     {
         var size = await new FolderSizes(new AvalaPaths(data.Path)).SizeAsync(Path.Combine(data.Path, "missing"), Cancellation);

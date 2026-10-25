@@ -410,12 +410,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
-        RegisterPulse(services).AddRelays().AddWorktreeSettings()
+        RegisterPulse(services).AddRelays().AddWorktreeSettings().AddResourcePages()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
-            .AddSingleton<Leftovers>()
-            .AddForwarded<IHandle<WorktreesReconciled>, Leftovers>()
             .AddTransient<LiveFeed>()
             .AddSingleton<JobSpending>()
             .AddSingleton<LimitReadings>()
@@ -433,8 +431,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SettingsFiles>()
             .AddSingleton<PhoneNotifications>()
             .AddSingleton<INotificationsViewModel, NotificationsViewModel>()
-            .AddSingleton<ResourceReader>()
-            .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
             .AddSingleton<TriggerControls>()
             .AddSingleton<LoopControls>()
@@ -454,7 +450,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<AboutLinks>()
             .AddSingleton<IAboutViewModel, AboutViewModel>()
             .AddSingleton<UpdateNoticeViewModel>()
-            .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<UsageLeftViewModel>()
             .AddSingleton<ContextLeftViewModel>()
             .AddSingleton<ChecksRunningViewModel>()
@@ -463,7 +458,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
             .AddSingleton<UsageViewModel>()
-            .AddSingleton<ResourcesViewModel>()
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
@@ -487,6 +481,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IPage, OverviewViewModel>()
             .AddForwarded<IPage, UsageViewModel>()
             .AddForwarded<IPage, ResourcesViewModel>()
+            .AddForwarded<IPage, WorktreesViewModel>()
             .AddForwarded<IPage, TriggersViewModel>()
             .AddFleetActivity()
             .AddForwarded<IPage, SettingsViewModel>();
@@ -589,11 +584,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInstallRowViewModel, InstallRowView>();
         views.Register<ICodeStepViewModel, CodeStepView>();
         views.Register<IPrivacyStepViewModel, PrivacyStepView>();
-        views.Register<IResourcesViewModel, ResourcesView>();
-        views.Register<IAgentTreeViewModel, AgentTreeView>();
-        views.Register<IOrphanViewModel, OrphanView>();
-        views.Register<IStaleWorktreeViewModel, StaleWorktreeView>();
-        views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
+        ResourceRegistrations.RegisterViews(views);
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
         views.Register<IRepositoryPickerViewModel, RepositoryPickerView>();

@@ -17,12 +17,13 @@ public sealed class WorktreeSettingsViewModelScripts
         var shown = await ShownAsync();
 
         Assert.Equal(
-            ["Archived", "Approved and on its base branch", "Approved, pull request open", "Approved, not delivered yet", "Discarded", "Failed"],
+            ["Archived", "Approved and on its base branch", "Approved, pull request open", "Approved, not delivered yet", "Discarded", "Failed", "Waiting for you, untouched"],
             shown.Moments.Select(rule => rule.Title));
         Assert.Equal(
-            ["Free it at once", "Free it at once", "Free it at once", "Free it after 1 day", "Free it at once", "Free it at once"],
+            ["Free it at once", "Free it at once", "Free it at once", "Free it after 1 day", "Free it at once", "Free it at once", "Free it after 3 days"],
             shown.Moments.Select(rule => rule.Choice));
         Assert.Equal(["After 7 days", "After 30 days"], shown.Deletions.Select(rule => rule.Choice));
+        Assert.Equal(["20 GB", "10%"], shown.Limits.Select(rule => rule.Choice));
         Assert.Equal(("resources.json: Absent", false), (shown.File, shown.IsChanged));
     }
 
@@ -51,6 +52,41 @@ public sealed class WorktreeSettingsViewModelScripts
         Assert.Equal((Option<TimeSpan>.None, Option<TimeSpan>.Some(TimeSpan.FromDays(7)), Option<TimeSpan>.None), (saved.Archived, saved.Failed, saved.DeleteDiscarded));
         Assert.Equal((Option<TimeSpan>.Some(TimeSpan.FromDays(1)), Option<TimeSpan>.Some(TimeSpan.FromDays(30))), (saved.Undelivered, saved.DeleteFailed));
         Assert.Equal((false, string.Empty), (shown.IsChanged, shown.Error));
+    }
+
+    [Fact]
+    public async Task SavingWritesTheSpaceBudgetAndTheDiskFloorTheLimitsChoseAsync()
+    {
+        var shown = await ShownAsync();
+        shown.Limits[0].Choice = "50 GB";
+        shown.Limits[1].Choice = "No floor";
+
+        await shown.SaveCommand.ExecuteAsync(null);
+
+        var saved = Assert.Single(resources.Policies);
+        Assert.Equal((Option<long>.Some(50L << 30), Option<double>.None), (saved.SpaceBudget, saved.DiskFloor));
+    }
+
+    [Fact]
+    public async Task TurningOffTheStartupCleanSavesThatUnknownWorktreesAreOnlyListedAsync()
+    {
+        var shown = await ShownAsync();
+
+        shown.CleansUnknown = false;
+        await shown.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(ReconcilePolicy.Report, resources.Settings.Reconcile);
+    }
+
+    [Fact]
+    public async Task ACustomDelayThatReadsLikeAChoiceIsKeptApartFromItAsync()
+    {
+        resources.Settings = resources.Settings with { Worktrees = resources.Settings.Worktrees with { Archived = TimeSpan.FromHours(1.001) } };
+
+        var shown = await ShownAsync();
+        await shown.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(("Free it after 1 hour, as saved", false), (shown.Moments[0].Choice, shown.IsChanged));
     }
 
     [Fact]

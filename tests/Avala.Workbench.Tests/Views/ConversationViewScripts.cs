@@ -789,7 +789,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AWrittenPageOffersToOpenInTheBrowserWithoutAThumbnailAsync() =>
+    public Task AWrittenPageNoPaneShowsOffersACardThatOpensItInTheBrowserAsync() =>
         ui.RunAsync(async () =>
         {
             var worktree = new Worktree();
@@ -800,8 +800,8 @@ public sealed class ToolViewScripts(HeadlessUi ui)
             view.Click("OpenPreview");
             await (tool.Preview.OpenCommand.ExecutionTask ?? Task.CompletedTask);
 
-            Assert.Equal((true, false), (view.Shows("OpenPreview"), view.Shows("Thumbnail")));
-            Assert.Equal("Open in your browser", ToolTip.GetTip(view.Find<Button>("OpenPreview")));
+            Assert.Equal((true, false, true), (view.Shows("OpenPreview"), view.Shows("Thumbnail"), view.Shows("Artifact")));
+            Assert.Equal("Show in the preview", ToolTip.GetTip(view.Find<Button>("OpenPreview")));
             Assert.Equal([new Uri(System.IO.Path.Combine(Worktree.Folder, "sistema-solar.html"))], worktree.Opener.Opened);
         }, TestContext.Current.CancellationToken);
 

@@ -28,11 +28,16 @@ internal static class ResourceSettingsParser
     public const string FreeFailed = "freeFailedHours";
     public const string DeleteDiscarded = "deleteDiscardedHours";
     public const string DeleteFailed = "deleteFailedHours";
+    public const string FreeIdle = "freeIdleHours";
+    public const string SpaceBudget = "spaceBudgetGigabytes";
+    public const string DiskFloor = "diskFloorPercent";
+    private const long Gigabyte = 1L << 30;
+    private const double LargestBudget = 1_000_000;
 
     private static readonly string[] WorktreeFields =
     [
         FreeArchived, FreeDelivered, FreePullRequest, FreeUndelivered, FreeDiscarded, FreeFailed,
-        DeleteDiscarded, DeleteFailed, KeptDiscarded, KeptFailed, KeptApproved, Reconcile,
+        DeleteDiscarded, DeleteFailed, FreeIdle, SpaceBudget, DiskFloor, KeptDiscarded, KeptFailed, KeptApproved, Reconcile,
     ];
     private const double LongestInterval = 86_400;
     private const double LongestRetention = 87_600;
@@ -48,8 +53,11 @@ internal static class ResourceSettingsParser
         {
             DeleteDiscarded = TimeSpan.FromDays(7),
             DeleteFailed = TimeSpan.FromDays(30),
+            Idle = TimeSpan.FromDays(3),
+            SpaceBudget = 20 * Gigabyte,
+            DiskFloor = 0.1,
         },
-        ReconcilePolicy.Report);
+        ReconcilePolicy.Clean);
 
     public static Result<ResourceSettings, ResourceError> Parse(string text)
     {
@@ -143,12 +151,24 @@ internal static class ResourceSettingsParser
             || !Hours(worktrees, FreeFailed, defaults.Failed).TryGetValue(out var failed, out error)
             || !Hours(worktrees, DeleteDiscarded, keptDiscarded).TryGetValue(out var deleteDiscarded, out error)
             || !Hours(worktrees, DeleteFailed, keptFailed).TryGetValue(out var deleteFailed, out error)
+            || !Hours(worktrees, FreeIdle, defaults.Idle).TryGetValue(out var idle, out error)
+            || !Amount(worktrees, SpaceBudget, defaults.SpaceBudget.Map(bytes => (double)bytes / Gigabyte), LargestBudget).TryGetValue(out var budget, out error)
+            || !Amount(worktrees, DiskFloor, defaults.DiskFloor.Map(share => share * 100), 90).TryGetValue(out var floor, out error)
             || !Choice(worktrees, Reconcile, Defaults.Reconcile).TryGetValue(out var reconcile, out error))
         {
             return error;
         }
 
-        return (new WorktreePolicy(archived, delivered, pullRequest, undelivered, discarded, failed) { DeleteDiscarded = deleteDiscarded, DeleteFailed = deleteFailed }, reconcile);
+        return (
+            new WorktreePolicy(archived, delivered, pullRequest, undelivered, discarded, failed)
+            {
+                DeleteDiscarded = deleteDiscarded,
+                DeleteFailed = deleteFailed,
+                Idle = idle,
+                SpaceBudget = budget.Map(gigabytes => (long)(gigabytes * Gigabyte)),
+                DiskFloor = floor.Map(percent => percent / 100),
+            },
+            reconcile);
     }
 
     public static JsonObject Node(WorktreePolicy policy, ReconcilePolicy reconcile) => new()
@@ -161,10 +181,20 @@ internal static class ResourceSettingsParser
         [FreeFailed] = HoursNode(policy.Failed),
         [DeleteDiscarded] = HoursNode(policy.DeleteDiscarded),
         [DeleteFailed] = HoursNode(policy.DeleteFailed),
+        [FreeIdle] = HoursNode(policy.Idle),
+        [SpaceBudget] = policy.SpaceBudget.Match<JsonValue?>(bytes => JsonValue.Create(Math.Round((double)bytes / Gigabyte, 3)), () => null),
+        [DiskFloor] = policy.DiskFloor.Match<JsonValue?>(share => JsonValue.Create(Math.Round(share * 100, 3)), () => null),
         [Reconcile] = reconcile.ToString().ToLowerInvariant(),
     };
 
     private static JsonValue? HoursNode(Option<TimeSpan> span) => span.Match<JsonValue?>(kept => JsonValue.Create(kept.TotalHours), () => null);
+
+    private static Result<Option<double>, ResourceError> Amount(JsonElement element, string name, Option<double> fallback, double largest) =>
+        !element.TryGetProperty(name, out var value) ? fallback
+        : value.ValueKind == JsonValueKind.Null ? Option<double>.None
+        : value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var amount) ? ResourceError.Malformed
+        : amount > 0 && amount <= largest ? Option<double>.Some(amount)
+        : ResourceError.InvalidRetention;
 
     private static Result<Option<TimeSpan>, ResourceError> Hours(JsonElement element, string name, Option<TimeSpan> fallback) =>
         !element.TryGetProperty(name, out var value) ? fallback

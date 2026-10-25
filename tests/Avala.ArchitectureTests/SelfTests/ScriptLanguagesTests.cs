@@ -48,6 +48,18 @@ public sealed class ScriptLanguagesTests
             ]));
 
     [Fact]
+    public void AcceptsOnlyTheJavaScriptOfTheModelViewerAtAnyDepthOfItsOwnFolder() =>
+        Assert.Equal(
+            ["src/Modules/Preview/Avala.Preview/Viewer/three/build.sh", "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts", "src/Modules/Preview/Avala.Preview/Pages/viewer.js"],
+            ScriptLanguages.ForeignScripts([
+                "/home/dev/avala/src/Modules/Preview/Avala.Preview/Viewer/viewer.js",
+                "src/Modules/Preview/Avala.Preview/Viewer/three/addons/loaders/GLTFLoader.js",
+                "src/Modules/Preview/Avala.Preview/Viewer/three/build.sh",
+                "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts",
+                "src/Modules/Preview/Avala.Preview/Pages/viewer.js",
+            ]));
+
+    [Fact]
     public void AcceptsDotnetCommandsInEveryRunStyle()
     {
         const string workflow = """

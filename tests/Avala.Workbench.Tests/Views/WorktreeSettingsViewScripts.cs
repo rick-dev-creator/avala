@@ -15,7 +15,7 @@ public sealed class WorktreeSettingsViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignWorktreeSettingsViewModel(), ThemeVariant.Dark, 720, 900);
 
-            Assert.Equal(8, view.All<ComboBox>().Count(choice => choice.Name == "Choices"));
+            Assert.Equal(11, view.All<ComboBox>().Count(choice => choice.Name == "Choices"));
             Assert.Equal("resources.json: Absent", view.TextOf("File"));
             Assert.False(view.Find<Button>("Save").IsVisible);
         }, Cancellation);

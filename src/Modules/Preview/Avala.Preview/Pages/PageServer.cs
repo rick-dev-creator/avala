@@ -8,7 +8,9 @@ namespace Avala.Preview.Pages;
 
 internal sealed class PageServer : IAsyncDisposable
 {
-    public const string Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' ws://127.0.0.1:*";
+    public const string Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' data: blob: ws://127.0.0.1:*";
+
+    public const string ViewerPolicy = Policy + "; frame-src 'self' http://127.0.0.1:* http://localhost:*";
 
     private static readonly Dictionary<string, string> Types = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -28,6 +30,10 @@ internal sealed class PageServer : IAsyncDisposable
         [".wasm"] = "application/wasm",
         [".glb"] = "model/gltf-binary",
         [".gltf"] = "model/gltf+json",
+        [".bin"] = "application/octet-stream",
+        [".stl"] = "model/stl",
+        [".obj"] = "model/obj",
+        [".mtl"] = "text/plain; charset=utf-8",
         [".txt"] = "text/plain; charset=utf-8",
         [".woff2"] = "font/woff2",
         [".woff"] = "font/woff",
@@ -108,7 +114,7 @@ internal sealed class PageServer : IAsyncDisposable
 
             if (!AllowsNetwork)
             {
-                response.Headers["Content-Security-Policy"] = Policy;
+                response.Headers["Content-Security-Policy"] = ViewerFiles.Holds(Relative(context.Request.Url)) ? ViewerPolicy : Policy;
             }
 
             if (context.Request.HttpMethod is not ("GET" or "HEAD"))
@@ -143,19 +149,29 @@ internal sealed class PageServer : IAsyncDisposable
         }
     }
 
-    private Option<string> Find(Uri? address)
+    private static string Relative(Uri? address) => Uri.UnescapeDataString(address?.AbsolutePath ?? "/").TrimStart('/');
+
+    private Option<Served> Find(Uri? address)
     {
-        var relative = Uri.UnescapeDataString(address?.AbsolutePath ?? "/").TrimStart('/');
+        var relative = Relative(address);
+
+        if (ViewerFiles.Holds(relative))
+        {
+            return ViewerFiles.Has(relative) ? new Served(ViewerFiles.Extension(relative), () => ViewerFiles.Open(relative)) : Option<Served>.None;
+        }
+
         var asked = Path.GetFullPath(Path.Combine(root, relative.Length == 0 ? "index.html" : relative));
         var real = Directory.Exists(asked) ? Path.Combine(asked, "index.html").Canonical() : asked.Canonical();
 
-        return PreviewOrigins.IsInside(root, real) && File.Exists(real) ? real : Option<string>.None;
+        return PreviewOrigins.IsInside(root, real) && File.Exists(real)
+            ? new Served(Path.GetExtension(real), () => new FileStream(real, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 81920, FileOptions.Asynchronous))
+            : Option<Served>.None;
     }
 
-    private static async Task SendAsync(HttpListenerResponse response, string file, bool headOnly)
+    private static async Task SendAsync(HttpListenerResponse response, Served file, bool headOnly)
     {
-        response.ContentType = Types.GetValueOrDefault(Path.GetExtension(file), "application/octet-stream");
-        await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 81920, FileOptions.Asynchronous);
+        response.ContentType = Types.GetValueOrDefault(file.Extension, "application/octet-stream");
+        await using var stream = file.Open();
         response.ContentLength64 = stream.Length;
 
         if (!headOnly)
@@ -163,4 +179,6 @@ internal sealed class PageServer : IAsyncDisposable
             await stream.CopyToAsync(response.OutputStream);
         }
     }
+
+    private sealed record Served(string Extension, Func<Stream> Open);
 }

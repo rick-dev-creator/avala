@@ -66,4 +66,72 @@ public sealed class PageServerTests
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
+
+    [Theory]
+    [InlineData("__avala/viewer/", "text/html")]
+    [InlineData("__avala/viewer/viewer.js", "text/javascript")]
+    [InlineData("__avala/viewer/three/three.module.js", "text/javascript")]
+    [InlineData("__avala/viewer/three/addons/loaders/GLTFLoader.js", "text/javascript")]
+    [InlineData("__avala/viewer/device.html", "text/html")]
+    [InlineData("__avala/viewer/models/iphone-duo.glb", "model/gltf-binary")]
+    [InlineData("__avala/viewer/three/addons/renderers/CSS3DRenderer.js", "text/javascript")]
+    public async Task TheModelViewerIsServedFromAvalaItselfAsync(string path, string type)
+    {
+        using var worktree = new TemporaryFolder();
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
+        using var client = new HttpClient();
+
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/{path}"), Cancellation);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(type, response.Content.Headers.ContentType?.MediaType);
+        Assert.NotEmpty(await response.Content.ReadAsByteArrayAsync(Cancellation));
+    }
+
+    [Fact]
+    public async Task AModelInTheWorktreeIsServedWithItsTypeAsync()
+    {
+        using var worktree = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(worktree.Path, "parts"));
+        await File.WriteAllTextAsync(Path.Combine(worktree.Path, "parts", "bracket.stl"), "solid bracket\nendsolid bracket\n", Cancellation);
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
+        using var client = new HttpClient();
+
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/parts/bracket.stl"), Cancellation);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("model/stl", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task AViewerFileAvalaDoesNotShipIsNotFoundAsync()
+    {
+        using var worktree = new TemporaryFolder();
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
+        using var client = new HttpClient();
+
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/__avala/viewer/../../secrets.txt"), Cancellation);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public void APageMayReadDataItAlreadyHoldsButReachesNoOtherOrigin() =>
+        Assert.EndsWith("connect-src 'self' data: blob: ws://127.0.0.1:*", PageServer.Policy, StringComparison.Ordinal);
+
+    [Fact]
+    public async Task OnlyAvalasViewerMayFrameTheJobsPagesAsync()
+    {
+        using var worktree = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(worktree.Path, "index.html"), "<h1>Orders</h1>", Cancellation);
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
+        using var client = new HttpClient();
+
+        var viewer = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/__avala/viewer/device.html"), Cancellation);
+        var page = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/index.html"), Cancellation);
+
+        Assert.Equal(PageServer.ViewerPolicy, Assert.Single(viewer.Headers.GetValues("Content-Security-Policy")));
+        Assert.Equal(PageServer.Policy, Assert.Single(page.Headers.GetValues("Content-Security-Policy")));
+        Assert.EndsWith("frame-src 'self' http://127.0.0.1:* http://localhost:*", PageServer.ViewerPolicy, StringComparison.Ordinal);
+    }
 }

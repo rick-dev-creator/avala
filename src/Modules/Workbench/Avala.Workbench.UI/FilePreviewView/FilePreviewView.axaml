@@ -11,6 +11,18 @@
     <conversation:DesignFilePreviewViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector="Button#Artifact">
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBlockBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button#Artifact:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
     <Style Selector="Button#Thumbnail">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
@@ -56,6 +68,25 @@
                                     Rendering="{Binding Drawing}"
                                     IsVisible="{Binding !IsImage}" />
       </Panel>
+    </Button>
+    <Button x:Name="Artifact"
+            Margin="24,4,0,6"
+            HorizontalAlignment="Left"
+            Command="{Binding OpenCommand}"
+            IsVisible="{Binding IsArtifact}"
+            ToolTip.Tip="{Binding Hint}"
+            AutomationProperties.Name="{Binding Name}">
+      <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="10">
+        <Path Classes="icon"
+              Width="16"
+              Height="16"
+              VerticalAlignment="Center"
+              Data="{Binding Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=IconPreview}" />
+        <StackPanel Grid.Column="1" Spacing="1">
+          <TextBlock x:Name="ArtifactName" Classes="mono" Text="{Binding Name}" />
+          <TextBlock x:Name="ArtifactCaption" Classes="caption" Text="{Binding Caption}" />
+        </StackPanel>
+      </Grid>
     </Button>
     <TextBlock x:Name="Notice"
                Margin="24,2,0,6"

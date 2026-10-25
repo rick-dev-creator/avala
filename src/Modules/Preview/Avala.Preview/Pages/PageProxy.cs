@@ -46,7 +46,7 @@ internal sealed class PageProxy : IAsyncDisposable
     public string Policy =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"default-src 'self' http://localhost:{Target} http://127.0.0.1:{Target} 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' ws://127.0.0.1:{Port} ws://localhost:{Target} http://localhost:{Target}");
+            $"default-src 'self' http://localhost:{Target} http://127.0.0.1:{Target} 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' data: blob: ws://127.0.0.1:{Port} ws://localhost:{Target} http://localhost:{Target}");
 
     public static Option<PageProxy> Start(int port, int target)
     {

@@ -45,7 +45,7 @@ internal sealed class WorkedFiles(IJobCatalog catalog, IWorkspaceChanges changes
         return await history.Match(
             async found => await found.Summary.Workspace.Match(
                 async workspace => (await workspaces.FindAsync(workspace, cancellationToken)).Match<IReadOnlyList<string>>(
-                    info => [info.Path, found.Summary.Repository],
+                    info => info.Shelved ? [] : [info.Path, found.Summary.Repository],
                     _ => [found.Summary.Repository]),
                 () => Task.FromResult<IReadOnlyList<string>>([found.Summary.Repository])),
             () => Task.FromResult<IReadOnlyList<string>>([]));

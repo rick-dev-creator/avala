@@ -179,11 +179,59 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Equal(WorktreeMoment.Undelivered, (await run.FreedAsync()).Moment);
         Assert.False(Directory.Exists(worktree));
 
-        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "One more thing.", Cancellation));
+        var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "One more thing.", Cancellation));
         _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
 
+        Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
         Assert.True(Directory.Exists(worktree));
         Assert.False(Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAtAsync(worktree, Cancellation)).Shelved);
+    }
+
+    [Fact]
+    public async Task AJobWaitingForReviewIsFreedOnceIdleAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeIdleHours": 1, "freeUndeliveredHours": null } }""")], []);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        await run.DeliveredAsync();
+
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, JobStatus.AwaitingReview, WorktreeMoment.Idle), (freed.Job, freed.Status, freed.Moment));
+        Assert.False(Directory.Exists(worktree));
+    }
+
+    [Fact]
+    public async Task ApprovingAJobFreedWhileItWaitedRebuildsItsWorktreeAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeIdleHours": 1, "freeUndeliveredHours": null } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        await run.DeliveredAsync();
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await run.FreedAsync();
+
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+
+        Assert.True(Directory.Exists(worktree));
+    }
+
+    [Fact]
+    public async Task AWorktreeOverTheSpaceBudgetIsFreedAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "diskSeconds": 0.1, "worktrees": { "freeUndeliveredHours": null, "spaceBudgetGigabytes": 0.000000001 } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+
+        run.Clock.Advance(TimeSpan.FromSeconds(10));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, WorktreeMoment.Space), (freed.Job, freed.Moment));
     }
 
     [Fact]

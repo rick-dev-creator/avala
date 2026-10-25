@@ -28,10 +28,11 @@ internal sealed class JobFlow
         Agents = agents;
         var ledger = new JobLedger(Store, Bus, agents, Clock);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
+        var worktrees = new JobWorkspaces(workspaces, workspaces);
         var launcher = new JobLauncher(
             ledger,
             agents,
-            new WorkspacePlanner(new JobWorkspaces(workspaces, workspaces), Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
+            new WorkspacePlanner(worktrees, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
             new JobMessenger(agents, Briefings, Microsoft.Extensions.Logging.Abstractions.NullLogger<JobMessenger>.Instance));
         var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
@@ -39,7 +40,7 @@ internal sealed class JobFlow
         Hold = new HoldJob(ledger, agents, Bus, journal);
         var start = new StartJob(ledger, launcher, Hold, Logs);
         Launches = new JobLaunches(Queues, start);
-        var approvals = new Approvals(workspaces, Defaults, Strategies, Queues);
+        var approvals = new Approvals(worktrees, Defaults, Strategies, Queues);
         Jobs = new JobsEntry(
             Submit,
             new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal, new ControlRemotely(ledger, Connections, launcher)),

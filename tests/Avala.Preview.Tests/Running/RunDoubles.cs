@@ -59,10 +59,11 @@ internal sealed class RunBench : IAsyncDisposable
         Trees = new RecordingProcessTrees(environment);
         Runs = new RunBook(Bus);
         Pages = new RecordingPages(24_010);
+        var worktrees = new FixedWorktrees(Job, Worktree.Path);
         Previews = new Previews(
             Book,
             Runs,
-            new PreviewRunner(new FixedWorktrees(Job, Worktree.Path), new FixedLaunches(launch), new ScriptRuns(Trees, Runs), new PageRuns(Pages, Book, Runs, Bus)),
+            new PreviewRunner(worktrees, new FixedLaunches(launch), new ScriptRuns(Trees, Runs), new PageRuns(Pages, Book, Runs, Bus)),
             Pages);
     }
 

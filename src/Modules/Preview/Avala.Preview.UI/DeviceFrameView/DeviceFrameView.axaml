@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pane="using:Avala.Preview.Pane"
+             x:Class="Avala.Preview.UI.DeviceFrameView"
+             x:ClassModifier="internal"
+             x:DataType="pane:IDeviceFrameViewModel">
+  <Design.DataContext>
+    <pane:DesignDeviceFrameViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon, ToggleButton.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Orientation="Horizontal">
+    <Button x:Name="Device"
+            Classes="glyph"
+            ToolTip.Tip="{Binding Label, StringFormat='Device: {0}'}"
+            AutomationProperties.Name="Device">
+      <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconPhone}" />
+      <Button.Flyout>
+        <MenuFlyout ItemsSource="{Binding Choices}">
+          <MenuFlyout.ItemContainerTheme>
+            <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="pane:DeviceChoice">
+              <Setter Property="Header" Value="{Binding Name}" />
+              <Setter Property="Command" Value="{Binding Choose}" />
+              <Setter Property="ToggleType" Value="Radio" />
+              <Setter Property="IsChecked" Value="{Binding IsChosen}" />
+              <Setter Property="ToolTip.Tip" Value="{Binding Size}" />
+            </ControlTheme>
+          </MenuFlyout.ItemContainerTheme>
+        </MenuFlyout>
+      </Button.Flyout>
+    </Button>
+    <Button x:Name="Turn"
+            Classes="glyph"
+            Command="{Binding TurnCommand}"
+            IsVisible="{Binding IsFramed}"
+            ToolTip.Tip="Turn the device"
+            AutomationProperties.Name="Turn the device">
+      <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconTurn}" />
+    </Button>
+    <ToggleButton x:Name="Depth"
+                  Classes="glyph"
+                  IsChecked="{Binding ShowsDepth, Mode=OneWay}"
+                  Command="{Binding ToggleDepthCommand}"
+                  IsVisible="{Binding IsFramed}"
+                  ToolTip.Tip="Show the device in 3D: drag to turn it, scroll to zoom, right-drag to pan"
+                  AutomationProperties.Name="Show the device in 3D">
+      <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconPreviewModel}" />
+    </ToggleButton>
+  </StackPanel>
+</UserControl>
