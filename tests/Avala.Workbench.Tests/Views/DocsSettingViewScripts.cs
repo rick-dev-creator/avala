@@ -40,10 +40,10 @@ public sealed class DocsSettingViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task RepositorySettingsShowsFeatureDocumentationAsync() =>
+    public Task TheRepositorysDocsTabShowsFeatureDocumentationAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignRepositorySettingsViewModel(), ThemeVariant.Dark, 1200, 1600);
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Tab = RepositoryTab.Docs }, ThemeVariant.Dark, 1200, 1600);
 
             Assert.True(view.Shows("DocsSwitch"));
         }, Cancellation);

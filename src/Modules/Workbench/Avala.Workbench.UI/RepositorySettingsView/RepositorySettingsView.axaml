@@ -46,7 +46,7 @@
       </StackPanel>
     </Border>
     <ContentControl x:Name="Editor" Content="{Binding Editor}" IsVisible="{Binding Editor.IsOpen}" />
-    <StackPanel x:Name="Rules" Spacing="30" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+    <StackPanel x:Name="Rules" Spacing="24" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <StackPanel Spacing="2">
         <TextBlock x:Name="RepositoryName" Classes="title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Shown" Classes="caption mono" privacy:PersonalDetails.Scrubbed="{Binding Shown}" TextTrimming="CharacterEllipsis" />
@@ -54,41 +54,55 @@
                    Text="Read from the repository's .avala files as committed. Each job uses the copy at its own base commit, so its rules never change while it runs." />
       </StackPanel>
 
-      <StackPanel Spacing="8">
-        <DockPanel>
-          <Button x:Name="EditAutonomy" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding PermissionsFile}">
-            <StackPanel Orientation="Horizontal" Spacing="5">
-              <TextBlock Text="Edit in repository" />
-              <Path Classes="icon external" Data="{StaticResource IconExternal}" />
-            </StackPanel>
-          </Button>
-          <Button x:Name="EditAutonomyHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding PermissionsFile}" />
-          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-            <TextBlock Classes="section" Text="Autonomy" VerticalAlignment="Center" />
-            <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Path}" VerticalAlignment="Center" />
-            <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Commit}" VerticalAlignment="Center" />
-          </StackPanel>
-        </DockPanel>
-        <Border Classes="grouped">
-          <StackPanel>
-            <DockPanel Margin="16,14">
-              <TextBlock x:Name="Autonomy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Autonomy}" VerticalAlignment="Center" Margin="16,0,0,0" />
-              <StackPanel>
-                <TextBlock Text="Most a job may do" />
-                <TextBlock Classes="caption" Text="{Binding AutonomyNote}" TextWrapping="Wrap" />
-              </StackPanel>
-            </DockPanel>
-            <Border Classes="separator" Margin="16,0" />
-            <DockPanel Margin="16,14">
-              <TextBlock x:Name="FormStrategy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding FormStrategy}" VerticalAlignment="Center" Margin="16,0,0,0" />
-              <StackPanel>
-                <TextBlock Text="When a form asks something" />
-                <TextBlock Classes="caption" Text="Every answer is recorded as an assumption on the job." TextWrapping="Wrap" />
-              </StackPanel>
-            </DockPanel>
+      <ScrollViewer x:Name="TabStrip" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <Border Classes="segments" HorizontalAlignment="Left">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="PermissionsTab" Classes="segment" Classes.selected="{Binding ShowsPermissions}" Content="Permissions" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Permissions}" />
+            <Button x:Name="ChecksTab" Classes="segment" Classes.selected="{Binding ShowsChecks}" Content="Checks" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Checks}" />
+            <Button x:Name="BudgetTab" Classes="segment" Classes.selected="{Binding ShowsBudget}" Content="Budget" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Budget}" />
+            <Button x:Name="DeliveryTab" Classes="segment" Classes.selected="{Binding ShowsDelivery}" Content="Delivery" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Delivery}" />
+            <Button x:Name="DocsTab" Classes="segment" Classes.selected="{Binding ShowsDocs}" Content="Docs" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Docs}" />
+            <Button x:Name="FilesTab" Classes="segment" Classes.selected="{Binding ShowsFiles}" Content="Files" Command="{Binding ShowTabCommand}" CommandParameter="{x:Static settings:RepositoryTab.Files}" />
           </StackPanel>
         </Border>
-        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="A job can be stricter than this, never looser. Asking to loosen it is refused and recorded." />
+      </ScrollViewer>
+
+      <StackPanel x:Name="PermissionsPanel" Spacing="30" IsVisible="{Binding ShowsPermissions}">
+        <StackPanel Spacing="8">
+          <DockPanel>
+            <Button x:Name="EditAutonomy" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding PermissionsFile}">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="Edit in repository" />
+                <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="EditAutonomyHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding PermissionsFile}" />
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <TextBlock Classes="section" Text="Autonomy" VerticalAlignment="Center" />
+              <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Path}" VerticalAlignment="Center" />
+              <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Commit}" VerticalAlignment="Center" />
+            </StackPanel>
+          </DockPanel>
+          <Border Classes="grouped">
+            <StackPanel>
+              <DockPanel Margin="16,14">
+                <TextBlock x:Name="Autonomy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Autonomy}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <StackPanel>
+                  <TextBlock Text="Most a job may do" />
+                  <TextBlock Classes="caption" Text="{Binding AutonomyNote}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+              <Border Classes="separator" Margin="16,0" />
+              <DockPanel Margin="16,14">
+                <TextBlock x:Name="FormStrategy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding FormStrategy}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <StackPanel>
+                  <TextBlock Text="When a form asks something" />
+                  <TextBlock Classes="caption" Text="Every answer is recorded as an assumption on the job." TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+            </StackPanel>
+          </Border>
+          <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="A job can be stricter than this, never looser. Asking to loosen it is refused and recorded." />
       </StackPanel>
 
       <StackPanel Spacing="8">
@@ -112,48 +126,97 @@
         </Border>
         <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again for this job' apply to every session of that job until it ends and appear in its inspector. 'Always in this repository' adds its rule to this file, for new jobs once committed." />
       </StackPanel>
+      </StackPanel>
 
-      <StackPanel Spacing="8">
+      <StackPanel x:Name="ChecksPanel" Spacing="8" IsVisible="{Binding ShowsChecks}">
         <DockPanel>
-          <Button x:Name="EditBudget" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding BudgetFile}">
+          <Button x:Name="EditChecks" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding ChecksFile}">
             <StackPanel Orientation="Horizontal" Spacing="5">
               <TextBlock Text="Edit in repository" />
               <Path Classes="icon external" Data="{StaticResource IconExternal}" />
             </StackPanel>
           </Button>
-          <Button x:Name="EditBudgetHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding BudgetFile}" />
+          <Button x:Name="EditChecksHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding ChecksFile}" />
           <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-            <TextBlock Classes="section" Text="Budget caps · per job" VerticalAlignment="Center" />
-            <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Path}" VerticalAlignment="Center" />
-            <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Commit}" VerticalAlignment="Center" />
+            <TextBlock Classes="section" Text="Checks · run after every attempt" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding ChecksFile.Path}" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding ChecksFile.Commit}" VerticalAlignment="Center" />
           </StackPanel>
         </DockPanel>
-        <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="12" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
-      </StackPanel>
-
-      <StackPanel Spacing="8" IsVisible="{Binding !!Checks.Count}">
-        <TextBlock Classes="section" Text="Checks · run after every attempt" />
-        <Border Classes="grouped">
+        <Border Classes="grouped" IsVisible="{Binding !!Checks.Count}">
           <ItemsControl x:Name="Checks" Classes="rows" ItemsSource="{Binding Checks}" />
         </Border>
+        <Border x:Name="NoChecks" Classes="empty" Padding="18,16" IsVisible="{Binding !Checks.Count}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="strong" Text="No checks declared yet" />
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="The next job in this repository finds them for you: Avala runs the repository's own build, lint and test commands and keeps the ones that pass. You can also declare them here." />
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="A job is done only when these pass in its worktree. A failing check sends the agent back to fix it." />
       </StackPanel>
 
-      <ContentControl x:Name="Docs" Content="{Binding Docs}" />
+      <StackPanel x:Name="BudgetPanel" Spacing="30" IsVisible="{Binding ShowsBudget}">
+        <StackPanel Spacing="8">
+          <DockPanel>
+            <Button x:Name="EditBudget" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding BudgetFile}">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="Edit in repository" />
+                <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="EditBudgetHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding BudgetFile}" />
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <TextBlock Classes="section" Text="Budget caps · per job" VerticalAlignment="Center" />
+              <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Path}" VerticalAlignment="Center" />
+              <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Commit}" VerticalAlignment="Center" />
+            </StackPanel>
+          </DockPanel>
+          <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+      </StackPanel>
+      </StackPanel>
 
-      <StackPanel x:Name="JobsFile" Spacing="8" IsVisible="{Binding !!JobSections.Count}">
-        <TextBlock Classes="section" Text="Jobs · .avala/jobs.json" />
-        <Border Classes="grouped" Padding="16,10">
+      <StackPanel x:Name="DeliveryPanel" Spacing="8" IsVisible="{Binding ShowsDelivery}">
+        <DockPanel>
+          <Button x:Name="EditJobs" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding JobsFile}">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock Text="Edit in repository" />
+              <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="EditJobsHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding JobsFile}" />
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <TextBlock Classes="section" Text="Jobs · delivery and delegation" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding JobsFile.Path}" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding JobsFile.Commit}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DockPanel>
+        <Border x:Name="JobsFile" Classes="grouped" Padding="16,10" IsVisible="{Binding !!JobSections.Count}">
           <ItemsControl x:Name="JobSections" ItemsSource="{Binding JobSections}" />
+        </Border>
+        <Border x:Name="NoJobSections" Classes="empty" Padding="18,16" IsVisible="{Binding !JobSections.Count}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="strong" Text="Avala's defaults" />
+            <TextBlock Classes="caption" TextWrapping="Wrap"
+                       Text="Approving a job keeps its branch for you, and jobs delegate nothing. Declare an approval, a pull request, delegation or best of N in .avala/jobs.json to change that." />
+          </StackPanel>
         </Border>
       </StackPanel>
 
-      <StackPanel Spacing="8">
+      <StackPanel x:Name="DocsPanel" Spacing="8" IsVisible="{Binding ShowsDocs}">
+        <ContentControl x:Name="Docs" Content="{Binding Docs}" />
+        <Border x:Name="NoDocs" Classes="empty" Padding="18,16" IsVisible="{Binding !Docs.IsShown}">
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="Feature documentation is read once the repository's rules are." />
+        </Border>
+      </StackPanel>
+
+      <StackPanel x:Name="FilesPanel" Spacing="8" IsVisible="{Binding ShowsFiles}">
         <TextBlock Classes="section" Text="Rule files · read from each job's base commit" />
         <Border Classes="grouped">
           <ItemsControl x:Name="Files" Classes="rows" ItemsSource="{Binding Files}" />

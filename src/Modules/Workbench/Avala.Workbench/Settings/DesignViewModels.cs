@@ -66,6 +66,17 @@ internal sealed class DesignCapsViewModel(string scope, string caps, IReadOnlyLi
     public IReadOnlyList<SettingLine> Lines { get; } = lines;
 }
 
+internal sealed class DesignSettingsEntryViewModel : ISettingsEntryViewModel
+{
+    public SettingsSection Section { get; init; } = SettingsSection.Accounts;
+
+    public string Title { get; init; } = "Accounts";
+
+    public string Icon { get; init; } = "IconPerson";
+
+    public bool IsSelected { get; init; } = true;
+}
+
 internal sealed class DesignCheckViewModel(string name, string command, string timeout) : ICheckViewModel
 {
     public DesignCheckViewModel()
@@ -202,7 +213,7 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
 
     public IReadOnlyList<ICapsViewModel> Caps { get; } = [new DesignCapsViewModel()];
 
-    public IReadOnlyList<ICheckViewModel> Checks { get; } =
+    public IReadOnlyList<ICheckViewModel> Checks { get; init; } =
     [
         new DesignCheckViewModel("lint", "golangci-lint run", "120s"),
         new DesignCheckViewModel("vet", "go vet ./...", "120s"),
@@ -210,7 +221,7 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
         new DesignCheckViewModel("build", "go build ./...", "300s"),
     ];
 
-    public IReadOnlyList<IJobSectionViewModel> JobSections { get; } = [];
+    public IReadOnlyList<IJobSectionViewModel> JobSections { get; init; } = [];
 
     [ObservableProperty]
     public partial string Repository { get; set; } = "~/code/ledger-api";
@@ -232,6 +243,26 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
     public IRuleFileViewModel? PermissionsFile => Files[0];
 
     public IRuleFileViewModel? BudgetFile => Files[1];
+
+    public IRuleFileViewModel? ChecksFile => Files.Count > 2 ? Files[2] : null;
+
+    public IRuleFileViewModel? JobsFile => Files.Count > 3 ? Files[3] : null;
+
+    public RepositoryTab Tab { get; init; } = RepositoryTab.Permissions;
+
+    public bool ShowsPermissions => Tab == RepositoryTab.Permissions;
+
+    public bool ShowsChecks => Tab == RepositoryTab.Checks;
+
+    public bool ShowsBudget => Tab == RepositoryTab.Budget;
+
+    public bool ShowsDelivery => Tab == RepositoryTab.Delivery;
+
+    public bool ShowsDocs => Tab == RepositoryTab.Docs;
+
+    public bool ShowsFiles => Tab == RepositoryTab.Files;
+
+    public IRelayCommand<RepositoryTab> ShowTabCommand { get; } = new RelayCommand<RepositoryTab>(_ => { });
 
     public IAsyncRelayCommand ReadCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
@@ -343,11 +374,39 @@ internal sealed class DesignSettingsViewModel : ISettingsViewModel
 
     public IRepositorySettingsViewModel Repository { get; } = new DesignRepositorySettingsViewModel();
 
-    public IMachineSettingsViewModel Machine { get; } = new DesignMachineSettingsViewModel();
+    public IMachineSettingsViewModel Machine { get; init; } = new DesignMachineSettingsViewModel();
 
     public IAppearanceViewModel Appearance { get; } = new DesignAppearanceViewModel();
 
     public IAboutViewModel About { get; } = new DesignAboutViewModel();
+
+    public IReadOnlyList<ISettingsEntryViewModel> Entries => [.. SectionPhrases.Entries().Select(entry => new SettingsEntryViewModel(entry.Section, entry.Title, entry.Icon) { IsSelected = entry.Section == Section })];
+
+    public SettingsSection Section { get; init; } = SettingsSection.Accounts;
+
+    public SectionHeading Heading => SectionPhrases.Heading(Section);
+
+    public string ShownRepository => ShowsRepository ? Repository.Shown : string.Empty;
+
+    public bool ShowsAccounts => Section == SettingsSection.Accounts;
+
+    public bool ShowsConnections => Section == SettingsSection.Connections;
+
+    public bool ShowsSupervision => Section == SettingsSection.Supervision;
+
+    public bool ShowsNotifications => Section == SettingsSection.Notifications;
+
+    public bool ShowsAppearance => Section == SettingsSection.Appearance;
+
+    public bool ShowsAbout => Section == SettingsSection.About;
+
+    public bool ShowsRepository => Section == SettingsSection.Repository;
+
+    public IRelayCommand<SettingsSection> ShowCommand { get; } = new RelayCommand<SettingsSection>(_ => { });
+
+    public IAsyncRelayCommand<string> OpenRepositoryCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand ReadRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignAboutViewModel : IAboutViewModel

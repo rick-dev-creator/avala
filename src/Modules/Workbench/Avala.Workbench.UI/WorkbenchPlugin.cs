@@ -284,6 +284,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
+        RegisterSettingsViews(views);
         RegisterDocumentationViews(views);
         RegisterReadinessViews(views);
         RegisterFollowingViews(views);
@@ -579,14 +580,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageDayViewModel, UsageDayView>();
         views.Register<IJobMeterViewModel, JobMeterView>();
         views.Register<IInterventionViewModel, InterventionView>();
-        views.Register<ISettingsViewModel, SettingsView>();
-        views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
-        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
-        views.Register<IMachineSettingsViewModel, MachineSettingsView>();
-        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
-        views.Register<INotificationsViewModel, NotificationsView>();
-        views.Register<IAppearanceViewModel, AppearanceView>();
-        views.Register<IAboutViewModel, AboutView>();
         views.Register<IUpdateViewModel, UpdateView>();
         views.Register<IUpdateNoticeViewModel, UpdateNoticeView>();
         views.Register<ITelemetryViewModel, TelemetryView>();
@@ -598,18 +591,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInstallRowViewModel, InstallRowView>();
         views.Register<ICodeStepViewModel, CodeStepView>();
         views.Register<IPrivacyStepViewModel, PrivacyStepView>();
-        views.Register<IRuleFileViewModel, RuleFileView>();
-        views.Register<IRuleViewModel, RuleView>();
-        views.Register<ICapsViewModel, CapsView>();
-        views.Register<ICheckViewModel, CheckView>();
-        views.Register<IJobSectionViewModel, JobSectionView>();
-        views.Register<IMachineConnectionViewModel, MachineConnectionView>();
-        views.Register<ISourceControlViewModel, SourceControlView>();
-        views.Register<IAccountRowViewModel, AccountRowView>();
-        views.Register<IConnectSheetViewModel, ConnectSheetView>();
-        views.Register<IForgeKindViewModel, ForgeKindView>();
-        views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
-        views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
         views.Register<IResourcesViewModel, ResourcesView>();
         views.Register<IAgentTreeViewModel, AgentTreeView>();
         views.Register<IOrphanViewModel, OrphanView>();
@@ -632,6 +613,31 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ITriggerItemViewModel, TriggerItemView>();
         views.Register<ILoopsViewModel, LoopsView>();
         views.Register<ILoopItemViewModel, LoopItemView>();
+    }
+
+    private static void RegisterSettingsViews(IViewRegistrar views)
+    {
+        views.Register<ISettingsViewModel, SettingsView>();
+        views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
+        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
+        views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
+        views.Register<INotificationsViewModel, NotificationsView>();
+        views.Register<IAppearanceViewModel, AppearanceView>();
+        views.Register<IAboutViewModel, AboutView>();
+        views.Register<IRuleFileViewModel, RuleFileView>();
+        views.Register<IRuleViewModel, RuleView>();
+        views.Register<ICapsViewModel, CapsView>();
+        views.Register<ICheckViewModel, CheckView>();
+        views.Register<ISettingsEntryViewModel, SettingsEntryView>();
+        views.Register<IJobSectionViewModel, JobSectionView>();
+        views.Register<IMachineConnectionViewModel, MachineConnectionView>();
+        views.Register<ISourceControlViewModel, SourceControlView>();
+        views.Register<IAccountRowViewModel, AccountRowView>();
+        views.Register<IConnectSheetViewModel, ConnectSheetView>();
+        views.Register<IForgeKindViewModel, ForgeKindView>();
+        views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
+        views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
     }
 
     private static void AddBoard(IServiceCollection services) =>

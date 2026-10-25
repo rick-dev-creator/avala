@@ -50,6 +50,7 @@ public sealed class PrivacyScreens(HeadlessUi ui, PublishedPlugins plugins)
         await ShootBothAsync(run, "90-privacy-settings-accounts-masked");
         var details = run.Get<IPersonalDetailsViewModel>();
         await ShootBothAsync(run, "91-privacy-settings-accounts-revealed", Hidden(details, false), window => PersonalDetails.SetAreHidden(window, details.IsHidden));
+        await run.Ui.InvokeAsync(() => settings.ShowSection("Appearance"), Cancellation);
         await ShootBothAsync(run, "94-privacy-switch", Hidden(details, true), ShowSwitch);
 
         var usage = await OpenAsync(run, "Usage");

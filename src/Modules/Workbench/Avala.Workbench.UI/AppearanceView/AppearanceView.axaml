@@ -12,10 +12,7 @@
   <StackPanel Spacing="8">
     <DockPanel>
       <TextBlock x:Name="AppearanceFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding File, StringFormat='appearance.json: {0}'}" VerticalAlignment="Bottom" />
-      <StackPanel Orientation="Horizontal" Spacing="10">
-        <TextBlock Classes="section" Text="Appearance" VerticalAlignment="Bottom" />
-        <TextBlock Classes="hint" Text="stored by Avala on this computer" VerticalAlignment="Bottom" />
-      </StackPanel>
+      <TextBlock Classes="section" Text="Display" VerticalAlignment="Bottom" />
     </DockPanel>
     <Border x:Name="AppearanceError"
             Classes="quiet"
