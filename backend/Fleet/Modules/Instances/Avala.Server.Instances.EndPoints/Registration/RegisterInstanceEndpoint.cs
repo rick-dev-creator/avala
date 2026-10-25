@@ -1,4 +1,5 @@
 using Ardalis.Result;
+using Avala.Server.Instances.EndPoints.Authentication;
 using FastEndpoints;
 using Mediator;
 using Microsoft.AspNetCore.Http;
@@ -10,6 +11,7 @@ internal sealed class RegisterInstanceEndpoint(ISender sender) : Endpoint<Regist
     public override void Configure()
     {
         Post("/instances");
+        Roles(ApiKeyAuthentication.Administrator);
         Tags("Instances");
     }
 

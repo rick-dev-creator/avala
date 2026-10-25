@@ -26,15 +26,31 @@ internal static class PersistenceRules
             .Where(entity => scope.Owning(entity) is not { Layer: Layer.Domain } owner || owner.Module != found.Owner.Module)
             .Select(entity => $"{found.Type.Name} -> {entity.Name}"));
 
+    public static IEnumerable<string> DbContextsWithPendingModelChanges(ServerScope scope) =>
+        Contexts(scope).Where(found => HasPendingModelChanges(found.Type)).Select(found => found.Type.Name);
+
     private static IEnumerable<(ModuleAssembly Owner, Type Type)> Contexts(ServerScope scope) =>
         scope.Types.Where(found => found.Type.IsSubclassOf(typeof(DbContext)));
 
     private static Microsoft.EntityFrameworkCore.Metadata.IModel Model(Type contextType)
     {
-        var builder = (DbContextOptionsBuilder)Activator.CreateInstance(typeof(DbContextOptionsBuilder<>).MakeGenericType(contextType))!;
-        builder.UseNpgsql(DesignConnection);
-        using var context = (DbContext)Activator.CreateInstance(contextType, builder.Options)!;
+        using var context = Design(contextType);
 
         return context.Model;
+    }
+
+    private static bool HasPendingModelChanges(Type contextType)
+    {
+        using var context = Design(contextType);
+
+        return context.Database.HasPendingModelChanges();
+    }
+
+    private static DbContext Design(Type contextType)
+    {
+        var builder = (DbContextOptionsBuilder)Activator.CreateInstance(typeof(DbContextOptionsBuilder<>).MakeGenericType(contextType))!;
+        builder.UseNpgsql(DesignConnection);
+
+        return (DbContext)Activator.CreateInstance(contextType, builder.Options)!;
     }
 }

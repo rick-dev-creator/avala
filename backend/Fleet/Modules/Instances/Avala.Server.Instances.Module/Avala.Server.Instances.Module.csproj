@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\..\Avala.Server.CrossCuttingConcerns\Avala.Server.CrossCuttingConcerns.csproj" />
     <ProjectReference Include="..\Avala.Server.Instances.Application\Avala.Server.Instances.Application.csproj" />
     <ProjectReference Include="..\Avala.Server.Instances.EndPoints\Avala.Server.Instances.EndPoints.csproj" />

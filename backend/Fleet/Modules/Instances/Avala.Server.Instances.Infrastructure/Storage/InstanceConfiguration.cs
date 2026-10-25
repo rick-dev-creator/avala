@@ -10,8 +10,11 @@ internal sealed class InstanceConfiguration : IEntityTypeConfiguration<Instance>
     {
         builder.ToTable("instances");
         builder.HasKey(instance => instance.Id);
-        builder.Property(instance => instance.Id).HasConversion(id => id.Value, value => new InstanceId(value));
-        builder.Property(instance => instance.Name).HasMaxLength(Instance.NameLength).IsRequired();
-        builder.Property(instance => instance.RegisteredAt);
+        builder.Property(instance => instance.Id).HasColumnName("id").HasConversion(id => id.Value, value => new InstanceId(value));
+        builder.Property(instance => instance.Name).HasColumnName("name").HasMaxLength(Instance.NameLength).IsRequired();
+        builder.Property(instance => instance.KeyHash).HasColumnName("key_hash").HasMaxLength(InstanceKey.HashLength).IsFixedLength().IsRequired();
+        builder.HasIndex(instance => instance.KeyHash).IsUnique();
+        builder.Property(instance => instance.RegisteredAt).HasColumnName("registered_at");
+        builder.Property(instance => instance.RevokedAt).HasColumnName("revoked_at");
     }
 }

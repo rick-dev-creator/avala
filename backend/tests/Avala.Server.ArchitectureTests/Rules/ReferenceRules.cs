@@ -18,6 +18,13 @@ internal static class ReferenceRules
         "Microsoft.Extensions.Options",
     ];
 
+    private static readonly string[] EndPointExtensions =
+    [
+        "Microsoft.Extensions.Logging.Abstractions",
+        "Microsoft.Extensions.Options",
+        "Microsoft.Extensions.Primitives",
+    ];
+
     public static IEnumerable<string> ReferencesOutsideTheirLayer(ServerScope scope) =>
         scope.Assemblies.SelectMany(owner => owner.Assembly.GetReferencedAssemblies()
             .Select(reference => reference.Name ?? string.Empty)
@@ -40,7 +47,8 @@ internal static class ReferenceRules
             || Starts(reference, "Microsoft.EntityFrameworkCore")
             || Starts(reference, "Npgsql"),
         Layer.EndPoints => owner.IsOwn(reference, Layer.Contracts)
-            || reference is Mediator or Results or Injection or "Microsoft.Extensions.Primitives"
+            || reference is Mediator or Results or Injection
+            || EndPointExtensions.Contains(reference)
             || Starts(reference, "FastEndpoints")
             || Starts(reference, "FluentValidation")
             || Starts(reference, "Microsoft.AspNetCore."),

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Docker.DotNet.Enhanced" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Fleet\Modules\Instances\Avala.Server.Instances.Infrastructure\Avala.Server.Instances.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

@@ -22,6 +22,8 @@ internal sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options)
 
 internal sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : DbContext(options)
 {
+    public DbSet<Order> Audited => Set<Order>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder.HasDefaultSchema("violating");
 }
 

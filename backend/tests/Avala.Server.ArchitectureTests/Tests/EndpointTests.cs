@@ -72,6 +72,14 @@ public sealed class EndpointTests
         Assert.Equal(["Avala.Server.Violating.EndPoints.Placing.PlaceOrderEndpoint"], Violations.Sorted(EndpointRules.ContractsBuiltOutsideMappers(Violating)));
 
     [Fact]
+    public async Task EveryEndpointNamesWhoMayCallItAsync() =>
+        Assert.Empty(await EndpointRules.EndpointsNamingNoCallerAsync(Production, Cancellation));
+
+    [Fact]
+    public async Task DetectsEndpointsNamingNoCallerAsync() =>
+        Assert.Equal(["OrderListing", "PlaceOrderEndpoint", "ShowOrderEndpoint"], await EndpointRules.EndpointsNamingNoCallerAsync(Violating, Cancellation));
+
+    [Fact]
     public async Task NoEndpointIsAnonymousAsync() =>
         Assert.Empty(await EndpointRules.AnonymousEndpointsAsync(Production, Cancellation));
 

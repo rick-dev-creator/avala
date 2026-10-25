@@ -354,7 +354,7 @@ The rules are code, and a failing rule explains itself.
 
 - **Architecture tests** in `tests/Avala.ArchitectureTests` enforce the module boundaries, the layer map, the domain's purity, the view rules, the absence of comments, type and component size limits, the concurrency and timing rules, and that every script is C#. The one exception is the docs site's template in `src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/`: the `<avala-c4>` player runs in the reader's browser, where only JavaScript runs, so that folder may hold `.js` files; they are embedded in the Documentation module and written into a repository's docs site by **Create site**, which puts them in `docs/template/public/`, the one other folder that may hold them, since Avala's own docs site is laid out the same way. Each rule runs against the production code, a compliant fixture module and a violating fixture module, so it can never pass vacuously.
 - **Analyzers** run on every project as errors: banned symbols for blocking calls, timed waits and coordination primitives, the threading analyzers, SonarAnalyzer.CSharp and the .NET code metrics rules, with their limits in `SonarLint.xml` and `CodeMetricsConfig.txt`.
-- **CI** builds and tests on Linux on every push to `main` and every pull request, running each test project once: the unit tests of `Avala.UnitTests.slnf` with coverage, then the architecture, documentation, integration and host tests of `Avala.SystemTests.slnf`. Windows and macOS build and test every night, on demand and before every release. CI uses only `dotnet` steps.
+- **CI** builds and tests on Linux on every push to `main` and every pull request, running each test project once: the unit tests of `Avala.UnitTests.slnf` with coverage, then the architecture, documentation, integration and host tests of `Avala.SystemTests.slnf`, then the fleet server's PostgreSQL tests of `Avala.ContainerTests.slnf` with `--fail-skips on`, so they can never be skipped there. Every test project of `tests/` and `backend/tests/` is in exactly one of the three filters, which `EveryTestProjectRunsInExactlyOneSolutionFilterAsync` checks. Windows and macOS build and test every night, on demand and before every release. CI uses only `dotnet` steps.
 
 ### Quality metrics
 
@@ -396,7 +396,11 @@ backend/
       Avala.Server.<Module>.EndPoints
       Avala.Server.<Module>.Module
   tests/
-    Avala.Server.ArchitectureTests/
+    Avala.Server.ArchitectureTests/     the rules below
+    Avala.Server.Instances.Tests/       unit tests of the Instances module, with fakes
+    Avala.Server.Instances.IntegrationTests/  its handlers and migrations against PostgreSQL
+    Avala.Server.Tests/                 the composed server, with a fake ISender and no database
+    Avala.Server.Testing/               fakes the backend tests share
     Fixtures/Violating/                 a module that breaks every rule on purpose
 ```
 
@@ -409,10 +413,10 @@ A module follows the [modular monolith template](https://github.com/rick-dev-cre
 | Project | Holds | May reference |
 | --- | --- | --- |
 | `Domain` | Entities and value objects, plain C# | Nothing but the runtime |
-| `Contracts` | Commands and queries, each answering with an `Ardalis.Result`, and what they return | Mediator and Ardalis.Result |
+| `Contracts` | Commands and queries, each answering with an `Ardalis.Result`, what they return, and the shapes callers must recognize, such as an instance key's | Mediator and Ardalis.Result |
 | `Application` | Validators of commands and queries | Its `Contracts` and `Domain`, FluentValidation |
 | `Infrastructure` | The module's one `DbContext`, its entity configurations and the handlers | Its `Contracts` and `Domain`, EF Core and Npgsql |
-| `EndPoints` | One folder per endpoint: the endpoint, its request, its response and its mapper | Its `Contracts`, FastEndpoints and ASP.NET |
+| `EndPoints` | One folder per endpoint: the endpoint, its request, its response and its mapper; and the `Authentication` folder of the module's scheme | Its `Contracts`, FastEndpoints, ASP.NET, `Microsoft.Extensions.Options`, `Microsoft.Extensions.Logging.Abstractions` and `Microsoft.Extensions.Primitives` |
 | `Module` | The `ModuleInstaller` | Its own projects and `CrossCuttingConcerns` |
 
 - **CQRS through Mediator.** A handler is a `ICommandHandler` or `IQueryHandler` in `Infrastructure` and works on the module's `DbContext` itself: no repository, no unit of work and no abstraction of the context, since EF Core already is both. A handler may also take `TimeProvider`, a logger and options.
@@ -422,9 +426,37 @@ A module follows the [modular monolith template](https://github.com/rick-dev-cre
 
 Mediator generates its code in the host, so a module's `Contracts` and `Infrastructure` show their internals to `Avala.Server`, and FastEndpoints scans only the `EndPoints` assembly each `ModuleInstaller` names. Its source generator is not used, because the types it generates are public.
 
+### Authentication
+
+Every endpoint is behind an API key, and names the role that may call it; only health, and OpenAPI with Scalar in Development, answer anonymously.
+
+- **Instance keys.** Registering an instance issues its key, `avk_` and the base64url of 32 random bytes, and answers it once. The server keeps only its SHA-256, as 64 hex characters in `instances.instances.key_hash`, under a unique index; a fast hash suffices since 256 random bits cannot be guessed. Revoking an instance keeps it, with `revoked_at`, and its key stops working at its next request: nothing is cached. The domain issues and hashes keys (`InstanceKey`); `Contracts` holds the shape a key has (`InstanceKeyShape`), which `EndPoints` may see and `Domain` may not, so the shape is known twice and `EveryIssuedKeyHasTheShapeOfAKey` keeps the two in step.
+- **The administrator key** is the setting `Authentication:AdministratorKey`, required: an empty key, or one shorter than 32 characters, stops the server at start with a message naming it, before any migration, since the host validates its options right after it is built. Generate one, for example with `openssl rand -base64 32`. Locally the AppHost generates it as the secret parameter `administrator-key`, kept in its user secrets and shown in the Aspire dashboard.
+- **The scheme**, `ApiKey`, reads one `Authorization: Bearer <token>` header, the scheme in any case. The administrator key, compared in constant time over SHA-256 digests, gives the role `Administrator`; a token shaped like an instance key is looked up through the query `AuthenticateInstance` and gives the role `Instance` with the instance's id and name; anything else fails without a query. A missing key answers 401 with `WWW-Authenticate: Bearer`, a key without the endpoint's role 403.
+- **Keys are never shown.** Every type that carries one formats it as `avk_…`, and no key is logged or put in a claim.
+
+| Method and route | Role | Answers |
+| --- | --- | --- |
+| `POST /instances` | `Administrator` | 201 with the instance and its key; 400 for an invalid name |
+| `GET /instances/{id}` | `Administrator` | 200 with the instance, never its key; 404 |
+| `POST /instances/{id}/revocation` | `Administrator` | 204; 404 |
+| `GET /instances/me` | `Instance` | 200 with the caller's id and name, from its claims |
+
+### Migrations
+
+`dotnet run scripts/server-migration.cs -- <Module> <Name>` scaffolds a migration for the module's `DbContext` with the Npgsql design-time services, without a database, into `Storage/Migrations` of its `Infrastructure`, as `.g.cs` files with internal sealed classes and no comments. The server applies them at start while `Database:ApplyMigrations` is true, its value in `appsettings.json`; it runs as one instance, so two servers migrating at once is not handled. Columns are named in snake case in each entity's configuration, and the history table lives in the module's schema, `instances.__migrations`. Which instances are active is defined once, as the query `Active` in `Infrastructure`: an expression tree in the domain would compile to `System.Reflection` calls, which the domain's purity rule forbids.
+
+### Tests of the server
+
+Unit tests with hand-written fakes come first; PostgreSQL is used only where it is the behavior.
+
+- `Avala.Server.Instances.Tests`: the domain, the contracts, the validators, the authentication handler with a fake `ISender`, and each endpoint through FastEndpoints' `Factory`.
+- `Avala.Server.Tests`: the composed server through `WebApplicationFactory`, with a fake `ISender` and migrations off, for the pipeline's 401 and 403, health, OpenAPI and the validation at start.
+- `Avala.Server.Instances.IntegrationTests`: the handlers are their query on the `DbContext`, which no fake may stand in for, so they and the migrations run against PostgreSQL through Testcontainers, `postgres:18.3` as Aspire uses, one container per test class and a clean table before every test. Without a Linux container engine they skip, saying why. They are alone in `Avala.ContainerTests.slnf`, which CI on Linux runs with `--fail-skips on`, so a skip fails CI there.
+
 ### Rules the tests enforce
 
-`Avala.Server.ArchitectureTests` proves every rule twice: on the production modules, where it finds nothing, and on the violating fixture, where it finds exactly what was planted. The rules are: projects are one of the six layers and every module has all six; types live in their project's namespace and every class is sealed or static; each layer references only what the table allows; only the `ModuleInstaller` is public and internals are visible only along the layers; the domain depends on nothing but plain C#; messages are commands or queries in `Contracts` answering with a `Result`; handlers are command or query handlers in `Infrastructure` that take only their `DbContext`, `TimeProvider`, a logger or options; no type is a repository or a unit of work; each module has at most one `DbContext`, in `Infrastructure`, in its own schema, mapping only its domain; endpoints live in `EndPoints`, are named after their feature, one per folder, exchange only their own request and response, have a mapper and leave building commands to it, and none is anonymous; the host references only modules' `Module` projects, and every module's.
+`Avala.Server.ArchitectureTests` proves every rule twice: on the production modules, where it finds nothing, and on the violating fixture, where it finds exactly what was planted. The rules are: projects are one of the six layers and every module has all six; types live in their project's namespace and every class is sealed or static; each layer references only what the table allows; only the `ModuleInstaller` is public and internals are visible only along the layers; the domain depends on nothing but plain C#; messages are commands or queries in `Contracts` answering with a `Result`; handlers are command or query handlers in `Infrastructure` that take only their `DbContext`, `TimeProvider`, a logger or options; no type is a repository or a unit of work; each module has at most one `DbContext`, in `Infrastructure`, in its own schema, mapping only its domain; endpoints live in `EndPoints`, are named after their feature, one per folder, exchange only their own request and response, have a mapper and leave building commands to it, and none is anonymous; every endpoint names who may call it with `Roles` or `Policies`; every `DbContext` matches its migrations, with no pending model change; the host references only modules' `Module` projects, and every module's. Internals are visible to a module's own `Tests` and `IntegrationTests`, and its `Contracts` also to the server's composition tests, `Avala.Server.Tests`, which answer as the module would.
 
 ## Analyzer exceptions
 

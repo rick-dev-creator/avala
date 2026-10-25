@@ -6,9 +6,13 @@ internal static class ServerNames
 
     public const string CrossCuttingConcerns = "Avala.Server.CrossCuttingConcerns";
 
+    public const string HostTests = "Avala.Server.Tests";
+
     public static string Project(string module, Layer layer) => $"{Host}.{module}.{layer}";
 
     public static string Tests(string module) => $"{Host}.{module}.Tests";
+
+    public static string IntegrationTests(string module) => $"{Host}.{module}.IntegrationTests";
 
     public static bool TryParse(string name, out string module, out Layer layer)
     {

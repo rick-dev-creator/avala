@@ -34,6 +34,16 @@ public sealed class PersistenceTests
         Assert.Equal(["OrdersDbContext: sales"], Violations.Sorted(PersistenceRules.DbContextsOutsideTheirModuleSchema(Violating)));
 
     [Fact]
+    public void EveryDbContextMatchesItsMigrations() =>
+        Assert.Empty(PersistenceRules.DbContextsWithPendingModelChanges(Production));
+
+    [Fact]
+    public void DetectsDbContextsWithoutMigrationsForTheirModel() =>
+        Assert.Equal(
+            ["AuditDbContext", "OrdersDbContext", "ReminderDbContext"],
+            Violations.Sorted(PersistenceRules.DbContextsWithPendingModelChanges(Violating)));
+
+    [Fact]
     public void TheDomainIsWhatIsPersisted() =>
         Assert.Empty(PersistenceRules.EntitiesOutsideTheDomain(Production));
 

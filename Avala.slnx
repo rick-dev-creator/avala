@@ -16,6 +16,7 @@
     <File Path="global.json" />
     <File Path="Avala.UnitTests.slnf" />
     <File Path="Avala.SystemTests.slnf" />
+    <File Path="Avala.ContainerTests.slnf" />
     <File Path="dotnet-tools.json" />
     <File Path=".github/workflows/ci.yml" />
     <File Path=".github/workflows/release.yml" />
@@ -25,6 +26,7 @@
     <File Path="scripts/package.cs" />
     <File Path="scripts/publish-badges.cs" />
     <File Path="scripts/publish-summary.cs" />
+    <File Path="scripts/server-migration.cs" />
     <File Path="scripts/session-cost.cs" />
   </Folder>
   <Folder Name="/Frontend/" />
@@ -230,6 +232,10 @@
   </Folder>
   <Folder Name="/Backend/tests/">
     <Project Path="backend/tests/Avala.Server.ArchitectureTests/Avala.Server.ArchitectureTests.csproj" />
+    <Project Path="backend/tests/Avala.Server.Instances.IntegrationTests/Avala.Server.Instances.IntegrationTests.csproj" />
+    <Project Path="backend/tests/Avala.Server.Instances.Tests/Avala.Server.Instances.Tests.csproj" />
+    <Project Path="backend/tests/Avala.Server.Testing/Avala.Server.Testing.csproj" />
+    <Project Path="backend/tests/Avala.Server.Tests/Avala.Server.Tests.csproj" />
   </Folder>
   <Folder Name="/Backend/tests/Fixtures/">
     <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Partial.Domain/Avala.Server.Partial.Domain.csproj" />

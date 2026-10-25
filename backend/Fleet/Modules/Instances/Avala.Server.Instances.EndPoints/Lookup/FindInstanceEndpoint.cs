@@ -1,3 +1,4 @@
+using Avala.Server.Instances.EndPoints.Authentication;
 using FastEndpoints;
 using Mediator;
 
@@ -7,7 +8,8 @@ internal sealed class FindInstanceEndpoint(ISender sender) : Endpoint<FindInstan
 {
     public override void Configure()
     {
-        Get("/instances/{id}");
+        Get("/instances/{id:guid}");
+        Roles(ApiKeyAuthentication.Administrator);
         Tags("Instances");
     }
 

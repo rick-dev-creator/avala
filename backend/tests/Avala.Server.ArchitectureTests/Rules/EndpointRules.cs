@@ -71,6 +71,24 @@ internal static class EndpointRules
         return anonymous;
     }
 
+    public static async Task<IReadOnlyList<string>> EndpointsNamingNoCallerAsync(ServerScope scope, CancellationToken cancellationToken)
+    {
+        List<string> silent = [];
+
+        foreach (var path in BackendLayout.FilesUnder(scope.SourceDirectory, "*.cs").Where(IsInEndPoints))
+        {
+            var root = await CSharpSyntaxTree.ParseText(await File.ReadAllTextAsync(path, cancellationToken), cancellationToken: cancellationToken)
+                .GetRootAsync(cancellationToken);
+
+            silent.AddRange(root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+                .Where(type => type.Members.OfType<MethodDeclarationSyntax>().FirstOrDefault(method => method.Identifier.Text == "Configure") is { } configure
+                    && !configure.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(NamesCallers))
+                .Select(type => type.Identifier.Text));
+        }
+
+        return [.. silent.Order(StringComparer.Ordinal)];
+    }
+
     private static IEnumerable<(ModuleAssembly Owner, Type Type)> Endpoints(ServerScope scope) =>
         scope.Types.Where(found => typeof(IEndpoint).IsAssignableFrom(found.Type) && found.Type is { IsClass: true, IsAbstract: false });
 
@@ -102,12 +120,16 @@ internal static class EndpointRules
     private static bool IsInEndPoints(string path) =>
         path.Split(Path.DirectorySeparatorChar).Any(segment => segment.EndsWith($".{Layer.EndPoints}", StringComparison.Ordinal));
 
-    private static bool IsAllowAnonymous(InvocationExpressionSyntax invocation) =>
+    private static bool IsAllowAnonymous(InvocationExpressionSyntax invocation) => Invoked(invocation) == "AllowAnonymous";
+
+    private static bool NamesCallers(InvocationExpressionSyntax invocation) => Invoked(invocation) is "Roles" or "Policies";
+
+    private static string? Invoked(InvocationExpressionSyntax invocation) =>
         invocation.Expression switch
         {
-            IdentifierNameSyntax name => name.Identifier.Text == "AllowAnonymous",
-            MemberAccessExpressionSyntax access => access.Name.Identifier.Text == "AllowAnonymous",
-            _ => false,
+            IdentifierNameSyntax name => name.Identifier.Text,
+            MemberAccessExpressionSyntax access => access.Name.Identifier.Text,
+            _ => null,
         };
 
     private static string Named(Type type) => type.FullName ?? type.Name;

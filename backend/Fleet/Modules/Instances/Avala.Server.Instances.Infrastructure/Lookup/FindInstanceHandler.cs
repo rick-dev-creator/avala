@@ -16,6 +16,6 @@ internal sealed class FindInstanceHandler(InstancesDbContext database) : IQueryH
 
         return instance is null
             ? Result<InstanceDetails>.NotFound()
-            : new InstanceDetails(instance.Id.Value, instance.Name, instance.RegisteredAt);
+            : new InstanceDetails(instance.Id.Value, instance.Name, instance.RegisteredAt, instance.RevokedAt);
     }
 }

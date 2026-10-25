@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
   <ItemGroup>
@@ -12,5 +13,6 @@
     <InternalsVisibleTo Include="Avala.Server.Instances.Module" />
     <InternalsVisibleTo Include="Avala.Server" />
     <InternalsVisibleTo Include="Avala.Server.Instances.Tests" />
+    <InternalsVisibleTo Include="Avala.Server.Instances.IntegrationTests" />
   </ItemGroup>
 </Project>

@@ -11,10 +11,11 @@ internal sealed class RegisterInstanceHandler(InstancesDbContext database, TimeP
 {
     public async ValueTask<Result<RegisteredInstance>> Handle(RegisterInstance command, CancellationToken cancellationToken)
     {
-        var instance = Instance.Register(command.Name, clock.GetUtcNow());
-        await database.Instances.AddAsync(instance, cancellationToken);
+        var issued = Instance.Register(command.Name, clock.GetUtcNow());
+        await database.Instances.AddAsync(issued.Instance, cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
 
-        return Result<RegisteredInstance>.Created(new RegisteredInstance(instance.Id.Value, instance.Name, instance.RegisteredAt));
+        return Result<RegisteredInstance>.Created(
+            new RegisteredInstance(issued.Instance.Id.Value, issued.Instance.Name, issued.Instance.RegisteredAt, issued.Key));
     }
 }

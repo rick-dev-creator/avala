@@ -31,6 +31,7 @@ internal static class ApiComposition
             document.Title = Title;
             document.Version = "v1";
             document.ShortSchemaNames = true;
+            document.EnableJWTBearerAuth = true;
         });
 
         return services;

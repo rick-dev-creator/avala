@@ -1,0 +1,11 @@
+{
+  "solution": {
+    "path": "Avala.slnx",
+    "projects": [
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Domain/Avala.Server.Instances.Domain.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj",
+      "backend/tests/Avala.Server.Instances.IntegrationTests/Avala.Server.Instances.IntegrationTests.csproj"
+    ]
+  }
+}

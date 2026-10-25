@@ -20,10 +20,10 @@ internal static class VisibilityRules
             .Select(target => $"{owner.Name} -> {target}"));
 
     private static bool Allows(ModuleAssembly owner, string target) =>
-        target == ServerNames.Tests(owner.Module) || owner.Layer switch
+        target == ServerNames.Tests(owner.Module) || target == ServerNames.IntegrationTests(owner.Module) || owner.Layer switch
         {
             Layer.Domain => owner.IsOwn(target, Layer.Application, Layer.Infrastructure),
-            Layer.Contracts => owner.IsOwn(target, Layer.Application, Layer.Infrastructure, Layer.EndPoints) || target == ServerNames.Host,
+            Layer.Contracts => owner.IsOwn(target, Layer.Application, Layer.Infrastructure, Layer.EndPoints) || target is ServerNames.Host or ServerNames.HostTests,
             Layer.Application => owner.IsOwn(target, Layer.Module),
             Layer.Infrastructure => owner.IsOwn(target, Layer.Module) || target == ServerNames.Host,
             Layer.EndPoints => owner.IsOwn(target, Layer.Module),
