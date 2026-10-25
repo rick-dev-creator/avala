@@ -304,6 +304,14 @@ public sealed class InMemoryGit
         }
     }
 
+    internal IReadOnlyList<(string Name, string Url)> Remotes(string repository)
+    {
+        lock (gate)
+        {
+            return [.. remotes.Where(pair => pair.Key.Repository == repository).Select(pair => (pair.Key.Remote, pair.Value)).OrderBy(pair => pair.Remote, StringComparer.Ordinal)];
+        }
+    }
+
     internal Option<string> Remote(string repository, string remote)
     {
         lock (gate)

@@ -287,6 +287,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterDocumentationViews(views);
         RegisterReadinessViews(views);
         RegisterFollowingViews(views);
+        views.RegisterFleetViews();
     }
 
     private static void RegisterInspector(IPluginRegistrar registrar)
@@ -492,6 +493,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IPage, UsageViewModel>()
             .AddForwarded<IPage, ResourcesViewModel>()
             .AddForwarded<IPage, TriggersViewModel>()
+            .AddFleetActivity()
             .AddForwarded<IPage, SettingsViewModel>();
 
     private static void RegisterFollowingViews(IViewRegistrar views)

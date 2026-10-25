@@ -21,6 +21,7 @@ public sealed class InMemoryWorkspacesPlugin(InMemoryGit git) : IPlugin
             .AddForwarded<IRepositories, InMemoryRepositories>()
             .AddForwarded<IScratchRepositories, InMemoryRepositories>()
             .AddForwarded<IRemoteRepositories, InMemoryRepositories>()
+            .AddForwarded<IRepositoryOrigins, InMemoryRepositories>()
             .AddForwarded<IRepositoryIndex, InMemoryRepositories>()
             .AddForwarded<IWorkingFiles, InMemoryRepositories>()
             .AddForwarded<IWorkingCommits, InMemoryRepositories>()

@@ -96,6 +96,7 @@ Your own harness connections, beside the ones found on their own: `~/.claude`, e
 | `notifications.json` | `enabled`. `channel`: `ntfy` (default) or `webhook`. `ntfy`: `server` (`https://ntfy.sh` by default), `topic` (a private random topic by default) and `tokenEnv`. `webhook`: `url` and `secretEnv`. `events`: `decision`, `held`, `budget`, `failed`, `loopEnded` on and `review` off by default. `detail`: `minimal` (default) or `detailed`. `quietHours`: `from`, `to` and `days`, every day by default. |
 | `triggers.json` | `repositories` and `triggers`; see [Autopilot and triggers](../guide/autopilot-and-triggers.md#settings-and-files). A trigger's `autonomy` is `supervised`, `attempts` 3 (1 to 10) and `concurrency` 1 (1 to 16) by default. |
 | `claude-code.json` | `startJobsOnPhone`: `false` by default. |
+| `fleet.json` | Written by Settings, Fleet: `server`, the fleet server's address; `instance` and `instanceName`, this instance on it; `enabled`, `false` while sending is paused; `keyRefused`, `true` once the server refused the key, until a new key or a successful test. Never the key, which is in the system keychain. Without the file, no fleet. |
 | `telemetry.json` | `enabled` and the random install ID. Only a packaged release can send. |
 | `updates.json` | `checkOnStartup`: `true` by default. A file that cannot be read, or holds anything else, turns the startup check off. |
 | `recording.json` | Development only. `enabled`: `false` by default. `redact`: strings removed from recorded sessions. |

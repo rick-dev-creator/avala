@@ -222,12 +222,13 @@ The installers and archives are attached to each [release](https://github.com/ri
   <img align="right" width="380" src="docs/assets/readme/privacy-light.png" alt="The privacy step of the welcome tour: hide personal details, and share anonymous usage statistics">
 </picture>
 
-A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf.
+A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf, unless you connect it to a fleet server of your own.
 
 - **What is sent.** An `installed` event once ever, and an `active` event at most once per local day, each with Avala's version, your operating system's name, version and architecture, and a random install ID made on first run. The install ID is never derived from your hardware, user name or paths.
 - **What is never sent.** Repositories, jobs, prompts, paths, harnesses, connections, accounts, costs, the features you use or your locale.
 - **Turning it off.** Choose Turn off on the notice shown on first run, or clear Send usage statistics in Settings, About; or set `DO_NOT_TRACK=1` or `AVALA_TELEMETRY=0` in Avala's environment. Settings shows the exact event that is sent and lets you reset the install ID.
 - **Builds from source** send nothing: only a packaged release holds the key that makes sending possible.
+- **A fleet server**, only once you connect one in Settings, Fleet, receives what each job does: its repository's remote address or first commit, its statuses, holds, model, token usage, cost and verification results, about two seconds after each happens. Never a path, title, instruction, prompt, branch, file name or anything from a chat without a repository. The server is your own, and its key stays in your system's keychain.
 
 <br clear="right">
 

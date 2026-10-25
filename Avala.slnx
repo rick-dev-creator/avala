@@ -111,6 +111,11 @@
     <Project Path="src/Modules/Triggers/Avala.Triggers.Contracts/Avala.Triggers.Contracts.csproj" />
     <Project Path="src/Modules/Triggers/Avala.Triggers/Avala.Triggers.csproj" />
   </Folder>
+  <Folder Name="/Frontend/src/Modules/Fleet/">
+    <Project Path="src/Modules/Fleet/Avala.Fleet.Contracts/Avala.Fleet.Contracts.csproj" />
+    <Project Path="src/Modules/Fleet/Avala.Fleet/Avala.Fleet.csproj" />
+    <Project Path="src/Modules/Fleet/Avala.Fleet.UI/Avala.Fleet.UI.csproj" />
+  </Folder>
   <Folder Name="/Frontend/src/Modules/Forges/">
     <Project Path="src/Modules/Forges/Avala.Forges.Contracts/Avala.Forges.Contracts.csproj" />
     <Project Path="src/Modules/Forges/Avala.Forges/Avala.Forges.csproj" />
@@ -205,6 +210,7 @@
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
     <Project Path="tests/Avala.Mermaid.Tests/Avala.Mermaid.Tests.csproj" />
     <Project Path="tests/Avala.Preview.Tests/Avala.Preview.Tests.csproj" />
+    <Project Path="tests/Avala.Fleet.Tests/Avala.Fleet.Tests.csproj" />
     <Project Path="tests/Avala.Forges.Tests/Avala.Forges.Tests.csproj" />
     <Project Path="tests/Avala.Forges.Testing/Avala.Forges.Testing.csproj" />
     <Project Path="tests/Avala.Workspaces.Testing/Avala.Workspaces.Testing.csproj" />

@@ -1,0 +1,1 @@
+{"kind":"usageReported","id":"0199f6a0-0000-7000-8000-000000000007","occurredAt":"2026-10-25T12:00:00.0000000Z","job":"0199f6a0-0000-7000-8000-000000000100","inputTokens":1000,"outputTokens":200,"cacheReadTokens":30000,"cacheWriteTokens":4000,"reasoningTokens":50,"cost":{"amount":0.002279,"currency":"USD","basis":"apiEquivalent"},"model":"opus"}

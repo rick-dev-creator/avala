@@ -62,10 +62,10 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
-        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
+        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Fleet", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
         Assert.Equal(
-            [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Triggers", "IconTriggers"), ("Settings", "IconSettings")],
+            [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Triggers", "IconTriggers"), ("Fleet", "IconFleet"), ("Settings", "IconSettings")],
             composition.All<IPage>().Where(page => page.Placement == PagePlacement.Navigation).Select(page => (page.Title, page.Icon)));
     }
 
@@ -86,6 +86,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton(new AvalaBuild("1.0.0", Option<string>.None))
             .AddSingleton<Sdk.Updates.IUpdates>(new FakeUpdates())
             .AddSingleton<Sdk.Telemetry.ITelemetry>(new Telemetry.FakeTelemetry())
+            .AddSingleton<Avala.Fleet.Contracts.IFleetActivity>(new FleetActivity.FakeFleetActivity())
             .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
             .AddSingleton<Sdk.Appearance.IWindowLayout>(new RememberedLayout())
             .AddSingleton<IJobCatalog>(new FakeCatalog())

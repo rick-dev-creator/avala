@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Fleet\Avala.Fleet\Avala.Fleet.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fleet\Avala.Fleet.UI\Avala.Fleet.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\FleetWire\v1\**\*.json" LinkBase="FleetWire\v1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1 @@
+{"repositories":[{"key":"remote:github.com/rick/avala","jobs":3,"instances":2,"tokens":{"input":1500,"output":150,"cacheRead":9000,"cacheWrite":400,"reasoning":20},"costs":[{"currency":"USD","basis":"apiEquivalent","amount":0.75}],"firstActivityAt":"2026-10-25T11:00:00+00:00","lastActivityAt":"2026-10-25T12:00:00+00:00"}],"unattributedJobs":1}

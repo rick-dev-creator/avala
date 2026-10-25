@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             x:Class="Avala.Workbench.UI.FleetActivityView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetActivityViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetActivityViewModel />
+  </Design.DataContext>
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="12">
+      <DockPanel>
+        <Button x:Name="RefreshButton" DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
+        <StackPanel Spacing="2">
+          <TextBlock Classes="title" Text="Fleet" />
+          <TextBlock Classes="caption" Text="Repositories worked on across your instances, from your fleet server" />
+        </StackPanel>
+      </DockPanel>
+      <TextBlock x:Name="NoticeText" Classes="caption" Text="{Binding Notice}" IsVisible="{Binding HasNotice}" TextWrapping="Wrap" />
+      <ItemsControl x:Name="RepositoryList" ItemsSource="{Binding Repositories}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <TextBlock x:Name="UnattributedText" Classes="caption" Text="{Binding Unattributed}" IsVisible="{Binding HasUnattributed}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

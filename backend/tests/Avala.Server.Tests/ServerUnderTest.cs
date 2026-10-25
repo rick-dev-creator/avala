@@ -17,13 +17,19 @@ public sealed class ServerUnderTest : WebApplicationFactory<Program>
 {
     public const string AdministratorKey = "an-administrator-key-for-the-host-tests";
 
-    private static readonly AuthenticatedInstance Desktop = new(Guid.Parse("0199f6a0-0000-7000-8000-000000000003"), "desktop");
+    public ServerUnderTest() => Sender = new FakeSender(Answer);
 
     public string ConfiguredKey { get; init; } = AdministratorKey;
 
     public bool AppliesMigrations { get; init; }
 
-    public FakeSender Sender { get; } = new(Answer);
+    internal AuthenticatedInstance Caller { get; init; } = new(Guid.Parse("0199f6a0-0000-7000-8000-000000000003"), "desktop");
+
+    internal FleetRepositories Repositories { get; init; } = new([], 0);
+
+    internal IReadOnlyList<RepositoryJob> Jobs { get; init; } = [];
+
+    public FakeSender Sender { get; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -38,12 +44,12 @@ public sealed class ServerUnderTest : WebApplicationFactory<Program>
         });
     }
 
-    private static object Answer(object message) => message switch
+    private object Answer(object message) => message switch
     {
-        AuthenticateInstance => Result<AuthenticatedInstance>.Success(Desktop),
+        AuthenticateInstance => Result<AuthenticatedInstance>.Success(Caller),
         IngestEvents ingest => Result<IngestionReceipt>.Success(new IngestionReceipt([.. ingest.Events.Select(incoming => incoming.Id)], [], [])),
-        ListRepositories => Result<FleetRepositories>.Success(new FleetRepositories([], 0)),
-        ListRepositoryJobs => Result<IReadOnlyList<RepositoryJob>>.Success([]),
+        ListRepositories => Result<FleetRepositories>.Success(Repositories),
+        ListRepositoryJobs => Result<IReadOnlyList<RepositoryJob>>.Success(Jobs),
         _ => Result.Success(),
     };
 }

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetRepositoryRowView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetRepositoryRowViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetRepositoryRowViewModel />
+  </Design.DataContext>
+  <Border Classes="grouped">
+    <StackPanel Margin="16,12" Spacing="6">
+      <Button x:Name="ToggleButton" Classes="plain" Command="{Binding ToggleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+        <StackPanel Spacing="2">
+          <TextBlock x:Name="KeyText" Classes="mono" privacy:PersonalDetails.Text="{Binding Key}" />
+          <TextBlock x:Name="SummaryText" Classes="caption" Text="{Binding Summary}" />
+          <TextBlock x:Name="SpendingText" Classes="caption" Text="{Binding Spending}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Button>
+      <StackPanel Spacing="4" IsVisible="{Binding IsExpanded}">
+        <TextBlock x:Name="JobsNotice" Classes="caption" Text="{Binding Notice}" TextWrapping="Wrap" />
+        <ItemsControl x:Name="JobList" ItemsSource="{Binding Jobs}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>
