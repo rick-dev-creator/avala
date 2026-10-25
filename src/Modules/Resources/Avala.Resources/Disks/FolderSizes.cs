@@ -16,7 +16,50 @@ internal sealed class FolderSizes(AvalaPaths paths) : IFolderSizes
         AttributesToSkip = FileAttributes.ReparsePoint,
     };
 
+    private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    private static readonly HashSet<string> BuildOutputs = new(StringComparer.Ordinal)
+    {
+        "node_modules", "bin", "obj", "target", "dist", "build", ".venv", "venv", "__pycache__", ".gradle", ".next", ".nuxt", ".turbo", ".cache",
+    };
+
     public Task<long> SizeAsync(string folder, CancellationToken cancellationToken) => Task.Run(() => Measure(folder), cancellationToken);
+
+    public Task<(long Bytes, long Build)> MeasureAsync(string folder, CancellationToken cancellationToken) => Task.Run(() => MeasureBuild(folder), cancellationToken);
+
+    private static (long Bytes, long Build) MeasureBuild(string folder)
+    {
+        try
+        {
+            if (!Directory.Exists(folder))
+            {
+                return (0, 0);
+            }
+
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+            var files = new FileSystemEnumerable<(long Length, bool Build)>(
+                root,
+                (ref entry) => (entry.Length, InBuildOutput(root, entry.Directory.ToString())),
+                Everything) { ShouldIncludePredicate = (ref entry) => !entry.IsDirectory };
+            var (bytes, build) = (0L, 0L);
+
+            foreach (var (length, inBuild) in files)
+            {
+                bytes += length;
+                build += inBuild ? length : 0;
+            }
+
+            return (bytes, build);
+        }
+        catch (IOException)
+        {
+            return (0, 0);
+        }
+    }
+
+    private static bool InBuildOutput(string root, string directory) =>
+        directory.Length > root.Length
+        && directory[(root.Length + 1)..].Split(Separators).Any(BuildOutputs.Contains);
 
     public Option<DiskSpace> Disk()
     {

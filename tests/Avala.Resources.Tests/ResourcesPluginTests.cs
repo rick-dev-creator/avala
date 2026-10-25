@@ -7,6 +7,7 @@ using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Sampling;
+using Avala.Resources.Storage;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -48,7 +49,7 @@ public sealed class ResourcesPluginTests
         Assert.Same(composition.Get<OrphanReaper>(), composition.Get<IOrphans>());
         Assert.IsType<WorktreeDesk>(composition.Get<IWorktreeHousekeeping>());
         Assert.Equal<object>(
-            [composition.Get<WorktreeHousekeeper>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
+            [composition.Get<WorktreeHousekeeper>(), composition.Get<SqliteWorktreeHistoryStore>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
             composition.All<IStartupTask>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<JobProgressed>>());

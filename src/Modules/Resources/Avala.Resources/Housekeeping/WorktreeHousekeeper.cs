@@ -54,6 +54,8 @@ internal sealed class WorktreeDesk(WorktreeHousekeeper housekeeper, OrphanReaper
 
     public Option<WorktreeSpace> Shortage() => housekeeper.Shortage();
 
+    public IReadOnlyList<WorktreeDue> Upcoming() => housekeeper.Upcoming();
+
     public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => housekeeper.FreeNowAsync(reaper, cancellationToken);
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken) => housekeeper.ReconcileAsync(cancellationToken);
@@ -73,12 +75,15 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
     private ImmutableList<FreedWorktree> freed = [];
     private ImmutableDictionary<string, long> sizes = ImmutableDictionary<string, long>.Empty;
     private WorktreeSpace? shortage;
+    private ImmutableList<WorktreeDue> upcoming = [];
 
     public IReadOnlyList<ReclaimedWorktree> Reclaimed() => Volatile.Read(ref reclaimed);
 
     public IReadOnlyList<FreedWorktree> Freed() => Volatile.Read(ref freed);
 
     public Option<WorktreeSpace> Shortage() => Volatile.Read(ref shortage).ToOption();
+
+    public IReadOnlyList<WorktreeDue> Upcoming() => Volatile.Read(ref upcoming);
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -218,6 +223,18 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
                 : kept.Freed ? kept : await FreeAsync(await CheckedAsync(kept, now, cancellationToken), policy, orphans, now, cancellationToken);
             Replace(kept, outcome, policy);
         }
+
+        Volatile.Write(ref upcoming, [.. retained.Where(kept => !kept.Freed).SelectMany(kept => DueOf(kept, policy).Match<WorktreeDue[]>(due => [new(kept.Job, kept.Worktree, due.Moment, due.Due)], () => [])).OrderBy(due => due.Due)]);
+    }
+
+    private static Option<(WorktreeMoment Moment, DateTimeOffset Due)> DueOf(Retained kept, WorktreePolicy policy)
+    {
+        var due = kept.Moments
+            .SelectMany(moment => policy.FreeAfter(moment.Key).Match<(WorktreeMoment Moment, DateTimeOffset Due)[]>(span => [(moment.Key, moment.Value + span)], () => []))
+            .OrderBy(found => found.Due)
+            .FirstOrDefault();
+
+        return due == default ? Option<(WorktreeMoment, DateTimeOffset)>.None : due;
     }
 
     private void Replace(Retained kept, Option<Retained> outcome, WorktreePolicy policy)
@@ -249,12 +266,9 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
     private async Task<Option<Retained>> FreeAsync(Retained kept, WorktreePolicy policy, IOrphans orphans, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var due = kept.Moments
-            .SelectMany(moment => policy.FreeAfter(moment.Key).Match<(WorktreeMoment Moment, DateTimeOffset Due)[]>(span => [(moment.Key, moment.Value + span)], () => []))
-            .OrderBy(found => found.Due)
-            .FirstOrDefault();
-
-        return due == default || due.Due > now ? kept : await ShelveNowAsync(kept, due.Moment, orphans, now, cancellationToken);
+        return await DueOf(kept, policy).Match(
+            due => due.Due > now ? Task.FromResult(Option<Retained>.Some(kept)) : ShelveNowAsync(kept, due.Moment, orphans, now, cancellationToken),
+            () => Task.FromResult(Option<Retained>.Some(kept)));
     }
 
     private async Task<Option<Retained>> ShelveNowAsync(Retained kept, WorktreeMoment moment, IOrphans orphans, DateTimeOffset now, CancellationToken cancellationToken)

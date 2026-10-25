@@ -52,9 +52,16 @@ public interface IWorktreeHousekeeping
 
     Option<WorktreeSpace> Shortage();
 
+    IReadOnlyList<WorktreeDue> Upcoming();
+
     ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken);
 
     ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken);
 
     ValueTask<WorktreeReconciliation> CleanAsync(CancellationToken cancellationToken);
+}
+
+public interface IWorktreeHistory
+{
+    ValueTask<WorktreeReport> ReportAsync(DateOnly from, CancellationToken cancellationToken);
 }

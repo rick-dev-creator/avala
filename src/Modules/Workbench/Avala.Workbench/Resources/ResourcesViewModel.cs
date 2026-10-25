@@ -50,10 +50,12 @@ internal interface IResourcesViewModel
     IAsyncRelayCommand ReconcileCommand { get; }
 
     IAsyncRelayCommand CleanCommand { get; }
+
+    IRelayCommand OpenWorktreesCommand { get; }
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IResourcesViewModel, IPage, IActivatable, IPresentation, IDisposable
+internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed, WorktreesEntry worktrees) : IResourcesViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly ObservableCollection<AgentTreeViewModel> trees = [];
     private readonly ObservableCollection<OrphanViewModel> orphans = [];
@@ -141,6 +143,9 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
         _ = await housekeeping.CleanAsync(cancellationToken);
         feed.Refresh();
     }
+
+    [RelayCommand]
+    private void OpenWorktrees() => worktrees.Open();
 
     private static bool CanReap(IOrphanViewModel? orphan) => orphan is { CanReap: true };
 

@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.WorktreeRowView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IWorktreeRowViewModel">
+  <Design.DataContext>
+    <resources:DesignWorktreeRowViewModel />
+  </Design.DataContext>
+  <DockPanel Margin="0,9">
+    <TextBlock x:Name="Amount" DockPanel.Dock="Right" Margin="16,0,0,0" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Amount}" VerticalAlignment="Center" />
+    <StackPanel Spacing="2" VerticalAlignment="Center">
+      <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Detail" Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+  </DockPanel>
+</UserControl>

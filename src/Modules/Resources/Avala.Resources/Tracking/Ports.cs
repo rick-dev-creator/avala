@@ -14,6 +14,8 @@ internal interface IFolderSizes
 {
     Task<long> SizeAsync(string folder, CancellationToken cancellationToken);
 
+    Task<(long Bytes, long Build)> MeasureAsync(string folder, CancellationToken cancellationToken);
+
     Task<long> DataFolderAsync(CancellationToken cancellationToken);
 
     Option<DiskSpace> Disk();

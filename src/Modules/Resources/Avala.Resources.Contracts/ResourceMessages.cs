@@ -116,6 +116,8 @@ public sealed record TreeUsage(ProcessTreeId Tree, string Home, IReadOnlyList<Pr
 public sealed record FolderUsage(string Path, long Bytes)
 {
     public Option<JobId> Job { get; init; }
+
+    public long BuildBytes { get; init; }
 }
 
 public sealed record ResourceSample(DateTimeOffset At, IReadOnlyList<TreeUsage> Trees, IReadOnlyList<FolderUsage> Worktrees, long DataFolderBytes)
@@ -167,6 +169,17 @@ public sealed record OrphanReport(ProcessTreeId Tree, IReadOnlyList<ProcessUsage
 }
 
 public sealed record ReclaimedWorktree(JobId Job, string Path, JobStatus Status, DateTimeOffset At);
+
+public sealed record WorktreeDue(JobId Job, string Path, WorktreeMoment Moment, DateTimeOffset Due);
+
+public sealed record WorktreeEvent(JobId Job, string Path, JobStatus Status, Option<WorktreeMoment> Moment, long Bytes, DateTimeOffset At)
+{
+    public Option<TimeSpan> Lifetime { get; init; }
+}
+
+public sealed record WorktreeDay(DateOnly Day, long Peak, int Worktrees, int Created, int Freed, long Recovered);
+
+public sealed record WorktreeReport(IReadOnlyList<WorktreeDay> Days, IReadOnlyList<WorktreeEvent> History);
 
 public sealed record FreedWorktree(JobId Job, string Path, JobStatus Status, WorktreeMoment Moment, long Bytes, DateTimeOffset At);
 

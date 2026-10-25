@@ -70,6 +70,15 @@ internal sealed class FakeFolders : IFolderSizes
         return Task.FromResult(Sizes.GetValueOrDefault(folder));
     }
 
+    public Dictionary<string, long> Builds { get; } = [];
+
+    public Task<(long Bytes, long Build)> MeasureAsync(string folder, CancellationToken cancellationToken)
+    {
+        Measured++;
+
+        return Task.FromResult((Sizes.GetValueOrDefault(folder), Builds.GetValueOrDefault(folder)));
+    }
+
     public Task<long> DataFolderAsync(CancellationToken cancellationToken) => Task.FromResult(Data);
 
     public Option<DiskSpace> Space { get; set; }

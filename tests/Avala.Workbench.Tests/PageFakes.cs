@@ -418,9 +418,17 @@ internal sealed class FakeHousekeeping : IWorktreeHousekeeping
 
     public IReadOnlyList<FreedWorktree> Freed() => [];
 
-    public Option<WorktreeSpace> Shortage() => Option<WorktreeSpace>.None;
+    public Option<WorktreeSpace> Short { get; set; }
 
-    public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<FreedWorktree>>([]);
+    public List<WorktreeDue> Due { get; } = [];
+
+    public List<FreedWorktree> FreedNow { get; } = [];
+
+    public Option<WorktreeSpace> Shortage() => Short;
+
+    public IReadOnlyList<WorktreeDue> Upcoming() => Due;
+
+    public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<FreedWorktree>>([.. FreedNow]);
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {
@@ -601,4 +609,11 @@ internal sealed class SubmittingJobs : IJobs
 
     public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+}
+
+internal sealed class FakeWorktreeHistory : IWorktreeHistory
+{
+    public WorktreeReport Report { get; set; } = new([], []);
+
+    public ValueTask<WorktreeReport> ReportAsync(DateOnly from, CancellationToken cancellationToken) => ValueTask.FromResult(Report);
 }

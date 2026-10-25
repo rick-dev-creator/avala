@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.WorktreeDayView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IWorktreeDayViewModel">
+  <Design.DataContext>
+    <resources:DesignWorktreeDayViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <ContainerQuery Name="Day" Query="max-width:472">
+      <Style Selector="ProgressBar#Share">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,9" ToolTip.Tip="{Binding Detail}">
+    <Grid ColumnSpacing="16" Container.Name="Day" Container.Sizing="Width">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Day" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Peak" />
+      </Grid.ColumnDefinitions>
+      <TextBlock x:Name="Day" Text="{Binding Day}" Classes.secondary="{Binding !IsToday}" VerticalAlignment="Center" />
+      <ProgressBar x:Name="Share" Grid.Column="1" Classes="bar" Value="{Binding Share}" Maximum="1" VerticalAlignment="Center" />
+      <TextBlock x:Name="Peak" Grid.Column="2" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Peak}" VerticalAlignment="Center" />
+    </Grid>
+  </Border>
+</UserControl>

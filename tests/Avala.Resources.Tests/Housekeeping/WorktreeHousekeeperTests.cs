@@ -80,6 +80,15 @@ public sealed class WorktreeHousekeeperTests
     }
 
     [Fact]
+    public async Task TheWorktreesWaitingToBeFreedAreListedWithWhenAndWhyAsync()
+    {
+        await using var resources = new Resourced();
+        var (job, home, _) = await EndedAsync(resources, JobStatus.Approved);
+
+        Assert.Equal([new WorktreeDue(job, home, WorktreeMoment.Undelivered, resources.Clock.GetUtcNow() + TimeSpan.FromDays(1))], resources.Desk.Upcoming());
+    }
+
+    [Fact]
     public async Task AFailedJobsWorkIsDeletedThirtyDaysAfterItEndedAsync()
     {
         await using var resources = new Resourced();

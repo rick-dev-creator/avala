@@ -72,7 +72,8 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
 
         foreach (var home in attribution.Sessions.Values.Select(facts => facts.Home).Distinct(StringComparer.Ordinal))
         {
-            worktrees.Add(new FolderUsage(home, await folders.SizeAsync(home, cancellationToken)) { Job = attribution.JobAt(home) });
+            var (bytes, build) = await folders.MeasureAsync(home, cancellationToken);
+            worktrees.Add(new FolderUsage(home, bytes) { Job = attribution.JobAt(home), BuildBytes = build });
         }
 
         return (worktrees, await folders.DataFolderAsync(cancellationToken), folders.Disk());
