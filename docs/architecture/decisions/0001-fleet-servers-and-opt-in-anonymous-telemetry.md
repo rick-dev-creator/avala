@@ -118,7 +118,8 @@ Abuse of an anonymous endpoint is limited, not prevented: a rate limit per insta
 Both backends follow the [modular monolith template](https://github.com/rick-dev-creator/modularmonolith): a thin ASP.NET host with FastEndpoints and Scalar that finds each module through its `IModuleInstaller`, and modules of six projects, `Domain`, `Contracts`, `Application`, `Infrastructure`, `EndPoints` and `Module`, whose dependencies architecture tests enforce. They follow its structure, not its code: Avala's analyzers and rules apply to them as to the desktop.
 
 - **CQRS through [Mediator](https://github.com/martinothamar/Mediator)** instead of MediatR, whose versions from 13 on are commercially licensed. Mediator is the most used open-source alternative, MIT licensed and source generated, with the same `IRequest`, `IRequestHandler` and `ISender`.
-- **PostgreSQL through EF Core**: one database per backend, a schema per module, such as `ingestion`, `insights` and `instances`, each module with its own `DbContext` and migrations, and no module writing another module's tables.
+- **PostgreSQL through EF Core**: one database per backend, a schema per module, such as `instances` and `activity`, each module with its own `DbContext` and migrations, and no module writing another module's tables.
+- **The fleet server's modules**: `Instances` registers each instance and its key; `Activity` ingests each instance's events and answers the questions across the fleet. Ingesting and answering are one module, not two, because both work on the same tables and no module may read another's.
 - **Wire formats apart from module contracts.** The HTTP shapes of the fleet API and the telemetry payload live in plain projects without Mediator or ASP.NET, so the desktop depends on neither.
 
 ### Where the code lives
@@ -135,7 +136,7 @@ backend/
   Fleet/
     Avala.Server/
     Avala.Server.CrossCuttingConcerns/
-    Modules/Instances, Ingestion, Insights
+    Modules/Instances, Activity
   tests/
 ```
 
