@@ -26,10 +26,12 @@ Three tiers, kept apart: different data, different endpoints and a separate choi
 | Tier | Operated by | Holds | Turned on by |
 | --- | --- | --- | --- |
 | Local | Each person | Everything about their own machine, as today | Nothing to turn on |
-| Fleet | A person or team, on their own infrastructure | Full detail of their machines: repositories, jobs, usage, costs, files touched | Whoever sets up the fleet |
-| Global telemetry | Avala's maintainers | Anonymous daily aggregates from every install that opts in | Each install, opt-in |
+| Fleet | A person or team, on their own infrastructure, with `Avala.Server` | Full detail of their instances: repositories, jobs, usage, costs, files touched | Whoever sets up the fleet |
+| Global telemetry | Avala's maintainers, with a backend of its own | Anonymous daily aggregates from every install that opts in | Each install, opt-in |
 
 The fleet never forwards anything to global telemetry, and global telemetry never learns that a repository or a job exists.
+
+The two servers are different products. `Avala.Server`, the fleet server, serves only an API: it has no web interface, and Avala itself is the interface that reads it. The global telemetry backend is separate, with its own web console, and only Avala's maintainers run it.
 
 ### Identity across machines
 
@@ -44,7 +46,7 @@ A new module, `Fleet`, built on the existing extension points only. It listens t
 
 - **An outbox in `fleet.db`.** Each fact becomes an event with its own ID, appended locally and sent when the destination is reachable, so a laptop offline keeps working and catches up later. Sending an event twice never counts it twice.
 - **Transport, first without a server.** Each device appends its events to its own log in a folder the person syncs, such as with Syncthing or a private git repository. Every Avala reads every device's log and builds the same view. No conflicts arise, since each device writes only its own file, and no port is opened.
-- **Transport, then with a server.** `Avala.Server` in `fleet` mode receives the same events over HTTPS, reached through the person's own network, such as Tailscale. Avala itself still never opens a public port.
+- **Transport, then with a server.** `Avala.Server` receives the same events over HTTPS, reached through the person's own network, such as Tailscale, and answers the queries Avala's Fleet section asks. Avala itself still never opens a public port.
 
 What a fleet receives is chosen in levels:
 
@@ -58,7 +60,7 @@ The person chooses by answering Avala's questions in Settings, never by editing 
 
 ### What a fleet offers
 
-- **A Fleet page** in Avala, and a web dashboard on the server: the jobs of every device by repository, cost per repository to date, trends per day, week and month, a projection for the month, cost per verified job, the cost of retries, discarded jobs and scouts, the cache hit ratio and the model and effort that pass a repository's checks at the lowest cost.
+- **A Fleet section** in Avala, with two scopes a person switches between: **This instance**, from its own records as today, and **All my instances**, read from `Avala.Server`, each instance named and told apart. Both show the jobs of every device by repository, cost per repository to date, trends per day, week and month, a projection for the month, cost per verified job, the cost of retries, discarded jobs and scouts, the cache hit ratio and the model and effort that pass a repository's checks at the lowest cost.
 - **Subscription value.** Usage at API prices next to what the subscription actually costs, prorated.
 - **A map.** A graph of repositories, jobs, devices and connections, with delegation, handoffs and follow-ups as edges, sized by cost, with a time slider, and a view linking jobs by the files they change.
 - **Conflict warnings.** Two jobs on different devices that change the same files of the same repository are flagged while they run, from paths alone.
@@ -91,30 +93,31 @@ Rules that keep it anonymous:
 
 - **Closed lists.** Harnesses and models are sent only from a list Avala knows; anything else is sent as `"other"`, so a private deployment's name never leaves.
 - **Ranges, not values.** Hardware, memory, CPU, disk and durations are sent as ranges, and percentiles are computed on the machine. Never the CPU or GPU model, the exact memory, the host name, the distribution's name or exact version, a path, a time zone or a series by the minute.
-- **No cost.** The server prices tokens by model itself, so nothing depends on a person's plan.
-- **No address kept.** The server never stores the sender's IP address.
+- **No cost.** The global backend prices tokens by model itself, so nothing depends on a person's plan.
+- **No address kept.** The global backend never stores the sender's IP address.
 - **Small groups hidden.** Any group or combination of fewer than ten installs is never shown, such as one rare model at one effort on one platform.
 - **Exactly what is sent.** Settings shows the day's payload before it is sent, and lets the person reset the install ID.
 - **The existing off switches still win.** `DO_NOT_TRACK=1` and `AVALA_TELEMETRY=0` turn it off, and a build from source sends nothing, since only a packaged release holds the key.
 
 The Aptabase events stay as they are, under their own switch.
 
-### Avala.Server
+### Avala.Server, the fleet server
 
-One project, `Avala.Server`, in ASP.NET on .NET 10, deployed in two modes that share the event schema and the admin interface:
+`Avala.Server`, in ASP.NET on .NET 10, is self-hosted and serves only an API: it receives each instance's events, keeps them, and answers the queries of Avala's Fleet section, such as the jobs of every instance by repository, cost and trends, the map and the conflicts. It has no web interface; every view is drawn by Avala. Each instance signs in to it with a token its owner issues, and the server knows nothing of the global telemetry backend.
 
-- **`fleet`**: private, self-hosted, detailed, one per person or team.
-- **`global`**: the maintainers' ingestion of anonymous aggregates and their console, with tokens processed, peaks, the mix of harnesses, models and efforts, versions, active installs, hardware ranges and Avala's memory and worktree sizes, and optionally a public page of totals.
+### The global telemetry backend
 
-A fleet server may send the global server a heartbeat of its own, only if its owner turns it on: its version, its number of devices and whether it is healthy, and nothing about what it holds.
+A separate backend, not `Avala.Server`, that only Avala's maintainers run. It ingests the anonymous daily payloads and serves a web console: tokens processed, peaks, the mix of harnesses, models and efforts, versions, active installs, hardware ranges and Avala's memory and worktree sizes, and optionally a public page of totals. It shares nothing with `Avala.Server` but the payload's schema.
+
+A fleet server may send the global backend a heartbeat of its own, only if its owner turns it on: its version, its number of instances and whether it is healthy, and nothing about what it holds.
 
 Abuse of an anonymous endpoint is limited, not prevented: a rate limit per install ID, caps on plausible values, such as tokens per hour, and outliers trimmed from the totals.
 
 ### Delivery
 
-1. **Fleet without a server**: the `Fleet` module, its outbox, logs per device in a synced folder and the Fleet page.
-2. **`Avala.Server` in `fleet` mode**: the web dashboard, the map and conflict warnings.
-3. **Global telemetry**: the opt-in switches, the payload, `Avala.Server` in `global` mode and its console.
+1. **Fleet without a server**: the `Fleet` module, its outbox, logs per device in a synced folder and the Fleet section with This instance and All my instances.
+2. **`Avala.Server`**: its API, and the Fleet section reading it, with the map and conflict warnings.
+3. **Global telemetry**: the opt-in switches, the payload, and the global backend with its web console.
 4. **The fleet heartbeat** and the later fleet features, each with its own decision.
 
 Each phase is proven through the simulator: two simulated devices sharing one folder for the fleet, and a fake `ITelemetry` that captures the payload, asserting what is sent and, above all, what never is.
@@ -125,12 +128,14 @@ Each phase is proven through the simulator: two simulated devices sharing one fo
 - **Extending the Aptabase events with usage properties.** Little to build, but its dashboards cannot sum tokens, compute peaks or hide small groups, and it would blur the line between counting installs and measuring usage. Rejected.
 - **OpenTelemetry export only.** Cheap, and a person can point it at Grafana, but it knows nothing of repositories across devices, the map or conflicts. Kept as a possible later export of the fleet, not as its design.
 - **A server from the start.** Delays the first useful version behind hosting, authentication and operations. The synced folder comes first, with events shaped for the server.
+- **A web dashboard on the fleet server.** A second interface to build and keep in step with Avala's own, for people who already run Avala on every instance. Rejected: Avala is the fleet's interface.
+- **One server for the fleet and the global telemetry.** It would put a person's detailed records and the maintainers' anonymous aggregates in one codebase and one schema, so a mistake could move one into the other. Rejected: they are separate backends.
 - **Sending raw values and anonymizing on the server.** The server would hold what identifies a machine. Rejected: data is reduced before it leaves.
 
 ## Consequences
 
 - The README, `docs/guide/privacy-and-usage-statistics.md` and the release notes change to say what each switch sends, before any of this ships.
-- A new module, `Fleet`, with its own database, and a new deployable, `Avala.Server`, with its own release process in `docs/release.md`.
+- A new module, `Fleet`, with its own database, a new deployable, `Avala.Server`, with its own release process in `docs/release.md`, and the global telemetry backend, released apart from Avala.
 - The maintainers run and pay for a public ingestion endpoint and publish a short data policy for it.
 - Repository identity by `origin` treats forks and mirrors as different repositories, and a repository without a remote is matched only by its root commit.
 - Conflict warnings and the map need the Context level, so a fleet kept at Metrics sees costs and trends but not where work overlaps.
