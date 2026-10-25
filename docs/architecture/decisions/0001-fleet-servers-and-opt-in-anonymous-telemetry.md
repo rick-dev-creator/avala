@@ -103,15 +103,45 @@ The Aptabase events stay as they are, under their own switch.
 
 ### Avala.Server, the fleet server
 
-`Avala.Server`, in ASP.NET on .NET 10, is self-hosted and serves only an API: it receives each instance's events, keeps them, and answers the queries of Avala's Fleet section, such as the jobs of every instance by repository, cost and trends, the map and the conflicts. It has no web interface; every view is drawn by Avala. Each instance signs in to it with a token its owner issues, and the server knows nothing of the global telemetry backend.
+`Avala.Server`, in ASP.NET on .NET 10 with PostgreSQL through EF Core, is self-hosted and serves only an API: it receives each instance's events, keeps them, and answers the queries of Avala's Fleet section, such as the jobs of every instance by repository, cost and trends, the map and the conflicts. It has no web interface; every view is drawn by Avala. Each instance signs in to it with a token its owner issues, and the server knows nothing of the global telemetry backend.
 
 ### The global telemetry backend
 
-A separate backend, not `Avala.Server`, that only Avala's maintainers run. It ingests the anonymous daily payloads and serves a web console: tokens processed, peaks, the mix of harnesses, models and efforts, versions, active installs, hardware ranges and Avala's memory and worktree sizes, and optionally a public page of totals. It shares nothing with `Avala.Server` but the payload's schema.
+A separate backend, not `Avala.Server`, that only Avala's maintainers run, in ASP.NET on .NET 10 with PostgreSQL through EF Core. It ingests the anonymous daily payloads and serves a web console in Blazor: tokens processed, peaks, the mix of harnesses, models and efforts, versions, active installs, hardware ranges and Avala's memory and worktree sizes, and optionally a public page of totals. It shares nothing with `Avala.Server` but the payload's schema.
 
 A fleet server may send the global backend a heartbeat of its own, only if its owner turns it on: its version, its number of instances and whether it is healthy, and nothing about what it holds.
 
 Abuse of an anonymous endpoint is limited, not prevented: a rate limit per install ID, caps on plausible values, such as tokens per hour, and outliers trimmed from the totals.
+
+### How the backends are built
+
+Both backends follow the [modular monolith template](https://github.com/rick-dev-creator/modularmonolith): a thin ASP.NET host with FastEndpoints and Scalar that finds each module through its `IModuleInstaller`, and modules of six projects, `Domain`, `Contracts`, `Application`, `Infrastructure`, `EndPoints` and `Module`, whose dependencies architecture tests enforce. They follow its structure, not its code: Avala's analyzers and rules apply to them as to the desktop.
+
+- **CQRS through [Mediator](https://github.com/martinothamar/Mediator)** instead of MediatR, whose versions from 13 on are commercially licensed. Mediator is the most used open-source alternative, MIT licensed and source generated, with the same `IRequest`, `IRequestHandler` and `ISender`.
+- **PostgreSQL through EF Core**: one database per backend, a schema per module, such as `ingestion`, `insights` and `instances`, each module with its own `DbContext` and migrations, and no module writing another module's tables.
+- **Wire formats apart from module contracts.** The HTTP shapes of the fleet API and the telemetry payload live in plain projects without Mediator or ASP.NET, so the desktop depends on neither.
+
+### Where the code lives
+
+The fleet server ships with Avala, in this repository, beside the desktop:
+
+```
+src/        the desktop, with the new Fleet module
+tests/      the desktop's tests
+shared/
+  Avala.Server.Api/          the fleet API's shapes, used by the desktop and the server
+  Avala.Telemetry.Payload/   the anonymous payload, published as a NuGet package
+backend/
+  Fleet/
+    Avala.Server/
+    Avala.Server.CrossCuttingConcerns/
+    Modules/Instances, Ingestion, Insights
+  tests/
+```
+
+`Avala.slnx` groups its projects under three solution folders, **Frontend**, **Shared** and **Backend**, and solution filters open each side alone. `src` and `tests` stay where they are. A `docker-compose.yml` runs `Avala.Server` with its PostgreSQL in one command, so a person needs no database of their own.
+
+The global telemetry backend lives in a public repository of its own, `avala-telemetry`, released apart from Avala. Public, so anyone can check that it keeps no address, hides small groups and prices tokens itself; apart, since nobody who installs Avala builds it. Its deployment, secrets and the exact values of its abuse caps stay private, in its hosting's configuration. It references `Avala.Telemetry.Payload` at a fixed version, and every payload names its `schema`, so the backend keeps accepting older clients.
 
 ### Delivery
 
@@ -130,12 +160,15 @@ Each phase is proven through the simulator: two simulated devices sharing one fo
 - **A server from the start.** Delays the first useful version behind hosting, authentication and operations. The synced folder comes first, with events shaped for the server.
 - **A web dashboard on the fleet server.** A second interface to build and keep in step with Avala's own, for people who already run Avala on every instance. Rejected: Avala is the fleet's interface.
 - **One server for the fleet and the global telemetry.** It would put a person's detailed records and the maintainers' anonymous aggregates in one codebase and one schema, so a mistake could move one into the other. Rejected: they are separate backends.
+- **SQLite for the fleet server.** Nothing to install, but no schemas per module, and one writer at a time for every instance of a person. Rejected: PostgreSQL, run by the compose file.
+- **A private repository for the global backend.** It would ask people to believe what the data policy says instead of reading it. Rejected: the code is public and only its operation is private.
 - **Sending raw values and anonymizing on the server.** The server would hold what identifies a machine. Rejected: data is reduced before it leaves.
 
 ## Consequences
 
 - The README, `docs/guide/privacy-and-usage-statistics.md` and the release notes change to say what each switch sends, before any of this ships.
-- A new module, `Fleet`, with its own database, a new deployable, `Avala.Server`, with its own release process in `docs/release.md`, and the global telemetry backend, released apart from Avala.
+- A new module, `Fleet`, with its own database, a new deployable, `Avala.Server`, with its own release process in `docs/release.md`, and the global telemetry backend, in its own public repository, released apart from Avala.
+- `Avala.Telemetry.Payload` becomes a published package whose versions both repositories follow.
 - The maintainers run and pay for a public ingestion endpoint and publish a short data policy for it.
 - Repository identity by `origin` treats forks and mirrors as different repositories, and a repository without a remote is matched only by its root commit.
 - Conflict warnings and the map need the Context level, so a fleet kept at Metrics sees costs and trends but not where work overlaps.
