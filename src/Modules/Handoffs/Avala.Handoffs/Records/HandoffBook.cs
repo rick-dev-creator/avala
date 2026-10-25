@@ -14,11 +14,14 @@ internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, ICo
 {
     private ImmutableDictionary<JobId, ImmutableList<HandoffRecord>> handoffs = ImmutableDictionary<JobId, ImmutableList<HandoffRecord>>.Empty;
     private ImmutableDictionary<JobId, ResetWait> waits = ImmutableDictionary<JobId, ResetWait>.Empty;
+    private ImmutableDictionary<JobId, ImmutableList<RelayMark>> marks = ImmutableDictionary<JobId, ImmutableList<RelayMark>>.Empty;
 
     public IReadOnlyList<HandoffRecord> OfJob(JobId job) => Volatile.Read(ref handoffs).GetValueOrDefault(job, []);
 
     public Option<ResetWait> WaitOf(JobId job) =>
         Volatile.Read(ref waits).TryGetValue(job, out var wait) ? wait : Option<ResetWait>.None;
+
+    public IReadOnlyList<RelayMark> MarksOf(JobId job) => Volatile.Read(ref marks).GetValueOrDefault(job, []);
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -26,6 +29,18 @@ internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, ICo
         {
             Remember(handoff);
         }
+
+        foreach (var mark in await store.MarksAsync(cancellationToken))
+        {
+            Remember(mark);
+        }
+    }
+
+    public async Task MarkAsync(RelayMark mark, CancellationToken cancellationToken)
+    {
+        await store.MarkAsync(mark, cancellationToken);
+        Remember(mark);
+        await bus.PublishAsync(new RelayMarked(mark), cancellationToken);
     }
 
     public async ValueTask HandleAsync(JobHandedOff integrationEvent, CancellationToken cancellationToken)
@@ -52,7 +67,19 @@ internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, ICo
     public async Task WaitsAsync(ResetWait wait, CancellationToken cancellationToken)
     {
         ImmutableInterlocked.Update(ref waits, known => known.SetItem(wait.Job, wait));
+
+        if (MarksOf(wait.Job) is not [.., { Kind: RelayMarkKind.Waiting } last] || last.Connection != wait.Connection || last.Until != wait.ResumesAt)
+        {
+            await MarkAsync(new RelayMark(wait.Job, RelayMarkKind.Waiting, wait.Connection, wait.Since) { Until = wait.ResumesAt }, cancellationToken);
+        }
+
         await bus.PublishAsync(new JobWaitsForReset(wait), cancellationToken);
+    }
+
+    public async Task ResumedAsync(JobResumedAtReset resumed, CancellationToken cancellationToken)
+    {
+        await MarkAsync(new RelayMark(resumed.Job, RelayMarkKind.Resumed, resumed.Connection, resumed.At), cancellationToken);
+        await bus.PublishAsync(resumed, cancellationToken);
     }
 
     public void Ended(JobId job) => ImmutableInterlocked.Update(ref waits, known => known.Remove(job));
@@ -63,6 +90,9 @@ internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, ICo
                 offered => offered.DefaultChoice() with { Model = offered.DefaultModel.IsSome ? offered.DefaultModel : (offered.Models.Count > 0 ? Option<string>.Some(offered.Models[0]) : Option<string>.None) },
                 () => ModelChoice.Default),
             _ => ModelChoice.Default);
+
+    private void Remember(RelayMark mark) =>
+        ImmutableInterlocked.Update(ref marks, known => known.SetItem(mark.Job, known.GetValueOrDefault(mark.Job, []).Add(mark)));
 
     private void Remember(HandoffRecord handoff) =>
         ImmutableInterlocked.Update(ref handoffs, known => known.SetItem(handoff.Job, known.GetValueOrDefault(handoff.Job, []).Add(handoff)));

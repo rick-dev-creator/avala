@@ -37,3 +37,16 @@ internal sealed class StoredWait
     public KeptWait Read() =>
         new(new JobId(Job), Pending.Length == 0 ? Option<string>.None : Pending, new DateTimeOffset(Since, TimeSpan.Zero));
 }
+
+internal sealed class StoredMark
+{
+    public int Key { get; init; }
+
+    public Guid Job { get; init; }
+
+    public string Mark { get; init; } = string.Empty;
+
+    public static StoredMark Of(RelayMark mark) => new() { Job = mark.Job.Value, Mark = StoredJson.Write(mark) };
+
+    public RelayMark Read() => StoredJson.Read<RelayMark>(Mark);
+}

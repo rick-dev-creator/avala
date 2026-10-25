@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
@@ -34,13 +35,28 @@ internal sealed class Journal<T>
         {
             var signal = Volatile.Read(ref changed);
 
-            if (entries.FirstOrDefault(match) is { } found)
+            var found = entries.Where(match).ToList();
+
+            if (found.Count > 0)
             {
-                return found;
+                return found[0];
             }
 
             await signal.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         }
+    }
+}
+
+internal sealed class NoticingClock(DateTimeOffset start) : Microsoft.Extensions.Time.Testing.FakeTimeProvider(start)
+{
+    public Journal<TimeSpan> Timers { get; } = new();
+
+    public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+    {
+        var timer = base.CreateTimer(callback, state, dueTime, period);
+        Timers.Add(dueTime);
+
+        return timer;
     }
 }
 
@@ -60,6 +76,18 @@ internal sealed class KeptHandoffs : IHandoffStore
     public Task AddAsync(HandoffRecord handoff, CancellationToken cancellationToken)
     {
         Handoffs.Add(handoff);
+
+        return Task.CompletedTask;
+    }
+
+    public List<RelayMark> Marks { get; } = [];
+
+    public Task<IReadOnlyList<RelayMark>> MarksAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<RelayMark>>([.. Marks]);
+
+    public Task MarkAsync(RelayMark mark, CancellationToken cancellationToken)
+    {
+        Marks.Add(mark);
 
         return Task.CompletedTask;
     }
@@ -114,15 +142,28 @@ internal sealed class MovingJobs : IJobs
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+    public Option<JobRejection> SteerRefusal { get; set; }
 
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken)
+    {
+        Calls.Add(new JobCall("hold", job, reason.ToString(), Option<JobHandoff>.None));
+
+        return ValueTask.FromResult(Result<JobHold, JobRejection>.Success(new JobHold(job, Option<SessionId>.None, reason, SessionHalt.Interrupted)));
+    }
 
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        Calls.Add(new JobCall("steer", job, message.Text, Option<JobHandoff>.None));
+
+        return ValueTask.FromResult(SteerRefusal.Match(
+            Result<JobSteered, JobRejection>.Failure,
+            () => Result<JobSteered, JobRejection>.Success(new JobSteered(job, SessionId.New(), TurnId.New()))));
+    }
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 
@@ -199,6 +240,8 @@ internal sealed class DeclaredConnections : IConnections
 
     public HashSet<ConnectionName> Unusable { get; } = [];
 
+    public bool Compacts { get; set; }
+
     public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
 
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
@@ -208,7 +251,7 @@ internal sealed class DeclaredConnections : IConnections
         ValueTask.FromResult(connection.Match(
             name => Unusable.Contains(name) || !Declared.Exists(declared => declared.Name == name)
                 ? Result<ConnectionInfo, ConnectionError>.Failure(ConnectionError.UnknownConnection)
-                : Result<ConnectionInfo, ConnectionError>.Success(new ConnectionInfo(name, new ProviderInfo(Declared.First(declared => declared.Name == name).Provider, "Agent"))),
+                : Result<ConnectionInfo, ConnectionError>.Success(new ConnectionInfo(name, new ProviderInfo(Declared.First(declared => declared.Name == name).Provider, "Agent")) { Capabilities = Compacts ? CapabilitySet.Of(new CompactsOnRequest("/compact")) : CapabilitySet.None }),
             () => Result<ConnectionInfo, ConnectionError>.Failure(ConnectionError.UnknownConnection)));
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
@@ -273,4 +316,51 @@ internal sealed class Audit : IPermissionAudit, IVerifications, ITranscripts
     public IReadOnlyList<FormDecision> FormsOfSession(SessionId session) => throw new NotSupportedException();
 
     public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) => throw new NotSupportedException();
+}
+
+internal sealed class CompactingAgents : IAgents
+{
+    public HashSet<SessionId> Open { get; } = [];
+
+    public Journal<(SessionId Session, string Text)> Said { get; } = new();
+
+    public Func<SessionId, TurnId, Task> Answer { get; set; } = (_, _) => Task.CompletedTask;
+
+    public bool Working { get; set; }
+
+    public bool IsOpen(SessionId session) => Open.Contains(session);
+
+    public bool IsWorking(SessionId session) => Working;
+
+    public async ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken)
+    {
+        if (!Open.Contains(session))
+        {
+            return AgentError.SessionClosed;
+        }
+
+        var said = TurnId.New();
+        Said.Add((session, turn.Text));
+        await Answer(session, said);
+
+        return new AgentTurn(session, said);
+    }
+
+    public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

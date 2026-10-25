@@ -32,6 +32,23 @@ internal sealed class SqliteHandoffStore(AvalaPaths paths) : IHandoffStore, ISta
             },
             cancellationToken);
 
+    public Task<IReadOnlyList<RelayMark>> MarksAsync(CancellationToken cancellationToken) =>
+        owner.RunAsync<IReadOnlyList<RelayMark>>(
+            async database => [.. (await database.Marks.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken)).Select(row => row.Read())],
+            cancellationToken);
+
+    public Task MarkAsync(RelayMark mark, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                await database.Marks.AddAsync(StoredMark.Of(mark), cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
     public Task<IReadOnlyList<KeptWait>> WaitsAsync(CancellationToken cancellationToken) =>
         owner.RunAsync<IReadOnlyList<KeptWait>>(
             async database => [.. (await database.Waits.AsNoTracking().OrderBy(row => row.Since).ToListAsync(cancellationToken)).Select(row => row.Read())],

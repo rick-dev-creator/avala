@@ -21,6 +21,16 @@ internal static class LimitRulesParser
 
     private const string ResumeField = "resumeAtReset";
 
+    private const string HardCapField = "hardCap";
+
+    private const string StrategyField = "strategy";
+
+    private const string WindDownField = "windDown";
+
+    private const string CompactField = "compactOnResume";
+
+    private static readonly string[] Fields = [OnLimitField, ThresholdField, ConnectionsField, ResumeField, HardCapField, StrategyField, WindDownField, CompactField];
+
     private const int MostConnections = 16;
 
     private const int SectionDepth = 2;
@@ -46,14 +56,40 @@ internal static class LimitRulesParser
             return HandoffError.Malformed;
         }
 
-        if (section.EnumerateObject().Any(field => field.Name is not (OnLimitField or ThresholdField or ConnectionsField or ResumeField)))
+        if (section.EnumerateObject().Any(field => !Fields.Contains(field.Name, StringComparer.Ordinal)))
         {
             return HandoffError.UnknownField;
         }
 
         return Action(section).Bind(action => Threshold(section).Bind(threshold => Connections(section).Bind(connections =>
-            Resume(section).Map(resume => new LimitRules(action, threshold, connections) { Resume = resume }))));
+            Resume(section).Bind(resume => new LimitRules(action, threshold, connections) { Resume = resume }.Rest(section)))));
     }
+
+    private static Result<LimitRules, HandoffError> Rest(this LimitRules rules, JsonElement section) =>
+        HardCap(section, rules.Threshold).Bind(cap => Strategy(section).Bind(strategy => Flag(section, WindDownField).Bind(windDown => Flag(section, CompactField).Map(compact =>
+            rules with { HardCap = cap, Strategy = strategy, WindDown = windDown, CompactOnResume = compact }))));
+
+    private static Result<double, HandoffError> HardCap(JsonElement section, double threshold) =>
+        !section.TryGetProperty(HardCapField, out var cap) ? Math.Max(threshold, LimitRules.DefaultHardCap)
+        : cap.ValueKind != JsonValueKind.Number ? HandoffError.Malformed
+        : cap.TryGetDouble(out var value) && value >= threshold && value <= 1 ? value
+        : HandoffError.InvalidHardCap;
+
+    private static Result<HandoffStrategy, HandoffError> Strategy(JsonElement section) =>
+        !section.TryGetProperty(StrategyField, out var strategy) ? HandoffStrategy.MostHeadroom
+        : strategy.ValueKind != JsonValueKind.String ? HandoffError.Malformed
+        : StrategyNames.Read(strategy.GetString() ?? string.Empty).Match(
+            found => Result<HandoffStrategy, HandoffError>.Success(found),
+            () => HandoffError.UnknownStrategy);
+
+    private static Result<bool, HandoffError> Flag(JsonElement section, string field) =>
+        !section.TryGetProperty(field, out var flag) ? true
+        : flag.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => HandoffError.Malformed,
+        };
 
     private static Result<LimitRules, HandoffError> Machine(string text)
     {

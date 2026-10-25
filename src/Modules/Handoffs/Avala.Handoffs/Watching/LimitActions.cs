@@ -5,11 +5,10 @@ using Avala.Handoffs.Policy;
 using Avala.Handoffs.Records;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
-using Avala.Sdk.Events;
 
 namespace Avala.Handoffs.Watching;
 
-internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook book, IEventBus bus)
+internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook book, Compaction compaction)
 {
     public const string ResetMessage = "The usage limit window has reset. Go on where you left off.";
 
@@ -27,12 +26,18 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
     {
         var message = pending.Match(feedback => $"{ResetMessage}\n\n{feedback}", () => ResetMessage);
 
+        foreach (var session in (await compaction.CompactableAsync(situation, cancellationToken)).Match<SessionId[]>(found => [found], () => []))
+        {
+            await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.Compacting, situation.Connection, situation.Situation.Now), cancellationToken);
+            _ = await compaction.CompactAsync(situation, session, cancellationToken);
+        }
+
         if (!(await jobs.ContinueAsync(situation.Job, new JobMessage(message) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala }, cancellationToken)).TryGetValue(out var continued, out _))
         {
             return false;
         }
 
-        await bus.PublishAsync(new JobResumedAtReset(situation.Job, situation.Connection, continued.Conversation, situation.Situation.Now), cancellationToken);
+        await book.ResumedAsync(new JobResumedAtReset(situation.Job, situation.Connection, continued.Conversation, situation.Situation.Now), cancellationToken);
 
         return true;
     }

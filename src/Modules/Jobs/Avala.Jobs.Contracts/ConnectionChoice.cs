@@ -21,6 +21,9 @@ public enum ChoiceReason
     MostCapacity,
     AllAtLimit,
     Person,
+    Preference,
+    SoonestReset,
+    Rotation,
 }
 
 public sealed record CandidateCapacity(ConnectionName Connection, double Used, Option<UsageLimit> Window, double Threshold, bool Available);

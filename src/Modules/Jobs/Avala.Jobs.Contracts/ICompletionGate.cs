@@ -5,6 +5,8 @@ namespace Avala.Jobs.Contracts;
 
 public interface ICompletionGate
 {
+    int Order => 0;
+
     ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken);
 }
 

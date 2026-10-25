@@ -12,5 +12,9 @@ internal sealed class FakeHandoffs : IHandoffs
 
     public IReadOnlyList<HandoffRecord> OfJob(JobId job) => Records.GetValueOrDefault(job, []);
 
+    public Dictionary<JobId, IReadOnlyList<RelayMark>> Marks { get; } = [];
+
+    public IReadOnlyList<RelayMark> MarksOf(JobId job) => Marks.GetValueOrDefault(job, []);
+
     public Option<ResetWait> WaitOf(JobId job) => Waits.TryGetValue(job, out var wait) ? wait : Option<ResetWait>.None;
 }

@@ -6,7 +6,7 @@ internal sealed class CompletionGates(IEnumerable<ICompletionGate> gates)
 {
     public async Task<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken)
     {
-        foreach (var gate in gates)
+        foreach (var gate in gates.OrderBy(gate => gate.Order))
         {
             var verdict = await gate.EvaluateAsync(attempt, cancellationToken);
 

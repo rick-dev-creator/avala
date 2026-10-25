@@ -23,6 +23,9 @@ internal static class InspectorPhrases
     {
         ChoiceReason.Person => $"Moved to {choice.Connection.Value} by you",
         ChoiceReason.AllAtLimit => $"Chosen by capacity: every connection was at its limit, so {choice.Connection.Value}, the least used",
+        ChoiceReason.Preference => $"Chosen by preference: {choice.Connection.Value} was the first listed with room",
+        ChoiceReason.SoonestReset => $"Chosen by reset: {choice.Connection.Value} had room and its window renews soonest",
+        ChoiceReason.Rotation => $"Chosen in turn: {choice.Connection.Value} was next in the rotation",
         _ => $"Chosen by capacity: {choice.Connection.Value} had the most left",
     };
 

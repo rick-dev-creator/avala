@@ -8,11 +8,21 @@ internal sealed record LimitRules(OnLimit OnLimit, double Threshold, IReadOnlyLi
 {
     public const double DefaultThreshold = 0.9;
 
+    public const double DefaultHardCap = 0.98;
+
     public static LimitRules Default { get; } = new(OnLimit.Hold, DefaultThreshold, []) { Declared = false };
 
     public bool Declared { get; init; } = true;
 
     public ResumeAtReset Resume { get; init; } = ResumeAtReset.Ask;
+
+    public double HardCap { get; init; } = DefaultHardCap;
+
+    public HandoffStrategy Strategy { get; init; } = HandoffStrategy.MostHeadroom;
+
+    public bool WindDown { get; init; } = true;
+
+    public bool CompactOnResume { get; init; } = true;
 
     public Option<HandoffError> Error { get; init; }
 
