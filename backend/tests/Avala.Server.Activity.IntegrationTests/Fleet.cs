@@ -38,8 +38,15 @@ internal sealed class Fleet(PostgresFixture database)
 
     public static JobHeldEvent Held(Guid id, Guid job, HoldReason reason, DateTimeOffset at) => new(id, at, job, reason);
 
-    public static UsageReportedEvent Usage(Guid id, Guid? job, long input, decimal? cost = null, DateTimeOffset? at = null) =>
-        new(id, at ?? Noon, job, input, 1, 0, 0, 0, cost is { } amount ? new IncomingCost(amount, "USD", CostBasis.ApiEquivalent) : null, null);
+    public static UsageReportedEvent Usage(Guid id, Guid? job, long input, decimal? cost = null, DateTimeOffset? at = null, string? model = null) =>
+        new(id, at ?? Noon, job, input, 1, 0, 0, 0, cost is { } amount ? new IncomingCost(amount, "USD", CostBasis.ApiEquivalent) : null, model);
+
+    public async Task<IReadOnlyList<QuarterUsage>> QuartersAsync()
+    {
+        await using var context = database.Context();
+
+        return await context.Quarters.AsNoTracking().OrderBy(usage => usage.Quarter).ThenBy(usage => usage.Model).ToListAsync(Cancellation);
+    }
 
     public async Task<IngestionReceipt> IngestAsync(Guid instance, string name, params IIncomingEvent[] events)
     {

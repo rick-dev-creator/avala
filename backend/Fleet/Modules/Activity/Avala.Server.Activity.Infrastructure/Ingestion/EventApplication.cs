@@ -4,12 +4,8 @@ using Avala.Server.Activity.Infrastructure.Storage;
 
 namespace Avala.Server.Activity.Infrastructure.Ingestion;
 
-internal sealed class EventApplication(Guid instanceId, Dictionary<Guid, FleetJob> jobs, FleetInstance instance)
+internal sealed class EventApplication(Guid instanceId, IngestionState state)
 {
-    private readonly List<FleetJob> started = [];
-
-    public IReadOnlyList<FleetJob> Started => started;
-
     public static Guid? JobOf(IIncomingEvent incoming) => incoming switch
     {
         JobSubmittedEvent submitted => submitted.Job,
@@ -40,7 +36,10 @@ internal sealed class EventApplication(Guid instanceId, Dictionary<Guid, FleetJo
         return received;
     }
 
-    public string? Apply(IIncomingEvent incoming, EventTime at) => incoming switch
+    public string? Apply(IIncomingEvent incoming, EventTime at) =>
+        JobOf(incoming) is { } job && JobIds.Admit(job).Refusal is { } refusal ? refusal : Applied(incoming, at);
+
+    private string? Applied(IIncomingEvent incoming, EventTime at) => incoming switch
     {
         JobSubmittedEvent submitted => Submit(submitted, at),
         JobModelChosenEvent chosen => Choose(chosen, at),
@@ -55,14 +54,14 @@ internal sealed class EventApplication(Guid instanceId, Dictionary<Guid, FleetJo
     {
         var repository = RepositoryKey.Create(submitted.Repository);
         var choice = ModelChoice.Create(submitted.Model, submitted.Effort);
-        jobs.TryGetValue(submitted.Job, out var known);
+        var parent = submitted.Parent is { } named && named != Guid.Empty ? named : (Guid?)null;
 
-        if ((repository.Refusal ?? choice.Refusal ?? FleetJob.RefusesSubmission(known, repository.Value)) is { } refusal)
+        if ((repository.Refusal ?? choice.Refusal ?? FleetJob.RefusesSubmission(state.Known(submitted.Job), repository.Value)) is { } refusal)
         {
             return refusal;
         }
 
-        return Change(submitted.Job, at, job => job.Submit(repository.Value, submitted.Parent, choice.Value, at));
+        return Change(submitted.Job, at, job => job.Submit(repository.Value, parent, choice.Value, at));
     }
 
     private string? Choose(JobModelChosenEvent chosen, EventTime at)
@@ -83,12 +82,15 @@ internal sealed class EventApplication(Guid instanceId, Dictionary<Guid, FleetJo
             return refusal;
         }
 
+        state.BucketFor(instanceId, usage.Job ?? QuarterUsage.OutsideAnyJob, UsageQuarter.Of(at), model.Value.Model ?? string.Empty)
+            .Spend(tokens.Value, cost?.Value);
+
         if (usage.Job is { } job)
         {
             return Change(job, at, found => found.Spend(tokens.Value, cost?.Value, at));
         }
 
-        instance.Spend(tokens.Value, cost?.Value);
+        state.Instance.Spend(tokens.Value, cost?.Value);
 
         return null;
     }
@@ -102,14 +104,7 @@ internal sealed class EventApplication(Guid instanceId, Dictionary<Guid, FleetJo
 
     private string? Change(Guid id, EventTime at, Action<FleetJob> change)
     {
-        if (!jobs.TryGetValue(id, out var job))
-        {
-            job = FleetJob.Start(instanceId, id, at);
-            jobs[id] = job;
-            started.Add(job);
-        }
-
-        change(job);
+        change(state.JobFor(instanceId, id, at));
 
         return null;
     }

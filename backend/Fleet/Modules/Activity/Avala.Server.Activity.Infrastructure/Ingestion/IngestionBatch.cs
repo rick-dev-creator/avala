@@ -28,6 +28,18 @@ internal sealed class IngestionBatch
 
     public IReadOnlyList<Guid> JobIds => [.. admitted.Select(entry => EventApplication.JobOf(entry.Event)).OfType<Guid>().Distinct()];
 
+    public (IReadOnlyList<Guid> Jobs, IReadOnlyList<DateTimeOffset> Quarters) UsageKeys
+    {
+        get
+        {
+            var usage = admitted.Where(entry => entry.Event is UsageReportedEvent).ToList();
+
+            return (
+                [.. usage.Select(entry => ((UsageReportedEvent)entry.Event).Job ?? QuarterUsage.OutsideAnyJob).Distinct()],
+                [.. usage.Select(entry => UsageQuarter.Of(entry.At)).Distinct()]);
+        }
+    }
+
     public IEnumerable<(IIncomingEvent Event, EventTime At)> InOrder => admitted.OrderBy(entry => entry.At.At);
 
     public int Clamped => admitted.Count(entry => entry.At.Clamped);

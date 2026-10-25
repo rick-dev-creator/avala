@@ -13,6 +13,8 @@ internal sealed class ActivityDbContext(DbContextOptions<ActivityDbContext> opti
 
     public DbSet<ReceivedEvent> ReceivedEvents => Set<ReceivedEvent>();
 
+    public DbSet<QuarterUsage> Quarters => Set<QuarterUsage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);

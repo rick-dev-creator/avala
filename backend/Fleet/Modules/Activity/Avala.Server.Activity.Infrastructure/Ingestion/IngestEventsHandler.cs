@@ -1,7 +1,6 @@
 using System.Data;
 using Ardalis.Result;
 using Avala.Server.Activity.Contracts.Ingestion;
-using Avala.Server.Activity.Domain;
 using Avala.Server.Activity.Infrastructure.Storage;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -27,24 +26,10 @@ internal sealed class IngestEventsHandler(ActivityDbContext database, TimeProvid
             .Select(received => received.EventId)
             .ToListAsync(cancellationToken)).ToHashSet());
 
-        var jobIds = batch.JobIds;
-        var jobs = await database.Jobs
-            .Where(job => job.InstanceId == command.Instance && jobIds.Contains(job.JobId))
-            .ToDictionaryAsync(job => job.JobId, cancellationToken);
-        var instance = await database.Instances.SingleOrDefaultAsync(found => found.Id == command.Instance, cancellationToken);
-
-        if (instance is null)
-        {
-            instance = FleetInstance.Register(command.Instance, command.InstanceName, receivedAt);
-            await database.Instances.AddAsync(instance, cancellationToken);
-        }
-
-        var application = new EventApplication(command.Instance, jobs, instance);
-        var received = application.ApplyAll(batch, receivedAt);
-
-        instance.See(command.InstanceName, receivedAt);
-        await database.Jobs.AddRangeAsync(application.Started, cancellationToken);
-        await database.ReceivedEvents.AddRangeAsync(received, cancellationToken);
+        var state = await IngestionState.LoadAsync(database, command, receivedAt, batch, cancellationToken);
+        var received = new EventApplication(command.Instance, state).ApplyAll(batch, receivedAt);
+        state.Instance.See(command.InstanceName, receivedAt);
+        await state.AddNewAsync(database, received, cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 

@@ -105,6 +105,9 @@ public sealed class IngestionTests(PostgresFixture database) : IClassFixture<Pos
         await fleet.IngestAsync(Desktop, "desktop", events);
 
         var job = await fleet.JobAsync(Desktop, Job);
-        Assert.Equal((500_000_000_000_000m, 500_000_000m), (job.Tokens.Input, job.Costs.Single().Amount));
+        var bucket = Assert.Single(await fleet.QuartersAsync());
+        Assert.Equal(
+            (500_000_000_000_000m, 500_000_000m, 500_000_000_000_000m, 500_000_000m),
+            (job.Tokens.Input, job.Costs.Single().Amount, bucket.Tokens.Input, bucket.Costs.Single().Amount));
     }
 }

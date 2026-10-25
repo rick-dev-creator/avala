@@ -16,6 +16,6 @@ public sealed class MigrationTests(PostgresFixture database) : IClassFixture<Pos
             .SqlQueryRaw<string>("SELECT table_name AS \"Value\" FROM information_schema.tables WHERE table_schema = 'activity' ORDER BY table_name")
             .ToListAsync(Cancellation);
 
-        Assert.Equal("__migrations, instance_costs, instances, job_costs, jobs, received_events", string.Join(", ", tables));
+        Assert.Equal("__migrations, instance_costs, instances, job_costs, jobs, quarter_costs, quarter_usage, received_events", string.Join(", ", tables));
     }
 }

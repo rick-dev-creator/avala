@@ -55,7 +55,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         await using var context = Context();
         await context.Database.ExecuteSqlRawAsync(
-            $"TRUNCATE {ActivityDbContext.Schema}.job_costs, {ActivityDbContext.Schema}.jobs, {ActivityDbContext.Schema}.instance_costs, {ActivityDbContext.Schema}.instances, {ActivityDbContext.Schema}.received_events",
+            $"TRUNCATE {ActivityDbContext.Schema}.job_costs, {ActivityDbContext.Schema}.jobs, {ActivityDbContext.Schema}.instance_costs, {ActivityDbContext.Schema}.instances, {ActivityDbContext.Schema}.received_events, {ActivityDbContext.Schema}.quarter_costs, {ActivityDbContext.Schema}.quarter_usage",
             TestContext.Current.CancellationToken);
     }
 

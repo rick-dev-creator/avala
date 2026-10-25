@@ -122,6 +122,32 @@ namespace Avala.Server.Activity.Infrastructure.Storage.Migrations
                     b.ToTable("jobs", "activity");
                 });
 
+            modelBuilder.Entity("Avala.Server.Activity.Domain.QuarterUsage", b =>
+                {
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("instance_id");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("job_id");
+
+                    b.Property<DateTimeOffset>("Quarter")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("quarter");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("model");
+
+                    b.HasKey("InstanceId", "JobId", "Quarter", "Model");
+
+                    b.HasIndex("Quarter");
+
+                    b.ToTable("quarter_usage", "activity");
+                });
+
             modelBuilder.Entity("Avala.Server.Activity.Domain.ReceivedEvent", b =>
                 {
                     b.Property<Guid>("InstanceId")
@@ -292,6 +318,104 @@ namespace Avala.Server.Activity.Infrastructure.Storage.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("InstanceId", "JobId");
+                        });
+
+                    b.Navigation("Costs");
+
+                    b.Navigation("Tokens")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Avala.Server.Activity.Domain.QuarterUsage", b =>
+                {
+                    b.OwnsMany("Avala.Server.Activity.Domain.CostTotal", "Costs", b1 =>
+                        {
+                            b1.Property<Guid>("InstanceId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("instance_id");
+
+                            b1.Property<Guid>("JobId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("job_id");
+
+                            b1.Property<DateTimeOffset>("Quarter")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("quarter");
+
+                            b1.Property<string>("Model")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("model");
+
+                            b1.Property<string>("Currency")
+                                .HasMaxLength(3)
+                                .HasColumnType("character(3)")
+                                .HasColumnName("currency")
+                                .IsFixedLength();
+
+                            b1.Property<string>("Basis")
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasColumnName("basis");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(28, 6)
+                                .HasColumnType("numeric(28,6)")
+                                .HasColumnName("amount");
+
+                            b1.HasKey("InstanceId", "JobId", "Quarter", "Model", "Currency", "Basis");
+
+                            b1.ToTable("quarter_costs", "activity");
+
+                            b1.WithOwner()
+                                .HasForeignKey("InstanceId", "JobId", "Quarter", "Model");
+                        });
+
+                    b.OwnsOne("Avala.Server.Activity.Domain.TokenTotals", "Tokens", b1 =>
+                        {
+                            b1.Property<Guid>("QuarterUsageInstanceId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("QuarterUsageJobId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTimeOffset>("QuarterUsageQuarter")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<string>("QuarterUsageModel")
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<decimal>("CacheRead")
+                                .HasPrecision(30)
+                                .HasColumnType("numeric(30,0)")
+                                .HasColumnName("cache_read_tokens");
+
+                            b1.Property<decimal>("CacheWrite")
+                                .HasPrecision(30)
+                                .HasColumnType("numeric(30,0)")
+                                .HasColumnName("cache_write_tokens");
+
+                            b1.Property<decimal>("Input")
+                                .HasPrecision(30)
+                                .HasColumnType("numeric(30,0)")
+                                .HasColumnName("input_tokens");
+
+                            b1.Property<decimal>("Output")
+                                .HasPrecision(30)
+                                .HasColumnType("numeric(30,0)")
+                                .HasColumnName("output_tokens");
+
+                            b1.Property<decimal>("Reasoning")
+                                .HasPrecision(30)
+                                .HasColumnType("numeric(30,0)")
+                                .HasColumnName("reasoning_tokens");
+
+                            b1.HasKey("QuarterUsageInstanceId", "QuarterUsageJobId", "QuarterUsageQuarter", "QuarterUsageModel");
+
+                            b1.ToTable("quarter_usage", "activity");
+
+                            b1.WithOwner()
+                                .HasForeignKey("QuarterUsageInstanceId", "QuarterUsageJobId", "QuarterUsageQuarter", "QuarterUsageModel");
                         });
 
                     b.Navigation("Costs");
