@@ -167,16 +167,19 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
             .AddToRegion<DelegationToggleViewModel>(WorkbenchRegions.JobHeader, 1)
+            .AddToRegion<RelaysToggleViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<RemoteControlViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
             .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
+            .AddToRegion<RelaysPaneViewModel>(WorkbenchRegions.Preview, 15)
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
             .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
             .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
-            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10);
+            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10)
+            .AddToRegion<UsageLimitsViewModel>(WorkbenchRegions.Settings, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -279,7 +282,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageSectionViewModel, UsageSectionView>();
         views.Register<IAutonomySectionViewModel, AutonomySectionView>();
         views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
-        views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
@@ -304,7 +306,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageSectionViewModel>()
             .AddSingleton<AutonomySectionViewModel>()
             .AddSingleton<WorktreeSectionViewModel>()
-            .AddSingleton<DelegationSectionViewModel>()
             .AddTransient<PublishRepositoryViewModel>()
             .AddSingleton<PullRequestSectionViewModel>();
         registrar
@@ -313,7 +314,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<UsageSectionViewModel>(ShellRegions.Inspector, 30)
             .AddToRegion<AutonomySectionViewModel>(ShellRegions.Inspector, 40)
             .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
-            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
 
@@ -412,10 +412,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<LoopPaused>, Pulse>()
             .AddForwarded<IHandle<LoopResumed>, Pulse>()
             .AddForwarded<IHandle<BreakerTripped>, Pulse>()
-            .AddForwarded<IHandle<LoopEnded>, Pulse>();
+            .AddForwarded<IHandle<LoopEnded>, Pulse>()
+            .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
-        RegisterPulse(services)
+        RegisterPulse(services).AddRelays()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
@@ -508,6 +509,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentTreeViewModel, SubagentTreeView>();
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
+        RelayRegistrations.RegisterViews(views);
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 

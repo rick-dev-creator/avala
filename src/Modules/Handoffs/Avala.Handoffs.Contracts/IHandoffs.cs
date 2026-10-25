@@ -12,6 +12,8 @@ public interface IHandoffs
     IReadOnlyList<HandoffRecord> OfJob(JobId job);
 
     Option<ResetWait> WaitOf(JobId job);
+
+    IReadOnlyList<RelayMark> MarksOf(JobId job);
 }
 
 public interface IHandoffRequests
@@ -39,6 +41,14 @@ public enum ResumeAtReset
     Auto,
 }
 
+public enum HandoffStrategy
+{
+    MostHeadroom,
+    InOrder,
+    SoonestReset,
+    RoundRobin,
+}
+
 public enum HandoffError
 {
     Unreadable,
@@ -49,6 +59,9 @@ public enum HandoffError
     InvalidThreshold,
     InvalidConnections,
     UnknownResume,
+    UnknownStrategy,
+    InvalidHardCap,
+    Unwritable,
 }
 
 public sealed record LimitReason(ConnectionName Connection, string Window, double Used, double Threshold);
@@ -76,3 +89,21 @@ public sealed record HandoffRecorded(HandoffRecord Handoff) : IIntegrationEvent;
 public sealed record JobWaitsForReset(ResetWait Wait) : IIntegrationEvent;
 
 public sealed record JobResumedAtReset(JobId Job, ConnectionName Connection, ContinuedIn Conversation, DateTimeOffset At) : IIntegrationEvent;
+
+public enum RelayMarkKind
+{
+    WindingDown,
+    Capped,
+    Waiting,
+    Compacting,
+    Resumed,
+}
+
+public sealed record RelayMark(JobId Job, RelayMarkKind Kind, ConnectionName Connection, DateTimeOffset At)
+{
+    public Option<LimitReason> Why { get; init; }
+
+    public Option<DateTimeOffset> Until { get; init; }
+}
+
+public sealed record RelayMarked(RelayMark Mark) : IIntegrationEvent;

@@ -4,6 +4,7 @@ using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk.Events;
@@ -42,7 +43,8 @@ internal sealed class Pulse(JobBoard board)
         IHandle<LoopPaused>,
         IHandle<LoopResumed>,
         IHandle<BreakerTripped>,
-        IHandle<LoopEnded>
+        IHandle<LoopEnded>,
+        IHandle<RelayMarked>
 {
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
@@ -101,6 +103,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(BreakerTripped integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(LoopEnded integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(RelayMarked integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public void Beat()
     {

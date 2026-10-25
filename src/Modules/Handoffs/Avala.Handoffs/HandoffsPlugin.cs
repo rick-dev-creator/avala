@@ -6,6 +6,7 @@ using Avala.Handoffs.RuleFiles;
 using Avala.Handoffs.Storage;
 using Avala.Handoffs.Watching;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,9 @@ public sealed class HandoffsPlugin : IPlugin
             .AddSingleton<SqliteHandoffStore>()
             .AddForwarded<IHandoffStore, SqliteHandoffStore>()
             .AddForwarded<IStartupTask, SqliteHandoffStore>()
-            .AddSingleton<ILimitRules, LimitRulesReader>()
+            .AddSingleton<LimitRulesReader>()
+            .AddForwarded<ILimitRules, LimitRulesReader>()
+            .AddForwarded<ILimitSettings, LimitRulesReader>()
             .AddSingleton<JobSpending>()
             .AddSingleton<HandoffBook>()
             .AddForwarded<IHandoffs, HandoffBook>()
@@ -37,6 +40,8 @@ public sealed class HandoffsPlugin : IPlugin
             .AddSingleton<JobPlaces>()
             .AddSingleton<ConnectionReadings>()
             .AddSingleton<Situations>()
+            .AddSingleton<Compaction>()
+            .AddForwarded<IHandle<TurnFinished>, Compaction>()
             .AddSingleton<LimitActions>()
             .AddSingleton<IHandoffRequests, PersonHandoff>()
             .AddSingleton<LimitWatch>()
@@ -44,6 +49,10 @@ public sealed class HandoffsPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, LimitWatch>()
             .AddForwarded<IStartupTask, LimitWatch>()
             .AddSingleton<IRoundRouter, RoundGuard>()
+            .AddSingleton<RelayLedger>()
+            .AddSingleton<RelayMoves>()
+            .AddSingleton<ICompletionGate, RelayGate>()
+            .AddSingleton<IHandle<UsageRecorded>, WindDown>()
             .AddSingleton<IHandle<JobWaitsForReset>, ResetRest>();
     }
 }

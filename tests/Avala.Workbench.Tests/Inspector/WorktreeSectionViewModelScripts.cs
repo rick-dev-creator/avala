@@ -14,7 +14,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobInFocusShowsItsBranchBaseFolderAndPortLease()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         var job = InspectedJobs.Reviewed(bench);
 
         await section.FocusAsync(job.Job, bench);
@@ -26,9 +26,23 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task CopyingTheWorktreeCopiesItsFullPathAndBranchToTheClipboard()
+    {
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
+        var job = InspectedJobs.Reviewed(bench);
+        await section.FocusAsync(job.Job, bench);
+
+        await section.CopyPathCommand.ExecuteAsync(null);
+        await section.CopyBranchCommand.ExecuteAsync(null);
+
+        Assert.Equal([$"/worktrees/{job.Job.Value}", "avala/fix-the-test"], bench.Clipboard.Copied);
+        Assert.Equal((true, true), (section.IsPathCopied, section.IsBranchCopied));
+    }
+
+    [Fact]
     public async Task AJobStartedWithoutARepositoryIsLabelledScratchAndOpensItsScratchFolder()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         var job = Scratch();
         await section.FocusAsync(job.Job, bench);
 
@@ -41,7 +55,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AScratchFolderThatCannotBeOpenedSaysWhereItIs()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         bench.Opener.Refusal = FileOpenError.Unavailable;
         await section.FocusAsync(Scratch().Job, bench);
 
@@ -53,7 +67,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobWithoutAWorktreeSaysSo()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         var job = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.Preparing).Summary;
 
         await section.FocusAsync(job.Job, bench);
@@ -67,7 +81,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
         var first = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);
         var second = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
         var hooked = new HookedDispatcher(bench.Ui);
-        using var section = new WorktreeSectionViewModel(bench.Inspected(hooked), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(hooked), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         await bench.Ui.InvokeAsync(section.Activate, Cancellation);
         hooked.BeforeNext = () => section.OnRegionContextChanged(second.Job);
 
@@ -81,7 +95,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobTheCatalogNoLongerKnowsLeavesTheSectionEmpty()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
 
         await section.FocusAsync(JobId.New(), bench);
 
@@ -91,7 +105,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task TheHeaderFactIsTheBranchsShortNameAndItsBaseOrNone()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
         var reviewed = section.Fact;
 
@@ -103,7 +117,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobThatCouldNotStartSaysWhyAndRetriesItsStart()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         var job = CouldNotStart();
         await section.FocusAsync(job.Job, bench);
         var shown = (section.CouldNotStart, section.Fact, section.StartProblem, section.RetryCommand.CanExecute(null));
@@ -118,7 +132,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task ARetryTheJobRefusesSaysWhy()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         bench.Jobs.Refusal = JobRejection.NotHeld;
         await section.FocusAsync(CouldNotStart().Job, bench);
 
@@ -130,7 +144,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobHeldForAnotherReasonOffersNoRetry()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
         var job = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.NeedsHelp).Summary;
         bench.Catalog.Change(job.Job, history => history with { Summary = history.Summary with { Hold = HoldReason.Stalled, Problem = Locked } });
 

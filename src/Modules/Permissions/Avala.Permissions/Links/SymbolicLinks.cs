@@ -80,6 +80,21 @@ internal sealed class SymbolicLinks : IRealPaths
         return current;
     }
 
+    public Option<string> Repository(string path)
+    {
+        for (var folder = Path.GetDirectoryName(path); !string.IsNullOrEmpty(folder); folder = Path.GetDirectoryName(folder))
+        {
+            var git = Path.Combine(folder, ".git");
+
+            if (Directory.Exists(git) || File.Exists(git))
+            {
+                return folder;
+            }
+        }
+
+        return Option<string>.None;
+    }
+
     private static bool Listed(string folder, string part, List<string> matches, ref int visited)
     {
         if (!Directory.Exists(folder))

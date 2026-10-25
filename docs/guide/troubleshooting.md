@@ -18,6 +18,10 @@ A job whose start failed, for example because git could not prepare its worktree
 
 Such a job takes no message until it has started.
 
+### Carry on from a terminal
+
+The inspector's worktree section has a copy button beside the branch and beside the path. Copy the path, then `cd` into it in a terminal: the worktree is a plain git checkout of the job's branch, so you can keep working there if Avala cannot.
+
 ### A job failed
 
 Its composer says why, such as "This job failed · no connection could run it: check its connection in Settings and the repository's .avala/jobs.json", "This job failed · its agent's turn failed" or "This job failed · its agent could not take the message". A failed job takes no message: start a new one from its instruction once the cause is fixed. A job that failed before Avala kept the reason reads only "This job failed"; its log lines name the job.

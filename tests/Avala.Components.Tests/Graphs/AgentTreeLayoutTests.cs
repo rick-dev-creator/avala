@@ -111,6 +111,27 @@ public sealed class AgentTreeLayoutTests
     }
 
     [Fact]
+    public void ATreeNarrowerThanItsRoomStandsCentredInItWithItsEdgesAndJoints()
+    {
+        var layout = AgentTreeLayout.Arrange([Card(0, 200, 80), Card(1, 100, 60), Card(1, 120, 90), Card(1, 100, 50)], Spacing, double.PositiveInfinity);
+
+        var centred = AgentTreeLayout.Centered(layout, 540);
+
+        Assert.Equal([100d, 210, 340], centred.Nodes.Skip(1).Select(node => node.X));
+        Assert.Equal((170d, new GraphSize(540, 200)), (centred.Nodes[0].X, centred.Size));
+        Assert.Equal(layout.Edges.SelectMany(edge => edge.Points).Select(point => point.X + 100), centred.Edges.SelectMany(edge => edge.Points).Select(point => point.X));
+        Assert.Equal(layout.Joints.Select(joint => joint.X + 100), centred.Joints.Select(joint => joint.X));
+    }
+
+    [Fact]
+    public void ARailedTreeKeepsToTheLeftOfItsRoom()
+    {
+        var layout = AgentTreeLayout.Arrange([Card(0, 100, 40), Card(1, 100, 60), Card(2, 100, 40), Card(1, 100, 60)], Spacing, 209);
+
+        Assert.Same(layout, AgentTreeLayout.Centered(layout, 600));
+    }
+
+    [Fact]
     public void AFailedSubAgentDrawsAFailureEdge() =>
         Assert.Equal(EdgeKind.Failure, EdgeKinds.Of(StatusKind.Failed));
 

@@ -32,6 +32,8 @@ stateDiagram-v2
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]
 	Checking --> Running : HandOff [retries left]
+	Checking --> Running : Relay
+	Checking --> NeedsHelp : HoldAtLimit
 	NeedsHelp --> Running : Hint [started]
 	NeedsHelp --> Running : HandOff [started]
 	NeedsHelp --> Preparing : RetryLaunch [could not start]

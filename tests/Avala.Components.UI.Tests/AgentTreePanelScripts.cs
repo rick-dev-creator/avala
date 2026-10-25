@@ -19,8 +19,20 @@ public sealed class AgentTreePanelScripts(HeadlessUi ui)
 
             Assert.Equal(AgentTreeShape.Tree, tree.Layout.Shape);
             Assert.Equal([148d, 148, 148], tree.Children.Skip(1).Select(card => card.Bounds.Y));
-            Assert.Equal([0d, 162, 324], tree.Children.Skip(1).Select(card => card.Bounds.X));
-            Assert.Equal(162, tree.Children[0].Bounds.X);
+            var left = tree.Children[1].Bounds.X;
+            Assert.Equal([0d, 162, 324], tree.Children.Skip(1).Select(card => card.Bounds.X - left));
+            Assert.Equal(162, tree.Children[0].Bounds.X - left);
+        }, Cancellation);
+
+    [Fact]
+    public Task WithMoreRoomThanItNeedsTheTreeStandsCentredInThePaneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var tree = Tree();
+            ViewScript.Show(new Border { Width = 900, HorizontalAlignment = HorizontalAlignment.Left, Child = tree }, new object());
+
+            Assert.Equal((213d, 213d), (tree.Children[1].Bounds.X, 900 - tree.Children[3].Bounds.Right));
+            Assert.Equal(375, tree.Children[0].Bounds.X);
         }, Cancellation);
 
     [Fact]

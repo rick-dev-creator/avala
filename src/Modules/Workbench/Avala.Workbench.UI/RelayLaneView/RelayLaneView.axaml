@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.RelayLaneView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IRelayLaneViewModel">
+  <Design.DataContext>
+    <overview:DesignRelayLaneViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Lane">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    </Style>
+    <Style Selector="Border#Lane.current">
+      <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    </Style>
+    <Style Selector="Border#Lane.current TextBlock#Connection">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Lane" Classes.current="{Binding IsCurrent}" Height="64" Margin="4,0,0,0" Padding="8,0,10,0">
+    <StackPanel VerticalAlignment="Center" Spacing="3">
+      <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Harness}" />
+      <ContentControl x:Name="Meter" Content="{Binding Meter}" />
+    </StackPanel>
+  </Border>
+</UserControl>

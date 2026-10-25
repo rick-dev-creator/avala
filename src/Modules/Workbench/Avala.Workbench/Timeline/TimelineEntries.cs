@@ -150,6 +150,12 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
     public bool AwaitsHuman => WentToHuman && Resolution.IsNone && !Closed && !Withdrawn;
 
     public bool AwaitsParent => Decision.Match(decision => decision.Delivery == DecisionDelivery.LeftToParent, () => false) && Resolution.IsNone && !Closed && !Withdrawn;
+
+    public static Option<PermissionEntry> Folder(PolicyDecision decision) =>
+        decision.Folder.Map(_ => new PermissionEntry(EntryKeys.Permission(decision.Turn, decision.Item), decision.Session, decision.Turn, decision.Item, decision.Kind, decision.Target, decision.Target));
+
+    public PermissionEntry AnsweredBy(HumanAnswer answer) =>
+        this with { Answered = answer, Resolution = Decision.Bind(decision => decision.Folder).IsSome ? answer.Answer : Resolution };
 }
 
 internal sealed record DeniedEntry(string Key, PolicyDecision Decision) : ITimelineEntry

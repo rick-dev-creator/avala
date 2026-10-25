@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Inspector;
 using Avala.Workspaces.Contracts;
@@ -59,13 +60,13 @@ public sealed class InspectorPhrasesTests
             }));
 
     [Theory]
-    [InlineData("Allow", "", "", "You allowed: edit src/auth/login.ts")]
-    [InlineData("Allow", "Session", "", "You allowed: edit src/auth/login.ts · don't ask again this session")]
-    [InlineData("Allow", "Job", "", "You allowed: edit src/auth/login.ts · don't ask again for this job")]
-    [InlineData("Allow", "Job", "Written", "You allowed: edit src/auth/login.ts · don't ask again for this job · always in this repository")]
-    [InlineData("Deny", "Job", "Malformed", "You denied: edit src/auth/login.ts · don't ask again for this job · not added to the repository")]
-    [InlineData("Deny", "", "", "You denied: edit src/auth/login.ts")]
-    [InlineData("Allow", "", "Everything", "You allowed: edit src/auth/login.ts · everything in this job")]
+    [InlineData("Allow", "", "", "Edit · allowed by you")]
+    [InlineData("Allow", "Session", "", "Edit · allowed by you · don't ask again this session")]
+    [InlineData("Allow", "Job", "", "Edit · allowed by you · don't ask again for this job")]
+    [InlineData("Allow", "Job", "Written", "Edit · allowed by you · don't ask again for this job · always in this repository")]
+    [InlineData("Deny", "Job", "Malformed", "Edit · denied by you · don't ask again for this job · not added to the repository")]
+    [InlineData("Deny", "", "", "Edit · denied by you")]
+    [InlineData("Allow", "", "Everything", "Edit · allowed by you · everything in this job")]
     public void APersonsAnswerSaysWhatWasAnsweredAndHowLongItIsRemembered(string answer, string remembered, string repository, string phrase) =>
         Assert.Equal(
             phrase,
@@ -88,7 +89,7 @@ public sealed class InspectorPhrasesTests
                 RepositoryRule = repository == "Written" ? Remembered with { Origin = RuleOrigin.Repository, Name = "always in this repository" } : Option<PolicyRule>.None,
                 RepositoryError = repository == "Malformed" ? PolicyError.Malformed : Option<PolicyError>.None,
                 Everything = repository == "Everything",
-            }));
+            }).Caption);
 
     [Theory]
     [InlineData(CostBasis.Billed, CostBasis.Billed, "0.50 USD of 5 USD")]
@@ -108,12 +109,12 @@ public sealed class InspectorPhrasesTests
             InspectorPhrases.Caps(new Budgets.Contracts.BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.95)));
 
     [Theory]
-    [InlineData("Deny", "Answered", "Denied: run rm -rf / · default")]
-    [InlineData("Ask", "LeftToHuman", "Asked you: run rm -rf /")]
-    public void APolicyDecisionWithoutARuleSaysWhetherTheDefaultAnswered(string answer, string delivery, string phrase) =>
+    [InlineData("Deny", "Answered", "Run · denied by default")]
+    [InlineData("Allow", "Answered", "Run · allowed by default")]
+    public void APolicyDecisionWithoutARuleSaysTheDefaultAnswered(string answer, string delivery, string phrase) =>
         Assert.Equal(
             phrase,
-            InspectorPhrases.Decision(new PolicyDecision(
+            Outcomes.Present(InspectorPhrases.Decision(new PolicyDecision(
                 SessionId.New(),
                 TurnId.New(),
                 new ItemId("run"),
@@ -123,7 +124,7 @@ public sealed class InspectorPhrasesTests
                 Enum.Parse<PolicyAnswer>(answer),
                 Option<PolicyRule>.None,
                 Enum.Parse<DecisionDelivery>(delivery),
-                DateTimeOffset.UnixEpoch)));
+                DateTimeOffset.UnixEpoch), [], Option<SessionId>.None)).Caption);
 
     [Fact]
     public void ADecisionLeftToYouSaysWhetherItIsUnansweredAndWhetherItsSessionHasEnded()
@@ -134,17 +135,17 @@ public sealed class InspectorPhrasesTests
 
         Assert.Equal(
             [
-                "Asked you: run dotnet ef database update · unanswered",
-                "Asked you: run dotnet ef database update · unanswered, its session ended",
-                "Asked you: run dotnet ef database update",
-                "Asked you: run dotnet ef database update · withdrawn by the harness",
+                (DecisionVerdict.Waiting, "Run · waiting for you"),
+                (DecisionVerdict.Unanswered, "Run · unanswered, its session ended"),
+                (DecisionVerdict.Unanswered, "Run · withdrawn by the harness"),
             ],
-            [
+            new[]
+            {
                 InspectorPhrases.Decision(decision, [], asked),
                 InspectorPhrases.Decision(decision, [], later),
-                InspectorPhrases.Decision(decision, [answer], later),
                 InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.Withdrawn }, [], asked),
-            ]);
+            }.Select(row => Outcomes.Present(row)).Select(row => (row.Verdict, row.Caption)));
+        Assert.True(InspectorPhrases.Decision(decision, [answer], later).IsNone);
     }
 
     [Fact]
@@ -157,17 +158,15 @@ public sealed class InspectorPhrasesTests
 
         Assert.Equal(
             [
-                "Asked its parent: run dotnet ef database update · waiting for its parent",
-                "Asked its parent: run dotnet ef database update",
-                "Its parent allowed: run dotnet ef database update",
-                "Allowed for a sub-agent: run dotnet ef database update",
+                "Run · waiting for its parent",
+                "Run · allowed by its parent",
+                "Run · allowed for a sub-agent",
                 " · 1 answered by its parent · 2 answers given to its sub-agents",
             ],
             [
-                InspectorPhrases.Decision(decision, [], asked),
-                InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.Answered }, [answer], asked),
-                InspectorPhrases.Answer(answer),
-                InspectorPhrases.Given(answer),
+                Outcomes.Present(InspectorPhrases.Decision(decision, [], asked)).Caption,
+                InspectorPhrases.Answer(answer).Caption,
+                InspectorPhrases.Given(answer).Caption,
                 InspectorPhrases.ByParent(1, 2),
             ]);
     }
@@ -184,10 +183,10 @@ public sealed class InspectorPhrasesTests
 
             return new[]
             {
-                (Kind: kind, Line: InspectorPhrases.Decision(new PolicyDecision(session, TurnId.New(), new ItemId("asked"), Option<JobId>.None, kind, "target", PolicyAnswer.Deny, Option<PolicyRule>.None, DecisionDelivery.Answered, DateTimeOffset.UnixEpoch))),
-                (Kind: kind, Line: InspectorPhrases.Answer(answer)),
-                (Kind: kind, Line: InspectorPhrases.Answer(answer with { Parent = parent })),
-                (Kind: kind, Line: InspectorPhrases.Given(answer)),
+                (Kind: kind, Line: Outcomes.Present(InspectorPhrases.Decision(new PolicyDecision(session, TurnId.New(), new ItemId("asked"), Option<JobId>.None, kind, "target", PolicyAnswer.Deny, Option<PolicyRule>.None, DecisionDelivery.Answered, DateTimeOffset.UnixEpoch), [], Option<SessionId>.None)).Caption),
+                (Kind: kind, Line: InspectorPhrases.Answer(answer).Caption),
+                (Kind: kind, Line: InspectorPhrases.Answer(answer with { Parent = parent }).Caption),
+                (Kind: kind, Line: InspectorPhrases.Given(answer).Caption),
             };
         });
 

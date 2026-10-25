@@ -193,7 +193,9 @@ internal sealed class Job : IAggregateRoot<JobId>
                     return Begin(AttemptOrigin.Hint, guidance);
                 });
 
-    public Result<AttemptStarted, JobError> HandOff(Feedback brief, SessionId session, ConnectionName connection)
+    public Result<AttemptStarted, JobError> HandOff(Feedback brief, SessionId session, ConnectionName connection) => HandOff(brief, session, connection, relays: false);
+
+    public Result<AttemptStarted, JobError> HandOff(Feedback brief, SessionId session, ConnectionName connection, bool relays)
     {
         if (Connection == Option<ConnectionName>.Some(connection))
         {
@@ -202,7 +204,7 @@ internal sealed class Job : IAggregateRoot<JobId>
 
         var checking = State == JobState.Checking;
 
-        return machine.TryFire(JobTrigger.HandOff, JobError.CannotHandOff)
+        return machine.TryFire(relays && checking ? JobTrigger.Relay : JobTrigger.HandOff, JobError.CannotHandOff)
             .Map(_ =>
             {
                 if (checking)
@@ -345,9 +347,17 @@ internal sealed class Job : IAggregateRoot<JobId>
     public Result<JobHeld, JobError> Hold(HoldReason reason) =>
         reason == HoldReason.CouldNotStart
             ? JobError.CannotHold
-            : machine.TryFire(Trigger(reason), JobError.CannotHold)
+            : HoldBy(Trigger(reason), reason);
+
+    private Result<JobHeld, JobError> HoldBy(JobTrigger trigger, HoldReason reason) =>
+        machine.TryFire(trigger, JobError.CannotHold)
                 .Map(_ =>
                 {
+                    if (trigger == JobTrigger.HoldAtLimit)
+                    {
+                        Conclude(AttemptOutcome.Rejected);
+                    }
+
                     InterruptUnderwayAttempt();
                     Held = reason;
 
@@ -377,8 +387,9 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return new LaunchRetried(Id, Workspace);
             });
 
-    private static JobTrigger Trigger(HoldReason reason) => reason switch
+    private JobTrigger Trigger(HoldReason reason) => reason switch
     {
+        HoldReason.LimitNearlyReached when State == JobState.Checking => JobTrigger.HoldAtLimit,
         HoldReason.BudgetExceeded => JobTrigger.HoldOverBudget,
         HoldReason.InvalidChecks => JobTrigger.HoldUnverifiable,
         _ => JobTrigger.Hold,

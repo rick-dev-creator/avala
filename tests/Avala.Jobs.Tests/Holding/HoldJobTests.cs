@@ -127,6 +127,33 @@ public sealed class HoldJobTests
     }
 
     [Fact]
+    public async Task AMessageOrHoldMeantForAnotherSessionOfTheJobIsRefusedAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var published = flow.Bus.Published.Count;
+
+        Assert.Equal(JobRejection.NotRunning, Outcomes.FailsWith(await flow.Jobs.SteerOnAsync(job.Id, SessionId.New(), new JobMessage("Wind down"), Cancellation)));
+        Assert.Equal(JobRejection.NotRunning, Outcomes.FailsWith(await flow.Jobs.HoldRunningOnAsync(job.Id, SessionId.New(), HoldReason.LimitNearlyReached, Cancellation)));
+        Assert.Empty(flow.Agents.Steered);
+        Assert.Equal((JobState.Running, published), (job.State, flow.Bus.Published.Count));
+    }
+
+    [Fact]
+    public async Task AMessageOrHoldMeantForTheSessionOfTheJobReachesItAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+
+        _ = Outcomes.Succeeds(await flow.Jobs.SteerOnAsync(job.Id, session, new JobMessage("Wind down"), Cancellation));
+        _ = Outcomes.Succeeds(await flow.Jobs.HoldRunningOnAsync(job.Id, session, HoldReason.LimitNearlyReached, Cancellation));
+
+        Assert.Equal(["Wind down"], flow.Agents.Steered);
+        Assert.Equal(JobState.NeedsHelp, job.State);
+    }
+
+    [Fact]
     public async Task TheEndOfTheTurnAHoldInterruptedLeavesTheJobHeldAsync()
     {
         var flow = JobFlow.With();

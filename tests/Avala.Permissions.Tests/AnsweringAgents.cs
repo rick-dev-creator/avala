@@ -8,10 +8,13 @@ internal sealed class AnsweringAgents : IAgents
 {
     private readonly List<(SessionId, PermissionDecision)> responses = [];
     private readonly List<(SessionId, FormAnswer)> answers = [];
+    private readonly List<(SessionId, ToolResult)> returns = [];
 
     public IReadOnlyList<(SessionId, PermissionDecision)> Responses => responses;
 
     public IReadOnlyList<(SessionId, FormAnswer)> Answers => answers;
+
+    public IReadOnlyList<(SessionId, ToolResult)> Returns => returns;
 
     public Option<AgentError> Rejection { get; set; }
 
@@ -40,8 +43,12 @@ internal sealed class AnsweringAgents : IAgents
     public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));
 
-    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.Unsupported));
+    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
+    {
+        returns.Add((session, result));
+
+        return ValueTask.FromResult(Reply(result.Item));
+    }
 
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.Unsupported));

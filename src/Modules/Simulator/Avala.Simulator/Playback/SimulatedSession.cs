@@ -19,6 +19,7 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Adaptation adaptation;
     private readonly bool midTurn;
     private readonly bool remotely;
+    private readonly Option<string> compaction;
     private RemoteControl remote = RemoteControl.Off;
     private Option<Conversation> conversation;
     private Option<Act> act;
@@ -40,6 +41,7 @@ internal sealed class SimulatedSession : IAgentSession
             Channel.CreateUnbounded<string>());
         midTurn = capabilities.Has<AcceptsMessagesMidTurn>();
         remotely = capabilities.Has<ControlsRemotely>();
+        compaction = capabilities.Get<CompactsOnRequest>().Map(compact => compact.Message);
         performer = new Performer(options, craft, gates, capabilities);
         adaptation = new Adaptation(capabilities);
         this.options = options;
@@ -163,6 +165,15 @@ internal sealed class SimulatedSession : IAgentSession
             return AgentError.TurnInProgress;
         }
 
+        if (compaction == Option<string>.Some(turn.Text) && conversation.Match(known => !known.NextScript.OfType<ReportContext>().Any(context => context.Compacted), () => false))
+        {
+            var compacting = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), turn.Text);
+            act = compacting;
+            conducting = Task.Run(() => CompactAsync(compacting), CancellationToken.None);
+
+            return compacting.Turn;
+        }
+
         var current = await conversation.Match(
             known => Task.FromResult(known),
             async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken), SimulatedAccounts.Holder(Account)));
@@ -219,6 +230,14 @@ internal sealed class SimulatedSession : IAgentSession
         catch (Exception failure)
         {
             await HangUpAsync(failure);
+        }
+    }
+
+    private async Task CompactAsync(Act current)
+    {
+        foreach (var cue in new Cues(Id, current.Turn).Compacted)
+        {
+            await PublishAsync(current, cue);
         }
     }
 

@@ -181,7 +181,7 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
-    public async Task TheLatestConnectionChoiceOfAJobSurvivesAReloadWithItsReasonAndComparedReadingsAsync()
+    public async Task TheLatestConnectionChoiceOfAJobSurvivesAReloadWithItsReasonComparedReadingsAndRelayPoolAsync()
     {
         using var folder = new TemporaryFolder();
         var job = JobId.New();
@@ -192,7 +192,10 @@ public sealed class SqliteJobStoreTests
             new ConnectionName("personal"),
             ChoiceReason.AllAtLimit,
             [new CandidateCapacity(new ConnectionName("work"), 0.95, limit, 0.9, Available: false), new CandidateCapacity(new ConnectionName("personal"), 0.92, Option<Agents.Contracts.Events.UsageLimit>.None, 1, Available: false)],
-            at.AddMinutes(1));
+            at.AddMinutes(1))
+        {
+            Pool = [new ConnectionName("work"), new ConnectionName("personal"), new ConnectionName("spare")],
+        };
         await using (var store = new SqliteJobStore(new AvalaPaths(folder.Path)))
         {
             await store.RecordAsync(job, earlier, Cancellation);
@@ -202,7 +205,8 @@ public sealed class SqliteJobStoreTests
         var reloaded = await ReloadAsync(folder, store => store.ChoiceOfAsync(job, Cancellation));
 
         Assert.Equal(latest.Compared, reloaded.Compared);
-        Assert.Equal(latest with { Compared = reloaded.Compared }, reloaded);
+        Assert.Equal(latest.Pool, reloaded.Pool);
+        Assert.Equal(latest with { Compared = reloaded.Compared, Pool = reloaded.Pool }, reloaded);
     }
 
     [Fact]

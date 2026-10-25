@@ -48,6 +48,7 @@ public sealed class AgentTreePanel : Panel
     private static readonly AvaloniaProperty[] Strokes = [EdgeBrushes.FlowingProperty, EdgeBrushes.AttentionProperty, EdgeBrushes.WaitingProperty, EdgeBrushes.FailureProperty, EdgeBrushes.QuietProperty];
 
     private AgentTreeGraphLayout layout = AgentTreeGraphLayout.Empty;
+    private AgentTreeGraphLayout measured = AgentTreeGraphLayout.Empty;
     private AgentTreeRoutes routes = AgentTreeRoutes.Empty;
     private StreamGeometry?[] shapes = [];
     private readonly List<(AgentTreeMotion.Ghost Ghost, IReadOnlyList<GraphPoint> Route, StreamGeometry? Shape)> ghosts = [];
@@ -123,6 +124,7 @@ public sealed class AgentTreePanel : Panel
     protected override Size MeasureOverride(Size availableSize)
     {
         Fit(availableSize.Width);
+        measured = layout;
 
         return new Size(layout.Size.Width, layout.Size.Height);
     }
@@ -197,6 +199,7 @@ public sealed class AgentTreePanel : Panel
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        layout = AgentTreeLayout.Centered(measured, finalSize.Width);
         var keys = new object[Math.Min(Children.Count, layout.Nodes.Count)];
 
         for (var index = 0; index < keys.Length; index++)

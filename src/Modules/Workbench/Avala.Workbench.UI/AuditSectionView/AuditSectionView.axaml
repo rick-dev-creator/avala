@@ -10,6 +10,17 @@
   <Design.DataContext>
     <inspector:DesignAuditSectionViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Path.icon.denied">
+      <Setter Property="Stroke" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector="Path.icon.allowed, Path.icon.unanswered">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Path.icon.waiting">
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
   <ui:Fold x:Name="Section"
            Header="Decisions"
            Fact="{Binding Fact}"
@@ -25,15 +36,54 @@
       <ItemsControl x:Name="Decisions" ItemsSource="{Binding Decisions}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <StackPanel Spacing="7" />
+            <StackPanel Spacing="9" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption secondary" Text="{Binding, Converter={x:Static states:Texts.Unbroken}}" TextWrapping="Wrap" />
+          <DataTemplate x:DataType="inspector:DecisionRow">
+            <Grid ColumnDefinitions="18,*,Auto" RowDefinitions="Auto,Auto">
+              <Panel Height="17" VerticalAlignment="Top" HorizontalAlignment="Left">
+                <Path x:Name="Denied" Classes="icon small denied" VerticalAlignment="Center" Data="{StaticResource IconCross}" IsVisible="{Binding IsDenied}" />
+                <Path x:Name="Allowed" Classes="icon small allowed" VerticalAlignment="Center" Data="{StaticResource IconCheck}" IsVisible="{Binding IsAllowed}" />
+                <Path x:Name="Waiting" Classes="icon small waiting" VerticalAlignment="Center" Data="{StaticResource IconAttention}" IsVisible="{Binding IsWaiting}" />
+                <Path x:Name="Unanswered" Classes="icon small unanswered" VerticalAlignment="Center" Data="{StaticResource IconAttention}" IsVisible="{Binding IsUnanswered}" />
+              </Panel>
+              <TextBlock x:Name="Target"
+                         Grid.Column="1"
+                         FontFamily="{DynamicResource MonoFont}"
+                         FontSize="{DynamicResource FontSizeCaption}"
+                         LineHeight="17"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         TextTrimming="CharacterEllipsis"
+                         Text="{Binding Target}"
+                         ToolTip.Tip="{Binding Target}" />
+              <TextBlock x:Name="Count"
+                         Grid.Column="2"
+                         Classes="caption"
+                         Margin="8,0,0,0"
+                         VerticalAlignment="Center"
+                         Text="{Binding Count}"
+                         IsVisible="{Binding Count, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock x:Name="Caption"
+                         Grid.Row="1"
+                         Grid.Column="1"
+                         Grid.ColumnSpan="2"
+                         Classes="caption"
+                         Classes.attention="{Binding IsWaiting}"
+                         TextWrapping="Wrap"
+                         Text="{Binding Caption, Converter={x:Static states:Texts.Unbroken}}" />
+            </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <Button x:Name="ShowAll"
+              Classes="link"
+              HorizontalAlignment="Left"
+              Margin="12,-2,0,0"
+              Padding="6,2"
+              Content="{Binding More}"
+              Command="{Binding ShowAllCommand}"
+              IsVisible="{Binding More, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock x:Name="AssumptionsHeading"
                  Classes="section"
                  Margin="0,4,0,0"
@@ -42,12 +92,15 @@
       <ItemsControl x:Name="Assumptions" ItemsSource="{Binding Assumptions}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <StackPanel Spacing="7" />
+            <StackPanel Spacing="9" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption secondary" Text="{Binding}" TextWrapping="Wrap" />
+          <DataTemplate x:DataType="inspector:AssumptionRow">
+            <StackPanel Spacing="1">
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding Question}" />
+              <TextBlock Classes="caption" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" Text="{Binding Chosen}" />
+            </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

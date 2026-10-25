@@ -68,6 +68,17 @@ internal static partial class CommandPhrases
         _ => $"use {OneLine(target)}",
     };
 
+    public static string Action(ItemKind kind) => kind switch
+    {
+        ItemKind.Command => "Run",
+        ItemKind.FileEdit => "Edit",
+        ItemKind.Web => "Reach",
+        ItemKind.Search => "Look up",
+        _ => "Use",
+    };
+
+    public static string Target(ItemKind kind, string target) => kind == ItemKind.Command ? Running(target) : OneLine(target);
+
     public static IReadOnlyList<string> Writes(ItemKind kind, string command) =>
         kind == ItemKind.Command ? [.. Read(command).Writes.Distinct(StringComparer.Ordinal)] : [];
 

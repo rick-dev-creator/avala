@@ -33,6 +33,13 @@ public interface IJobs
     ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, ModelChoice model, CancellationToken cancellationToken);
 }
 
+public interface ISessionBoundJobs
+{
+    ValueTask<Result<JobSteered, JobRejection>> SteerOnAsync(JobId job, SessionId session, JobMessage message, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobHold, JobRejection>> HoldRunningOnAsync(JobId job, SessionId session, HoldReason reason, CancellationToken cancellationToken);
+}
+
 public interface IOpenDeliveries
 {
     ValueTask<Result<JobApproval, JobRejection>> ApproveThroughAsync(JobId job, string strategy, CancellationToken cancellationToken);

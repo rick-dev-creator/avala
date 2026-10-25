@@ -27,7 +27,10 @@ internal sealed class PersonHandoff(Situations situations, BriefGatherer briefs,
         }
 
         var now = situation.Situation.Now;
-        var choice = new ConnectionChoice(to, ChoiceReason.Person, [Capacity.Measure(to, destination.Limits, situation.Situation.Rules.Threshold, now)], now);
+        var choice = new ConnectionChoice(to, ChoiceReason.Person, [Capacity.Measure(to, destination.Limits, situation.Situation.Rules.Threshold, now)], now)
+        {
+            Pool = HandoffPolicy.Carried(situation.Situation, [to]),
+        };
         var brief = await briefs.WriteAsync(new BriefRequest(situation.History, situation.Connection, to, Option<LimitReason>.None, Option<string>.None), cancellationToken);
 
         return await jobs.HandOffAsync(situation.Job, new JobHandoff(choice, brief), cancellationToken);

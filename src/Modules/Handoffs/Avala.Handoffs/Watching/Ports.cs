@@ -18,6 +18,10 @@ internal interface IHandoffStore
 
     Task AddAsync(HandoffRecord handoff, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<RelayMark>> MarksAsync(CancellationToken cancellationToken);
+
+    Task MarkAsync(RelayMark mark, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<KeptWait>> WaitsAsync(CancellationToken cancellationToken);
 
     Task KeepAsync(KeptWait wait, CancellationToken cancellationToken);

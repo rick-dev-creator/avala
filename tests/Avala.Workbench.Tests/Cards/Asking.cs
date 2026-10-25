@@ -51,6 +51,37 @@ internal sealed class Asking
             })
             .Entries));
 
+    public const string Contracts = "/home/me/Projects/contracts";
+
+    public static PolicyRule Grant(FolderAccess access) =>
+        access == FolderAccess.Edit
+            ? new(RuleOrigin.Job, "edits in this folder for this job", ItemKind.FileEdit, Contracts, RuleScope.Granted, PolicyAnswer.Allow)
+            : new(RuleOrigin.Job, "reads in this folder for this job", Option<ItemKind>.None, Contracts, RuleScope.Granted, PolicyAnswer.Allow);
+
+    public PolicyDecision FolderDecision(FolderAccess access) =>
+        new(Session, Turn, new ItemId("folder"), JobId.New(), ItemKind.Other, Contracts, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, Now)
+        {
+            Folder = new FolderRequest(Contracts, access, "Bump the shared contracts package"),
+        };
+
+    public Transcript Folder(FolderAccess access) =>
+        Transcript.Empty
+            .Apply(new TurnStarted(Session, Turn), Now)
+            .Apply(new ToolCalled(Session, Turn, new ItemId("folder"), "request_folder", "{}"), Now)
+            .Apply(FolderDecision(access));
+
+    public PermissionEntry FolderCard(FolderAccess access) => Assert.Single(Folder(access).Entries.OfType<PermissionEntry>());
+
+    public PermissionEntry OutsideEdit(string target = "/home/me/Projects/contracts/src/Client.cs") =>
+        Assert.IsType<PermissionEntry>(Assert.Single(Transcript.Empty
+            .Apply(new TurnStarted(Session, Turn), Now)
+            .Apply(new PermissionRequested(Session, Turn, new ItemId("run"), "Edit Client.cs", ItemKind.FileEdit, target), Now)
+            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), JobId.New(), ItemKind.FileEdit, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, Now)
+            {
+                Scope = new JobScope(Option<PolicyRule>.None, ScopeRefusal.StillAsked, Raisable: true) { Folder = Contracts },
+            })
+            .Entries));
+
     public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PermissionAnswer> resolution)
     {
         var decided = Transcript.Empty

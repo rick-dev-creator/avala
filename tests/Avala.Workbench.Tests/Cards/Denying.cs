@@ -28,6 +28,13 @@ internal sealed class Denying
             Scope = new JobScope(allowable ? HostRule : Option<PolicyRule>.None, allowable ? Option<ScopeRefusal>.None : ScopeRefusal.StillAsked, Raisable: false),
         };
 
+    public PolicyDecision OutsideEdit(string target, string folder) =>
+        new(Session, Turn, new ItemId("fetch"), Job, ItemKind.FileEdit, target, PolicyAnswer.Deny, new PolicyRule(RuleOrigin.BuiltIn, "edits-outside-the-workspace-go-to-a-human", ItemKind.FileEdit, Option<string>.None, RuleScope.OutsideWorkspace, PolicyAnswer.Ask), DecisionDelivery.Answered, Now)
+        {
+            Autonomy = Autonomy.Autonomous,
+            Scope = new JobScope(Option<PolicyRule>.None, ScopeRefusal.StillAsked, Raisable: false) { Folder = folder },
+        };
+
     public Transcript Transcript(PolicyDecision decision) =>
         Avala.Workbench.Timeline.Transcript.Empty
             .Apply(new TurnStarted(Session, Turn), Now)

@@ -37,6 +37,35 @@ public sealed class LimitRulesParserTests
         Assert.Equal((OnLimit.Hold, LimitRules.DefaultThreshold, 0, ResumeAtReset.Ask), (rules.OnLimit, rules.Threshold, rules.Connections.Count, rules.Resume));
     }
 
+    [Fact]
+    public void AnEmptySectionCapsAtNinetyEightPercentPicksTheMostHeadroomWindsDownAndCompactsBeforeResuming()
+    {
+        var rules = Outcomes.Succeeds(LimitRulesParser.ParseMachine("{}"));
+
+        Assert.Equal((LimitRules.DefaultHardCap, HandoffStrategy.MostHeadroom, true, true), (rules.HardCap, rules.Strategy, rules.WindDown, rules.CompactOnResume));
+    }
+
+    [Fact]
+    public void ASectionDeclaresItsHardCapStrategyWindDownAndCompaction()
+    {
+        var rules = Outcomes.Succeeds(LimitRulesParser.ParseMachine(
+            """{ "threshold": 0.85, "hardCap": 0.95, "strategy": "round-robin", "windDown": false, "compactOnResume": false }"""));
+
+        Assert.Equal((0.95, HandoffStrategy.RoundRobin, false, false), (rules.HardCap, rules.Strategy, rules.WindDown, rules.CompactOnResume));
+    }
+
+    [Fact]
+    public void AThresholdAboveTheDefaultHardCapRaisesTheCapToTheThreshold() =>
+        Assert.Equal(0.99, Outcomes.Succeeds(LimitRulesParser.ParseMachine("""{ "threshold": 0.99 }""")).HardCap);
+
+    [Theory]
+    [InlineData("most-headroom", HandoffStrategy.MostHeadroom)]
+    [InlineData("in-order", HandoffStrategy.InOrder)]
+    [InlineData("soonest-reset", HandoffStrategy.SoonestReset)]
+    [InlineData("round-robin", HandoffStrategy.RoundRobin)]
+    public void EachStrategyIsRead(string written, HandoffStrategy strategy) =>
+        Assert.Equal(strategy, Outcomes.Succeeds(LimitRulesParser.ParseMachine($$"""{ "strategy": "{{written}}" }""")).Strategy);
+
     [Theory]
     [InlineData("hold", OnLimit.Hold)]
     [InlineData("handoff-same-harness", OnLimit.HandOffSameHarness)]
@@ -65,6 +94,13 @@ public sealed class LimitRulesParserTests
     [InlineData("""{ "connections": "work" }""", HandoffError.Malformed)]
     [InlineData("""{ "onLimit": "hold", "onLimit": "hold" }""", HandoffError.Malformed)]
     [InlineData("""{ "when": "now" }""", HandoffError.UnknownField)]
+    [InlineData("""{ "strategy": "cheapest" }""", HandoffError.UnknownStrategy)]
+    [InlineData("""{ "strategy": 2 }""", HandoffError.Malformed)]
+    [InlineData("""{ "threshold": 0.9, "hardCap": 0.8 }""", HandoffError.InvalidHardCap)]
+    [InlineData("""{ "hardCap": 1.5 }""", HandoffError.InvalidHardCap)]
+    [InlineData("""{ "hardCap": "high" }""", HandoffError.Malformed)]
+    [InlineData("""{ "windDown": "yes" }""", HandoffError.Malformed)]
+    [InlineData("""{ "compactOnResume": 1 }""", HandoffError.Malformed)]
     [InlineData("""not json""", HandoffError.Malformed)]
     [InlineData("""[]""", HandoffError.Malformed)]
     public void AnInvalidDeclarationIsRejectedWithItsError(string text, HandoffError error) =>

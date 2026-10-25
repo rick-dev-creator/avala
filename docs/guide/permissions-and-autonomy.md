@@ -13,6 +13,7 @@ Every edit, command, question and plan an agent proposes goes through rules it c
 - **Other repositories can be read.** A job may read files in a readable folder without asking, even under Autonomous: by default the projects folder Avala clones repositories into, or the folders you name in `readable.json`. Edits there still ask, and reading anywhere else, such as `~/.ssh`, still asks, or is denied under Autonomous.
 - **Temporary files are fine.** Each job's `TMPDIR`, `TEMP` and `TMP` point to a scratch folder of its own, which counts as inside the worktree and never shows in the diff.
 - **An agent's own records and work are its own.** A job may read its scratch folder and the folder its harness keeps for the session, such as Claude Code's transcripts, large tool results and background task output, without asking, even under Autonomous. Reading, stopping or messaging its own background tasks and sub-agents (`TaskOutput`, `BashOutput`, `TaskStop`, `KillShell`, `SendMessage`) never asks. A sub-agent that would run in a separate worktree of your repository asks before it starts, since its writes would land outside the job's worktree.
+- **A job can ask once for another folder.** When a job needs another repository, the agent calls Avala's `request_folder` tool with the folder, `read` or `edit`, and why. You get a card, "Wants to read and edit a folder outside its worktree", even under Autonomous. **Read and edit** or **Read only** grants it for the rest of the job: reads there, and with edit also file edits, no longer ask. The folder's `.git` and `.avala/permissions.json` still come to you, and a command that runs there is still decided on its own. A grant ends with its job and never reaches another one.
 - **Every decision is audited** with the reason it was made, in the job inspector's Audit section.
 
 ## How to use it
@@ -22,10 +23,12 @@ Every edit, command, question and plan an agent proposes goes through rules it c
    - **Once**: this request only.
    - **Always** *program* **in this job**: one rule per program of the line, or per host for the web, or per tool.
    - **Everything in this job**: the rest of the job runs at Autonomous, with the guards still first. It is not offered when the repository declares itself supervised.
+   - **Always in** *repository* **for this job**: offered for an edit outside the worktree. It grants that file's repository to the job, as **Read and edit** on a folder card does.
    - **…**, **Always in this repository**: adds a rule for exactly this target to `.avala/permissions.json`. It applies to new jobs once you commit it; this job stops asking now.
 3. **Answer a question or a plan** on its card with **Answer** or **Decline**, or reply in your own words.
-4. **Under Autonomous, recover a denial.** A denied request leaves a **Denied** card that never holds the turn. When a job rule could allow it, **Allow and retry** allows it for the rest of the job and tells the agent it may retry; a request a guard keeps for a person offers nothing.
+4. **Under Autonomous, recover a denial.** A denied request leaves a **Denied** card that never holds the turn. When a job rule or a folder grant could allow it, **Allow and retry** allows it for the rest of the job and tells the agent it may retry; a request a guard keeps for a person offers nothing.
 5. **Answer many at once** from **Decisions** (Ctrl/⌘+D): Up/Down or J/K move, 1–9 choose an option, Enter answers and Backspace denies.
+6. **Audit what was decided** in the job inspector's **Decisions** section. Each request shows once, its target on one line with how many times it came up, and under it what it was and who decided: a rule by name, the default, you, its parent, or nobody yet. A red cross marks a denial and an amber mark a request still waiting; those come first, then what you answered, then what the rules allowed. A long list shows the first five until you choose **Show** *n* **more**. What the agent assumed on your behalf follows, under **Assumptions**.
 
 ## Settings and files
 
@@ -66,6 +69,7 @@ The `.avala/permissions.json` file is at most 64 KB, and an unknown or duplicate
 - Rules come from the commit a job started from, so an agent's edit to them never applies to its own job.
 - Under Autonomous, a question that is a permission is declined, and a confirmation is confirmed.
 - A pending request does not survive a restart; the job asks again.
+- A folder grant is not a rule you can write in `.avala/permissions.json`; only a person's answer gives one.
 
 ## See also
 

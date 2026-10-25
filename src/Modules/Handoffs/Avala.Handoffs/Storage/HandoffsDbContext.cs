@@ -8,6 +8,8 @@ internal sealed class HandoffsDbContext(string database) : DbContext
 
     public DbSet<StoredWait> Waits => Set<StoredWait>();
 
+    public DbSet<StoredMark> Marks => Set<StoredMark>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -24,6 +26,13 @@ internal sealed class HandoffsDbContext(string database) : DbContext
         {
             wait.ToTable("Waits");
             wait.HasKey(row => row.Job);
+        });
+        modelBuilder.Entity<StoredMark>(mark =>
+        {
+            mark.ToTable("Marks");
+            mark.HasKey(row => row.Key);
+            mark.Property(row => row.Key).ValueGeneratedOnAdd();
+            mark.HasIndex(row => row.Job);
         });
     }
 }
