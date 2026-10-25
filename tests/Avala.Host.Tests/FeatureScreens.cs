@@ -269,15 +269,11 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (Avala.Sdk.IPage)page.Target, Cancellation);
         await run.Ui.RunAsync(() => page["Loading"].Value<Task>());
         Assert.True(await run.Ui.ReadAsync(() => page["Machine"]["Notifications"]["IsSetUp"].Value<bool>()));
+        await run.Ui.InvokeAsync(() => page.ShowSection("Notifications"), Cancellation);
 
-        await Camera.ShootAsync(run, "27-settings-notifications-dark", ShowNotifications);
-        await Camera.ShootAsync(run, "27-settings-notifications-light", ThemeVariant.Light, ShowNotifications);
+        await Camera.ShootAsync(run, "27-settings-notifications-dark");
+        await Camera.ShootAsync(run, "27-settings-notifications-light", ThemeVariant.Light);
     }
-
-    private static void ShowNotifications(Avalonia.Controls.Window window) =>
-        Avalonia.Controls.ControlExtensions.BringIntoView(
-            window.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().First(block => block.Text == "Notifications"),
-            new Avalonia.Rect(0, -16, 10, 600));
 
     [Fact]
 

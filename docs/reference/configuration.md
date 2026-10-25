@@ -11,7 +11,7 @@ Every setting Avala reads, where and with which default. Avala reads three kinds
 - **Machine settings**: small JSON files in the data folder, for this computer. Most are written by Settings; you can also edit them.
 - **Repository rules**: JSON files in a repository's `.avala` folder, committed with the code. A job reads them from the commit it started from, so an agent's edit to them never applies to its own job.
 
-A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repository rules shows the rules of every repository a job ran in, as read from each job's base commit.
+A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repositories shows the rules of every repository a job ran in, one tab per kind of rule, as read from each job's base commit.
 
 ## Environment variables
 

@@ -34,7 +34,7 @@ A job is one piece of work an agent does in its own worktree, and its conversati
 
 - **Send key**: Settings, Appearance, **Send with Ctrl+Enter** (⌘+Enter on macOS). When off, Enter sends and Shift+Enter adds a line. Kept in `appearance.json` as `"send": "enter"` or `"commandEnter"`.
 - **Reading width**: Settings, Appearance, Comfortable or Wide.
-- **Start jobs on your phone**: Settings, Claude Code, one switch for every login, off by default. With it on, every job you start and every chat begins with Remote Control on. Kept in `claude-code.json` in the data folder as `"startJobsOnPhone"`.
+- **Start jobs on your phone**: Settings, Connections, Claude Code, one switch for every login, off by default. With it on, every job you start and every chat begins with Remote Control on. Kept in `claude-code.json` in the data folder as `"startJobsOnPhone"`.
 - **Folded groups** are kept in `layout.json` in the data folder as `collapsedGroups`. Projects, the conversations you moved and the archive are kept in `projects.db`.
 - **`.avala/jobs.json`** in a repository sets its jobs' defaults: `connection` (a name or `"auto"`), `model`, `effort` and `approval` (`"keep"`, the default, `"merge"` or `"pull-request"`). The review names what approving does. An approved job still takes a message: sending one reopens it in its worktree, resuming its conversation, and it comes back for review; a discarded job's composer reads "This job was discarded", and a failed one says why, such as "This job failed · its agent's turn failed" (see [Troubleshooting](troubleshooting.md#a-job-failed)). It also holds the `autopilot`, `delegation`, `limits`, `pullRequest` and `bestOf` sections described on their own pages.
 

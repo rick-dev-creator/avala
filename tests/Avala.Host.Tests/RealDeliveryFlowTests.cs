@@ -226,10 +226,10 @@ public sealed class RealDeliveryFlowTests(HeadlessUi ui, PublishedPlugins plugin
 
             return page["Loading"].Value<Task>();
         });
-        var settings = page["Repository"];
-        await run.Ui.RunAsync(() => settings.ExecuteAsync("OpenCommand", run.Repository.Path));
+        await run.Ui.RunAsync(() => page.OpenRepositoryAsync(run.Repository.Path));
+        await run.Ui.InvokeAsync(() => page.ShowTab("Docs"), Cancellation);
 
-        return await run.Ui.ReadAsync(() => settings["Docs"]);
+        return await run.Ui.ReadAsync(() => page["Repository"]["Docs"]);
     }
 
     private static void Gated()
