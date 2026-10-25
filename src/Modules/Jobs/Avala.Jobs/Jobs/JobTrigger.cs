@@ -21,5 +21,7 @@ internal enum JobTrigger
     HoldUnstarted,
     RetryLaunch,
     HandOff,
+    Relay,
+    HoldAtLimit,
     Reopen,
 }

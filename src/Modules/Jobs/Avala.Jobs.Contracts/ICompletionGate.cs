@@ -30,7 +30,11 @@ public sealed record GateVerdict(GateDecision Decision, string Feedback)
 
     public Option<HoldReason> Hold { get; init; }
 
+    public bool Relays { get; init; }
+
     public static GateVerdict Retry(string feedback) => new(GateDecision.Retry, feedback);
+
+    public static GateVerdict Relay(string feedback) => new(GateDecision.Retry, feedback) { Relays = true };
 
     public static GateVerdict HoldFor(HoldReason reason) => new(GateDecision.Hold, string.Empty) { Hold = reason };
 }

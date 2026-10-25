@@ -98,6 +98,18 @@ public sealed class WindDownTests
     }
 
     [Fact]
+    public async Task AJobThatMovedToAnotherSessionBeforeItsWindDownArrivedIsLeftAloneAsync()
+    {
+        var winding = Winding(Rules);
+        winding.Watched.Jobs.RunningOn = SessionId.New();
+
+        await winding.RecordedAsync(0.92);
+
+        Assert.Empty(winding.Operations);
+        Assert.Empty(winding.Watched.Book.MarksOf(winding.Watched.Job));
+    }
+
+    [Fact]
     public async Task AJobThatIsNotRunningIsLeftAloneAsync()
     {
         var winding = Winding(Rules);

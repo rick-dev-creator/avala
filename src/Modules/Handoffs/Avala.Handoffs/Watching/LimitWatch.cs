@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
 using Avala.Jobs.Contracts;
@@ -14,6 +15,7 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
     private readonly SerialExecutor executor = new();
     private readonly CancellationTokenSource lifetime = new();
     private readonly Dictionary<JobId, Waiting> waits = [];
+    private readonly Dictionary<JobId, object> compacting = [];
     private ImmutableDictionary<JobId, string> pending = ImmutableDictionary<JobId, string>.Empty;
     private int disposed;
 
@@ -121,6 +123,64 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
 
     private async Task ActAsync(JobSituation situation, Decision decision, Option<string> feedback, DateTimeOffset since, CancellationToken token)
     {
+        if (decision.Verdict == Verdict.GoOn && await CompactsAsync(situation, decision, feedback, since, token))
+        {
+            return;
+        }
+
+        compacting.Remove(situation.Job);
+        await SettleAsync(situation, decision, feedback, since, token);
+    }
+
+    private async Task<bool> CompactsAsync(JobSituation situation, Decision decision, Option<string> feedback, DateTimeOffset since, CancellationToken token)
+    {
+        if (compacting.ContainsKey(situation.Job))
+        {
+            return true;
+        }
+
+        return (await actions.CompactingAsync(situation, token)).Match(
+            session =>
+            {
+                var claim = new object();
+                compacting[situation.Job] = claim;
+                _ = Task.Run(() => CompactThenAsync(situation, session, new Settling(claim, decision, feedback, since), token), CancellationToken.None);
+
+                return true;
+            },
+            () => false);
+    }
+
+    private async Task CompactThenAsync(JobSituation situation, SessionId session, Settling settling, CancellationToken token)
+    {
+        try
+        {
+            _ = await actions.CompactAsync(situation, session, token);
+        }
+        finally
+        {
+            Post(posted => CompactedAsync(situation.Job, settling, posted));
+        }
+    }
+
+    private async Task CompactedAsync(JobId job, Settling settling, CancellationToken token)
+    {
+        if (!compacting.TryGetValue(job, out var claim) || claim != settling.Claim)
+        {
+            return;
+        }
+
+        compacting.Remove(job);
+
+        await (await situations.OfAsync(job, token)).Match(
+            situation => situation.History.Summary.Status == JobStatus.NeedsHelp
+                ? SettleAsync(situation, settling.Decision, settling.Feedback, settling.Since, token)
+                : EndAsync(job, token),
+            () => EndAsync(job, token));
+    }
+
+    private async Task SettleAsync(JobSituation situation, Decision decision, Option<string> feedback, DateTimeOffset since, CancellationToken token)
+    {
         var moved = decision.Verdict switch
         {
             Verdict.GoOn => await actions.ContinueAsync(situation, feedback, token),
@@ -166,6 +226,8 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
 
     private async Task EndAsync(JobId job, CancellationToken token)
     {
+        compacting.Remove(job);
+
         if (await DisarmAsync(job))
         {
             actions.Ended(job);
@@ -202,4 +264,6 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
     }
 
     private sealed record Waiting(KeptWait Kept, Option<ITimer> Timer);
+
+    private sealed record Settling(object Claim, Decision Decision, Option<string> Feedback, DateTimeOffset Since);
 }

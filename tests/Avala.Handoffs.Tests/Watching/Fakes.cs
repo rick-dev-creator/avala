@@ -114,7 +114,7 @@ internal sealed class KeptHandoffs : IHandoffStore
 
 internal sealed record JobCall(string Operation, JobId Job, string Text, Option<JobHandoff> Handoff);
 
-internal sealed class MovingJobs : IJobs
+internal sealed class MovingJobs : IJobs, ISessionBoundJobs
 {
     public Journal<JobCall> Calls { get; } = new();
 
@@ -152,6 +152,16 @@ internal sealed class MovingJobs : IJobs
     }
 
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public Option<SessionId> RunningOn { get; set; }
+
+    public ValueTask<Result<JobSteered, JobRejection>> SteerOnAsync(JobId job, SessionId session, JobMessage message, CancellationToken cancellationToken) =>
+        Elsewhere(session) ? ValueTask.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotRunning)) : SteerAsync(job, message, cancellationToken);
+
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningOnAsync(JobId job, SessionId session, HoldReason reason, CancellationToken cancellationToken) =>
+        Elsewhere(session) ? ValueTask.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)) : HoldRunningAsync(job, reason, cancellationToken);
+
+    private bool Elsewhere(SessionId session) => RunningOn.Match(running => running != session, () => false);
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, JobMessage message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

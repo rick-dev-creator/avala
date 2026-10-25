@@ -22,15 +22,24 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
             },
             () => Task.FromResult(false));
 
+    public async Task<Option<SessionId>> CompactingAsync(JobSituation situation, CancellationToken cancellationToken)
+    {
+        var session = await compaction.CompactableAsync(situation, cancellationToken);
+
+        if (session.IsSome)
+        {
+            await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.Compacting, situation.Connection, situation.Situation.Now), cancellationToken);
+        }
+
+        return session;
+    }
+
+    public Task<bool> CompactAsync(JobSituation situation, SessionId session, CancellationToken cancellationToken) =>
+        compaction.CompactAsync(situation, session, cancellationToken);
+
     public async Task<bool> ContinueAsync(JobSituation situation, Option<string> pending, CancellationToken cancellationToken)
     {
         var message = pending.Match(feedback => $"{ResetMessage}\n\n{feedback}", () => ResetMessage);
-
-        foreach (var session in (await compaction.CompactableAsync(situation, cancellationToken)).Match<SessionId[]>(found => [found], () => []))
-        {
-            await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.Compacting, situation.Connection, situation.Situation.Now), cancellationToken);
-            _ = await compaction.CompactAsync(situation, session, cancellationToken);
-        }
 
         if (!(await jobs.ContinueAsync(situation.Job, new JobMessage(message) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala }, cancellationToken)).TryGetValue(out var continued, out _))
         {

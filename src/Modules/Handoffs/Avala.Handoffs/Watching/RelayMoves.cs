@@ -7,14 +7,14 @@ using Avala.Sdk;
 
 namespace Avala.Handoffs.Watching;
 
-internal sealed class RelayMoves(IJobs jobs, HandoffBook book, RelayLedger ledger)
+internal sealed class RelayMoves(ISessionBoundJobs jobs, HandoffBook book, RelayLedger ledger)
 {
     public async Task WindDownAsync(JobSituation situation, SessionId session, LimitReason why, CancellationToken cancellationToken)
     {
         ledger.Wind(session);
         var message = new JobMessage(Steer(why)) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala };
 
-        if ((await jobs.SteerAsync(situation.Job, message, cancellationToken)).IsFailure)
+        if ((await jobs.SteerOnAsync(situation.Job, session, message, cancellationToken)).IsFailure)
         {
             await CapAsync(situation, session, why, cancellationToken);
 
@@ -28,7 +28,7 @@ internal sealed class RelayMoves(IJobs jobs, HandoffBook book, RelayLedger ledge
     {
         ledger.Settle(session);
 
-        if ((await jobs.HoldRunningAsync(situation.Job, HoldReason.LimitNearlyReached, cancellationToken)).IsSuccess)
+        if ((await jobs.HoldRunningOnAsync(situation.Job, session, HoldReason.LimitNearlyReached, cancellationToken)).IsSuccess)
         {
             await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.Capped, situation.Connection, situation.Situation.Now) { Why = why }, cancellationToken);
         }

@@ -9,5 +9,5 @@ internal sealed class RelayGate(RelayLedger ledger) : ICompletionGate
     public int Order => -100;
 
     public ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(attempt.Turn.Match(turn => ledger.Unwind(turn.Session), () => false) ? GateVerdict.Retry(Feedback) : GateVerdict.Pass);
+        ValueTask.FromResult(attempt.Turn.Match(turn => ledger.Unwind(turn.Session), () => false) ? GateVerdict.Relay(Feedback) : GateVerdict.Pass);
 }

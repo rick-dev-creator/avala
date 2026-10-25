@@ -180,12 +180,7 @@ internal sealed class JobModel(JobId id, int attemptsPerRound)
             (Ended, Failure) = (true, JobFailure.AgentFailed);
             return Move(JobState.Failed, new JobFailed(id, JobFailure.AgentFailed));
         }),
-        Command.Hold => When(Holds(step.Reason), JobError.CannotHold, () =>
-        {
-            Interrupt();
-            Held = step.Reason;
-            return Move(JobState.NeedsHelp, new JobHeld(id, Last, step.Reason));
-        }),
+        Command.Hold => When(Holds(step.Reason), JobError.CannotHold, () => Hold(step.Reason)),
         Command.CouldNotStart => When(State is JobState.Preparing or JobState.Running, JobError.CannotHold, () =>
         {
             Interrupt();
@@ -221,11 +216,25 @@ internal sealed class JobModel(JobId id, int attemptsPerRound)
         _ => throw new ArgumentOutOfRangeException(nameof(step)),
     };
 
+    private Expected Hold(HoldReason reason)
+    {
+        if (State == JobState.Checking && reason == HoldReason.LimitNearlyReached)
+        {
+            _ = Conclude(AttemptOutcome.Rejected);
+        }
+
+        Interrupt();
+        Held = reason;
+
+        return Move(JobState.NeedsHelp, new JobHeld(id, Last, reason));
+    }
+
     private bool Holds(HoldReason reason) => reason switch
     {
         HoldReason.CouldNotStart => false,
         HoldReason.BudgetExceeded => State is JobState.Running or JobState.Checking or JobState.AwaitingReview,
         HoldReason.InvalidChecks => State == JobState.Checking,
+        HoldReason.LimitNearlyReached => State is JobState.Running or JobState.Checking,
         _ => State == JobState.Running,
     };
 

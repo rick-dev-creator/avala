@@ -44,7 +44,9 @@ internal static class JobLifecycle
             .Permit(JobTrigger.HoldUnverifiable, JobState.NeedsHelp)
             .PermitIf(JobTrigger.Retry, JobState.Running, hasRetriesLeft, "retries left")
             .PermitIf(JobTrigger.RequestHelp, JobState.NeedsHelp, () => !hasRetriesLeft(), "budget exhausted")
-            .PermitIf(JobTrigger.HandOff, JobState.Running, hasRetriesLeft, "retries left");
+            .PermitIf(JobTrigger.HandOff, JobState.Running, hasRetriesLeft, "retries left")
+            .Permit(JobTrigger.Relay, JobState.Running)
+            .Permit(JobTrigger.HoldAtLimit, JobState.NeedsHelp);
 
         machine.Configure(JobState.NeedsHelp)
             .SubstateOf(JobState.Open)

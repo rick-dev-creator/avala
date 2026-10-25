@@ -207,12 +207,18 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
             () => HandOffNowAsync(job, handoff, cancellationToken));
 
-    public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+    public Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        HandOffAfterTurnAsync(job, handoff, relays: false, cancellationToken);
+
+    public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, bool relays, CancellationToken cancellationToken) =>
         job.State == JobState.Checking
-            ? await HandOffNowAsync(job, handoff, cancellationToken)
+            ? await HandOffNowAsync(job, handoff, relays, cancellationToken)
             : JobRejection.NotRunning;
 
-    private async Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken)
+    private Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        HandOffNowAsync(job, handoff, relays: false, cancellationToken);
+
+    private async Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, bool relays, CancellationToken cancellationToken)
     {
         if (job.Connection == Option<ConnectionName>.Some(handoff.Choice.Connection))
         {
@@ -245,7 +251,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         var (previous, from) = (job.Session, job.Connection);
 
-        if (job.HandOff(brief, opened.Session, opened.Connection).IsFailure)
+        if (job.HandOff(brief, opened.Session, opened.Connection, relays).IsFailure)
         {
             _ = await agents.StopAsync(opened.Session, cancellationToken);
 
