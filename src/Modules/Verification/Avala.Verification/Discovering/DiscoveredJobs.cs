@@ -11,6 +11,11 @@ internal sealed class DiscoveredJobs(JobWorktrees worktrees, IBaseFiles baseFile
 {
     public Task<JobStatus> StatusAsync(JobId job, CancellationToken cancellationToken) => worktrees.StatusAsync(job, cancellationToken);
 
+    public Task<IReadOnlyList<JobId>> ChildrenAsync(JobId job, CancellationToken cancellationToken) => worktrees.ChildrenAsync(job, cancellationToken);
+
+    public async Task<Option<JobPlace>> PlaceOfAsync(Discovery discovery, CancellationToken cancellationToken) =>
+        (await worktrees.WorktreeAsync(discovery.Job, cancellationToken)).Map(worktree => new JobPlace(discovery.Job, discovery.Repository, worktree));
+
     public async Task<Option<JobPlace>> UncheckedAsync(JobId job, CancellationToken cancellationToken)
     {
         var summary = (await worktrees.SummaryAsync(job, cancellationToken))

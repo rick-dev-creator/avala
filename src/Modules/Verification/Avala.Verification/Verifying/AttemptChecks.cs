@@ -1,6 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Checks;
+using Avala.Verification.Contracts;
 using Avala.Verification.Discovering;
 using Avala.Workspaces.Contracts;
 
@@ -15,6 +16,8 @@ internal sealed record AttemptDeclaration(Option<FileOrigin> Origin, IReadOnlyLi
     public bool Discovered { get; init; }
 
     public bool Shipped { get; init; }
+
+    public bool Deferred { get; init; }
 }
 
 internal sealed class AttemptChecks(IBaseFiles files, DiscoveredChecks discovered)
@@ -28,8 +31,15 @@ internal sealed class AttemptChecks(IBaseFiles files, DiscoveredChecks discovere
                 () => UndeclaredAsync(attempt, file.Origin, cancellationToken)),
             _ => Task.FromResult(new AttemptDeclaration(Option<FileOrigin>.None, []) { Error = VerificationError.UnreadableDeclaration }));
 
-    private async Task<AttemptDeclaration> UndeclaredAsync(CompletedAttempt attempt, FileOrigin origin, CancellationToken cancellationToken) =>
-        (await discovered.OfAsync(attempt, cancellationToken)).Match(
-            found => new AttemptDeclaration(origin with { EditedInWorktree = !found.Shipped && origin.EditedInWorktree }, found.Checks) { Discovered = true, Shipped = found.Shipped },
-            () => new AttemptDeclaration(origin, []) { Declared = false });
+    private async Task<AttemptDeclaration> UndeclaredAsync(CompletedAttempt attempt, FileOrigin origin, CancellationToken cancellationToken)
+    {
+        var found = await discovered.OfAsync(attempt, cancellationToken);
+
+        return found.State switch
+        {
+            DiscoveryState.Running => new AttemptDeclaration(origin, []) { Deferred = true },
+            DiscoveryState.Found => new AttemptDeclaration(origin with { EditedInWorktree = !found.Shipped && origin.EditedInWorktree }, found.Checks) { Discovered = true, Shipped = found.Shipped },
+            _ => new AttemptDeclaration(origin, []) { Declared = false },
+        };
+    }
 }

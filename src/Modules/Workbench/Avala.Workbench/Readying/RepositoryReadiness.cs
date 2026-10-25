@@ -62,8 +62,12 @@ internal sealed class RepositoryReadiness(FirstJobs first, IForgeReadiness forge
     }
 }
 
-internal sealed class ReadinessActions(SourceControl source, IDocumentation documentation, IReadinessLinks links)
+internal sealed class ReadinessActions(SourceControl source, IDocumentation documentation, IReadinessLinks links, IChecksProposals proposals)
 {
+    public async Task UseChecksAsync(JobId job, CancellationToken cancellationToken) => await proposals.AcceptAsync(job, cancellationToken);
+
+    public async Task SkipChecksAsync(JobId job, CancellationToken cancellationToken) => await proposals.DeclineAsync(job, cancellationToken);
+
     public ValueTask<Result<ForgeCatalog, ForgeError>> ConnectAsync(AccountStatus account, Option<ForgeInfo> forge, CancellationToken cancellationToken) =>
         source.ConnectAsync(SourceControl.Added(account, forge.Bind(found => found.DefaultUrl)), cancellationToken);
 

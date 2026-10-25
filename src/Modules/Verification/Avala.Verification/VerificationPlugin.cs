@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -36,11 +38,20 @@ public sealed class VerificationPlugin : IPlugin
             .AddSingleton<IDiscoverySettings, DiscoverySettings>()
             .AddSingleton<JobWorktrees>()
             .AddSingleton<DiscoveredJobs>()
-            .AddSingleton<ScoutLauncher>()
+            .AddSingleton<JobActions>()
+            .AddSingleton<ShippedChecks>()
             .AddSingleton<DiscoveredChecks>()
             .AddSingleton<AttemptChecks>()
             .AddSingleton<ProposalReview>()
+            .AddSingleton<DiscoveryTerms>()
             .AddSingleton<DiscoveryDesk>()
+            .AddForwarded<IChecksProposals, DiscoveryDesk>()
+            .AddSingleton(ScoutBrief.Tool)
+            .AddSingleton<IHarnessToolGate, ScoutOffer>()
+            .AddSingleton<ProposalDesk>()
+            .AddForwarded<IHandle<JobSessionStarted>, ProposalDesk>()
+            .AddForwarded<IHandle<AgentActivity>, ProposalDesk>()
+            .AddForwarded<IHandle<Permissions.Contracts.PermissionDecided>, ProposalDesk>()
             .AddSingleton<ChecksScout>()
             .AddForwarded<IHandle<JobProgressed>, ChecksScout>()
             .AddForwarded<IHandle<StartupCompleted>, ChecksScout>()

@@ -130,12 +130,15 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
             else
             {
                 item.Show(step, Act(step, facts), Choices(step, facts));
+                item.Dismissing(Skip(step));
             }
         }
 
         foreach (var step in steps.Where(found => items.All(item => item.Need != found.Need)))
         {
-            items.Add(new ReadinessItemViewModel(step, Act(step, facts), Choices(step, facts)));
+            var added = new ReadinessItemViewModel(step, Act(step, facts), Choices(step, facts));
+            added.Dismissing(Skip(step));
+            items.Add(added);
         }
 
         if (ReadinessPhrases.FoundChecks(facts, discovery) && items.All(item => item.Need != ReadinessNeed.Checks))
@@ -153,8 +156,15 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
         ReadinessNeed.Forge when step.Accounts.Count == 0 => RefreshAsync,
         ReadinessNeed.Forge => token => ConnectAsync(step.Accounts[0], facts, token),
         ReadinessNeed.Rules => token => CommitAsync(facts.Repository, token),
+        _ when step.Dismiss.Length > 0 => token => DecideAsync(actions.UseChecksAsync, token),
         _ => _ => actions.DeclareChecksAsync(facts.Repository),
     };
+
+    private Func<CancellationToken, Task> Skip(ReadinessStep step) =>
+        step.Dismiss.Length > 0 ? token => DecideAsync(actions.SkipChecksAsync, token) : _ => Task.CompletedTask;
+
+    private Task DecideAsync(Func<JobId, CancellationToken, Task> decide, CancellationToken cancellationToken) =>
+        job.Match(found => decide(found, cancellationToken), () => Task.CompletedTask);
 
     private ReadinessAccountViewModel[] Choices(ReadinessStep step, ReadinessFacts facts) =>
         step.Accounts.Count < 2

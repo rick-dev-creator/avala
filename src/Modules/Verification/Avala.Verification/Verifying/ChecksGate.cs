@@ -12,6 +12,12 @@ internal sealed class ChecksGate(AttemptChecks declarations, CheckRunner runner,
     public async ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken)
     {
         var declaration = await declarations.OfAsync(attempt, cancellationToken);
+
+        if (declaration.Deferred)
+        {
+            return GateVerdict.Deferred;
+        }
+
         var report = await declaration.Error.Match(
             error => Task.FromResult(Invalid(attempt, declaration.Origin, error)),
             () => declaration.Declared
@@ -32,7 +38,7 @@ internal sealed class ChecksGate(AttemptChecks declarations, CheckRunner runner,
             evidence.Add(evidence.AnyFailed ? check.Skipped : await runner.RunAsync(check, attempt.WorkingDirectory, cancellationToken));
         }
 
-        return Report(attempt, declaration.Origin, evidence.Outcome, evidence, AgentFeedback.Judge(evidence)) with
+        return Report(attempt, declaration.Origin, evidence.Outcome, evidence, AgentFeedback.Judge(evidence), declaration.Discovered) with
         {
             Discovered = declaration.Discovered,
             DiscoveryShipped = declaration.Shipped,
@@ -55,6 +61,7 @@ internal sealed class ChecksGate(AttemptChecks declarations, CheckRunner runner,
         Option<FileOrigin> declaration,
         VerificationOutcome outcome,
         IReadOnlyList<CheckEvidence> checks,
-        GateVerdict verdict) =>
-        new(attempt.Job, attempt.Attempt, outcome, declaration, checks, AgentFeedback.Noting(verdict, declaration), clock.GetUtcNow());
+        GateVerdict verdict,
+        bool discovered = false) =>
+        new(attempt.Job, attempt.Attempt, outcome, declaration, checks, AgentFeedback.Noting(verdict, declaration, discovered), clock.GetUtcNow());
 }

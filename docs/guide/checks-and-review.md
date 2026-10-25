@@ -4,7 +4,8 @@ A job is done only when your repository's own checks pass in its worktree, and i
 
 ## What it does
 
-- **Avala finds the checks for you.** When a repository has no `.avala/checks.json`, its first job starts a helper that runs the repository's own build, lint and test commands, whatever its languages and tools, and keeps the ones that pass. The job works meanwhile; the card above its conversation says "Avala is running this repository's own commands to find how to check the work", and then "Avala found how to check this repository: tests, lint. They ship with this job in .avala/checks.json". The checks verify that job, and `.avala/checks.json` is in its diff, so approving it declares them for every later job.
+- **Avala finds the checks for you.** When a repository has no `.avala/checks.json`, its first job starts a helper that finds the repository's own build, lint and test commands, whatever its languages and tools. The job works meanwhile; the card above its conversation says "Avala is running this repository's own commands to find how to check the work", and then "Avala found how to check this repository: tests, lint". The checks verify that job, and `.avala/checks.json` is in its diff, so approving it declares them for every later job.
+- **In a repository that asks you before each command**, the helper only reads its files, and the card shows the commands it proposes with **Use them** and **Skip**: nothing runs until you choose, and the job waits for your choice ("Waiting for you to choose its checks").
 - **Checks run after every finished turn**, in the job's worktree, in the order the repository declares them. After the first failure the rest are skipped.
 - **A failing check sends the agent back** in the same session with the check's name and the end of its output, until it passes or the job runs out of attempts (three by default).
 - **The review leads with the verdict**: "Verified on attempt 2 of 3", "Verified on attempt 1 of 3 with the checks Avala found", "Not verified", or "No checks declared: nothing proves the work". Then it lists what deserves a look, such as a failed attempt, a denied request, an assumption the agent made or an edit to a rule file, then the diff.
@@ -41,8 +42,9 @@ A job is done only when your repository's own checks pass in its worktree, and i
 
 ## Good to know
 
-- Finding the checks runs as a hidden helper job on the repository's `research` role, so its cost counts in the job's usage. It never asks you anything; when it finds no command that passes, the card says "Avala found no command that checks this repository, so nothing verifies the work" and offers **Declare checks**.
-- If the agent finishes before Avala has found the checks, the job waits for them: "Finding how to check the work". It is never passed unverified because the checks were slow.
+- Finding the checks runs as a hidden helper job on the repository's `research` role, so its cost counts in the job's usage. Outside the proposal on the card it never asks you anything; when it finds no command that passes, the card says "Avala found no command that checks this repository, so nothing verifies the work" and offers **Declare checks**.
+- If the agent finishes before Avala has found the checks, the job waits for them: "Finding how to check the work". It is never passed unverified because the checks were slow, and you can still discard it meanwhile.
+- Jobs started together in one repository share one helper, and a delegated job is checked with the checks found for its parent.
 - `.avala/checks.json` written by Avala is not counted as an edit to a rule file. If the agent changes it, the review flags it like any rule file.
 
 - Checks come from the commit the job started from: an agent that edits `.avala/checks.json` is told its change does not apply to this job.

@@ -56,7 +56,10 @@ internal sealed class SqliteEvidenceStore(AvalaPaths paths) : IEvidenceStore, ID
                 {
                     stored.State = row.State;
                     stored.Scout = row.Scout;
+                    stored.Follows = row.Follows;
                     stored.Declaration = row.Declaration;
+                    stored.Proposal = row.Proposal;
+                    stored.Reads = row.Reads;
                     stored.At = row.At;
                 }
 

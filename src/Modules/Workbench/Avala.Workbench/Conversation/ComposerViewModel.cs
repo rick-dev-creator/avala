@@ -167,6 +167,10 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial bool FindsChecks { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Placeholder))]
+    public partial bool ProposesChecks { get; private set; }
+
+    [ObservableProperty]
     public partial string Error { get; private set; }
 
     [ObservableProperty]
@@ -187,7 +191,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [ObservableProperty]
     public partial int Edits { get; private set; }
 
-    public string Placeholder => Closed.Match(note => note, () => FindsChecks ? ConversationPhrases.FindingChecks : ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch, Hold, Failure));
+    public string Placeholder => Closed.Match(note => note, () => ProposesChecks ? ConversationPhrases.ChoosingChecks : FindsChecks ? ConversationPhrases.FindingChecks : ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch, Hold, Failure));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Placeholder))]
@@ -207,6 +211,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Hold = shown.Hold;
         Failure = shown.Status == JobStatus.Failed ? shown.Summary.Failure : Option<JobFailure>.None;
         FindsChecks = shown.FindsChecks && shown.Status == JobStatus.Checking;
+        ProposesChecks = shown.ProposesChecks && shown.Status == JobStatus.Checking;
         SendsWithEnter = keys.WithEnter;
         ShowQueued();
         harness.Track(shown);

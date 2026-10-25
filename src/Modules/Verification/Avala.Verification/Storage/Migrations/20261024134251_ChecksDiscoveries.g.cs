@@ -17,7 +17,10 @@ namespace Avala.Verification.Storage.Migrations
                     Repository = table.Column<string>(type: "TEXT", nullable: false),
                     State = table.Column<int>(type: "INTEGER", nullable: false),
                     Scout = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Follows = table.Column<Guid>(type: "TEXT", nullable: false),
                     Declaration = table.Column<string>(type: "TEXT", nullable: false),
+                    Proposal = table.Column<string>(type: "TEXT", nullable: false),
+                    Reads = table.Column<bool>(type: "INTEGER", nullable: false),
                     At = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>

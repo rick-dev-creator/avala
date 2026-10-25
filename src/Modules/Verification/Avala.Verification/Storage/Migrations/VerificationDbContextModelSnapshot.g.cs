@@ -28,6 +28,16 @@ namespace Avala.Verification.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("Follows")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Proposal")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Reads")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Repository")
                         .IsRequired()
                         .HasColumnType("TEXT");

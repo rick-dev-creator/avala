@@ -12,6 +12,9 @@ internal sealed class JobWorktrees(IJobCatalog catalog, IWorkspaces workspaces)
     public async Task<JobStatus> StatusAsync(JobId job, CancellationToken cancellationToken) =>
         (await SummaryAsync(job, cancellationToken)).Match(summary => summary.Status, () => JobStatus.Discarded);
 
+    public async Task<IReadOnlyList<JobId>> ChildrenAsync(JobId job, CancellationToken cancellationToken) =>
+        [.. (await catalog.ChildrenAsync(job, cancellationToken)).Where(child => !child.Companion).Select(child => child.Job)];
+
     public async Task<Option<string>> WorktreeAsync(JobId job, CancellationToken cancellationToken) =>
         await (await SummaryAsync(job, cancellationToken)).Bind(summary => summary.Workspace).Match(
             async workspace => (await workspaces.FindAsync(workspace, cancellationToken)).Match(info => Option<string>.Some(info.Path), _ => Option<string>.None),

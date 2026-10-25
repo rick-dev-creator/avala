@@ -19,6 +19,7 @@ public sealed class ReadinessCardViewModelScripts : IDisposable
     private readonly FakeForgeReadiness readiness = new();
     private readonly Avala.Workbench.Board.JobBoard board = new();
     private readonly TestUiDispatcher ui = new();
+    private readonly FakeProposals proposals = new();
 
     public void Dispose() => ui.Dispose();
 
@@ -48,9 +49,27 @@ public sealed class ReadinessCardViewModelScripts : IDisposable
         await ui.PresentedAsync(card, () => card.Revision > revision, () => $"revision {card.Revision}");
         var item = Assert.Single(card.Items);
         Assert.Equal(
-            (true, "Avala found how to check this repository: tests, lint. They ship with this job in .avala/checks.json"),
+            (true, "Avala found how to check this repository: tests, lint"),
             await ui.ReadAsync(() => (item.IsDone, item.Text.Show(hidden: false))));
         await ui.InvokeAsync(card.Deactivate, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ProposedChecksShowTheirCommandsAndThePersonUsesOrSkipsThemAsync(bool use)
+    {
+        var job = catalog.Add("Fix the build").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.Proposed, [new CheckDeclared("install", "npm ci", TimeSpan.FromMinutes(5)), new CheckDeclared("tests", "npm test", TimeSpan.FromMinutes(5))])));
+        var card = await ShownAsync(job, declared: false);
+        var item = Assert.Single(card.Items);
+
+        await (use ? item.ActCommand : item.DismissCommand).ExecuteAsync(null);
+
+        Assert.Equal(
+            (ReadinessPhrases.ChecksProposed, "npm ci\nnpm test", ReadinessPhrases.UseChecks, ReadinessPhrases.SkipChecks),
+            (item.Text.Show(hidden: false), item.Command, item.Action, item.Dismiss));
+        Assert.Equal([(job, use)], proposals.Decided);
     }
 
     [Fact]
@@ -122,12 +141,31 @@ public sealed class ReadinessCardViewModelScripts : IDisposable
         var files = new CommittedFiles().With("/repo", ".avala/checks.json", """{ "checks": [] }""");
         var card = new ReadinessCardViewModel(
             new RepositoryReadiness(new FirstJobs(catalog, Scratching.Folders(scratch)), readiness, files, declared ? new FakeRules() : new NoChecks()),
-            new ReadinessActions(forges.Source, new FakeDocumentation(), new FakeReadinessLinks()),
+            new ReadinessActions(forges.Source, new FakeDocumentation(), new FakeReadinessLinks(), proposals),
             new Avala.Workbench.Presenting.BoardFeed(board, ui, Microsoft.Extensions.Logging.Abstractions.NullLogger<Avala.Workbench.Presenting.BoardFeed>.Instance));
         card.OnRegionContextChanged(job);
         await card.Loading;
 
         return card;
+    }
+}
+
+internal sealed class FakeProposals : IChecksProposals
+{
+    public List<(JobId Job, bool Used)> Decided { get; } = [];
+
+    public ValueTask AcceptAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Decided.Add((job, true));
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask DeclineAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Decided.Add((job, false));
+
+        return ValueTask.CompletedTask;
     }
 }
 

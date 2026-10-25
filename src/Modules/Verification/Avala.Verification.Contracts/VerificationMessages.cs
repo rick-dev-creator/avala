@@ -73,6 +73,7 @@ public sealed record AttemptVerified(VerificationReport Report) : IIntegrationEv
 public enum DiscoveryState
 {
     Running,
+    Proposed,
     Found,
     NoneFound,
 }
@@ -83,5 +84,5 @@ public sealed record ChecksDiscoveryChanged(ChecksDiscovery Discovery) : IIntegr
 
 public sealed record ChecksProposal(string Content)
 {
-    public const string Path = "avala-checks-proposal.json";
+    public const string Tool = "propose_checks";
 }

@@ -544,7 +544,7 @@ internal static class ScenarioCatalog
     public const string WaitChild = "wait_child";
 
     public static string NameIn(string firstMessage) =>
-        firstMessage.Contains(ChecksProposal.Path, StringComparison.Ordinal) ? Tagged(firstMessage, Tag).Bind(Known).Match(name => name, () => ChecksScenarios.DiscoverChecks.Name)
+        firstMessage.Contains(ChecksProposal.Tool, StringComparison.Ordinal) ? Tagged(firstMessage, Tag).Bind(Known).Match(name => name, () => ChecksScenarios.For(firstMessage))
         : firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
         : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? Tagged(firstMessage, CompanionTag).Bind(Known).Match(name => name, () => DocumentationScenarios.Document.Name)
         : Tagged(firstMessage, ReplayRequest.TimedTag).Match(

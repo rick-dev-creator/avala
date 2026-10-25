@@ -49,6 +49,7 @@ public sealed class VerificationPluginTests
         Assert.Same(composition.Get<SqliteEvidenceStore>(), composition.Get<IDiscoveryStore>());
         Assert.Same(composition.Get<DiscoveryBook>(), composition.Get<IChecksDiscoveries>());
         Assert.Contains(composition.Get<DiscoveryBook>(), composition.All<IStartupTask>());
+        Assert.Same(composition.Get<DiscoveryDesk>(), composition.Get<IChecksProposals>());
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>
@@ -62,5 +63,9 @@ public sealed class VerificationPluginTests
             .AddSingleton<IWorkspaces>(provider => provider.GetRequiredService<Scouted.FakeJobs>())
             .AddSingleton<IScratchRepositories>(new Scouted.Scratch())
             .AddSingleton<IRoleSettings>(new Scouted.FixedRoles())
+            .AddSingleton<IWorkspaceChanges>(provider => provider.GetRequiredService<Scouted.FakeJobs>())
+            .AddSingleton<Permissions.Contracts.IRepositoryPolicies>(new Scouted.FakePolicies())
+            .AddSingleton<Permissions.Contracts.IPermissionAnswers>(new Scouted.FakeAnswers())
+            .AddSingleton<Agents.Contracts.IAgents>(new Scouted.FakeAgents())
             .AddSingleton<IEventBus>(new RecordingBus()));
 }

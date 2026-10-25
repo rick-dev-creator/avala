@@ -40,9 +40,13 @@ internal sealed partial class WorkingViewModel : IWorkingViewModel
     public void Show(BoardJob job)
     {
         var transcript = job.Transcript;
-        IsWaiting = job.Status.IsWorking && transcript.Awaiting.Any();
+        var choosing = job.ProposesChecks && job.Status == JobStatus.Checking;
+        IsWaiting = job.Status.IsWorking && (transcript.Awaiting.Any() || choosing);
         IsShown = job.Status.IsWorking && (IsWaiting || !transcript.Entries.Any(Open));
-        Verb = IsWaiting ? WorkingPhrases.Waiting : job.FindsChecks && job.Status == JobStatus.Checking ? WorkingPhrases.FindingChecks : WorkingPhrases.Verb(job.Status);
+        Verb = choosing ? WorkingPhrases.ChoosingChecks
+            : IsWaiting ? WorkingPhrases.Waiting
+            : job.FindsChecks && job.Status == JobStatus.Checking ? WorkingPhrases.FindingChecks
+            : WorkingPhrases.Verb(job.Status);
         ShowsElapsed = transcript.LiveSince.IsSome;
         Since = transcript.LiveSince.Match(since => since, () => Since);
     }
@@ -56,6 +60,8 @@ internal static class WorkingPhrases
     public const string Waiting = "Waiting for you";
 
     public const string FindingChecks = "Finding how to check the work";
+
+    public const string ChoosingChecks = "Waiting for you to choose its checks";
 
     public static string Verb(JobStatus status) => status switch
     {

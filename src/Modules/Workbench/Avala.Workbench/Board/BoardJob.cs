@@ -44,6 +44,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public bool FindsChecks { get; init; }
 
+    public bool ProposesChecks { get; init; }
+
     public bool TakesMessagesMidTurn { get; init; }
 
     public int PendingDecisions => Transcript.Awaiting.Count();

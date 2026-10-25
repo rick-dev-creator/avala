@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
@@ -22,8 +24,10 @@ internal sealed class Scouted : IAsyncDisposable
 
     public const string ChecksPath = ".avala/checks.json";
 
-    private Scouted(FakeJobs jobs, WorkingFolders folders, CommittedFiles committed, MemoryDiscoveries store, Toggle toggle, RecordingBus bus, FakeTimeProvider clock, ScriptedProcesses processes)
+    private Scouted(FakeJobs jobs, WorkingFolders folders, CommittedFiles committed, MemoryDiscoveries store, Toggle toggle, RecordingBus bus, FakeTimeProvider clock, ScriptedProcesses processes, FakePolicies policies, FakeAgents agents)
     {
+        Policies = policies;
+        Agents = agents;
         Jobs = jobs;
         Folders = folders;
         Committed = committed;
@@ -36,15 +40,26 @@ internal sealed class Scouted : IAsyncDisposable
         var runner = new CheckRunner(Processes, Clock);
         var worktrees = new JobWorktrees(Jobs, Jobs);
         var discovered = new DiscoveredJobs(worktrees, Committed, Folders, new Scratch());
-        Desk = new DiscoveryDesk(Book, discovered, new ProposalReview(worktrees, Folders, runner), new ScoutLauncher(Jobs, new FixedRoles(), Settings));
+        Desk = new DiscoveryDesk(Book, discovered, new ProposalReview(worktrees, runner, new DiscoveryTerms(Settings, Policies)), new JobActions(Jobs, new FixedRoles(), Bus));
         Scout = new ChecksScout(Book, Desk, discovered);
+        Proposals = new ProposalDesk(Book, Agents, Answers);
         Evidence = new EvidenceBook(new InMemoryEvidence());
-        Gate = new ChecksGate(new AttemptChecks(Committed, new DiscoveredChecks(Desk, Book, Folders, Jobs)), runner, new EvidenceLedger(Evidence, Bus), Clock);
+        Gate = new ChecksGate(new AttemptChecks(Committed, new DiscoveredChecks(Desk, Book, new ShippedChecks(Folders, Jobs, Jobs), worktrees)), runner, new EvidenceLedger(Evidence, Bus), Clock);
     }
 
     public static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     public FakeJobs Jobs { get; }
+
+    public FakePolicies Policies { get; }
+
+    public IReadOnlyList<JobId> Rechecked => [.. Bus.Published.OfType<DeferredGateReady>().Select(ready => ready.Job)];
+
+    public FakeAgents Agents { get; }
+
+    public FakeAnswers Answers { get; } = new();
+
+    public ProposalDesk Proposals { get; }
 
     public WorkingFolders Folders { get; }
 
@@ -76,13 +91,13 @@ internal sealed class Scouted : IAsyncDisposable
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
 
-        return new(new FakeJobs(), new WorkingFolders(), new CommittedFiles(), new MemoryDiscoveries(), new Toggle(), new RecordingBus(), clock, new ScriptedProcesses(clock));
+        return new(new FakeJobs(), new WorkingFolders(), new CommittedFiles(), new MemoryDiscoveries(), new Toggle(), new RecordingBus(), clock, new ScriptedProcesses(clock), new FakePolicies(), new FakeAgents());
     }
 
     public async Task<Scouted> RestartedAsync()
     {
         await DisposeAsync();
-        var restarted = new Scouted(Jobs, Folders, Committed, Store, Settings, Bus, Clock, Processes);
+        var restarted = new Scouted(Jobs, Folders, Committed, Store, Settings, Bus, Clock, Processes, Policies, Agents);
         await restarted.Book.RunAsync(Cancellation);
         await restarted.Scout.HandleAsync(new StartupCompleted(), Cancellation);
 
@@ -112,7 +127,14 @@ internal sealed class Scouted : IAsyncDisposable
         await Scout.HandleAsync(new JobProgressed(job, status), Cancellation);
     }
 
-    public void Proposes(JobId scout, string proposal) => Folders.Draft(FakeJobs.Worktree(scout), ChecksProposal.Path, proposal);
+    public async Task<ToolResult> ProposesAsync(JobId scout, string proposal)
+    {
+        var session = SessionId.New();
+        await Proposals.HandleAsync(new JobSessionStarted(scout, session), Cancellation);
+        await Proposals.HandleAsync(new AgentActivity(new ToolCalled(session, TurnId.New(), new ItemId("proposal"), ChecksProposal.Tool, proposal)), Cancellation);
+
+        return Agents.Returned[^1];
+    }
 
     public ValueTask<GateVerdict> EvaluateAsync(JobId job, int attempt = 1) =>
         Gate.EvaluateAsync(new CompletedAttempt(job, attempt, FakeJobs.Worktree(job), "Add a discount code to the checkout"), Cancellation);
@@ -120,6 +142,62 @@ internal sealed class Scouted : IAsyncDisposable
     public IReadOnlyList<VerificationReport> Reports => [.. Bus.Published.OfType<AttemptVerified>().Select(verified => verified.Report)];
 
     public ValueTask DisposeAsync() => Desk.DisposeAsync();
+
+    internal sealed class FakePolicies : Permissions.Contracts.IRepositoryPolicies
+    {
+        public Autonomy Autonomy { get; set; } = Autonomy.Autonomous;
+
+        public ValueTask<Permissions.Contracts.RepositoryPolicy> OfRepositoryAsync(string repository, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new Permissions.Contracts.RepositoryPolicy(Permissions.Contracts.PolicyFileStatus.Applied, Option<Permissions.Contracts.PolicyError>.None, [], Option<FileOrigin>.None) { Autonomy = Autonomy });
+    }
+
+    internal sealed class FakeAnswers : Permissions.Contracts.IPermissionAnswers
+    {
+        private readonly ConcurrentQueue<(SessionId Session, Permissions.Contracts.PermissionReply Reply)> given = new();
+
+        public IReadOnlyList<(SessionId Session, Permissions.Contracts.PermissionReply Reply)> Given => [.. given];
+
+        public ValueTask<Result<Permissions.Contracts.HumanAnswer, Permissions.Contracts.PolicyError>> AnswerAsync(SessionId session, Permissions.Contracts.PermissionReply reply, CancellationToken cancellationToken)
+        {
+            given.Enqueue((session, reply));
+
+            return ValueTask.FromResult(Result<Permissions.Contracts.HumanAnswer, Permissions.Contracts.PolicyError>.Failure(default));
+        }
+    }
+
+    internal sealed class FakeAgents : IAgents
+    {
+        private readonly ConcurrentQueue<ToolResult> returned = new();
+
+        public IReadOnlyList<ToolResult> Returned => [.. returned];
+
+        public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
+        {
+            returned.Enqueue(result);
+
+            return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));
+        }
+
+        public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public bool IsOpen(SessionId session) => false;
+
+        public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
 
     internal sealed class Toggle : IDiscoverySettings
     {
@@ -186,8 +264,21 @@ internal sealed class Scouted : IAsyncDisposable
         public ValueTask<Result<Option<byte[]>, WorkspaceFailure>> ReadBytesAsync(string repository, string path, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    internal sealed class FakeJobs : IJobs, IJobCatalog, IWorkspaces
+    internal sealed class FakeJobs : IJobs, IJobCatalog, IWorkspaces, IWorkspaceChanges
     {
+        private readonly ConcurrentDictionary<WorkspaceId, string[]> committedPaths = new();
+
+        public void Commit(JobId job, string path) => committedPaths[new WorkspaceId(job.Value)] = [.. committedPaths.GetValueOrDefault(new WorkspaceId(job.Value), []), path];
+
+        public ValueTask<Result<WorkspaceDiff, WorkspaceFailure>> DiffAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<WorkspaceDiff, WorkspaceFailure>.Success(new WorkspaceDiff(workspace, "base", "head", [.. committedPaths.GetValueOrDefault(workspace, []).Select(path => new FileChange(path, ChangeKind.Added, 1, 0))])));
+
+        public ValueTask<Result<FileDiff, WorkspaceFailure>> FileDiffAsync(WorkspaceId workspace, string path, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<IReadOnlyList<string>, WorkspaceFailure>> ConflictsAsync(WorkspaceId workspace, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<MergedWork, WorkspaceFailure>> MergeAsync(WorkspaceId workspace, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
+
         private readonly ConcurrentDictionary<JobId, JobHistory> histories = new();
         private readonly ConcurrentQueue<(JobId Job, JobRequest Request)> submitted = new();
         private readonly ConcurrentQueue<JobId> discarded = new();
@@ -252,7 +343,8 @@ internal sealed class Scouted : IAsyncDisposable
 
         public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. histories.Values.Select(history => history.Summary)]);
 
-        public ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. histories.Values.Select(history => history.Summary).Where(summary => summary.Parent == Option<JobId>.Some(parent))]);
 
         public ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken) => throw new NotSupportedException();
 

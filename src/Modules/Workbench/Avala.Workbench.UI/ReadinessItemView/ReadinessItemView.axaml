@@ -45,13 +45,18 @@
                  TextWrapping="Wrap"
                  IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
-    <Button x:Name="Act"
-            Grid.Column="2"
-            VerticalAlignment="Center"
-            Classes="primary"
-            Padding="12,3"
-            Content="{Binding Action}"
-            Command="{Binding ActCommand}"
-            IsVisible="{Binding Action, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+      <Button x:Name="Dismiss"
+              Padding="12,3"
+              Content="{Binding Dismiss}"
+              Command="{Binding DismissCommand}"
+              IsVisible="{Binding Dismiss, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Button x:Name="Act"
+              Classes="primary"
+              Padding="12,3"
+              Content="{Binding Action}"
+              Command="{Binding ActCommand}"
+              IsVisible="{Binding Action, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
   </Grid>
 </UserControl>

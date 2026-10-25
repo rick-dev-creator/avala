@@ -282,6 +282,8 @@ internal static class ConversationPhrases
         },
     };
 
+    public const string ChoosingChecks = "Avala proposes checks for this job · use or skip them above the conversation…";
+
     public const string FindingChecks = "Avala is finding how to check the work · queue a message for when the checks end…";
 
     private static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch

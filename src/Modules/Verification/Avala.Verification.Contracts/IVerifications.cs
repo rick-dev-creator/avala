@@ -17,3 +17,10 @@ public interface IChecksDiscoveries
 {
     Option<ChecksDiscovery> OfJob(JobId job);
 }
+
+public interface IChecksProposals
+{
+    ValueTask AcceptAsync(JobId job, CancellationToken cancellationToken);
+
+    ValueTask DeclineAsync(JobId job, CancellationToken cancellationToken);
+}

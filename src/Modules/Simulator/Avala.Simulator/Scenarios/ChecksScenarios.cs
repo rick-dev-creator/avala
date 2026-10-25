@@ -22,7 +22,7 @@ internal static class ChecksScenarios
             new RunCommand(new ItemId("list"), "ls", "README.md\ngreeting.txt", AsksPermission: false),
             new RunCommand(new ItemId("tests"), "git --version", "git version 2.47.0", AsksPermission: false),
             new RunCommand(new ItemId("lint"), "avala-simulated-linter --strict", "0 problems", AsksPermission: false),
-            new WriteFile(new ItemId("proposal"), ChecksProposal.Path, Proposal),
+            new CallTool(new ItemId("proposal"), ChecksProposal.Tool, Proposal),
             Message("Proposed two checks: ", "tests and lint."),
             .. Bill(1_400, 180, 0.0018m, 0.05),
             new Finish(),
@@ -37,12 +37,28 @@ internal static class ChecksScenarios
             new AwaitMessage(),
             new RunCommand(new ItemId("tests"), "git --version", "git version 2.47.0", AsksPermission: false),
             new RunCommand(new ItemId("lint"), "avala-simulated-linter --strict", "0 problems", AsksPermission: false),
-            new WriteFile(new ItemId("proposal"), ChecksProposal.Path, Proposal),
+            new CallTool(new ItemId("proposal"), ChecksProposal.Tool, Proposal),
             Message("Proposed two checks: ", "tests and lint."),
             .. Bill(1_400, 180, 0.0018m, 0.05),
             new Finish(),
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [DiscoverChecks, DiscoverChecksOnCue];
+    public const string ReadingOnly = "Do not run any command";
+
+    public static Scenario DiscoverChecksByReading { get; } = new("discover-checks-by-reading",
+    [
+        [
+            Thought("This repository asks before each command, ", "so I read its files instead."),
+            new RunCommand(new ItemId("list"), "ls", "README.md\ngreeting.txt", AsksPermission: false),
+            new CallTool(new ItemId("proposal"), ChecksProposal.Tool, Proposal),
+            Message("Proposed two checks from the files: ", "tests and lint."),
+            .. Bill(1_100, 160, 0.0014m, 0.04),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [DiscoverChecks, DiscoverChecksOnCue, DiscoverChecksByReading];
+
+    public static string For(string brief) => brief.Contains(ReadingOnly, StringComparison.Ordinal) ? DiscoverChecksByReading.Name : DiscoverChecks.Name;
 }

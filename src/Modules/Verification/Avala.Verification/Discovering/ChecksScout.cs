@@ -14,7 +14,7 @@ internal sealed class ChecksScout(DiscoveryBook book, DiscoveryDesk desk, Discov
             () => integrationEvent.Status switch
             {
                 JobStatus.Running => desk.StartAsync(integrationEvent.Job, cancellationToken),
-                _ when Ended.Contains(integrationEvent.Status) => ParentEndedAsync(integrationEvent.Job, cancellationToken),
+                _ when Ended.Contains(integrationEvent.Status) => EndedAsync(integrationEvent.Job, cancellationToken),
                 _ => Task.CompletedTask,
             });
 
@@ -31,14 +31,17 @@ internal sealed class ChecksScout(DiscoveryBook book, DiscoveryDesk desk, Discov
                 continue;
             }
 
-            await discovery.Scout.Match(
-                async scout => await desk.ScoutMovedAsync(discovery, await jobs.StatusAsync(scout, cancellationToken), cancellationToken),
-                () => desk.AbandonAsync(discovery, cancellationToken));
+            await ResumeAsync(discovery, cancellationToken);
         }
     }
 
-    private async Task ParentEndedAsync(JobId job, CancellationToken cancellationToken) =>
+    private async Task ResumeAsync(Discovery discovery, CancellationToken cancellationToken) =>
+        await discovery.Scout.Match(
+            async scout => await desk.ScoutMovedAsync(discovery, await jobs.StatusAsync(scout, cancellationToken), cancellationToken),
+            () => discovery.Follows.IsSome ? desk.CatchUpAsync(discovery, cancellationToken) : desk.AbandonAsync(discovery, cancellationToken));
+
+    private async Task EndedAsync(JobId job, CancellationToken cancellationToken) =>
         await book.Of(job).Match(
-            discovery => desk.AbandonAsync(discovery, cancellationToken),
+            discovery => discovery.Settled ? Task.CompletedTask : desk.AbandonAsync(discovery, cancellationToken),
             () => Task.CompletedTask);
 }

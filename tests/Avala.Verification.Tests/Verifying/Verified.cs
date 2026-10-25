@@ -34,8 +34,8 @@ internal sealed class Verified
         var discoveries = new DiscoveryBook(new Scouted.MemoryDiscoveries(), Bus, Clock);
         var worktrees = new JobWorktrees(jobs, jobs);
         var discovered = new DiscoveredJobs(worktrees, files, working, new Scouted.Scratch());
-        var desk = new DiscoveryDesk(discoveries, discovered, new ProposalReview(worktrees, working, runner), new ScoutLauncher(jobs, new Scouted.FixedRoles(), new Scouted.Toggle()));
-        gate = new ChecksGate(new AttemptChecks(files, new DiscoveredChecks(desk, discoveries, working, jobs)), runner, new EvidenceLedger(Book, Bus), Clock);
+        var desk = new DiscoveryDesk(discoveries, discovered, new ProposalReview(worktrees, runner, new DiscoveryTerms(new Scouted.Toggle(), new Scouted.FakePolicies())), new JobActions(jobs, new Scouted.FixedRoles(), Bus));
+        gate = new ChecksGate(new AttemptChecks(files, new DiscoveredChecks(desk, discoveries, new ShippedChecks(working, jobs, jobs), worktrees)), runner, new EvidenceLedger(Book, Bus), Clock);
     }
 
     public CommittedFiles Files { get; }

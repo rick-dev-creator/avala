@@ -39,6 +39,8 @@ internal sealed partial class BoardFeed(JobBoard board, IUiDispatcher ui, ILogge
 
     public ImmutableDictionary<JobId, BoardRemote> Remotes => board.Remotes;
 
+    public bool ProposesChecks(JobId job) => DiscoveryOf(job).Match(found => found.State == Verification.Contracts.DiscoveryState.Proposed, () => false);
+
     public bool FindsChecks(JobId job) => DiscoveryOf(job).Match(found => found.State == Verification.Contracts.DiscoveryState.Running, () => false);
 
     public Option<Verification.Contracts.ChecksDiscovery> DiscoveryOf(JobId job) =>

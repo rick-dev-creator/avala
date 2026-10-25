@@ -49,7 +49,13 @@ internal sealed class StoredDiscovery
 
     public Guid Scout { get; set; }
 
+    public Guid Follows { get; set; }
+
     public string Declaration { get; set; } = string.Empty;
+
+    public string Proposal { get; set; } = string.Empty;
+
+    public bool Reads { get; set; }
 
     public long At { get; set; }
 
@@ -59,14 +65,20 @@ internal sealed class StoredDiscovery
         Repository = discovery.Repository,
         State = (int)discovery.State,
         Scout = discovery.Scout.Match(scout => scout.Value, () => Guid.Empty),
+        Follows = discovery.Follows.Match(owner => owner.Value, () => Guid.Empty),
         Declaration = discovery.Declaration,
+        Proposal = discovery.Proposal,
+        Reads = discovery.Reads,
         At = discovery.At.UtcTicks,
     };
 
     public Discovery Read() => new(new JobId(Job), Repository, (DiscoveryState)State, new DateTimeOffset(At, TimeSpan.Zero))
     {
         Scout = Scout == Guid.Empty ? Option<JobId>.None : new JobId(Scout),
+        Follows = Follows == Guid.Empty ? Option<JobId>.None : new JobId(Follows),
         Declaration = Declaration,
+        Proposal = Proposal,
+        Reads = Reads,
     };
 }
 

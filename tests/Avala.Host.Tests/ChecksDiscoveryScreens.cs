@@ -52,4 +52,28 @@ public sealed class ChecksDiscoveryScreens(HeadlessUi ui, PublishedPlugins plugi
         await Camera.ShootAsync(run, "checks-04-review-dark");
         await Camera.ShootAsync(run, "checks-04-review-light", ThemeVariant.Light);
     }
+
+    [Fact]
+    public async Task InASupervisedRepositoryTheCardProposesTheChecksAndOneClickUsesThemAsync()
+    {
+        Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [SimulatedRun.DiscoveryOn], []);
+        var discoveries = run.Watch<ChecksDiscoveryChanged>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: reply] Explain what the README promises")));
+        _ = await discoveries.UntilAsync(changed => changed.Discovery.Job == job && changed.Discovery.State == DiscoveryState.Proposed);
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        var card = workbench.Page["Regions"]["Conversation"].Items.Single(item => item.Kind == "ReadinessCardViewModel");
+        await run.Ui.RunAsync(() => card["Loading"].Value<Task>());
+        await run.Ui.PresentedAsync(card.Presentation, () => card["Items"].Items.Any(item => item["Dismiss"].Text.Length > 0), () => "no proposal on the card");
+
+        await Camera.ShootAsync(run, "checks-05-proposed-dark");
+        await Camera.ShootAsync(run, "checks-05-proposed-light", ThemeVariant.Light);
+
+        await run.Ui.RunAsync(() => card["Items"].Items[0].ExecuteAsync("ActCommand"));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        await run.Ui.PresentedAsync(card.Presentation, () => card["Items"].Items.Any(item => item["IsDone"].Value<bool>()), () => "the proposal was not used");
+
+        await Camera.ShootAsync(run, "checks-06-used-dark");
+    }
 }
