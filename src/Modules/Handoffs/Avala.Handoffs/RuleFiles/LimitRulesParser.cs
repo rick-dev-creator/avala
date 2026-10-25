@@ -40,6 +40,39 @@ internal static class LimitRulesParser
     public static Result<LimitRules, HandoffError> ParseMachine(string text) =>
         Encoding.UTF8.GetByteCount(text) > MaximumBytes ? HandoffError.TooLarge : Machine(text);
 
+    public static string Text(LimitRules rules)
+    {
+        using var buffer = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
+        {
+            writer.WriteStartObject();
+            writer.WriteString(OnLimitField, ActionName(rules.OnLimit));
+            writer.WriteNumber(ThresholdField, rules.Threshold);
+            writer.WriteNumber(HardCapField, rules.HardCap);
+            writer.WriteString(StrategyField, StrategyNames.Of(rules.Strategy));
+            writer.WriteString(ResumeField, rules.Resume == ResumeAtReset.Auto ? "auto" : "ask");
+            writer.WriteBoolean(WindDownField, rules.WindDown);
+            writer.WriteBoolean(CompactField, rules.CompactOnResume);
+
+            if (rules.Connections.Count > 0)
+            {
+                writer.WriteStartArray(ConnectionsField);
+
+                foreach (var connection in rules.Connections)
+                {
+                    writer.WriteStringValue(connection.Value);
+                }
+
+                writer.WriteEndArray();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(buffer.ToArray()) + "\n";
+    }
+
     public static Result<Option<LimitRules>, HandoffError> ParseJobFile(string text) =>
         Encoding.UTF8.GetByteCount(text) > MaximumBytes ? HandoffError.TooLarge
         : JsonSections.Read(
@@ -115,6 +148,13 @@ internal static class LimitRulesParser
             "handoff-any-harness" => OnLimit.HandOffAnyHarness,
             _ => HandoffError.UnknownAction,
         };
+
+    private static string ActionName(OnLimit action) => action switch
+    {
+        OnLimit.HandOffSameHarness => "handoff-same-harness",
+        OnLimit.HandOffAnyHarness => "handoff-any-harness",
+        _ => "hold",
+    };
 
     private static Result<ResumeAtReset, HandoffError> Resume(JsonElement section) =>
         !section.TryGetProperty(ResumeField, out var resume) ? ResumeAtReset.Ask

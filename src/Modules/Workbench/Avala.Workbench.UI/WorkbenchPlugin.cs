@@ -178,7 +178,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
             .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
             .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
-            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10);
+            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10)
+            .AddToRegion<UsageLimitsViewModel>(WorkbenchRegions.Settings, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -368,6 +369,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterAccounts(IServiceCollection services) =>
         services
             .AddSingleton<SourceControl>()
+            .AddSingleton<UsageLimitsViewModel>()
             .AddSingleton<ConnectSheetViewModel>()
             .AddSingleton<SourceControlViewModel>()
             .AddForwarded<ISourceControlViewModel, SourceControlViewModel>()
@@ -512,6 +514,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRelaysToggleViewModel, RelaysToggleView>();
         views.Register<IRelayLaneViewModel, RelayLaneView>();
         views.Register<IRelayLegViewModel, RelayLegView>();
+        views.Register<IUsageLimitsViewModel, UsageLimitsView>();
+        views.Register<ILimitConnectionViewModel, LimitConnectionView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 

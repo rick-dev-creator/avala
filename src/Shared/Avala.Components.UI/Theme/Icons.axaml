@@ -56,6 +56,7 @@
   <StreamGeometry x:Key="IconRetry">M13 8.5A5 5 0 1 1 11.6 4.4M12 1.8V4.7H9.1</StreamGeometry>
   <StreamGeometry x:Key="IconEdit">M10.6 2.9L13.1 5.4L5.6 12.9L2.6 13.4L3.1 10.4ZM9.2 4.3L11.7 6.8</StreamGeometry>
   <StreamGeometry x:Key="IconMore">M2.3 8A1.1 1.1 0 1 1 4.5 8A1.1 1.1 0 1 1 2.3 8ZM6.9 8A1.1 1.1 0 1 1 9.1 8A1.1 1.1 0 1 1 6.9 8ZM11.5 8A1.1 1.1 0 1 1 13.7 8A1.1 1.1 0 1 1 11.5 8Z</StreamGeometry>
+  <StreamGeometry x:Key="IconArrowUp">M8 13V3M3.8 7.2L8 3L12.2 7.2</StreamGeometry>
   <StreamGeometry x:Key="IconArrowDown">M8 3V13M3.8 8.8L8 13L12.2 8.8</StreamGeometry>
   <StreamGeometry x:Key="IconPreview">M1.8 8C3.2 5.3 5.4 3.8 8 3.8C10.6 3.8 12.8 5.3 14.2 8C12.8 10.7 10.6 12.2 8 12.2C5.4 12.2 3.2 10.7 1.8 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>
   <StreamGeometry x:Key="IconPreviewImage">M1.8 8C3.2 5.3 5.4 3.8 8 3.8C10.6 3.8 12.8 5.3 14.2 8C12.8 10.7 10.6 12.2 8 12.2C5.4 12.2 3.2 10.7 1.8 8ZM6 8A2 2 0 1 1 10 8A2 2 0 1 1 6 8Z</StreamGeometry>

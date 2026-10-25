@@ -61,6 +61,7 @@ public enum HandoffError
     UnknownResume,
     UnknownStrategy,
     InvalidHardCap,
+    Unwritable,
 }
 
 public sealed record LimitReason(ConnectionName Connection, string Window, double Used, double Threshold);

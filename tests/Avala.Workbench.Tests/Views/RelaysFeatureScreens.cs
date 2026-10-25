@@ -25,6 +25,12 @@ public sealed class RelaysFeatureScreens(HeadlessUi ui)
             Assert.True(Save(Show(new DesignRelaysPaneViewModel(waiting: true), variant), $"relays-waiting-{variant}"));
         });
 
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public Task TheUsageLimitsSettingsAsync(string variant) =>
+        ShootAsync(() => Assert.True(Save(Show(new Avala.Workbench.Settings.DesignUsageLimitsViewModel(), variant, 720, 940), $"usage-limits-{variant}")));
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the relays screens.");
@@ -32,9 +38,9 @@ public sealed class RelaysFeatureScreens(HeadlessUi ui)
         return ui.RunAsync(shoot, Cancellation);
     }
 
-    private static ViewScript Show(object viewModel, string variant)
+    private static ViewScript Show(object viewModel, string variant, int width = 440, int height = 860)
     {
-        var view = Screen.Show(viewModel, variant == "light" ? ThemeVariant.Light : ThemeVariant.Dark, 440, 860);
+        var view = Screen.Show(viewModel, variant == "light" ? ThemeVariant.Light : ThemeVariant.Dark, width, height);
         Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
 
         for (var frame = 0; frame < 30; frame++)
