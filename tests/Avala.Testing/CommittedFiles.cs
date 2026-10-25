@@ -11,6 +11,7 @@ public sealed class CommittedFiles : IBaseFiles
     private readonly ConcurrentDictionary<string, Option<WorkspaceFailure>> worktrees = new();
     private readonly ConcurrentDictionary<(string Worktree, string Path), (string Content, bool Edited)> files = new();
     private readonly ConcurrentQueue<(string Worktree, string Path)> reads = new();
+    private readonly ConcurrentDictionary<(string Worktree, string Path), bool> added = new();
 
     public IReadOnlyList<(string Worktree, string Path)> Reads => [.. reads];
 
@@ -37,6 +38,13 @@ public sealed class CommittedFiles : IBaseFiles
         return Workspace(worktree);
     }
 
+    public CommittedFiles Added(string worktree, string path)
+    {
+        added[(worktree, path)] = true;
+
+        return Workspace(worktree);
+    }
+
     public ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken) =>
         ReadAsync(repository, path, cancellationToken);
 
@@ -53,6 +61,6 @@ public sealed class CommittedFiles : IBaseFiles
             Result<BaseFile, WorkspaceFailure>.Failure,
             () => files.TryGetValue((worktree, path), out var file)
                 ? new BaseFile(path, Origin(file.Edited), file.Content)
-                : new BaseFile(path, Origin(), Option<string>.None)));
+                : new BaseFile(path, Origin(added.ContainsKey((worktree, path))), Option<string>.None)));
     }
 }

@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avala.Sdk;
 
 namespace Avala.Verification.Checks;
@@ -8,6 +10,8 @@ internal static class CheckDeclaration
     public const string RelativePath = ".avala/checks.json";
 
     private const double LongestTimeoutSeconds = 86_400;
+
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     private static readonly JsonDocumentOptions Lenient = new()
     {
@@ -29,6 +33,26 @@ internal static class CheckDeclaration
         {
             return VerificationError.MalformedDeclaration;
         }
+    }
+
+    public static string Write(IReadOnlyList<DeclaredCheck> checks) =>
+        new JsonObject { ["checks"] = new JsonArray([.. checks.Select(Written)]) }.ToJsonString(Indented).ReplaceLineEndings("\n") + "\n";
+
+    private static JsonObject Written(DeclaredCheck check)
+    {
+        var written = new JsonObject { ["name"] = check.Name, ["command"] = check.Command };
+
+        if (check.Arguments.Count > 0)
+        {
+            written["arguments"] = new JsonArray([.. check.Arguments.Select(argument => JsonValue.Create(argument))]);
+        }
+
+        if (check.Timeout != DefaultTimeout)
+        {
+            written["timeoutSeconds"] = Math.Ceiling(check.Timeout.TotalSeconds);
+        }
+
+        return written;
     }
 
     private static Result<IReadOnlyList<DeclaredCheck>, VerificationError> Checks(JsonElement root)

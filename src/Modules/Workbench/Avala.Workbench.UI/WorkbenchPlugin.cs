@@ -484,6 +484,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Documentation.Contracts.VersionWaiting>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.ChangeRequested>, DocsKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, DocsKeeper>()
+            .AddSingleton<DiscoveryKeeper>()
+            .AddForwarded<IHandle<Verification.Contracts.ChecksDiscoveryChanged>, DiscoveryKeeper>()
             .AddSingleton<FeatureDocsViewModel>()
             .AddForwarded<IPage, FeatureDocsViewModel>()
             .AddForwarded<IPage, OverviewViewModel>()
@@ -653,6 +655,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
             .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
             .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()
+
             .AddForwarded<IHandle<PermissionAnswered>, BoardKeeper>()
             .AddForwarded<IHandle<AutonomyApplied>, BoardKeeper>()
             .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()

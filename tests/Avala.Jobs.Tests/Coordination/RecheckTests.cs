@@ -63,6 +63,53 @@ public sealed class RecheckTests
         Assert.Single(flow.Agents.Sessions);
     }
 
+    [Fact]
+    public async Task ADeferredVerdictLeavesTheJobCheckingWithoutJudgingItOrTellingTheAgentAsync()
+    {
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.Deferred));
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal(JobState.Checking, job.State);
+        Assert.Equal(AttemptOutcome.AwaitingCheck, Assert.Single(job.Attempts).Outcome);
+        Assert.Equal(["Add GitHub login"], flow.Agents.Sent.Select(sent => sent.Message));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ARecheckJudgesADeferredJobAgainAndRetriesItInItsOpenSessionAsync(bool passes)
+    {
+        var state = passes ? JobState.AwaitingReview : JobState.Running;
+        var gate = new ScriptedGate(GateVerdict.Deferred, passes ? GateVerdict.Pass : GateVerdict.Retry("Two tests fail"));
+        var flow = JobFlow.With(gate);
+        var job = await flow.RunningAsync();
+        await flow.FinishTurnAsync(job);
+
+        await flow.Rechecks.HandleAsync(new DeferredGateReady(job.Id), Cancellation);
+        await flow.SettledAsync(job);
+
+        Assert.Equal(state, job.State);
+        Assert.Equal([1, 1], gate.Evaluated.Select(attempt => attempt.Attempt));
+        Assert.Single(flow.Agents.Sessions);
+        Assert.Equal(passes ? "Add GitHub login" : "Two tests fail", flow.Agents.Sent[^1].Message);
+    }
+
+    [Fact]
+    public async Task ARecheckOfAJobThatIsNotCheckingChangesNothingAsync()
+    {
+        var gate = new ScriptedGate();
+        var flow = JobFlow.With(gate);
+        var job = await flow.RunningAsync();
+
+        await flow.Rechecks.HandleAsync(new DeferredGateReady(job.Id), Cancellation);
+        await flow.SettledAsync(job);
+
+        Assert.Equal(JobState.Running, job.State);
+        Assert.Empty(gate.Evaluated);
+    }
+
     private static async Task<Job> CheckingAsync(JobFlow flow, int attemptsPerRound = 3)
     {
         var job = await flow.RunningAsync(attemptsPerRound);

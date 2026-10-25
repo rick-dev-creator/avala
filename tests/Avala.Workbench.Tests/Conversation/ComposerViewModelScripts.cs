@@ -219,6 +219,20 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public void WhileAvalaFindsTheChecksThePlaceholderSaysSoAndASettledJobForgetsIt()
+    {
+        var composer = Composer(JobStatus.Checking);
+
+        composer.Track(shown with { FindsChecks = true });
+        var finding = composer.Placeholder;
+        composer.Track(shown with { FindsChecks = true, Summary = shown.Summary with { Status = JobStatus.AwaitingReview } });
+
+        Assert.Equal(
+            ("Avala is finding how to check the work · queue a message for when the checks end…", "Send the agent more to do before you review…"),
+            (finding, composer.Placeholder));
+    }
+
+    [Fact]
     public async Task AMessageToARunningAgentThatTakesNoMessageMidTurnIsQueuedHonestly()
     {
         var composer = Composer(JobStatus.Running);

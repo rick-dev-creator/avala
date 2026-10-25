@@ -59,9 +59,12 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
         await (await EvaluateAsync(job, turn, cancellationToken)).Match(
             verdict => verdict.Hold.Match(
                 reason => round.HoldAsync(job, reason, cancellationToken),
-                () => verdict.Decision == GateDecision.Pass
-                    ? PassAsync(job, cancellationToken)
-                    : RetryAsync(job, verdict.Feedback, retry, cancellationToken)),
+                () => verdict.Decision switch
+                {
+                    GateDecision.Pass => PassAsync(job, cancellationToken),
+                    GateDecision.Defer => Task.CompletedTask,
+                    _ => RetryAsync(job, verdict.Feedback, retry, cancellationToken),
+                }),
             () => FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken));
 
     private async Task<Option<GateVerdict>> EvaluateAsync(Job job, Option<FinishedTurn> turn, CancellationToken cancellationToken)

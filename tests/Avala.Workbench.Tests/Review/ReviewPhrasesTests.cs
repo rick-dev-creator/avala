@@ -196,6 +196,30 @@ public sealed class ReviewPhrasesTests
     }
 
     [Fact]
+    public void ChecksAvalaFoundSayHowTheyWereFoundAndThatTheyShipWithTheJob()
+    {
+        var job = JobId.New();
+        var found = new VerificationReport(job, 2, VerificationOutcome.Passed, Option<FileOrigin>.None, [Check("tests", CheckStatus.Passed, 0, string.Empty, string.Empty)], GateVerdict.Pass, DateTimeOffset.UnixEpoch)
+        {
+            Discovered = true,
+            DiscoveryShipped = true,
+        };
+        var evidence = new RunEvidence(job, new EvidenceSummary(2, Option<VerificationOutcome>.None, [], 0, 0, []), []) { Verifications = [found] };
+
+        Assert.Equal(
+            [
+                "Verified on attempt 2 of 3 with the checks Avala found",
+                "Not verified: attempt 2 of 3 failed the checks Avala found",
+                "tests passed in the worktree after the last turn. Avala found these checks by running the repository's own commands, and .avala/checks.json ships them with this job.",
+            ],
+            [
+                ReviewPhrases.Verdict(new ReviewVerdict(VerdictKind.Verified, 2, 3) { Discovered = true }),
+                ReviewPhrases.Verdict(new ReviewVerdict(VerdictKind.Failed, 2, 3) { Discovered = true }),
+                ReviewPhrases.Proof(evidence),
+            ]);
+    }
+
+    [Fact]
     public void WithoutChecksTheProofNamesWhatTheAgentReportedAfterItsLastEditAndWithChecksOnlyTheChecks()
     {
         var job = JobId.New();

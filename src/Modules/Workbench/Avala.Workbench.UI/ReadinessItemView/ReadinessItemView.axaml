@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:readiness="using:Avala.Workbench.Readiness"
              x:Class="Avala.Workbench.UI.ReadinessItemView"
              x:ClassModifier="internal"
@@ -11,7 +12,26 @@
   <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,4">
     <Panel Width="16" VerticalAlignment="Center">
       <Path x:Name="Done" Classes="icon small" Data="{StaticResource IconCheck}" Stroke="{DynamicResource DotDoneBrush}" IsVisible="{Binding IsDone}" />
-      <Path x:Name="Missing" Classes="icon small" Data="{StaticResource IconAttention}" Stroke="{DynamicResource AttentionBrush}" IsVisible="{Binding !IsDone}" />
+      <Path x:Name="Missing" Classes="icon small" Data="{StaticResource IconAttention}" Stroke="{DynamicResource AttentionBrush}">
+        <Path.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.And}">
+            <Binding Path="!IsDone" />
+            <Binding Path="!IsWorking" />
+          </MultiBinding>
+        </Path.IsVisible>
+      </Path>
+      <Arc x:Name="Working"
+           Width="12"
+           Height="12"
+           StartAngle="0"
+           SweepAngle="270"
+           Stroke="{DynamicResource TextSecondaryBrush}"
+           StrokeThickness="1.5"
+           VerticalAlignment="Center"
+           HorizontalAlignment="Center"
+           IsVisible="{Binding IsWorking}"
+           theme:Motion.Loop="Spin"
+           theme:Motion.When="{Binding IsWorking}" />
     </Panel>
     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
       <TextBlock x:Name="Text" privacy:PersonalDetails.Text="{Binding Text}" TextWrapping="Wrap" Classes.secondary="{Binding IsDone}" />
@@ -25,13 +45,18 @@
                  TextWrapping="Wrap"
                  IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
-    <Button x:Name="Act"
-            Grid.Column="2"
-            VerticalAlignment="Center"
-            Classes="primary"
-            Padding="12,3"
-            Content="{Binding Action}"
-            Command="{Binding ActCommand}"
-            IsVisible="{Binding Action, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+      <Button x:Name="Dismiss"
+              Padding="12,3"
+              Content="{Binding Dismiss}"
+              Command="{Binding DismissCommand}"
+              IsVisible="{Binding Dismiss, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Button x:Name="Act"
+              Classes="primary"
+              Padding="12,3"
+              Content="{Binding Action}"
+              Command="{Binding ActCommand}"
+              IsVisible="{Binding Action, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
   </Grid>
 </UserControl>

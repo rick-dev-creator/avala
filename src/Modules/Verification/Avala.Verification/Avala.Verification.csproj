@@ -5,6 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
+    <ProjectReference Include="..\..\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
+    <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>

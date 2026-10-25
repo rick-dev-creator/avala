@@ -106,6 +106,18 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task AJobsWorkspaceIsKeptBeforeItsSessionOpensSoThoseAskedWhatToOfferItKnowWhoseWorktreeItIsAsync()
+    {
+        var flow = JobFlow.With();
+        var saved = new List<(JobState State, bool HasWorkspace)>();
+        flow.Store.Saving = job => saved.Add((job.State, job.Workspace.IsSome));
+
+        _ = await flow.RunningAsync();
+
+        Assert.Equal([(JobState.Preparing, false), (JobState.Preparing, true), (JobState.Running, true)], saved.Take(3));
+    }
+
+    [Fact]
     public async Task AHoldVerdictHoldsTheJobForItsReasonInsteadOfSendingItToReviewOrAskingLaterGatesAsync()
     {
         var later = new ScriptedGate();

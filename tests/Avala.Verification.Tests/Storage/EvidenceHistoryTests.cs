@@ -2,6 +2,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Verification.Contracts;
+using Avala.Verification.Discovering;
 using Avala.Verification.Storage;
 using Avala.Verification.Tests.Verifying;
 using Avala.Workspaces.Contracts;
@@ -50,6 +51,25 @@ public sealed class EvidenceHistoryTests
         Assert.Equal(earlier.Checks, read[0].Checks);
         Assert.Equal(earlier with { Checks = read[0].Checks }, read[0]);
         Assert.Equal(invalid with { Checks = read[1].Checks }, read[1]);
+    }
+
+    [Fact]
+    public async Task ADiscoverySurvivesAReopeningAndKeepingItAgainReplacesItAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var running = new Discovery(JobId.New(), "/repos/shop", DiscoveryState.Running, Nine) { Scout = JobId.New() };
+        var found = running with { State = DiscoveryState.Found, Declaration = """{ "checks": [{ "name": "tests", "command": "npm", "arguments": ["test"] }] }""", At = Nine.AddMinutes(4) };
+        var none = new Discovery(JobId.New(), "/repos/blog", DiscoveryState.NoneFound, Nine);
+        await using (var first = new SqliteEvidenceStore(new AvalaPaths(folder.Path)))
+        {
+            await first.KeepAsync(running, Cancellation);
+            await first.KeepAsync(none, Cancellation);
+            await first.KeepAsync(found, Cancellation);
+        }
+
+        await using var second = new SqliteEvidenceStore(new AvalaPaths(folder.Path));
+
+        Assert.Equal([found, none], (await second.DiscoveriesAsync(Cancellation)).OrderBy(discovery => discovery.Repository, StringComparer.Ordinal).Reverse());
     }
 
     [Fact]

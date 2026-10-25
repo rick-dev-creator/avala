@@ -51,6 +51,7 @@ internal sealed class JobFlow
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
         Idle = new IdleSessions(ledger, Queues, agents, IdleClock);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
+        Rechecks = new RecheckJob(Queues, ledger, evaluate, launcher);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover, start);
         RecoveryInThisRun = new JobRecovery(ledger, Queues, recover, start);
         Catalog = new JobCatalog(Store);
@@ -109,6 +110,8 @@ internal sealed class JobFlow
     public PrepareJob Prepare { get; }
 
     public CheckTurn Check { get; }
+
+    public RecheckJob Rechecks { get; }
 
     public IdleSessions Idle { get; }
 
