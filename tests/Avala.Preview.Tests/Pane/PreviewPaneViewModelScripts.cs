@@ -169,6 +169,90 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AModelAskedForFromTheConversationOpensInTheViewerWithoutARunningServerAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        var asked = new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "models/robot.glb");
+
+        bench.Messenger.Send(asked);
+        await pane.Viewing;
+
+        Assert.True(asked.IsShown);
+        Assert.Equal((true, "robot.glb", PreviewPhrases.Viewing, true), (pane.IsOpen, pane.Address, pane.State, pane.IsLive));
+        Assert.Equal([Viewer("models%2Frobot.glb", 1)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public async Task AskingForTheSameFileAgainReloadsItInTheSamePageAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        Assert.Single(bench.Surfaces.Opened);
+        Assert.Equal([Viewer("robot.glb", 1), Viewer("robot.glb", 2)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public void AFileOfAnotherJobIsLeftForItsOwnConversation()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        var asked = new WorktreeFileRequested(bench.Other, FakePreviews.Worktree + "robot.glb");
+
+        bench.Messenger.Send(asked);
+
+        Assert.Equal((false, false), (asked.IsShown, pane.IsOpen));
+        Assert.Empty(bench.Previews.FilesServed);
+    }
+
+    [Fact]
+    public async Task AFileOutsideTheWorktreeSaysSoInsteadOfShowingItAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, "/elsewhere/robot.glb"));
+        await pane.Viewing;
+
+        Assert.Equal((true, PreviewPhrases.Problem(PreviewError.Outside), false), (pane.IsOpen, pane.State, pane.IsLive));
+        Assert.Empty(bench.Surfaces.Opened);
+    }
+
+    [Fact]
+    public async Task TheRunningChipBringsTheServerBackAfterAFileAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        bench.Messenger.Send(new PreviewRequested(bench.Job));
+        await pane.Navigating;
+
+        Assert.Equal(("localhost:24000", FakeGateways.Through(target)), (pane.Address, bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task LeavingTheJobsPageClosesAFileAndComingBackShowsItAgainAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+        var left = bench.Surfaces.Last;
+
+        pane.Deactivate();
+        Assert.True(left.IsClosed);
+        pane.Activate();
+        await pane.Viewing;
+
+        Assert.NotSame(left, bench.Surfaces.Last);
+        Assert.Equal([Viewer("robot.glb", 2)], bench.Surfaces.Last.Visited);
+        pane.Deactivate();
+    }
+
+    [Fact]
     public void ThePaneFollowsTheSelectionToAnotherJobsPreviewOrClosesWhenItHasNone()
     {
         bench.Serve(bench.Job, 24_000);
@@ -286,6 +370,8 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     public void Dispose() => bench.Dispose();
+
+    private static Uri Viewer(string model, int version) => new(FakePreviews.Files, $"/__avala/viewer/index.html?model={model}&v={version}");
 
     private ViewModelScript<PreviewPaneViewModel> Selected(PreviewPaneViewModel pane)
     {

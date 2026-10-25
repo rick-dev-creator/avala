@@ -1,3 +1,5 @@
+using Avala.Jobs.Contracts;
+using Avala.Preview.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using CommunityToolkit.Mvvm.Messaging;
@@ -32,6 +34,8 @@ internal sealed class Links(ILinkOpener opener, IMessenger messenger)
         Path.IsPathFullyQualified(path)
             ? OpenWebAsync(new Uri(path), cancellationToken)
             : Task.FromResult<Result<Uri, LinkRefusal>>(LinkRefusal.Refused);
+
+    public bool ShowFile(JobId job, string path) => messenger.Send(new WorktreeFileRequested(job, path)).IsShown;
 
     private bool ShownHere(Uri link) =>
         LoopbackHosts.Contains(link.Host, StringComparer.OrdinalIgnoreCase) && messenger.Send(new LocalPageRequested(link)).IsShown;

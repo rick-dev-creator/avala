@@ -51,7 +51,7 @@ internal interface IPreviewPaneViewModel
 
 [INotifyPropertyChanged]
 internal sealed partial class PreviewPaneViewModel
-    : IPreviewPaneViewModel, IPane, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<PreviewRequested>, IRecipient<LocalPageRequested>, IDisposable
+    : IPreviewPaneViewModel, IPane, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<PreviewRequested>, IRecipient<LocalPageRequested>, IRecipient<WorktreeFileRequested>, IDisposable
 {
     private readonly PreviewDesk desk;
     private readonly IWebSurfaces surfaces;
@@ -63,6 +63,8 @@ internal sealed partial class PreviewPaneViewModel
     private Option<PreviewTarget> shown;
     private Option<Uri> page;
     private Option<Uri> refused;
+    private Option<string> viewed;
+    private int version;
     private bool starting;
 
     public PreviewPaneViewModel(PreviewDesk desk, IWebSurfaces surfaces, ILinkOpener links, IMessenger messenger)
@@ -81,6 +83,8 @@ internal sealed partial class PreviewPaneViewModel
     public Task Following => desk.Feed.Following;
 
     public Task Navigating { get; private set; } = Task.CompletedTask;
+
+    public Task Viewing { get; private set; } = Task.CompletedTask;
 
     [ObservableProperty]
     public partial bool IsOpen { get; private set; }
@@ -143,6 +147,7 @@ internal sealed partial class PreviewPaneViewModel
 
         Detach();
         job = context;
+        viewed = Option<string>.None;
         starting = false;
         _ = job.Bind(desk.TargetOf).Map(seen.Add);
         AllowsNetwork = job.Match(networked.Contains, () => false);
@@ -157,6 +162,7 @@ internal sealed partial class PreviewPaneViewModel
             return;
         }
 
+        viewed = Option<string>.None;
         starting = desk.TargetOf(message.Job).IsNone;
         Open(true);
         Refresh();
@@ -170,11 +176,25 @@ internal sealed partial class PreviewPaneViewModel
         }
 
         message.Show();
+        viewed = Option<string>.None;
         page = message.Page;
         shown = Option<PreviewTarget>.None;
         starting = job.Bind(desk.TargetOf).IsNone;
         Open(true);
         Refresh();
+    }
+
+    public void Receive(WorktreeFileRequested message)
+    {
+        if (job != Option<JobId>.Some(message.Job))
+        {
+            return;
+        }
+
+        message.Show();
+        viewed = message.Path;
+        Open(true);
+        Viewing = ViewAsync(message.Job, message.Path, ++version);
     }
 
     [RelayCommand(CanExecute = nameof(CanGoBack))]
@@ -191,7 +211,9 @@ internal sealed partial class PreviewPaneViewModel
     private async Task OpenInBrowserAsync(CancellationToken cancellationToken) =>
         await shown.Match(
             target => links.OpenAsync(Outside(target), cancellationToken).AsTask(),
-            () => Task.FromResult(Result<Uri, FileOpenError>.Failure(FileOpenError.Unavailable)));
+            () => (viewed.IsSome ? Surface?.Address ?? Option<Uri>.None : Option<Uri>.None).Match(
+                address => links.OpenAsync(address, cancellationToken).AsTask(),
+                () => Task.FromResult(Result<Uri, FileOpenError>.Failure(FileOpenError.Unavailable))));
 
     [RelayCommand]
     private async Task OpenRefusedAsync(CancellationToken cancellationToken)
@@ -214,6 +236,7 @@ internal sealed partial class PreviewPaneViewModel
     private void Close()
     {
         starting = false;
+        viewed = Option<string>.None;
         Detach();
         Open(false);
         Present();
@@ -238,7 +261,7 @@ internal sealed partial class PreviewPaneViewModel
 
     private bool HasJob() => job.IsSome;
 
-    private bool HasAddress() => shown.IsSome;
+    private bool HasAddress() => shown.IsSome || viewed.IsSome;
 
     private void Refresh()
     {
@@ -250,7 +273,11 @@ internal sealed partial class PreviewPaneViewModel
             Open(true);
         }
 
-        if (IsOpen)
+        if (IsOpen && viewed.IsSome)
+        {
+            _ = Surface is null && job.Match(owner => Reopen(owner), () => false);
+        }
+        else if (IsOpen)
         {
             _ = target.Match(Show, () => Idle());
         }
@@ -291,6 +318,47 @@ internal sealed partial class PreviewPaneViewModel
         }
 
         return false;
+    }
+
+    private bool Reopen(JobId owner) =>
+        viewed.Match(
+            path =>
+            {
+                Viewing = ViewAsync(owner, path, ++version);
+
+                return true;
+            },
+            () => false);
+
+    private async Task ViewAsync(JobId owner, string path, int asked)
+    {
+        var served = await desk.FileAsync(owner, path, asked, CancellationToken.None);
+
+        if (job != Option<JobId>.Some(owner) || version != asked || !IsOpen)
+        {
+            return;
+        }
+
+        shown = Option<PreviewTarget>.None;
+        Address = PreviewPhrases.FileName(path);
+        served.Match(
+            address =>
+            {
+                State = PreviewPhrases.Viewing;
+                IsLive = true;
+                (Surface ?? Attach(owner)).Navigate(address);
+
+                return true;
+            },
+            error =>
+            {
+                State = PreviewPhrases.Problem(error);
+                IsLive = false;
+
+                return false;
+            });
+        OpenInBrowserCommand.NotifyCanExecuteChanged();
+        Present();
     }
 
     private async Task NavigateAsync(IWebSurface surface, PreviewTarget target)

@@ -10,6 +10,9 @@
     <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Viewer\**\*" LogicalName="Viewer/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Avala.Preview.UI" />
     <InternalsVisibleTo Include="Avala.Preview.Tests" />
   </ItemGroup>

@@ -10,6 +10,7 @@ public enum PreviewError
     NoLease,
     NotStarted,
     NotRunning,
+    Outside,
 }
 
 public enum PreviewSource
@@ -32,3 +33,10 @@ public sealed record PreviewAvailable(PreviewTarget Target) : IIntegrationEvent;
 public sealed record PreviewGone(PreviewTarget Target) : IIntegrationEvent;
 
 public sealed record PreviewRunChanged(JobId Job, bool Running) : IIntegrationEvent;
+
+public sealed record WorktreeFileRequested(JobId Job, string Path)
+{
+    public bool IsShown { get; private set; }
+
+    public void Show() => IsShown = true;
+}
