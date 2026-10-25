@@ -1,0 +1,116 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")"
+
+if [ -n "${AVALA_FLEET_PROJECT:-}" ]; then
+	COMPOSE_PROJECT_NAME=$AVALA_FLEET_PROJECT
+	export COMPOSE_PROJECT_NAME
+else
+	unset COMPOSE_PROJECT_NAME
+fi
+
+usage() {
+	cat >&2 <<'TEXT'
+Usage: ./fleet <command>
+
+  register <name>    register an instance and print its key, once
+  show <id>          show an instance
+  revoke <id>        revoke an instance; its key stops working at once
+  backup <file>      write a backup of the database to <file>
+  restore <file>     replace the database with the backup in <file>
+  root-certificate   print the root certificate Caddy signs with when AVALA_FLEET_TLS=internal
+TEXT
+	exit 2
+}
+
+setting() {
+	sed -n "s/^$1=//p" .env | tail -n 1 | tr -d '\r' | sed "s/^[\"']\(.*\)[\"']$/\1/"
+}
+
+AVALA_KEY=$(setting AVALA_ADMINISTRATOR_KEY)
+export AVALA_KEY
+
+[ -n "$AVALA_KEY" ] || { echo "AVALA_ADMINISTRATOR_KEY is not set in .env" >&2; exit 1; }
+
+said() {
+	case "$1" in
+		*" 401 "* | *" 403 "*) echo "The administrator key in .env is not the server's." ;;
+		*" 404 "*) echo "There is no such instance." ;;
+		*" 400 "*) echo "The server refused the request: check the name or the id." ;;
+		*) echo "The server did not answer. Is it running? Try: docker compose ps" ;;
+	esac
+}
+
+call() {
+	method=$1
+	path=$2
+	body=${3:-}
+	errors=$(mktemp)
+
+	if [ "$method" = POST ]; then
+		AVALA_BODY=$body docker compose exec -T -e AVALA_KEY -e AVALA_BODY caddy \
+			sh -c 'wget -q -O - --header "Authorization: Bearer $AVALA_KEY" --header "Content-Type: application/json" --post-data "$AVALA_BODY" "http://server:8080$0"' "$path" 2>"$errors" \
+			|| { said "$(cat "$errors")" >&2; rm -f "$errors"; exit 1; }
+	else
+		docker compose exec -T -e AVALA_KEY caddy \
+			sh -c 'wget -q -O - --header "Authorization: Bearer $AVALA_KEY" "http://server:8080$0"' "$path" 2>"$errors" \
+			|| { said "$(cat "$errors")" >&2; rm -f "$errors"; exit 1; }
+	fi
+
+	rm -f "$errors"
+}
+
+field() {
+	sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p"
+}
+
+[ $# -ge 1 ] || usage
+
+case "$1" in
+	register)
+		[ $# -eq 2 ] || usage
+		name=$(printf '%s' "$2" | sed 's/\\/\\\\/g; s/"/\\"/g')
+		answer=$(call POST /instances "{\"name\":\"$name\"}")
+		echo "Registered \"$2\" as $(printf '%s' "$answer" | field id)."
+		echo "Its key, shown only now:"
+		echo
+		printf '  %s\n' "$(printf '%s' "$answer" | field key)"
+		echo
+		port=$(setting AVALA_HTTPS_PORT)
+		address="https://$(setting AVALA_FLEET_DOMAIN)${port:+:$port}"
+		echo "In Avala on that computer, open Settings, Fleet, and connect with ${address%:443} and this key."
+		;;
+	show)
+		[ $# -eq 2 ] || usage
+		call GET "/instances/$2"
+		echo
+		;;
+	revoke)
+		[ $# -eq 2 ] || usage
+		call POST "/instances/$2/revocation" "{}"
+		echo "Revoked $2: its key no longer works."
+		;;
+	backup)
+		[ $# -eq 2 ] || usage
+		docker compose exec -T postgres pg_dump -U avala -Fc fleet > "$2.partial" || { rm -f "$2.partial"; echo "The backup failed; nothing was written." >&2; exit 1; }
+		mv "$2.partial" "$2"
+		echo "Wrote the backup to $2."
+		;;
+	restore)
+		[ $# -eq 2 ] || usage
+		[ -f "$2" ] || { echo "There is no file $2." >&2; exit 1; }
+		docker compose stop server
+		trap 'docker compose start server' EXIT
+		trap 'exit 130' INT TERM
+		docker compose exec -T postgres pg_restore -U avala -d fleet --clean --if-exists --no-owner --single-transaction < "$2" \
+			|| { echo "The restore failed and changed nothing; the server is started again on the database as it was." >&2; exit 1; }
+		echo "Restored the database from $2."
+		;;
+	root-certificate)
+		docker compose exec -T caddy cat /data/caddy/pki/authorities/local/root.crt
+		;;
+	*)
+		usage
+		;;
+esac

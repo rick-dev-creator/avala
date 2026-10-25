@@ -40,6 +40,7 @@ internal sealed class HttpFleetServer(FleetHttp http) : IFleetServer
             ServerAnswer.Answered => WireJson.ReadUsage(answer.Body).Match(usage => new FleetUsageView(FleetReadState.Read, usage), () => FleetUsageView.Of(FleetReadState.Unreachable)),
             ServerAnswer.KeyRefused => FleetUsageView.Of(FleetReadState.KeyRefused),
             ServerAnswer.NotFound => FleetUsageView.Of(FleetReadState.Outdated),
+            ServerAnswer.Untrusted => FleetUsageView.Of(FleetReadState.Untrusted),
             ServerAnswer.BadRequest => FleetUsageView.Of(FleetReadState.Refused),
             _ => FleetUsageView.Of(FleetReadState.Unreachable),
         };
@@ -53,6 +54,7 @@ internal sealed class HttpFleetServer(FleetHttp http) : IFleetServer
         {
             ServerAnswer.Answered => WireJson.ReadJobs(answer.Body).Match(view => view, () => FleetJobsView.Of(FleetReadState.Unreachable)),
             ServerAnswer.KeyRefused => FleetJobsView.Of(FleetReadState.KeyRefused),
+            ServerAnswer.Untrusted => FleetJobsView.Of(FleetReadState.Untrusted),
             _ => FleetJobsView.Of(FleetReadState.Unreachable),
         };
     }

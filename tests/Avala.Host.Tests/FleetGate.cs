@@ -23,10 +23,19 @@ internal sealed class FleetGate : IPlugin, IDisposable
 
     public FleetKeychain Keychain { get; } = new(Server, Key);
 
-    public void Register(IPluginRegistrar registrar) =>
+    public bool Real { get; set; }
+
+    public void Register(IPluginRegistrar registrar)
+    {
+        if (Real)
+        {
+            return;
+        }
+
         registrar.Services
             .AddKeyedSingleton<HttpMessageHandler>(FleetTransport.Handler, Endpoint)
             .AddKeyedSingleton<IKeychain>(FleetTransport.Handler, Keychain);
+    }
 
     public void Dispose() => Endpoint.Dispose();
 }

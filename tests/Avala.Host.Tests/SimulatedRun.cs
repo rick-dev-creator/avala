@@ -199,7 +199,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         string repositoryName = "repository",
         bool production = false,
         bool realSignIns = false,
-        bool realGit = false)
+        bool realGit = false,
+        bool realFleet = false)
     {
         var data = new TemporaryFolder();
 
@@ -228,6 +229,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Git = realGit || UsesRealGit ? Option<InMemoryGit>.None : new InMemoryGit(),
         };
         surroundings.Telemetry.Configured = telemetry;
+        surroundings.Fleet.Real = realFleet;
         surroundings.SignIns.Real = realSignIns;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {

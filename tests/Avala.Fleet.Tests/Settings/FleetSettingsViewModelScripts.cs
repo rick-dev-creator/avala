@@ -87,13 +87,40 @@ public sealed class FleetSettingsViewModelScripts : IAsyncDisposable
         section.KeyBox = Fleets.Key;
         await section.ConnectCommand.ExecuteAsync(null);
 
-        outbox.Unanswered(DateTimeOffset.UnixEpoch);
+        outbox.Unanswered(DateTimeOffset.UnixEpoch, certificateUntrusted: false);
         await section.TestCommand.ExecuteAsync(null);
         var shown = await ui.ReadAsync(() => (section.HasUnanswered, section.Unanswered.StartsWith("The server has not answered since", StringComparison.Ordinal)));
         outbox.Answered();
         await section.TestCommand.ExecuteAsync(null);
 
         Assert.Equal(((true, true), false), (shown, await ui.ReadAsync(() => section.HasUnanswered)));
+    }
+
+    [Fact]
+    public async Task AnUntrustedCertificateIsSaidInTheStatus()
+    {
+        var section = await SectionAsync();
+        section.Server = Fleets.Server;
+        section.KeyBox = Fleets.Key;
+        await section.ConnectCommand.ExecuteAsync(null);
+
+        outbox.Unanswered(DateTimeOffset.UnixEpoch, certificateUntrusted: true);
+        await section.TestCommand.ExecuteAsync(null);
+
+        Assert.StartsWith("The server's certificate has not been trusted", await ui.ReadAsync(() => section.Unanswered), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConnectingToAnUntrustedServerSaysWhy()
+    {
+        server.Identifies = Avala.Fleet.Delivering.ServerAnswer.Untrusted;
+        var section = await SectionAsync();
+        section.Server = Fleets.Server;
+        section.KeyBox = Fleets.Key;
+
+        await section.ConnectCommand.ExecuteAsync(null);
+
+        Assert.StartsWith("The server's certificate is not trusted", await ui.ReadAsync(() => section.Problem), StringComparison.Ordinal);
     }
 
     [Fact]

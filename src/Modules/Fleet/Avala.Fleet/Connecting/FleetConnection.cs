@@ -22,6 +22,7 @@ internal enum ConnectOutcome
     Disconnected,
     DisconnectedKeyKept,
     KeyNotRemoved,
+    Untrusted,
 }
 
 internal enum FleetState
@@ -40,11 +41,12 @@ internal sealed record FleetStatus(
     int Waiting,
     Option<DateTimeOffset> LastDelivery,
     Option<DateTimeOffset> UnansweredSince,
+    bool Untrusted,
     IReadOnlyList<RejectionNote> Rejections,
     int Dropped)
 {
     public static FleetStatus Disconnected { get; } =
-        new(FleetState.NotConnected, string.Empty, string.Empty, 0, Option<DateTimeOffset>.None, Option<DateTimeOffset>.None, [], 0);
+        new(FleetState.NotConnected, string.Empty, string.Empty, 0, Option<DateTimeOffset>.None, Option<DateTimeOffset>.None, Untrusted: false, [], 0);
 }
 
 internal sealed class FleetConnection(FleetSession session, Outbox outbox, IFleetServer server, IKeychain keychain)
@@ -73,7 +75,7 @@ internal sealed class FleetConnection(FleetSession session, Outbox outbox, IFlee
 
         return await identified.Identity.Match(
             identity => KeepAsync(origin.Origin, identity, trimmed, cancellationToken),
-            () => Task.FromResult(identified.Answer == ServerAnswer.KeyRefused ? ConnectOutcome.KeyRefused : ConnectOutcome.Unreachable));
+            () => Task.FromResult(Outcome(identified.Answer)));
     }
 
     public async Task<ConnectOutcome> TestAsync(CancellationToken cancellationToken) =>
@@ -139,7 +141,7 @@ internal sealed class FleetConnection(FleetSession session, Outbox outbox, IFlee
             {
                 var summary = await outbox.RunAsync((store, token) => store.SummaryAsync(found.Scope.Id, token), cancellationToken);
 
-                return new FleetStatus(State(session.State), found.Server, found.InstanceName, summary.Waiting, summary.LastDelivery, outbox.UnansweredSince, summary.Rejections, summary.Dropped);
+                return new FleetStatus(State(session.State), found.Server, found.InstanceName, summary.Waiting, summary.LastDelivery, outbox.UnansweredSince, outbox.Untrusted, summary.Rejections, summary.Dropped);
             },
             () => Task.FromResult(FleetStatus.Disconnected));
 
@@ -215,6 +217,7 @@ internal sealed class FleetConnection(FleetSession session, Outbox outbox, IFlee
     {
         ServerAnswer.Answered => ConnectOutcome.Connected,
         ServerAnswer.KeyRefused => ConnectOutcome.KeyRefused,
+        ServerAnswer.Untrusted => ConnectOutcome.Untrusted,
         _ => ConnectOutcome.Unreachable,
     };
 

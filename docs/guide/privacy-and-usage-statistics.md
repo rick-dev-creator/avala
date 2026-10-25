@@ -39,3 +39,4 @@ What leaves your computer, how to turn it off, and how to hide personal details 
 
 - [Getting started](getting-started.md)
 - [Notifications](notifications.md)
+- [Fleet server](fleet-server.md)

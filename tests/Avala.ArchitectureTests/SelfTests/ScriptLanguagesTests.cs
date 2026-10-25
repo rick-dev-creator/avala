@@ -11,6 +11,18 @@ public sealed class ScriptLanguagesTests
             ScriptLanguages.ForeignScripts(["scripts/metrics.cs", "tools/clean.sh", "build.ps1", "gen.py", "setup.CMD", "README.md"]));
 
     [Fact]
+    public void FlagsShebangScriptsWithoutAnExtensionExceptTheFleetCommand() =>
+        Assert.Equal(
+            ["tools/clean", "deploy/fleet/other"],
+            ScriptLanguages.ShebangScripts([
+                ("tools/clean", "#!/bin/sh"),
+                ("deploy/fleet/fleet", "#!/bin/sh"),
+                ("deploy/fleet/other", "#!/usr/bin/env bash"),
+                ("LICENSE", "MIT License"),
+                ("scripts/metrics.cs", "#!/usr/bin/env dotnet"),
+            ]));
+
+    [Fact]
     public void AcceptsOnlyTheJavaScriptOfTheDocsSiteTemplateItsOwnFolder() =>
         Assert.Equal(
             ["src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh", "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts"],

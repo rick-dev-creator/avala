@@ -51,6 +51,16 @@ public sealed class HttpFleetServerTests
         Assert.Equal(FleetReadState.Unreachable, (await new HttpFleetServer(http).UsageAsync(Fleets.Server, Fleets.Key, new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None), "UTC", Cancellation)).State);
     }
 
+    [Fact]
+    public async Task AnUntrustedCertificateIsSaid()
+    {
+        using var http = new FleetHttp(new UntrustedHandler(), owned: true);
+
+        var view = await new HttpFleetServer(http).UsageAsync(Fleets.Server, Fleets.Key, new FleetUsageQuery(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26), FleetStep.Day, Option<string>.None), "UTC", Cancellation);
+
+        Assert.Equal(FleetReadState.Untrusted, view.State);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.NotFound, FleetReadState.Outdated)]
     [InlineData(HttpStatusCode.BadRequest, FleetReadState.Refused)]
@@ -76,4 +86,12 @@ public sealed class HttpFleetServerTests
             (FleetReadState.KeyRefused, "/activity/v1/repositories/jobs?key=remote%3Agithub.com%2Frick%2Favala"),
             (view.State, Assert.Single(endpoint.Received).Address.PathAndQuery));
     }
+}
+
+internal sealed class UntrustedHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        Task.FromException<HttpResponseMessage>(new HttpRequestException(
+            "The SSL connection could not be established",
+            new System.Security.Authentication.AuthenticationException("The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot")));
 }

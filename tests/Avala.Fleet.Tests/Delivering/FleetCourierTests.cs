@@ -225,6 +225,28 @@ public sealed class FleetCourierTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AnUntrustedRoundIsSaidAsSuch()
+    {
+        store.Entries.Add(new StoredEntry(Fleets.Scope, Fact(1)));
+        server.Answers.Enqueue(_ => new SendOutcome(ServerAnswer.Untrusted, Option<Receipt>.None));
+
+        await StartAsync();
+        await PassAsync(TimeSpan.Zero);
+
+        Assert.Equal((true, true, 1), (outbox.UnansweredSince.IsSome, outbox.Untrusted, store.Entries.Count));
+    }
+
+    [Fact]
+    public void AChangedCauseRestartsTheUnansweredTime()
+    {
+        outbox.Unanswered(Noon, certificateUntrusted: false);
+
+        outbox.Unanswered(Noon.AddHours(1), certificateUntrusted: true);
+
+        Assert.Equal((Noon.AddHours(1), true), (outbox.UnansweredSince.Match(at => at, () => DateTimeOffset.MinValue), outbox.Untrusted));
+    }
+
+    [Fact]
     public async Task ARoundThatFailsIsRetriedAfterTheBackoff()
     {
         store.Entries.Add(new StoredEntry(Fleets.Scope, Fact(1)));

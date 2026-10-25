@@ -12,6 +12,8 @@ internal sealed partial class Outbox(IFactStore store, ILogger<Outbox> logger) :
 
     private long unansweredSince;
 
+    private int untrusted;
+
     public ChangeSignal Changes { get; } = new();
 
     public Option<DateTimeOffset> UnansweredSince =>
@@ -31,9 +33,18 @@ internal sealed partial class Outbox(IFactStore store, ILogger<Outbox> logger) :
 
     public void Nudge() => Volatile.Read(ref appended)();
 
-    public void Unanswered(DateTimeOffset at)
+    public bool Untrusted => Volatile.Read(ref untrusted) == 1;
+
+    public void Unanswered(DateTimeOffset at, bool certificateUntrusted)
     {
-        if (Interlocked.CompareExchange(ref unansweredSince, at.UtcTicks, 0) == 0)
+        var cause = certificateUntrusted ? 1 : 0;
+
+        if (Interlocked.Exchange(ref untrusted, cause) != cause)
+        {
+            Interlocked.Exchange(ref unansweredSince, at.UtcTicks);
+            Changes.Raise();
+        }
+        else if (Interlocked.CompareExchange(ref unansweredSince, at.UtcTicks, 0) == 0)
         {
             Changes.Raise();
         }
@@ -41,6 +52,8 @@ internal sealed partial class Outbox(IFactStore store, ILogger<Outbox> logger) :
 
     public void Answered()
     {
+        Volatile.Write(ref untrusted, 0);
+
         if (Interlocked.Exchange(ref unansweredSince, 0) != 0)
         {
             Changes.Raise();

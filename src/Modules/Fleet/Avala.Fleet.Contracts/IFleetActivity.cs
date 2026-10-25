@@ -18,6 +18,7 @@ public enum FleetReadState
     Unreachable,
     KeyRefused,
     Outdated,
+    Untrusted,
     Refused,
     Read,
 }

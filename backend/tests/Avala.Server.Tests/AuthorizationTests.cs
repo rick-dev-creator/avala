@@ -63,7 +63,7 @@ public sealed class AuthorizationTests : IClassFixture<ServerUnderTest>
     {
         using var response = await SendAsync("GET", path, key: null);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(response.StatusCode, new[] { HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden });
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using System.Reflection;
 using Avala.Server.Activity.Application;
 using Avala.Server.Activity.EndPoints;
 using Avala.Server.Activity.Infrastructure;
+using Avala.Server.Activity.Infrastructure.Storage;
 using Avala.Server.CrossCuttingConcerns.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,9 @@ public sealed class ModuleInstaller : IModuleInstaller
     {
         services.AddOptions<DatabaseSettings>().BindConfiguration(DatabaseSettings.Section);
         services.AddActivityApplication()
-            .AddActivityInfrastructure(configuration);
+            .AddActivityInfrastructure(configuration)
+            .AddHealthChecks()
+            .AddDbContextCheck<ActivityDbContext>("activity-database", tags: ["ready"]);
     }
 
     public Task UseAsync(IHost host, CancellationToken cancellationToken) =>

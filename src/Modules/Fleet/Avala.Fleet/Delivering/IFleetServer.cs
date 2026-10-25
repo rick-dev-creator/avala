@@ -9,6 +9,7 @@ internal enum ServerAnswer
     Answered,
     BadRequest,
     NotFound,
+    Untrusted,
     KeyRefused,
     Unreachable,
 }

@@ -425,6 +425,10 @@ backend/
 
 `dotnet run --project backend/Fleet/Avala.Server.AppHost` starts PostgreSQL in a container and the server against it, with the Aspire dashboard. The server reads its settings from `appsettings.json` and the environment through configuration, never from `Environment` directly: `BannedSymbols.Backend.txt` fails the build on such a read. Aspire hands it the connection string `fleet`.
 
+### Deploying
+
+`deploy/fleet/` runs the server with Docker Compose: PostgreSQL 18.3 on a volume, the image `ghcr.io/rick-dev-creator/avala-server` the release publishes, and Caddy in front of it with HTTPS from Let's Encrypt or its own authority, the only service with a published port. `/health` includes each module's `DbContext` check, registered by its `ModuleInstaller`, so Caddy and an operator see the server as down while its database is; `/alive` does not. `deploy/fleet/fleet` is a POSIX shell script rather than C#, since the machine that runs the compose has Docker and no .NET. It reaches the server inside the compose network through the Caddy container, in plain HTTP on that private network, so the administrator key never leaves the machine. The host passes it to the container by name only, though inside the container it becomes an argument of `wget`, which an administrator of the machine can see in its process list. `scripts/fleet-deploy-check.cs` proves the deployment end to end, and the [fleet server guide](guide/fleet-server.md) says how to run it.
+
 ### A module's layers
 
 A module follows the [modular monolith template](https://github.com/rick-dev-creator/modularmonolith) with the domain as the source of truth. Every type of a module is `internal`; its one public type is its `ModuleInstaller`, which the host finds with Scrutor.

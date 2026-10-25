@@ -205,6 +205,16 @@ public sealed class FleetActivityViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task TheDashboardSaysTheCertificateIsNotTrusted()
+    {
+        activity.Usage = FleetUsageView.Of(FleetReadState.Untrusted);
+
+        var page = await OpenedAsync();
+
+        Assert.Contains("certificate is not trusted", await ui.ReadAsync(() => page.Notice), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AnEmptyRangeSaysNothingWasSpent()
     {
         activity.Usage = new FleetUsageView(FleetReadState.Read, FleetUsage.Empty);

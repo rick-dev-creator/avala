@@ -124,7 +124,7 @@ internal sealed class FleetCourier(Outbox outbox, IFleetServer server, FleetSess
                 await session.RefusedAsync(credentials.Scope, cancellationToken);
                 break;
             default:
-                outbox.Unanswered(now);
+                outbox.Unanswered(now, sent.Answer == ServerAnswer.Untrusted);
                 await BackOffAsync();
                 break;
         }

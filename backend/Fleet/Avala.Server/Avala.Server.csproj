@@ -1,4 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <ContainerRepository>avala-server</ContainerRepository>
+    <ContainerFamily>noble-chiseled-extra</ContainerFamily>
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
+    <ContainerRuntimeIdentifiers>linux-x64;linux-arm64</ContainerRuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ContainerPort Include="8080" Type="tcp" />
+    <ContainerLabel Include="org.opencontainers.image.source" Value="https://github.com/rick-dev-creator/avala" />
+    <ContainerLabel Include="org.opencontainers.image.title" Value="Avala fleet server" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FastEndpoints" />
     <PackageReference Include="FastEndpoints.OpenApi" />

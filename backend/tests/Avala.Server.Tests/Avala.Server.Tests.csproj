@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="YamlDotNet" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\tests\FleetWire\**\*.*" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />

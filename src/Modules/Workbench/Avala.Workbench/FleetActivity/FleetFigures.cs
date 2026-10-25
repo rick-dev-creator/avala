@@ -55,6 +55,7 @@ internal static class FleetFigures
         FleetReadState.KeyRefused => "The fleet server refused this instance's key. Check it in Settings › Fleet.",
         FleetReadState.Unreachable => "The fleet server did not answer.",
         FleetReadState.Outdated => "The fleet server has no dashboard: it is older than this Avala, or the address is not a fleet server's. Update the server or check the address in Settings › Fleet.",
+        FleetReadState.Untrusted => "The fleet server's certificate is not trusted by this computer. For a server on your network, trust its root certificate: see the fleet server guide.",
         FleetReadState.Refused => "The fleet server could not answer for this range or time zone.",
         _ => string.Empty,
     };

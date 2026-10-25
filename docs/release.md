@@ -158,6 +158,24 @@ dotnet run scripts/installer.cs -- --rid linux-x64 --archive artifacts/packages 
 
 `Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin in the package, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, and it exits 1 when the window cannot be shown or the runtime stops before its startup completes. It exits only once Avalonia's main loop runs, however fast the startup was. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
 
+## The fleet server image
+
+The release workflow's `server-image` job publishes the fleet server as `ghcr.io/rick-dev-creator/avala-server`, for `linux/amd64` and `linux/arm64`, tagged with the version and, for a stable version, `latest`.
+
+- **How it is built.** `dotnet run scripts/server-image.cs -- --tag <tag>` runs `dotnet publish -t:PublishContainer` with the .NET SDK's own container support, without a Dockerfile, on `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra`. The `extra` image keeps the time-zone data the Fleet dashboard needs; it has no shell and runs as the non-root user `app`, listening on 8080. The job authenticates with `SDK_CONTAINER_REGISTRY_UNAME` and `SDK_CONTAINER_REGISTRY_PWORD` set to the actor and `GITHUB_TOKEN`, with `packages: write`, so it uses only `dotnet` steps.
+- **Once, after the first release:** GHCR creates the package private, so `docker compose pull` answers `unauthorized`. Make it public in GitHub, Packages, `avala-server`, Package settings.
+- **Building it locally:** `dotnet publish backend/Fleet/Avala.Server -t:PublishContainer -p:ContainerRuntimeIdentifiers=linux-x64 -p:ContainerImageTag=local`, adding `-p:LocalRegistry=Podman` on Podman. Set `AVALA_SERVER_IMAGE=localhost/avala-server` and `AVALA_SERVER_VERSION=local` in `.env` to run it.
+- **When it is published:** after every desktop package is built, so a release that fails to package publishes no image.
+- **Before a release:** run `dotnet run scripts/fleet-deploy-check.cs` on Linux with Docker Compose, or `docker-compose` on Podman's socket. It runs as a compose project of its own, so a fleet running on the same machine is never touched, and it refuses to start while ports 8080 or 8443 are taken. It needs no running Avala and leaves nothing behind. It checks:
+  - the compose in `deploy/fleet/`, built from the working tree;
+  - an upgrade from the previous release's image;
+  - the real desktop, connecting over HTTPS with validation on;
+  - restarts;
+  - a backup and restore after deleting the volumes;
+  - that no key reaches the logs.
+
+  Pass `--previous <commit>` to choose the version upgraded from. A check interrupted with Ctrl-C leaves its own project behind, never a real fleet's; `docker compose ls` names it, and `docker compose -p <name> down -v` removes it.
+
 ## Release notes
 
 The notes of a release are written by hand in `docs/releases/<tag>.md`, such as [`docs/releases/v0.1.0-beta.1.md`](releases/v0.1.0-beta.1.md), and committed before the tag. The release workflow uses that file as the draft's notes when it exists; without one, the draft gets notes generated from the merged pull requests. The file is the release's body, so it starts without a title, which the release already has.

@@ -4,6 +4,7 @@ using Avala.Server.Instances.Application;
 using Avala.Server.Instances.EndPoints;
 using Avala.Server.Instances.EndPoints.Authentication;
 using Avala.Server.Instances.Infrastructure;
+using Avala.Server.Instances.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,7 +23,9 @@ public sealed class ModuleInstaller : IModuleInstaller
         services.AddOptions<DatabaseSettings>().BindConfiguration(DatabaseSettings.Section);
         services.AddInstancesApplication()
             .AddInstancesInfrastructure(configuration)
-            .AddInstancesAuthentication();
+            .AddInstancesAuthentication()
+            .AddHealthChecks()
+            .AddDbContextCheck<InstancesDbContext>("instances-database", tags: ["ready"]);
     }
 
     public Task UseAsync(IHost host, CancellationToken cancellationToken) =>

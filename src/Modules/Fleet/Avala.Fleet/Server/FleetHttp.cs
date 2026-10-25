@@ -46,6 +46,10 @@ internal sealed class FleetHttp(HttpMessageHandler handler, bool owned) : IDispo
 
                 return new HttpAnswer(Answer(response.StatusCode), await response.Content.ReadAsStringAsync(cancellationToken));
             }
+            catch (HttpRequestException failure) when (failure.InnerException is System.Security.Authentication.AuthenticationException)
+            {
+                return new HttpAnswer(ServerAnswer.Untrusted, string.Empty);
+            }
             catch (Exception failure) when (failure is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
             {
                 return new HttpAnswer(ServerAnswer.Unreachable, string.Empty);

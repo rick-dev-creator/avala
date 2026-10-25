@@ -194,7 +194,11 @@ internal sealed partial class FleetSettingsViewModel(FleetConnection connection,
                 Server = status.Server.Length > 0 ? status.Server : Server;
                 Waiting = status.Waiting == 1 ? "1 event waiting" : string.Create(CultureInfo.InvariantCulture, $"{status.Waiting} events waiting");
                 LastDelivery = status.LastDelivery.Match(at => $"Last delivered {at.ToLocalTime():g}", () => "Nothing delivered yet");
-                Unanswered = status.UnansweredSince.Match(at => $"The server has not answered since {at.ToLocalTime():g}; Avala keeps trying", () => string.Empty);
+                Unanswered = status.UnansweredSince.Match(
+                    at => status.Untrusted
+                        ? $"The server's certificate has not been trusted by this computer since {at.ToLocalTime():g}; Avala keeps trying"
+                        : $"The server has not answered since {at.ToLocalTime():g}; Avala keeps trying",
+                    () => string.Empty);
                 HasUnanswered = status.UnansweredSince.IsSome && status.State == FleetState.Connected;
                 Dropped = string.Create(CultureInfo.InvariantCulture, $"{status.Dropped} events this server did not understand were dropped after 30 days; update the server");
                 HasDropped = status.Dropped > 0;
@@ -230,6 +234,7 @@ internal sealed partial class FleetSettingsViewModel(FleetConnection connection,
         ConnectOutcome.KeyRefused => "The server refused the key",
         ConnectOutcome.Disconnected => string.Empty,
         ConnectOutcome.DisconnectedKeyKept => "Disconnected, but the keychain could not be reached, so it may still hold the key for this server",
+        ConnectOutcome.Untrusted => "The server's certificate is not trusted by this computer. For a server on your network, trust its root certificate: see the fleet server guide",
         ConnectOutcome.KeyNotRemoved => "The keychain did not remove the key, so this instance stays connected",
         _ => "Not connected",
     };
