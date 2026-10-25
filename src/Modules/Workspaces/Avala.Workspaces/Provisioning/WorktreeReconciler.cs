@@ -18,7 +18,7 @@ internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, Worksp
 
         return new WorktreeReconciliation(
             [.. folders.Where(folder => !known.Any(workspace => workspace.Location.IsAt(folder))).Order(StringComparer.Ordinal)],
-            [.. known.Where(workspace => !Directory.Exists(workspace.Location.Path)).Select(workspace => workspace.Describe())]);
+            [.. known.Where(workspace => !workspace.IsShelved && !Directory.Exists(workspace.Location.Path)).Select(workspace => workspace.Describe())]);
     }
 
     public async Task<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken)
@@ -66,6 +66,7 @@ internal static class WorkspaceDescriptions
             {
                 BaseBranch = workspace.BaseBranch.Map(branch => branch.Value),
                 RulesCommit = workspace.Rules.Value,
+                Shelved = workspace.IsShelved,
             };
     }
 }

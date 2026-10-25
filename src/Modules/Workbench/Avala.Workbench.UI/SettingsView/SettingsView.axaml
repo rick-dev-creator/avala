@@ -197,6 +197,11 @@
               <ContentControl x:Name="Machine" Content="{Binding Machine}" />
             </StackPanel>
           </ScrollViewer>
+          <ScrollViewer x:Name="WorktreesScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsWorktrees}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="Worktrees" Content="{Binding Machine.Worktrees}" />
+            </StackPanel>
+          </ScrollViewer>
           <ScrollViewer x:Name="NotificationsScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsNotifications}">
             <StackPanel Classes="column">
               <ContentControl x:Name="Notifications" Content="{Binding Machine.Notifications}" />

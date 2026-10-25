@@ -14,6 +14,9 @@ internal sealed class GitChangesCli(IProcessRunner processes) : IGitChanges
     public Task<Result<Option<CommitSha>, WorkspaceFailure>> TipOfAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
         ResolveAsync(repository, $"{GitRefs.Heads}{branch.Value}", cancellationToken);
 
+    public Task<Result<Option<CommitSha>, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ResolveAsync(repository, GitRefs.ShelvedOf(workspace), cancellationToken);
+
     public Task<Result<Option<CommitSha>, WorkspaceFailure>> LastMergedAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
         ResolveAsync(repository, GitRefs.MergedOf(workspace), cancellationToken);
 

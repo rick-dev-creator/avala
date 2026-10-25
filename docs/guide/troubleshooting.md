@@ -20,7 +20,7 @@ Such a job takes no message until it has started.
 
 ### Carry on from a terminal
 
-The inspector's worktree section has a copy button beside the branch and beside the path. Copy the path, then `cd` into it in a terminal: the worktree is a plain git checkout of the job's branch, so you can keep working there if Avala cannot.
+The inspector's worktree section has a copy button beside the branch and beside the path. Copy the path, then `cd` into it in a terminal: the worktree is a plain git checkout of the job's branch, so you can keep working there if Avala cannot. A finished job's worktree may have been freed, which the section says: its work is under `refs/avala/shelved/<id>`, so `git worktree add <folder> refs/avala/shelved/<id>` in the repository brings it back by hand (see [Worktrees and disk space](worktrees-and-disk-space.md)).
 
 ### A job failed
 

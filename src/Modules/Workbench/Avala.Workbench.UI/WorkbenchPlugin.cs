@@ -416,7 +416,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
-        RegisterPulse(services).AddRelays()
+        RegisterPulse(services).AddRelays().AddWorktreeSettings()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
@@ -510,6 +510,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
         RelayRegistrations.RegisterViews(views);
+        SettingsRegistrations.RegisterViews(views);
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 
@@ -624,7 +625,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
         views.Register<IMachineAccountsViewModel, MachineAccountsView>();
-        views.Register<INotificationsViewModel, NotificationsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IAboutViewModel, AboutView>();
         views.Register<IRuleFileViewModel, RuleFileView>();

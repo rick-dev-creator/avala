@@ -26,6 +26,7 @@ How to use Avala, one feature per page. Read Getting started first; the rest can
 
 12. [Canvas and previews](canvas-and-previews.md): SVG, Markdown and Mermaid canvases, and the web preview.
 13. [Notifications](notifications.md): your phone, through ntfy or a webhook.
-14. [Privacy and usage statistics](privacy-and-usage-statistics.md): what is sent, and hiding personal details.
-15. [Keyboard shortcuts](keyboard-shortcuts.md).
-16. [Troubleshooting](troubleshooting.md): could not start, logs, Wayland and web views.
+14. [Worktrees and disk space](worktrees-and-disk-space.md): when a finished job's worktree is freed, rebuilt or deleted.
+15. [Privacy and usage statistics](privacy-and-usage-statistics.md): what is sent, and hiding personal details.
+16. [Keyboard shortcuts](keyboard-shortcuts.md).
+17. [Troubleshooting](troubleshooting.md): could not start, logs, Wayland and web views.

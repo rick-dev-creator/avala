@@ -5,6 +5,7 @@ using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Submitting;
+using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -189,7 +190,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     private void ShowWorktree(Option<InspectorFacts> facts)
     {
         var workspace = facts.Bind(found => found.Record.Workspace);
-        var fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
+        var fact = facts.IsNone ? string.Empty : workspace.Match(found => Freed(found, InspectorPhrases.Worktree(found.Branch, found.BaseBranch)), () => "none");
         Fact = CouldNotStart ? InspectorPhrases.CouldNotStart : IsScratch ? InspectorPhrases.Scratch(fact) : fact;
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
         ShowWhere(facts);
@@ -201,6 +202,8 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),
             () => string.Empty);
-        Path = workspace.Match(found => Personal.Path(found.Path), () => Personal.None);
+        Path = workspace.Match(found => found.Shelved ? Personal.None : Personal.Path(found.Path), () => Personal.None);
     }
+
+    private static string Freed(WorkspaceInfo workspace, string fact) => workspace.Shelved ? InspectorPhrases.Freed(fact) : fact;
 }

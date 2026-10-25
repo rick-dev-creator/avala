@@ -284,6 +284,8 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public INotificationsViewModel Notifications { get; } = new DesignNotificationsViewModel();
 
+    public IWorktreeSettingsViewModel Worktrees { get; } = new DesignWorktreeSettingsViewModel();
+
     public IReadOnlyList<object> Harnesses { get; init; } = [];
 
     public IMachineAccountsViewModel Accounts { get; init; } = new DesignMachineAccountsViewModel();
@@ -393,6 +395,8 @@ internal sealed class DesignSettingsViewModel : ISettingsViewModel
     public bool ShowsConnections => Section == SettingsSection.Connections;
 
     public bool ShowsSupervision => Section == SettingsSection.Supervision;
+
+    public bool ShowsWorktrees => Section == SettingsSection.Worktrees;
 
     public bool ShowsNotifications => Section == SettingsSection.Notifications;
 

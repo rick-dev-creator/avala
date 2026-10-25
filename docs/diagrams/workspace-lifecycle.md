@@ -12,5 +12,8 @@ stateDiagram-v2
 	Creating --> Ready : MarkReady
 	Creating --> Failed : Fail
 	Ready --> Ready : Checkpoint [Function]
+	Ready --> Shelved : Shelve
+	Shelved --> Ready : Rebuild
+	Shelved --> Removed : Remove
 [*] --> Creating
 ```

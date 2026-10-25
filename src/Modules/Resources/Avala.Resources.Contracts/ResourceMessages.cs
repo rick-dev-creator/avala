@@ -17,6 +17,7 @@ public enum ResourceError
     InvalidInterval,
     InvalidPorts,
     InvalidRetention,
+    Unwritable,
     UnknownPolicy,
     NothingToReap,
 }
@@ -42,14 +43,45 @@ public enum ReconcilePolicy
 
 public sealed record PortRange(int First, int Last, int PerWorktree);
 
-public sealed record WorktreeRetention(Option<TimeSpan> Discarded, Option<TimeSpan> Failed, Option<TimeSpan> Approved);
+public enum WorktreeMoment
+{
+    Archived,
+    Delivered,
+    PullRequest,
+    Undelivered,
+    Discarded,
+    Failed,
+}
+
+public sealed record WorktreePolicy(
+    Option<TimeSpan> Archived,
+    Option<TimeSpan> Delivered,
+    Option<TimeSpan> PullRequest,
+    Option<TimeSpan> Undelivered,
+    Option<TimeSpan> Discarded,
+    Option<TimeSpan> Failed)
+{
+    public Option<TimeSpan> DeleteDiscarded { get; init; }
+
+    public Option<TimeSpan> DeleteFailed { get; init; }
+
+    public Option<TimeSpan> FreeAfter(WorktreeMoment moment) => moment switch
+    {
+        WorktreeMoment.Archived => Archived,
+        WorktreeMoment.Delivered => Delivered,
+        WorktreeMoment.PullRequest => PullRequest,
+        WorktreeMoment.Undelivered => Undelivered,
+        WorktreeMoment.Discarded => Discarded,
+        _ => Failed,
+    };
+}
 
 public sealed record ResourceSettings(
     TimeSpan Sampling,
     TimeSpan DiskSampling,
     OrphanPolicy Orphans,
     PortRange Ports,
-    WorktreeRetention Retention,
+    WorktreePolicy Worktrees,
     ReconcilePolicy Reconcile)
 {
     public ResourceFileStatus File { get; init; }
@@ -110,6 +142,8 @@ public sealed record OrphanReport(ProcessTreeId Tree, IReadOnlyList<ProcessUsage
 
 public sealed record ReclaimedWorktree(JobId Job, string Path, JobStatus Status, DateTimeOffset At);
 
+public sealed record FreedWorktree(JobId Job, string Path, JobStatus Status, WorktreeMoment Moment, long Bytes, DateTimeOffset At);
+
 public sealed record ResourcesSampled(ResourceSample Sample) : IIntegrationEvent;
 
 public sealed record OrphansFound(OrphanReport Report) : IIntegrationEvent;
@@ -123,5 +157,7 @@ public sealed record PortsReleased(PortLease Lease) : IIntegrationEvent;
 public sealed record PortConflictObserved(PortConflict Conflict) : IIntegrationEvent;
 
 public sealed record WorktreeReclaimed(ReclaimedWorktree Reclaimed) : IIntegrationEvent;
+
+public sealed record WorktreeFreed(FreedWorktree Freed) : IIntegrationEvent;
 
 public sealed record WorktreesReconciled(WorktreeReconciliation Found, bool Cleaned) : IIntegrationEvent;

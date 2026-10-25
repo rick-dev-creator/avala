@@ -24,6 +24,8 @@ public interface IResources
     IReadOnlyList<PortConflict> Conflicts();
 
     ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken);
 }
 
 public interface IPortLeases
@@ -45,6 +47,8 @@ public interface IOrphans
 public interface IWorktreeHousekeeping
 {
     IReadOnlyList<ReclaimedWorktree> Reclaimed();
+
+    IReadOnlyList<FreedWorktree> Freed();
 
     ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken);
 

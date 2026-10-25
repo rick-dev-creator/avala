@@ -8,6 +8,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
+    <ProjectReference Include="..\..\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
+    <ProjectReference Include="..\..\Projects\Avala.Projects.Contracts\Avala.Projects.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Resources.Tests" />

@@ -31,7 +31,7 @@ internal sealed class JobFlow
         var launcher = new JobLauncher(
             ledger,
             agents,
-            new WorkspacePlanner(workspaces, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
+            new WorkspacePlanner(new JobWorkspaces(workspaces, workspaces), Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
             new JobMessenger(agents, Briefings, Microsoft.Extensions.Logging.Abstractions.NullLogger<JobMessenger>.Instance));
         var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);

@@ -6,14 +6,16 @@ namespace Avala.Workspaces.Tests.Workspaces;
 public sealed class WorkspaceTests
 {
     private static readonly WorkspaceState[] ReachableStates =
-        [WorkspaceState.Creating, WorkspaceState.Ready, WorkspaceState.Failed, WorkspaceState.Removed];
+        [WorkspaceState.Creating, WorkspaceState.Ready, WorkspaceState.Failed, WorkspaceState.Shelved, WorkspaceState.Removed];
 
     private static readonly (string Name, WorkspaceState[] AllowedIn, WorkspaceError Rejection, Func<Workspace, WorkspaceError?> Apply)[] Operations =
     [
         ("MarkReady", [WorkspaceState.Creating], WorkspaceError.CannotMarkReady, workspace => Outcomes.ErrorOf(workspace.MarkReady())),
         ("Checkpoint", [WorkspaceState.Ready], WorkspaceError.CannotCheckpoint, workspace => Outcomes.ErrorOf(workspace.RecordCheckpoint(Given.Commit(1), "turn 1"))),
         ("Fail", [WorkspaceState.Creating], WorkspaceError.CannotFail, workspace => Outcomes.ErrorOf(workspace.Fail())),
-        ("Remove", [WorkspaceState.Creating, WorkspaceState.Ready], WorkspaceError.CannotRemove, workspace => Outcomes.ErrorOf(workspace.Remove())),
+        ("Shelve", [WorkspaceState.Ready], WorkspaceError.CannotShelve, workspace => Outcomes.ErrorOf(workspace.Shelve())),
+        ("Rebuild", [WorkspaceState.Shelved], WorkspaceError.CannotRebuild, workspace => Outcomes.ErrorOf(workspace.Rebuild())),
+        ("Remove", [WorkspaceState.Creating, WorkspaceState.Ready, WorkspaceState.Shelved], WorkspaceError.CannotRemove, workspace => Outcomes.ErrorOf(workspace.Remove())),
     ];
 
     [Fact]

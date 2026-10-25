@@ -1,10 +1,13 @@
 using Avala.Resources.Contracts;
+using Avala.Sdk;
 
 namespace Avala.Resources.Tracking;
 
 internal interface IResourceSettings
 {
     ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken);
 }
 
 internal interface IFolderSizes

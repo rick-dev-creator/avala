@@ -164,6 +164,37 @@ public sealed class ReviewJobTests
     }
 
     [Fact]
+    public async Task ReopeningAnApprovedJobWhoseWorktreeWasFreedRebuildsItAndResumesItsConversationAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await ReviewedAsync(flow);
+        await flow.OfferResumeAsync(job, Outcomes.Present(job.Session), Token);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(job.Id, Cancellation));
+        _ = await flow.Workspaces.ShelveAsync(Outcomes.Present(job.Workspace), Cancellation);
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ReopenAsync(job.Id, Feedback, Cancellation));
+
+        Assert.Equal([Outcomes.Present(job.Workspace)], flow.Workspaces.Rebuilt);
+        Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
+        Assert.Equal(JobState.Running, job.State);
+    }
+
+    [Fact]
+    public async Task AFreedWorktreeThatCannotBeRebuiltLeavesTheJobApprovedAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await ReviewedAsync(flow);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(job.Id, Cancellation));
+        _ = await flow.Workspaces.ShelveAsync(Outcomes.Present(job.Workspace), Cancellation);
+        flow.Workspaces.RebuildFails = true;
+        var sent = flow.Agents.Sent.Count;
+
+        Assert.Equal(JobRejection.WorkspaceUnavailable, Outcomes.FailsWith(await flow.Jobs.ReopenAsync(job.Id, Feedback, Cancellation)));
+        Assert.Equal(JobState.Approved, job.State);
+        Assert.Equal(sent, flow.Agents.Sent.Count);
+    }
+
+    [Fact]
     public async Task OnlyAnApprovedJobWithItsWorktreeCanBeReopenedAndOnlyWithFeedbackAsync()
     {
         var flow = JobFlow.With();

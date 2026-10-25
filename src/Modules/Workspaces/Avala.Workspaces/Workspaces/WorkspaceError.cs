@@ -9,4 +9,6 @@ internal enum WorkspaceError
     CannotCheckpoint,
     CannotFail,
     CannotRemove,
+    CannotShelve,
+    CannotRebuild,
 }

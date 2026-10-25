@@ -25,7 +25,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
         {
             var view = Wide(new DesignSettingsViewModel());
 
-            Assert.Equal((6, 4), (view.Find<ItemsControl>("Sections").ItemCount, view.Find<ItemsControl>("Repositories").ItemCount));
+            Assert.Equal((7, 4), (view.Find<ItemsControl>("Sections").ItemCount, view.Find<ItemsControl>("Repositories").ItemCount));
             Assert.Equal(("Accounts", "The agents and source control this computer signs in with."), (view.TextOf("SectionTitle"), view.TextOf("SectionNote")));
             Assert.Equal(
                 (true, false, false, false, false, false, false),
@@ -73,7 +73,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal((false, true, true), (view.Shows("Navigation"), view.Shows("TopNavigation"), view.Shows("RepositoryChooser")));
-            Assert.Equal(6, view.Find<ItemsControl>("SectionTabs").ItemCount);
+            Assert.Equal(7, view.Find<ItemsControl>("SectionTabs").ItemCount);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -359,7 +359,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         return new(
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
     }
 
 }

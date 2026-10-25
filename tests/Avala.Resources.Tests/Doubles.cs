@@ -1,7 +1,10 @@
 using Avala.Resources.Claims;
 using System.Collections.Concurrent;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Contracts;
+using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Settings;
 using Avala.Resources.Tracking;
@@ -17,7 +20,31 @@ internal sealed class FixedSettings(ResourceSettings settings) : IResourceSettin
 {
     public static FixedSettings Defaults { get; } = new(ResourceSettingsParser.Defaults);
 
-    public ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(settings);
+    public ResourceSettings Current { get; private set; } = settings;
+
+    public ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Current);
+
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken)
+    {
+        Current = Current with { Worktrees = policy };
+
+        return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Success(Current));
+    }
+}
+
+internal sealed class FakeFacts : IWorktreeFacts
+{
+    public HashSet<JobId> ArchivedJobs { get; } = [];
+
+    public HashSet<JobId> MergedJobs { get; } = [];
+
+    public HashSet<JobId> AwaitingMerge { get; } = [];
+
+    public bool Archived(JobId job) => ArchivedJobs.Contains(job);
+
+    public bool Merged(JobId job) => MergedJobs.Contains(job);
+
+    public bool AwaitsMerge(JobId job) => AwaitingMerge.Contains(job);
 }
 
 internal sealed class FakeListening : IListeningPorts
@@ -46,10 +73,15 @@ internal sealed class FakeFolders : IFolderSizes
     public Task<long> DataFolderAsync(CancellationToken cancellationToken) => Task.FromResult(Data);
 }
 
-internal sealed class FakeWorkspaces : IWorkspaces
+internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceShelf
 {
     private readonly ConcurrentDictionary<string, WorkspaceInfo> known = new();
     private readonly ConcurrentQueue<WorkspaceId> removed = new();
+    private readonly ConcurrentQueue<WorkspaceId> shelved = new();
+
+    public HashSet<WorkspaceId> Delivered { get; } = [];
+
+    public IReadOnlyList<WorkspaceId> Shelved => [.. shelved];
 
     public WorktreeReconciliation Found { get; set; } = new([], []);
 
@@ -59,9 +91,9 @@ internal sealed class FakeWorkspaces : IWorkspaces
 
     public List<WorktreeReconciliation> Cleaned { get; } = [];
 
-    public WorkspaceInfo Add(string path)
+    public WorkspaceInfo Add(string path, bool shelved = false)
     {
-        var info = new WorkspaceInfo(WorkspaceId.New(), path, "avala/branch", new string('0', 40));
+        var info = new WorkspaceInfo(WorkspaceId.New(), path, "avala/branch", new string('0', 40)) { Shelved = shelved };
         known[path] = info;
 
         return info;
@@ -82,6 +114,26 @@ internal sealed class FakeWorkspaces : IWorkspaces
 
         return ValueTask.FromResult(Result<WorkspaceId, WorkspaceFailure>.Success(workspace));
     }
+
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> ShelveAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (Failure is { } failure)
+        {
+            return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Failure(failure));
+        }
+
+        shelved.Enqueue(workspace);
+        var entry = known.Single(found => found.Value.Id == workspace);
+        known[entry.Key] = entry.Value with { Shelved = true };
+
+        return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(known[entry.Key]));
+    }
+
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Result<bool, WorkspaceFailure>> DeliveredAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<bool, WorkspaceFailure>.Success(Delivered.Contains(workspace)));
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Found);
 
@@ -193,4 +245,36 @@ internal static class Lessor
 {
     public static PortLeases Leases(RecordingBus bus, FakeListening listening, ResourceSettings settings, string claims) =>
         new(new PortClaimFiles(listening, claims), new FixedSettings(settings), bus, NullLogger<PortLeases>.Instance);
+}
+
+internal sealed class FakeProjects : IProjects
+{
+    public ProjectMap Current { get; set; } = ProjectMap.Empty;
+
+    public ValueTask<Result<ProjectCreated, ProjectRejection>> CreateAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ProjectRenamed, ProjectRejection>> RenameAsync(ProjectId project, string name, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ProjectDeleted, ProjectRejection>> DeleteAsync(ProjectId project, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ConversationMoved, ProjectRejection>> MoveAsync(JobId job, ProjectId project, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ConversationsArchived, ProjectRejection>> ArchiveAsync(IReadOnlyList<JobId> jobs, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<ConversationRestored, ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+}
+
+internal sealed class FakePullRequests : IPullRequests
+{
+    public Dictionary<JobId, PullRequestWatchState> Watches { get; } = [];
+
+    public ValueTask<Option<PullRequestOffer>> OfferAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public Option<PullRequestWatchState> Of(JobId job) => Watches.TryGetValue(job, out var watch) ? watch : Option<PullRequestWatchState>.None;
+
+    public IReadOnlyList<WakeUpRecord> WakeUpsOf(JobId job) => [];
+
+    public Option<ForgeError> RefusalOf(JobId job) => Option<ForgeError>.None;
+
+    public ValueTask<Result<PullRequestWatchState, ForgeError>> RefreshAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

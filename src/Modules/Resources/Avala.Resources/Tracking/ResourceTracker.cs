@@ -77,7 +77,7 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
     }
 
     public async ValueTask HandleAsync(ResourcesSampled integrationEvent, CancellationToken cancellationToken) =>
-        await housekeeper.SweepAsync(reaper, cancellationToken);
+        await housekeeper.SweepAsync(integrationEvent.Sample, reaper, cancellationToken);
 
     private async Task EndedAsync(SessionId session, CancellationToken cancellationToken)
     {

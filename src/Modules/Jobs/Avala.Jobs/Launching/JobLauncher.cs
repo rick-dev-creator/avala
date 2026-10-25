@@ -84,7 +84,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     private async Task ReopenAsync(Job job, Func<OpenedSession, bool> begin, Func<OpenedSession, string> message, CancellationToken cancellationToken)
     {
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             await FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken);
             return;
@@ -107,7 +107,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         if (!job.AllowsRemoteControl
             || job.Resume.IsNone
             || job.Session.Match(agents.IsOpen, () => false)
-            || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
+            || !(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
             || !(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
         {
             return;
@@ -125,7 +125,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     public async Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken)
     {
-        if (job.Resume.IsNone || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (job.Resume.IsNone || !(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.NotResumable;
         }
@@ -174,7 +174,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.SameConnection;
         }
 
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -238,7 +238,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.EmptyMessage;
         }
 
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -322,7 +322,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         Round round,
         CancellationToken cancellationToken)
     {
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }

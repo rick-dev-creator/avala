@@ -19,6 +19,8 @@ internal interface IMachineSettingsViewModel
 
     INotificationsViewModel Notifications { get; }
 
+    IWorktreeSettingsViewModel Worktrees { get; }
+
     IMachineAccountsViewModel Accounts { get; }
 
     IReadOnlyList<object> Harnesses { get; }
@@ -71,11 +73,12 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private readonly MachineSettings settings;
     private readonly MachineAccountsViewModel accounts;
 
-    public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor)
+    public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor, IWorktreeSettingsViewModel worktrees)
     {
         this.settings = settings;
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
+        Worktrees = worktrees;
         Harnesses = sections.Harnesses;
         accounts = new MachineAccountsViewModel(editor, sections.SourceControl, sections.PersonalDetails, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
@@ -90,6 +93,8 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     public IDefaultConnectionViewModel DefaultConnection { get; }
 
     public INotificationsViewModel Notifications { get; }
+
+    public IWorktreeSettingsViewModel Worktrees { get; }
 
     public IMachineAccountsViewModel Accounts => accounts;
 
@@ -152,6 +157,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     {
         Show(await settings.ReadAsync(cancellationToken));
         await Notifications.LoadAsync(cancellationToken);
+        await Worktrees.LoadAsync(cancellationToken);
         await SourceControl.LoadAsync(cancellationToken);
 
         foreach (var harness in Harnesses.OfType<IActivatable>())

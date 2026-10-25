@@ -10,3 +10,7 @@ internal sealed record CheckpointRecorded(WorkspaceId Workspace, Checkpoint Chec
 internal sealed record WorkspaceFailed(WorkspaceId Workspace) : IDomainEvent;
 
 internal sealed record WorkspaceRemoved(WorkspaceId Workspace) : IDomainEvent;
+
+internal sealed record WorkspaceShelved(WorkspaceId Workspace) : IDomainEvent;
+
+internal sealed record WorkspaceRebuilt(WorkspaceId Workspace, WorkspaceLocation Location, BranchName Branch) : IDomainEvent;
