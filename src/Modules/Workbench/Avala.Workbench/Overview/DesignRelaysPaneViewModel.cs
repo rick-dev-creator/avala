@@ -30,16 +30,16 @@ internal sealed class DesignRelaysPaneViewModel : IRelaysPaneViewModel
         Legs = waiting
             ?
             [
-                new DesignRelayLegViewModel("claude-work", "Ran 1h 52m · wound down at 90%", "13:10", false, false),
-                new DesignRelayLegViewModel("claude-team", "Ran 2h 38m · wound down at 90%", "15:04", false, false),
-                new DesignRelayLegViewModel("claude-max", "Ran 1h 26m · capped at 97%", "17:42", false, false),
-                new DesignRelayLegViewModel("Waiting for claude-work", "Compacts, then resumes at its reset", "17:44", true, true),
+                new DesignRelayLegViewModel { Title = "claude-work", Detail = "Ran 1h 52m · wound down at 90%", When = "13:10", IsCurrent = false, IsWaiting = false },
+                new DesignRelayLegViewModel { Title = "claude-team", Detail = "Ran 2h 38m · wound down at 90%", When = "15:04", IsCurrent = false, IsWaiting = false },
+                new DesignRelayLegViewModel { Title = "claude-max", Detail = "Ran 1h 26m · capped at 97%", When = "17:42", IsCurrent = false, IsWaiting = false },
+                new DesignRelayLegViewModel { Title = "Waiting for claude-work", Detail = "Compacts, then resumes at its reset", When = "17:44", IsCurrent = true, IsWaiting = true },
             ]
             :
             [
-                new DesignRelayLegViewModel("claude-work", "Ran 1h 52m · wound down at 90%", "13:10", false, false),
-                new DesignRelayLegViewModel("claude-team", "Ran 2h 38m · wound down at 90%", "15:04", false, false),
-                new DesignRelayLegViewModel("claude-max", "Running · 38% of its window", "15:48", true, false),
+                new DesignRelayLegViewModel { Title = "claude-work", Detail = "Ran 1h 52m · wound down at 90%", When = "13:10", IsCurrent = false, IsWaiting = false },
+                new DesignRelayLegViewModel { Title = "claude-team", Detail = "Ran 2h 38m · wound down at 90%", When = "15:04", IsCurrent = false, IsWaiting = false },
+                new DesignRelayLegViewModel { Title = "claude-max", Detail = "Running · 38% of its window", When = "15:48", IsCurrent = true, IsWaiting = false },
             ];
     }
 
@@ -80,9 +80,34 @@ internal sealed class DesignRelaysPaneViewModel : IRelaysPaneViewModel
     }
 }
 
-internal sealed record DesignRelayLaneViewModel(string Name, string Harness, IMeterViewModel Meter, bool IsCurrent) : IRelayLaneViewModel;
+internal sealed class DesignRelayLaneViewModel(string name, string harness, IMeterViewModel meter, bool current) : IRelayLaneViewModel
+{
+    public DesignRelayLaneViewModel()
+        : this("claude-max", "Claude Code · Max 20x", new DesignMeterViewModel(), true)
+    {
+    }
 
-internal sealed record DesignRelayLegViewModel(string Title, string Detail, string When, bool IsCurrent, bool IsWaiting) : IRelayLegViewModel;
+    public string Name { get; } = name;
+
+    public string Harness { get; } = harness;
+
+    public IMeterViewModel Meter { get; } = meter;
+
+    public bool IsCurrent { get; } = current;
+}
+
+internal sealed class DesignRelayLegViewModel : IRelayLegViewModel
+{
+    public string Title { get; init; } = "claude-team";
+
+    public string Detail { get; init; } = "Ran 2h 38m · wound down at 90%";
+
+    public string When { get; init; } = "15:04";
+
+    public bool IsCurrent { get; init; }
+
+    public bool IsWaiting { get; init; }
+}
 
 internal static class DesignRelays
 {
@@ -115,4 +140,13 @@ internal static class DesignRelays
             new RelayStop(2, 0.58, RelayStopKind.HandedOff),
             new RelayStop(2, 0.8, RelayStopKind.Capped)
         ]);
+}
+
+internal sealed class DesignRelaysToggleViewModel : IRelaysToggleViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public bool IsOpen { get; init; } = true;
+
+    public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
 }

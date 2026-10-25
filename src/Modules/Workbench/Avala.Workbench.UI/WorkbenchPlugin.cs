@@ -167,12 +167,14 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
             .AddToRegion<DelegationToggleViewModel>(WorkbenchRegions.JobHeader, 1)
+            .AddToRegion<RelaysToggleViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<RemoteControlViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
             .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
+            .AddToRegion<RelaysPaneViewModel>(WorkbenchRegions.Preview, 15)
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
             .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
             .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
@@ -408,7 +410,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<LoopPaused>, Pulse>()
             .AddForwarded<IHandle<LoopResumed>, Pulse>()
             .AddForwarded<IHandle<BreakerTripped>, Pulse>()
-            .AddForwarded<IHandle<LoopEnded>, Pulse>();
+            .AddForwarded<IHandle<LoopEnded>, Pulse>()
+            .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         RegisterPulse(services)
@@ -444,6 +447,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<DelegationPaneViewModel>()
             .AddSingleton<DelegationToggleViewModel>()
+            .AddSingleton<RelaysReader>()
+            .AddSingleton<RelaysPaneViewModel>()
+            .AddSingleton<RelaysToggleViewModel>()
             .AddSingleton<DocsSettingViewModel>()
             .AddSingleton<RepositorySettingsParts>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
@@ -503,6 +509,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
         views.Register<IRelaysPaneViewModel, RelaysPaneView>();
+        views.Register<IRelaysToggleViewModel, RelaysToggleView>();
+        views.Register<IRelayLaneViewModel, RelayLaneView>();
+        views.Register<IRelayLegViewModel, RelayLegView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 

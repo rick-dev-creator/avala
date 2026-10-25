@@ -47,24 +47,6 @@
       <Setter Property="CapBrush" Value="{DynamicResource FailureBrush}" />
       <Setter Property="SurfaceBrush" Value="{DynamicResource SurfacePanelBrush}" />
     </Style>
-    <Style Selector="Border.lane.current">
-      <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
-    </Style>
-    <Style Selector="Border.lane.current TextBlock#LaneName">
-      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-    </Style>
-    <Style Selector="Ellipse.stop">
-      <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
-    </Style>
-    <Style Selector="Ellipse.stop.current">
-      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
-    </Style>
-    <Style Selector="Ellipse.stop.waiting">
-      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
-    </Style>
-    <Style Selector="Rectangle.rail">
-      <Setter Property="Fill" Value="{DynamicResource SeparatorStrongBrush}" />
-    </Style>
   </UserControl.Styles>
   <Border x:Name="Surface" IsVisible="{Binding IsOpen}">
     <DockPanel>
@@ -100,43 +82,25 @@
               </StackPanel>
             </Grid>
           </Border>
-          <Border x:Name="Track" BorderThickness="1" Padding="0,6" ClipToBounds="True">
-            <Grid ColumnDefinitions="148,*" RowDefinitions="Auto,Auto">
-              <ItemsControl x:Name="Lanes" ItemsSource="{Binding Lanes}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="overview:IRelayLaneViewModel">
-                    <Border Classes="lane" Classes.current="{Binding IsCurrent}" Height="64" Padding="12,0,10,0" CornerRadius="0,8,8,0">
-                      <StackPanel VerticalAlignment="Center" Spacing="3">
-                        <TextBlock x:Name="LaneName" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                        <ContentControl Content="{Binding Meter}" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-              <graphs:RelayTrack x:Name="Course" Grid.Column="1" Course="{Binding Course}" LaneHeight="64" />
-              <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="18,2,18,2">
+          <Border x:Name="Track" BorderThickness="1" Padding="0,4,0,6" ClipToBounds="True">
+            <Grid ColumnDefinitions="148,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock x:Name="Pattern"
+                         Grid.ColumnSpan="2"
+                         Classes="caption tertiary"
+                         Margin="12,4,14,4"
+                         HorizontalAlignment="Right"
+                         Text="Elastic Harness Chaining"
+                         ToolTip.Tip="A relay race for agents: near a limit, the job packages its progress and hands it to a fresh harness" />
+              <ItemsControl x:Name="Lanes" Grid.Row="1" ItemsSource="{Binding Lanes}" />
+              <graphs:RelayTrack x:Name="Course" Grid.Row="1" Grid.Column="1" Course="{Binding Course}" LaneHeight="64" />
+              <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="18,2,18,2">
                 <TextBlock x:Name="Began" Classes="caption" Text="{Binding Began}" />
                 <TextBlock x:Name="Latest" Grid.Column="1" Classes="caption" Text="{Binding Latest}" />
               </Grid>
             </Grid>
           </Border>
           <TextBlock Classes="section" Text="Journey" Margin="2,4,0,0" />
-          <ItemsControl x:Name="Legs" ItemsSource="{Binding Legs}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="overview:IRelayLegViewModel">
-                <Grid ColumnDefinitions="22,*,Auto" MinHeight="48">
-                  <Rectangle Classes="rail" Width="1.5" HorizontalAlignment="Center" />
-                  <Ellipse Classes="stop" Classes.current="{Binding IsCurrent}" Classes.waiting="{Binding IsWaiting}" Width="10" Height="10" Margin="0,5,0,0" VerticalAlignment="Top" />
-                  <StackPanel Grid.Column="1" Margin="8,0,0,12" Spacing="2">
-                    <TextBlock Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
-                  </StackPanel>
-                  <TextBlock Grid.Column="2" Classes="caption" Margin="8,1,2,0" Text="{Binding When}" />
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+          <ItemsControl x:Name="Legs" ItemsSource="{Binding Legs}" />
         </StackPanel>
       </ScrollViewer>
     </DockPanel>
