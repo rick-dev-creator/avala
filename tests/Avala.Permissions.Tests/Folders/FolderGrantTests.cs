@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -246,7 +247,7 @@ public sealed class FolderGrantTests : IDisposable
 
     private Task CallAsync(SessionId caller, string item, string path, string access, string reason) =>
         desk.HandleAsync(
-            new AgentActivity(new ToolCalled(caller, TurnId.New(), new ItemId(item), FolderTool.Name, $$"""{"path":"{{path}}","access":"{{access}}","reason":"{{reason}}"}""")),
+            new AgentActivity(new ToolCalled(caller, TurnId.New(), new ItemId(item), FolderTool.Name, JsonSerializer.Serialize(new { path, access, reason }))),
             Cancellation).AsTask();
 
     private async Task<PolicyDecision> EditAsync(string item, string path)
