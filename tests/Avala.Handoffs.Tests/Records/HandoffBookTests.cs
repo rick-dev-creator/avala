@@ -32,6 +32,20 @@ public sealed class HandoffBookTests
         Assert.Equal(new HandoffRecorded(handoff), Assert.Single(watched.Bus.Published));
     }
 
+    [Fact]
+    public async Task AMarkAndAHandoffRecordedBeforeTheBookLoadsItsStoreAreKeptOnceAsync()
+    {
+        await using var watched = new Watched();
+        var choice = new ConnectionChoice(Watched.Personal, ChoiceReason.MostCapacity, [], Watched.Start);
+        await watched.Book.MarkAsync(new RelayMark(watched.Job, RelayMarkKind.WindingDown, Watched.Work, Watched.Start), Cancellation);
+        await watched.Book.HandleAsync(new JobHandedOff(watched.Job, Watched.Work, Watched.Personal, SessionId.New(), 2, choice), Cancellation);
+
+        await watched.Book.RunAsync(Cancellation);
+
+        Assert.Single(watched.Book.MarksOf(watched.Job));
+        Assert.Single(watched.Book.OfJob(watched.Job));
+    }
+
     private static void Spent(Watched watched, JobId job, Avala.Agents.Contracts.Connections.ConnectionName connection, TokenUsage tokens, params Cost[] costs)
     {
         var session = SessionId.New();

@@ -51,7 +51,7 @@ internal static class HandoffPolicy
         var own = situation.Own.Connection;
         var listed = situation.Rules.Connections;
         var pool = situation.Choice.Match(
-            choice => choice.Compared.Select(candidate => candidate.Connection).Where(name => listed.Count == 0 || listed.Contains(name)),
+            choice => PoolOf(choice).Where(name => listed.Count == 0 || listed.Contains(name)),
             () => listed.Contains(own) ? listed : []);
 
         return
@@ -82,7 +82,10 @@ internal static class HandoffPolicy
                             best.Connection,
                             ReasonOf(situation.Rules.Strategy),
                             [new CandidateCapacity(situation.Own.Connection, window.UsedFraction, window, situation.Rules.Threshold, Available: false), .. measured],
-                            situation.Now),
+                            situation.Now)
+                        {
+                            Pool = Carried(situation, measured.Select(candidate => candidate.Connection)),
+                        },
                     }
                     : new Decision(Verdict.Wait) { Why = why, Resume = resume };
             },
@@ -91,7 +94,15 @@ internal static class HandoffPolicy
     public static IReadOnlyList<ConnectionName> Ring(Situation situation) =>
         situation.Rules.Connections.Count > 0
             ? situation.Rules.Connections
-            : situation.Choice.Match<IReadOnlyList<ConnectionName>>(choice => [.. choice.Compared.Select(candidate => candidate.Connection).Distinct()], () => []);
+            : situation.Choice.Match(PoolOf, () => []);
+
+    public static IReadOnlyList<ConnectionName> PoolOf(ConnectionChoice choice) =>
+        choice.Pool.Count > 0 ? choice.Pool : [.. choice.Compared.Select(candidate => candidate.Connection).Distinct()];
+
+    public static IReadOnlyList<ConnectionName> Carried(Situation situation, IEnumerable<ConnectionName> compared) =>
+        situation.Choice.Match<IReadOnlyList<ConnectionName>>(
+            choice => [.. PoolOf(choice).Append(situation.Own.Connection).Concat(compared).Distinct()],
+            () => []);
 
     private static CandidateCapacity? Pick(Situation situation, IReadOnlyList<CandidateCapacity> measured)
     {

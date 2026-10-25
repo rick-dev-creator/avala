@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
@@ -12,14 +13,13 @@ internal sealed class WindDown(Situations situations, IUsage usage, RelayMoves m
 {
     private static readonly TimeSpan Patience = TimeSpan.FromMinutes(1);
 
-    private readonly Dictionary<SessionId, LimitRules> rules = [];
     private readonly Dictionary<SessionId, DateTimeOffset> looked = [];
 
     public async ValueTask HandleAsync(UsageRecorded integrationEvent, CancellationToken cancellationToken)
     {
         var session = integrationEvent.Session;
 
-        if (ledger.IsSettled(session) && !ledger.IsWinding(session))
+        if (ledger.IsSettled(session, situations.Now) && !ledger.IsWinding(session))
         {
             return;
         }
@@ -32,11 +32,11 @@ internal sealed class WindDown(Situations situations, IUsage usage, RelayMoves m
 
     private async Task WatchAsync(JobId job, SessionId session, CancellationToken cancellationToken)
     {
-        var used = usage.OfSession(session).Match(
-            summary => Capacity.Counting(summary.Limits, situations.Now).Select(limit => limit.UsedFraction).DefaultIfEmpty(0).Max(),
-            () => 0);
-
-        var read = used > 0 ? await RulesOfAsync(job, session, cancellationToken) : Option<LimitRules>.None;
+        var counting = usage.OfSession(session).Match<IReadOnlyList<UsageLimit>>(
+            summary => Capacity.Counting(summary.Limits, situations.Now),
+            () => []);
+        var used = counting.Select(limit => limit.UsedFraction).DefaultIfEmpty(0).Max();
+        var read = used > 0 ? await situations.RulesAsync(job, cancellationToken) : Option<LimitRules>.None;
 
         if (read.Match(found => used < found.Threshold, () => true))
         {
@@ -45,25 +45,27 @@ internal sealed class WindDown(Situations situations, IUsage usage, RelayMoves m
 
         var known = read.Match(found => found, () => LimitRules.Default);
 
+        var reading = new Reading(used, Capacity.Of(counting, known.Threshold, situations.Now).At);
+
         if (ledger.IsWinding(session))
         {
-            await CapAtAsync(job, session, used, known, cancellationToken);
+            await CapAtAsync(job, session, reading, known, cancellationToken);
 
             return;
         }
 
-        if (looked.TryGetValue(session, out var last) && situations.Now - last < Patience)
+        if (used < known.HardCap && looked.TryGetValue(session, out var last) && situations.Now - last < Patience)
         {
             return;
         }
 
         looked[session] = situations.Now;
         await (await situations.OfAsync(job, cancellationToken)).Match(
-            situation => DecideAsync(situation, session, used, cancellationToken),
+            situation => DecideAsync(situation, session, reading, cancellationToken),
             () => Task.CompletedTask);
     }
 
-    private async Task DecideAsync(JobSituation situation, SessionId session, double used, CancellationToken cancellationToken)
+    private async Task DecideAsync(JobSituation situation, SessionId session, Reading reading, CancellationToken cancellationToken)
     {
         if (situation.History.Summary.Status != JobStatus.Running || !OnSession(situation, session))
         {
@@ -79,22 +81,29 @@ internal sealed class WindDown(Situations situations, IUsage usage, RelayMoves m
 
         var kept = situation.Situation.Rules;
         await decision.Why.Match(
-            why => kept.WindDown && used < kept.HardCap
-                ? moves.WindDownAsync(situation, session, why, cancellationToken)
-                : moves.CapAsync(situation, session, why, cancellationToken),
+            why => reading.Used >= kept.HardCap ? moves.CapAsync(situation, session, why, reading.Until, cancellationToken)
+                : kept.WindDown ? moves.WindDownAsync(situation, session, why, reading.Until, cancellationToken)
+                : RelayAtTurnEndAsync(session, reading),
             () => Task.CompletedTask);
     }
 
-    private async Task CapAtAsync(JobId job, SessionId session, double used, LimitRules known, CancellationToken cancellationToken)
+    private Task RelayAtTurnEndAsync(SessionId session, Reading reading)
     {
-        if (used < known.HardCap)
+        moves.RelayAtTurnEnd(session, reading.Until);
+
+        return Task.CompletedTask;
+    }
+
+    private async Task CapAtAsync(JobId job, SessionId session, Reading reading, LimitRules known, CancellationToken cancellationToken)
+    {
+        if (reading.Used < known.HardCap)
         {
             return;
         }
 
         await (await situations.OfAsync(job, cancellationToken)).Match(
             situation => situation.History.Summary.Status == JobStatus.Running && OnSession(situation, session)
-                ? moves.CapAsync(situation, session, new LimitReason(situation.Connection, Window(situation), used, known.HardCap), cancellationToken)
+                ? moves.CapAsync(situation, session, new LimitReason(situation.Connection, Window(situation), reading.Used, known.HardCap), reading.Until, cancellationToken)
                 : Task.CompletedTask,
             () => Task.CompletedTask);
     }
@@ -105,20 +114,5 @@ internal sealed class WindDown(Situations situations, IUsage usage, RelayMoves m
     private static string Window(JobSituation situation) =>
         Capacity.Counting(situation.Situation.Own.Limits, situation.Situation.Now).OrderByDescending(limit => limit.UsedFraction).Select(limit => limit.Window).FirstOrDefault() ?? string.Empty;
 
-    private async Task<Option<LimitRules>> RulesOfAsync(JobId job, SessionId session, CancellationToken cancellationToken)
-    {
-        if (rules.TryGetValue(session, out var known))
-        {
-            return known;
-        }
-
-        var read = await situations.RulesAsync(job, cancellationToken);
-
-        foreach (var found in read.Match<LimitRules[]>(found => [found], () => []))
-        {
-            rules[session] = found;
-        }
-
-        return read;
-    }
+    private readonly record struct Reading(double Used, Option<DateTimeOffset> Until);
 }

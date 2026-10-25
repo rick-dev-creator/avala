@@ -28,7 +28,10 @@ public enum ChoiceReason
 
 public sealed record CandidateCapacity(ConnectionName Connection, double Used, Option<UsageLimit> Window, double Threshold, bool Available);
 
-public sealed record ConnectionChoice(ConnectionName Connection, ChoiceReason Reason, IReadOnlyList<CandidateCapacity> Compared, DateTimeOffset At);
+public sealed record ConnectionChoice(ConnectionName Connection, ChoiceReason Reason, IReadOnlyList<CandidateCapacity> Compared, DateTimeOffset At)
+{
+    public IReadOnlyList<ConnectionName> Pool { get; init; } = [];
+}
 
 public sealed record ConnectionChosen(JobId Job, ConnectionChoice Choice) : IIntegrationEvent;
 

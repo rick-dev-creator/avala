@@ -46,16 +46,6 @@ public sealed class WindDownTests
     }
 
     [Fact]
-    public async Task RulesThatDoNotWindDownStopTheJobAtTheThresholdAsync()
-    {
-        var winding = Winding(Rules with { WindDown = false });
-
-        await winding.RecordedAsync(0.92);
-
-        Assert.Equal(["hold"], winding.Operations);
-    }
-
-    [Fact]
     public async Task AReadingThatJumpsPastTheHardCapStopsTheJobWithoutWindingDownAsync()
     {
         var winding = Winding(Rules);

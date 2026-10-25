@@ -9,14 +9,16 @@ namespace Avala.Handoffs.Watching;
 
 internal sealed class RelayMoves(ISessionBoundJobs jobs, HandoffBook book, RelayLedger ledger)
 {
-    public async Task WindDownAsync(JobSituation situation, SessionId session, LimitReason why, CancellationToken cancellationToken)
+    public void RelayAtTurnEnd(SessionId session, Option<DateTimeOffset> until) => ledger.Wind(session, until);
+
+    public async Task WindDownAsync(JobSituation situation, SessionId session, LimitReason why, Option<DateTimeOffset> until, CancellationToken cancellationToken)
     {
-        ledger.Wind(session);
+        ledger.Wind(session, until);
         var message = new JobMessage(Steer(why)) { Author = MessageAuthor.Avala, CausedBy = MessageAuthor.Avala };
 
         if ((await jobs.SteerOnAsync(situation.Job, session, message, cancellationToken)).IsFailure)
         {
-            await CapAsync(situation, session, why, cancellationToken);
+            await CapAsync(situation, session, why, until, cancellationToken);
 
             return;
         }
@@ -24,9 +26,9 @@ internal sealed class RelayMoves(ISessionBoundJobs jobs, HandoffBook book, Relay
         await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.WindingDown, situation.Connection, situation.Situation.Now) { Why = why }, cancellationToken);
     }
 
-    public async Task CapAsync(JobSituation situation, SessionId session, LimitReason why, CancellationToken cancellationToken)
+    public async Task CapAsync(JobSituation situation, SessionId session, LimitReason why, Option<DateTimeOffset> until, CancellationToken cancellationToken)
     {
-        ledger.Settle(session);
+        ledger.Settle(session, until);
 
         if ((await jobs.HoldRunningOnAsync(situation.Job, session, HoldReason.LimitNearlyReached, cancellationToken)).IsSuccess)
         {

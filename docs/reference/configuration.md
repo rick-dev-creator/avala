@@ -128,7 +128,7 @@ One JSON object; each module reads its own section, and Jobs rejects a field the
 | `limits.threshold` | The share of a usage window at which a job prepares to hold or move. | 0.9. |
 | `limits.connections` | The connections a job may move to. | None. |
 | `limits.resumeAtReset` | `ask` or `auto`. | `ask`. |
-| `limits.hardCap` | The share of a usage window a job winding down is stopped at, from `threshold` to 1. | 0.98, or `threshold` when higher. |
+| `limits.hardCap` | The share of a usage window a job about to relay is stopped at, from `threshold` to 1. | 0.98, or `threshold` when higher. |
 | `limits.strategy` | `most-headroom`, `in-order`, `soonest-reset` or `round-robin`. | `most-headroom`. |
 | `limits.windDown` | Asks the agent to wind down before a handoff. | `true`. |
 | `limits.compactOnResume` | Compacts the conversation before a job continues on the connection it waited for. | `true`. |

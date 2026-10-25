@@ -92,8 +92,15 @@ internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, ICo
             _ => ModelChoice.Default);
 
     private void Remember(RelayMark mark) =>
-        ImmutableInterlocked.Update(ref marks, known => known.SetItem(mark.Job, known.GetValueOrDefault(mark.Job, []).Add(mark)));
+        ImmutableInterlocked.Update(ref marks, known => Kept(known, mark.Job, mark, kept => (kept.Kind, kept.Connection, kept.At)));
 
     private void Remember(HandoffRecord handoff) =>
-        ImmutableInterlocked.Update(ref handoffs, known => known.SetItem(handoff.Job, known.GetValueOrDefault(handoff.Job, []).Add(handoff)));
+        ImmutableInterlocked.Update(ref handoffs, known => Kept(known, handoff.Job, handoff, kept => (kept.Attempt, kept.From, kept.To, kept.At)));
+
+    private static ImmutableDictionary<JobId, ImmutableList<T>> Kept<T, TKey>(ImmutableDictionary<JobId, ImmutableList<T>> known, JobId job, T item, Func<T, TKey> key)
+    {
+        var list = known.GetValueOrDefault(job, []);
+
+        return list.Exists(kept => EqualityComparer<TKey>.Default.Equals(key(kept), key(item))) ? known : known.SetItem(job, list.Add(item));
+    }
 }

@@ -55,7 +55,7 @@ Without `runningJobs`, any number of jobs run at once.
 - `threshold`: the share of the window at which a job moves, 0.9 by default.
 - `connections`: the connections a job may move to.
 - `resumeAtReset`: `"ask"` (the default), so a held job waits for your message once its window resets, or `"auto"`, so it resumes by itself the moment the window resets.
-- `hardCap`: the share of a window a job winding down is stopped at, from the threshold up to 1; 0.98 by default, or the threshold when it is higher.
+- `hardCap`: the share of a window a job about to relay is stopped at, from the threshold up to 1; 0.98 by default, or the threshold when it is higher.
 - `strategy`: which connection takes the baton: `"most-headroom"` (the default), `"in-order"`, the first in `connections`, `"soonest-reset"` or `"round-robin"`, the next in `connections` after the one the job is on.
 - `windDown`: `true` (the default) asks the agent to wind down before a handoff; `false` relays at the end of the turn without asking.
 - `compactOnResume`: `true` (the default) compacts the conversation before a job continues on the connection it waited for, on a harness that compacts on request.

@@ -87,10 +87,15 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
     private async Task RestoreAsync(KeptWait kept, CancellationToken token)
     {
         waits[kept.Job] = new Waiting(kept, Option<ITimer>.None);
-        await RingAsync(kept.Job, token);
+        await RingAsync(kept.Job, Restored, token);
     }
 
-    private async Task RingAsync(JobId job, CancellationToken token)
+    private static Decision Restored(Situation situation) =>
+        situation.Own.Limits.Any() ? HandoffPolicy.ByThreshold(situation) : HandoffPolicy.WhenHeld(situation);
+
+    private Task RingAsync(JobId job, CancellationToken token) => RingAsync(job, HandoffPolicy.ByThreshold, token);
+
+    private async Task RingAsync(JobId job, Func<Situation, Decision> decide, CancellationToken token)
     {
         if (!waits.TryGetValue(job, out var waiting))
         {
@@ -99,7 +104,7 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
 
         await (await situations.OfAsync(job, token)).Match(
             situation => situation.History.Summary.Status == JobStatus.NeedsHelp
-                ? RungAsync(situation, HandoffPolicy.ByThreshold(situation.Situation), waiting, token)
+                ? RungAsync(situation, decide(situation.Situation), waiting, token)
                 : EndAsync(job, token),
             () => EndAsync(job, token));
     }
@@ -195,11 +200,11 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
         }
 
         await decision.Resume.Match(
-            resume => WaitAsync(situation.Job, Guessed(situation, resume), feedback, since, situation.Situation.Rules.Resume == ResumeAtReset.Ask, token),
+            resume => WaitAsync(situation.Job, Guessed(situation, resume, since), feedback, since, situation.Situation.Rules.Resume == ResumeAtReset.Ask, token),
             () => EndAsync(situation.Job, token));
     }
 
-    private ResumePoint Guessed(JobSituation situation, ResumePoint resume)
+    private ResumePoint Guessed(JobSituation situation, ResumePoint resume, DateTimeOffset since)
     {
         if (resume.At.IsSome || situation.Situation.Rules.Resume != ResumeAtReset.Auto)
         {
@@ -209,7 +214,7 @@ internal sealed partial class LimitWatch(Situations situations, LimitActions act
         var length = UsageWindows.LengthOf(resume.Window);
         LogResetGuessed(logger, situation.Job.Value, resume.Window, length.TotalHours);
 
-        return resume with { At = situation.Situation.Now + length };
+        return resume with { At = since + length };
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Job {Job} is held with no known reset of its {Window} usage window, so it goes on by itself after {Hours} hours")]

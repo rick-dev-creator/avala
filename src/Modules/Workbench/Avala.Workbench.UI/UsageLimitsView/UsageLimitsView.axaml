@@ -110,7 +110,7 @@
                     LargeChange="5"
                     AutomationProperties.Name="Never pass this share of the window"
                     Value="{Binding HardCap}" />
-            <TextBlock Classes="caption" Text="A job winding down that still reaches this share is stopped there, whatever it is doing, and the baton passes." TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="A job about to relay that still reaches this share is stopped there, whatever it is doing, and the baton passes." TextWrapping="Wrap" />
           </StackPanel>
           <Border Classes="separator" Margin="16,0" />
           <DockPanel Margin="16,12">
