@@ -15,10 +15,9 @@ internal static class AgentFeedback
             ? GateVerdict.Retry(Describe(failed))
             : GateVerdict.Pass;
 
-    public static GateVerdict Noting(GateVerdict verdict, Option<FileOrigin> declaration) =>
+    public static GateVerdict Noting(GateVerdict verdict, Option<FileOrigin> declaration, bool discovered) =>
         verdict.Decision == GateDecision.Retry && declaration.Match(origin => origin.EditedInWorktree, () => false)
-            ? GateVerdict.Retry(
-                $"{verdict.Feedback}\n\nYour changes to {CheckDeclaration.RelativePath} do not apply to this job: its checks come from the commit it started from.")
+            ? GateVerdict.Retry($"{verdict.Feedback}\n\nYour changes to {CheckDeclaration.RelativePath} do not apply to this job: {(discovered ? "its checks are the ones Avala found for this repository." : "its checks come from the commit it started from.")}")
             : verdict;
 
     private static string Describe(CheckEvidence check)

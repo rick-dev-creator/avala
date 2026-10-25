@@ -2,6 +2,8 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Verification.Contracts;
+using Avala.Verification.Discovering;
+using Avala.Verification.Tests.Discovering;
 using Avala.Verification.Evidence;
 using Avala.Verification.Verifying;
 using Microsoft.Extensions.Time.Testing;
@@ -26,7 +28,14 @@ internal sealed class Verified
         Files = files;
         Processes = new ScriptedProcesses(Clock);
         Book = new EvidenceBook(Store);
-        gate = new ChecksGate(files, new CheckRunner(Processes, Clock), new EvidenceLedger(Book, Bus), Clock);
+        var runner = new CheckRunner(Processes, Clock);
+        var jobs = new Scouted.FakeJobs();
+        var working = new Scouted.WorkingFolders();
+        var discoveries = new DiscoveryBook(new Scouted.MemoryDiscoveries(), Bus, Clock);
+        var worktrees = new JobWorktrees(jobs, jobs);
+        var discovered = new DiscoveredJobs(worktrees, files, working, new Scouted.Scratch());
+        var desk = new DiscoveryDesk(discoveries, discovered, new ProposalReview(worktrees, runner, new DiscoveryTerms(new Scouted.Toggle(), new Scouted.FakePolicies())), new JobActions(jobs, new Scouted.FixedRoles(), Bus));
+        gate = new ChecksGate(new AttemptChecks(files, new DiscoveredChecks(desk, discoveries, new ShippedChecks(working, jobs, jobs), worktrees)), runner, new EvidenceLedger(Book, Bus), Clock);
     }
 
     public CommittedFiles Files { get; }

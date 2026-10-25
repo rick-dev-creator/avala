@@ -22,6 +22,7 @@ public enum GateDecision
     Pass,
     Retry,
     Hold,
+    Defer,
 }
 
 public sealed record GateVerdict(GateDecision Decision, string Feedback)
@@ -36,5 +37,9 @@ public sealed record GateVerdict(GateDecision Decision, string Feedback)
 
     public static GateVerdict Relay(string feedback) => new(GateDecision.Retry, feedback) { Relays = true };
 
+    public static GateVerdict Deferred { get; } = new(GateDecision.Defer, string.Empty);
+
     public static GateVerdict HoldFor(HoldReason reason) => new(GateDecision.Hold, string.Empty) { Hold = reason };
 }
+
+public sealed record DeferredGateReady(JobId Job) : Avala.Sdk.Events.IIntegrationEvent;

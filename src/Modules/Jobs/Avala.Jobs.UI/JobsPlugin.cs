@@ -49,6 +49,8 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<NextRound>()
             .AddSingleton<EvaluateTurn>()
             .AddSingleton<RecoverJob>()
+            .AddSingleton<RecheckJob>()
+            .AddForwarded<IHandle<DeferredGateReady>, RecheckJob>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<ChooseModel>()
             .AddSingleton<ControlRemotely>()

@@ -59,10 +59,12 @@ internal static class CleanEvidence
 
         public IReadOnlyList<string> RuleFiles =>
         [
-            .. evidence.ChangedFiles.Match(files => files.Where(file => file.StartsWith(RuleFolder, StringComparison.Ordinal)), () => []),
+            .. evidence.ChangedFiles.Match(files => files.Where(file => file.StartsWith(RuleFolder, StringComparison.Ordinal) && !(file == CheckDeclaration && evidence.ShippedDiscovery)), () => []),
             .. When(evidence.Latest.Bind(report => report.Declaration).Match(origin => origin.EditedInWorktree, () => false), CheckDeclaration),
             .. When(evidence.RuleOrigins.Any(origin => origin.EditedInWorktree), PolicyFile),
         ];
+
+        public bool ShippedDiscovery => evidence.Latest.Match(report => report.Discovered && report.DiscoveryShipped, () => false);
 
         public RunEvidence Run(JobId job) => new(job, evidence.Summary, evidence.RunExceptions)
         {

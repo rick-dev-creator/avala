@@ -41,8 +41,12 @@ internal static class ReviewPhrases
 
     public static string NotResubmitted(JobRejection rejection) => $"The job was not resubmitted. {NewJob.NewJobPhrases.Rejection(rejection)}";
 
+    public const string FoundByAvala = "with the checks Avala found";
+
     public static string Verdict(ReviewVerdict verdict) => verdict.Kind switch
     {
+        VerdictKind.Verified when verdict.Discovered => string.Create(CultureInfo.InvariantCulture, $"Verified on attempt {verdict.Attempt} of {verdict.Attempts} {FoundByAvala}"),
+        VerdictKind.Failed when verdict.Discovered => string.Create(CultureInfo.InvariantCulture, $"Not verified: attempt {verdict.Attempt} of {verdict.Attempts} failed the checks Avala found"),
         VerdictKind.Verified => string.Create(CultureInfo.InvariantCulture, $"Verified on attempt {verdict.Attempt} of {verdict.Attempts}"),
         VerdictKind.NoChecks => "No checks declared: nothing proves the work",
         VerdictKind.Failed => string.Create(CultureInfo.InvariantCulture, $"Not verified: attempt {verdict.Attempt} of {verdict.Attempts} failed its checks"),
@@ -84,7 +88,11 @@ internal static class ReviewPhrases
             ? $"The repository declares no checks. {(afterEdit ? "After its last edit the agent" : "The agent")} reported {Names(reported.Select(run => $"{CommandPhrases.OneLine(run.Command)} {Outcome(run)}"))}."
             : Proof(evidence);
 
-    private static string Proof(VerificationReport last) => last.Outcome switch
+    public const string Shipped = "Avala found these checks by running the repository's own commands, and .avala/checks.json ships them with this job.";
+
+    private static string Proof(VerificationReport last) => last.Discovered && last.DiscoveryShipped ? $"{Proved(last)} {Shipped}" : Proved(last);
+
+    private static string Proved(VerificationReport last) => last.Outcome switch
     {
         VerificationOutcome.Passed => $"{Names(last.Checks.Select(check => check.Name))} {(last.Checks.Count > 1 ? "all passed" : "passed")} in the worktree after the last turn.",
         VerificationOutcome.Failed => $"{Names(last.Checks.Where(check => check.Status != CheckStatus.Passed && check.Status != CheckStatus.Skipped).Select(check => check.Name))} failed on the last attempt.",

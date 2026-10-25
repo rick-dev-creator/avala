@@ -236,6 +236,7 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Checks"] = Layer.Domain,
             ["Verifying"] = Layer.Application,
+            ["Discovering"] = Layer.Application,
             ["Evidence"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,

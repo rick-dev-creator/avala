@@ -369,7 +369,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterAccounts(IServiceCollection services) =>
         services
             .AddSingleton<SourceControl>()
-            .AddSingleton<UsageLimitsViewModel>()
             .AddSingleton<ConnectSheetViewModel>()
             .AddSingleton<SourceControlViewModel>()
             .AddForwarded<ISourceControlViewModel, SourceControlViewModel>()
@@ -416,7 +415,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
-        RegisterPulse(services)
+        RegisterPulse(services).AddRelays()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
@@ -449,9 +448,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<DelegationPaneViewModel>()
             .AddSingleton<DelegationToggleViewModel>()
-            .AddSingleton<RelaysReader>()
-            .AddSingleton<RelaysPaneViewModel>()
-            .AddSingleton<RelaysToggleViewModel>()
             .AddSingleton<DocsSettingViewModel>()
             .AddSingleton<RepositorySettingsParts>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
@@ -489,6 +485,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Documentation.Contracts.VersionWaiting>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.ChangeRequested>, DocsKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, DocsKeeper>()
+            .AddSingleton<DiscoveryKeeper>()
+            .AddForwarded<IHandle<Verification.Contracts.ChecksDiscoveryChanged>, DiscoveryKeeper>()
             .AddSingleton<FeatureDocsViewModel>()
             .AddForwarded<IPage, FeatureDocsViewModel>()
             .AddForwarded<IPage, OverviewViewModel>()
@@ -510,12 +508,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentTreeViewModel, SubagentTreeView>();
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
-        views.Register<IRelaysPaneViewModel, RelaysPaneView>();
-        views.Register<IRelaysToggleViewModel, RelaysToggleView>();
-        views.Register<IRelayLaneViewModel, RelayLaneView>();
-        views.Register<IRelayLegViewModel, RelayLegView>();
-        views.Register<IUsageLimitsViewModel, UsageLimitsView>();
-        views.Register<ILimitConnectionViewModel, LimitConnectionView>();
+        RelayRegistrations.RegisterViews(views);
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 
@@ -664,6 +657,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
             .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
             .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()
+
             .AddForwarded<IHandle<PermissionAnswered>, BoardKeeper>()
             .AddForwarded<IHandle<AutonomyApplied>, BoardKeeper>()
             .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()

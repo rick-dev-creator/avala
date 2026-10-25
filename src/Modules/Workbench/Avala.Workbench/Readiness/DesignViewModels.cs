@@ -24,11 +24,17 @@ internal sealed class DesignReadinessItemViewModel : IReadinessItemViewModel
 
     public bool IsDone { get; init; }
 
+    public bool IsWorking { get; init; }
+
     public string Error { get; init; } = string.Empty;
 
     public IReadOnlyList<IReadinessAccountViewModel> Accounts { get; init; } = [];
 
+    public string Dismiss { get; init; } = string.Empty;
+
     public IAsyncRelayCommand ActCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand DismissCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignReadinessCardViewModel : IReadinessCardViewModel
