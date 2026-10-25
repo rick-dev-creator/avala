@@ -78,7 +78,10 @@ public enum DiscoveryState
     NoneFound,
 }
 
-public sealed record ChecksDiscovery(JobId Job, string Repository, DiscoveryState State, IReadOnlyList<CheckDeclared> Checks);
+public sealed record ChecksDiscovery(JobId Job, string Repository, DiscoveryState State, IReadOnlyList<CheckDeclared> Checks)
+{
+    public bool Reads { get; init; }
+}
 
 public sealed record ChecksDiscoveryChanged(ChecksDiscovery Discovery) : IIntegrationEvent;
 

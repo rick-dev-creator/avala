@@ -42,6 +42,8 @@ internal static class ReadinessPhrases
 
     public const string ChecksFinding = "Avala is running this repository's own commands to find how to check the work";
 
+    public const string ChecksReading = "Avala is reading this repository to find how to check the work";
+
     public const string ChecksProposed = "Avala proposes these commands to check the work. This repository asks you before anything runs, so the job waits until you choose";
 
     public const string UseChecks = "Use them";
@@ -74,7 +76,7 @@ internal static class ReadinessPhrases
     private static ReadinessStep[] Checks(Option<ChecksDiscovery> discovery) => discovery.Match<ReadinessStep[]>(
         found => found.State switch
         {
-            DiscoveryState.Running => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksFinding), string.Empty) { Working = true }],
+            DiscoveryState.Running => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(found.Reads ? ChecksReading : ChecksFinding), string.Empty) { Working = true }],
             DiscoveryState.Proposed => [new ReadinessStep(ReadinessNeed.Checks, new PersonalPhrase(ChecksProposed), UseChecks)
             {
                 Command = string.Join('\n', found.Checks.Select(check => check.Command)),

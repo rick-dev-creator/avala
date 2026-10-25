@@ -21,6 +21,8 @@ namespace Avala.Verification.Storage.Migrations
                     Declaration = table.Column<string>(type: "TEXT", nullable: false),
                     Proposal = table.Column<string>(type: "TEXT", nullable: false),
                     Reads = table.Column<bool>(type: "INTEGER", nullable: false),
+                    Ran = table.Column<string>(type: "TEXT", nullable: false),
+                    Final = table.Column<bool>(type: "INTEGER", nullable: false),
                     At = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>

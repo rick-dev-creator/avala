@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avala.Verification.Storage.Migrations
 {
     [DbContext(typeof(VerificationDbContext))]
-    [Migration("20261024134251_ChecksDiscoveries")]
+    [Migration("20261025034749_ChecksDiscoveries")]
     internal sealed partial class ChecksDiscoveries
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -30,10 +30,17 @@ namespace Avala.Verification.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Final")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("Follows")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Proposal")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Ran")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

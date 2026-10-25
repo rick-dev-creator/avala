@@ -127,14 +127,35 @@ internal sealed class Scouted : IAsyncDisposable
         await Scout.HandleAsync(new JobProgressed(job, status), Cancellation);
     }
 
-    public async Task<ToolResult> ProposesAsync(JobId scout, string proposal)
+    public async Task<ToolResult> ProposesAsync(JobId scout, string proposal, bool ran = true)
     {
         var session = SessionId.New();
         await Proposals.HandleAsync(new JobSessionStarted(scout, session), Cancellation);
+
+        foreach (var check in ran ? Avala.Verification.Checks.CheckDeclaration.Parse(proposal).Match(checks => checks, _ => []) : [])
+        {
+            await RanAsync(scout, check.CommandLine);
+        }
+
         await Proposals.HandleAsync(new AgentActivity(new ToolCalled(session, TurnId.New(), new ItemId("proposal"), ChecksProposal.Tool, proposal)), Cancellation);
 
         return Agents.Returned[^1];
     }
+
+    public async Task RanAsync(JobId scout, string command) =>
+        await Proposals.HandleAsync(
+            new Permissions.Contracts.PermissionDecided(new Permissions.Contracts.PolicyDecision(
+                SessionId.New(),
+                TurnId.New(),
+                new ItemId(command),
+                scout,
+                ItemKind.Command,
+                command,
+                Permissions.Contracts.PolicyAnswer.Allow,
+                Option<Permissions.Contracts.PolicyRule>.None,
+                Permissions.Contracts.DecisionDelivery.Answered,
+                DateTimeOffset.UnixEpoch)),
+            Cancellation);
 
     public ValueTask<GateVerdict> EvaluateAsync(JobId job, int attempt = 1) =>
         Gate.EvaluateAsync(new CompletedAttempt(job, attempt, FakeJobs.Worktree(job), "Add a discount code to the checkout"), Cancellation);
@@ -168,6 +189,9 @@ internal sealed class Scouted : IAsyncDisposable
     internal sealed class FakeAgents : IAgents
     {
         private readonly ConcurrentQueue<ToolResult> returned = new();
+        private readonly ConcurrentQueue<(SessionId Session, FormAnswer Answer)> forms = new();
+
+        public IReadOnlyList<(SessionId Session, FormAnswer Answer)> Forms => [.. forms];
 
         public IReadOnlyList<ToolResult> Returned => [.. returned];
 
@@ -190,7 +214,12 @@ internal sealed class Scouted : IAsyncDisposable
 
         public ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken)
+        {
+            forms.Enqueue((session, answer));
+
+            return ValueTask.FromResult(Result<ItemId, AgentError>.Success(answer.Item));
+        }
 
         public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
 

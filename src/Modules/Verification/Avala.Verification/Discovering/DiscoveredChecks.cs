@@ -14,7 +14,7 @@ internal sealed class DiscoveredChecks(DiscoveryDesk desk, DiscoveryBook book, S
 {
     public async Task<FoundChecks> OfAsync(CompletedAttempt attempt, CancellationToken cancellationToken)
     {
-        await desk.StartAsync(attempt.Job, cancellationToken);
+        await desk.StartAsync(await RootAsync(attempt.Job, cancellationToken), cancellationToken);
         var own = book.Of(attempt.Job);
         var discovery = own.IsSome ? own : await InheritedAsync(attempt.Job, cancellationToken);
 
@@ -30,6 +30,11 @@ internal sealed class DiscoveredChecks(DiscoveryDesk desk, DiscoveryBook book, S
 
     private async Task<FoundChecks> FoundAsync(string worktree, Discovery discovery, bool commits, CancellationToken cancellationToken) =>
         new(DiscoveryState.Found, discovery.Checks, await shipped.ShippedAsync(worktree, discovery.Declaration, commits, cancellationToken));
+
+    private async Task<JobId> RootAsync(JobId job, CancellationToken cancellationToken) =>
+        await (await worktrees.SummaryAsync(job, cancellationToken)).Bind(summary => summary.Companion ? Option<JobId>.None : summary.Parent).Match(
+            parent => RootAsync(parent, cancellationToken),
+            () => Task.FromResult(job));
 
     private async Task<Option<Discovery>> InheritedAsync(JobId job, CancellationToken cancellationToken)
     {

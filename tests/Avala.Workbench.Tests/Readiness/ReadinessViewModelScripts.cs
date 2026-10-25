@@ -73,6 +73,30 @@ public sealed class ReadinessCardViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ALaterJobWaitingForItsProposedChecksShowsOnlyThatChoiceAsync()
+    {
+        _ = catalog.Add("Fix the build", Jobs.Contracts.JobStatus.Discarded);
+        var later = catalog.Add("Add a discount code").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(later, new ChecksDiscovery(later, "/repo", DiscoveryState.Proposed, [new CheckDeclared("tests", "npm test", TimeSpan.FromMinutes(5))])));
+        readiness.Shown = new ForgeReadiness(ForgeReadinessKind.SignInNeeded, "hub.example") { SignIn = Kinds.HubCli };
+
+        var card = await ShownAsync(later, declared: false);
+
+        Assert.Equal((true, ReadinessPhrases.UseChecks), (card.IsShown, Assert.Single(card.Items).Action));
+    }
+
+    [Fact]
+    public async Task WhileAvalaReadsASupervisedRepositoryTheCardSaysItReadsRatherThanRunsAsync()
+    {
+        var job = catalog.Add("Fix the build").Summary.Job;
+        board.Publish(board.Discoveries.SetItem(job, new ChecksDiscovery(job, "/repo", DiscoveryState.Running, []) { Reads = true }));
+
+        var card = await ShownAsync(job, declared: false);
+
+        Assert.Equal(ReadinessPhrases.ChecksReading, Assert.Single(card.Items).Text.Show(hidden: false));
+    }
+
+    [Fact]
     public async Task WhenAvalaFindsNoChecksTheCardOffersToDeclareThemAsync()
     {
         var job = catalog.Add("Fix the build").Summary.Job;

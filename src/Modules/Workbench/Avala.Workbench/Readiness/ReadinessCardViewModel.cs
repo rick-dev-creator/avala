@@ -29,6 +29,7 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
     private Option<JobId> job;
     private Option<ReadinessFacts> shown;
     private Option<ChecksDiscovery> discovery;
+    private bool checksOnly;
 
     public event EventHandler<Presented>? Presented;
 
@@ -45,6 +46,7 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
     {
         job = context;
         shown = Option<ReadinessFacts>.None;
+        checksOnly = false;
         items.Clear();
         IsShown = false;
         Loading = OpenAsync(context, CancellationToken.None);
@@ -62,31 +64,43 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
 
     public void Deactivate() => feed.Stop();
 
-    private bool Rediscovered() =>
-        shown.IsSome && job.Match(found => feed.DiscoveryOf(found), () => Option<ChecksDiscovery>.None).Map(State) != discovery.Map(State);
+    private bool Rediscovered() => Current().Map(State) != discovery.Map(State) && (shown.IsSome || Current().IsSome);
+
+    private Option<ChecksDiscovery> Current() => job.Match(found => feed.DiscoveryOf(found), () => Option<ChecksDiscovery>.None);
 
     private static (DiscoveryState, int) State(ChecksDiscovery found) => (found.State, found.Checks.Count);
 
-    private Task RediscoveredAsync(CancellationToken cancellationToken) =>
-        shown.Match(
-            facts => feed.LoadAsync(
-                token => readiness.ReadAsync(facts.Repository, token),
+    private Task RediscoveredAsync(CancellationToken cancellationToken)
+    {
+        var repository = shown.Map(facts => facts.Repository).Match(found => Option<string>.Some(found), () => Current().Map(found => found.Repository));
+
+        return repository.Match(
+            found => feed.LoadAsync(
+                token => readiness.ReadAsync(found, token),
                 read =>
                 {
+                    checksOnly = checksOnly || shown.IsNone;
                     shown = read;
                     Show(read);
                     Present();
                 }),
             () => Task.CompletedTask);
+    }
 
     private async Task OpenAsync(Option<JobId> context, CancellationToken cancellationToken)
     {
         var facts = await context.Match(
             found => readiness.OfJobAsync(found, cancellationToken).AsTask(),
             () => Task.FromResult(Option<ReadinessFacts>.None));
+        var later = facts.IsNone ? context.Bind(feed.DiscoveryOf) : Option<ChecksDiscovery>.None;
+
+        facts = await later.Match(
+            async found => Option<ReadinessFacts>.Some(await readiness.ReadAsync(found.Repository, cancellationToken)),
+            () => Task.FromResult(facts));
 
         if (job == context)
         {
+            checksOnly = later.IsSome;
             shown = facts;
 
             foreach (var found in facts.Match<ReadinessFacts[]>(read => [read], () => []))
@@ -117,7 +131,7 @@ internal sealed partial class ReadinessCardViewModel(RepositoryReadiness readine
     private void Show(ReadinessFacts facts)
     {
         discovery = job.Match(found => feed.DiscoveryOf(found), () => Option<ChecksDiscovery>.None);
-        var steps = ReadinessPhrases.Steps(facts, discovery);
+        var steps = ReadinessPhrases.Steps(facts, discovery).Where(step => !checksOnly || step.Need == ReadinessNeed.Checks).ToList();
 
         foreach (var item in items)
         {

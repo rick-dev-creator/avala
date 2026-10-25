@@ -138,4 +138,15 @@ public sealed class ChecksDiscoveryTests(PublishedPlugins plugins)
         Assert.Equal(PermissionAnswer.Deny, denied.Answer);
         Assert.Equal(VerificationOutcome.NoChecksDeclared, run.Get<IVerifications>().OfJob(job)[^1].Outcome);
     }
+
+    [Fact]
+    public async Task TheScoutOfASupervisedRepositoryNeverWaitsForAnAnswerToAQuestionItIsHiddenFromAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [SimulatedRun.DiscoveryOn], []);
+        run.Cues.Cue(ScoutBrief, "question");
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        Assert.Equal(VerificationOutcome.NoChecksDeclared, run.Get<IVerifications>().OfJob(job)[^1].Outcome);
+    }
 }

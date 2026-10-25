@@ -52,6 +52,7 @@ public sealed class VerificationPlugin : IPlugin
             .AddForwarded<IHandle<JobSessionStarted>, ProposalDesk>()
             .AddForwarded<IHandle<AgentActivity>, ProposalDesk>()
             .AddForwarded<IHandle<Permissions.Contracts.PermissionDecided>, ProposalDesk>()
+            .AddForwarded<IHandle<Permissions.Contracts.FormDecided>, ProposalDesk>()
             .AddSingleton<ChecksScout>()
             .AddForwarded<IHandle<JobProgressed>, ChecksScout>()
             .AddForwarded<IHandle<StartupCompleted>, ChecksScout>()

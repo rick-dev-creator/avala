@@ -34,25 +34,14 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
 
         try
         {
-            if (status == JobStatus.AwaitingReview && discovery.Reads && ProposalReview.Proposed(discovery.Proposal).Count > 0)
-            {
-                await book.KeepAsync(discovery with { State = DiscoveryState.Proposed, Declaration = CheckDeclaration.Write(ProposalReview.Proposed(discovery.Proposal)) }, cancellationToken);
-
-                return;
-            }
-
-            var confirmed = status == JobStatus.AwaitingReview
-                ? await discovery.Scout.Match(scout => review.ConfirmedAsync(scout, discovery.Proposal, cancellationToken), () => Task.FromResult<IReadOnlyList<DeclaredCheck>>([]))
-                : [];
-
-            await SettleAsync(discovery, confirmed, cancellationToken);
+            await (status == JobStatus.AwaitingReview ? ReviewAsync(discovery, cancellationToken) : SettleAsync(discovery, [], final: false, cancellationToken));
         }
         finally
         {
             Release(discovery.Job);
         }
 
-        if (!Ended.Contains(status))
+        if (!Ended.Contains(status) && book.Of(discovery.Job).Match(found => found.Settled, () => true))
         {
             await DiscardScoutAsync(discovery, cancellationToken);
         }
@@ -64,36 +53,6 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
     public async ValueTask DeclineAsync(JobId job, CancellationToken cancellationToken) =>
         await DecideAsync(job, accepted: false, cancellationToken);
 
-    private async Task DecideAsync(JobId job, bool accepted, CancellationToken cancellationToken) =>
-        await book.Of(job).Bind(found => found.State == DiscoveryState.Proposed ? found : Option<Discovery>.None).Match(
-            discovery => DecideAsync(discovery, accepted, cancellationToken),
-            () => Task.CompletedTask);
-
-    private async Task DecideAsync(Discovery discovery, bool accepted, CancellationToken cancellationToken)
-    {
-        var job = discovery.Job;
-
-        if (!await ClaimAsync(job, cancellationToken))
-        {
-            return;
-        }
-
-        try
-        {
-            var confirmed = accepted
-                ? await discovery.Scout.Match(scout => review.ConfirmedAsync(scout, discovery.Declaration, cancellationToken), () => Task.FromResult<IReadOnlyList<DeclaredCheck>>([]))
-                : [];
-
-            await SettleAsync(discovery, confirmed, cancellationToken);
-        }
-        finally
-        {
-            Release(job);
-        }
-
-        await DiscardScoutAsync(discovery, cancellationToken);
-    }
-
     public async Task AbandonAsync(Discovery discovery, CancellationToken cancellationToken)
     {
         if (!await ClaimAsync(discovery.Job, cancellationToken))
@@ -103,7 +62,7 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
 
         try
         {
-            await ConcludeAsync(discovery, [], cancellationToken);
+            await ConcludeAsync(discovery, [], final: false, cancellationToken);
         }
         finally
         {
@@ -111,7 +70,7 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
         }
 
         await DiscardScoutAsync(discovery, cancellationToken);
-        await HandOverAsync(discovery.Job, cancellationToken);
+        await HandOverAsync(discovery, cancellationToken);
     }
 
     public async Task CatchUpAsync(Discovery follower, CancellationToken cancellationToken) =>
@@ -120,12 +79,60 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
             {
                 if (followed.Settled && await ClaimAsync(follower.Job, cancellationToken))
                 {
-                    await ConcludedAsync(follower, followed.Checks, cancellationToken);
+                    await ConcludedAsync(follower, followed.Checks, followed.Final, cancellationToken);
                 }
             },
             () => FollowUpAsync(owner.RunAsync(token => RelaunchAsync(follower, [], token), cancellationToken), cancellationToken));
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
+
+    private async Task ReviewAsync(Discovery discovery, CancellationToken cancellationToken)
+    {
+        var proposed = ProposalReview.Proposed(discovery.Proposal);
+
+        if (discovery.Reads && proposed.Count > 0)
+        {
+            await book.KeepAsync(discovery with { State = DiscoveryState.Proposed, Declaration = CheckDeclaration.Write(proposed) }, cancellationToken);
+
+            foreach (var follower in book.Followers(discovery.Job))
+            {
+                await book.AnnounceAsync(follower.Job, cancellationToken);
+            }
+
+            return;
+        }
+
+        var confirmed = await discovery.Scout.Match(
+            scout => review.ConfirmedAsync(scout, ProposalReview.RunBefore(proposed, discovery.Ran), cancellationToken),
+            () => Task.FromResult<IReadOnlyList<DeclaredCheck>>([]));
+
+        await SettleAsync(discovery, confirmed, final: true, cancellationToken);
+    }
+
+    private async Task DecideAsync(JobId job, bool accepted, CancellationToken cancellationToken) =>
+        await book.Of(job).Bind(found => found.State == DiscoveryState.Proposed ? found : book.Followed(found)).Match(
+            discovery => DecideAsync(discovery, accepted, cancellationToken),
+            () => Task.CompletedTask);
+
+    private async Task DecideAsync(Discovery discovery, bool accepted, CancellationToken cancellationToken)
+    {
+        if (!await ClaimAsync(discovery.Job, cancellationToken))
+        {
+            return;
+        }
+
+        try
+        {
+            var chosen = accepted ? await review.ChosenAsync(discovery, cancellationToken) : [];
+            await SettleAsync(discovery, chosen, final: true, cancellationToken);
+        }
+        finally
+        {
+            Release(discovery.Job);
+        }
+
+        await DiscardScoutAsync(discovery, cancellationToken);
+    }
 
     private async Task FollowUpAsync(Task<Option<Discovery>> launching, CancellationToken cancellationToken) =>
         await FollowUpAsync(await launching, cancellationToken);
@@ -142,24 +149,24 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
 
     private void Release(JobId job) => ImmutableInterlocked.Update(ref settling, claimed => claimed.Remove(job));
 
-    private async Task SettleAsync(Discovery discovery, IReadOnlyList<DeclaredCheck> checks, CancellationToken cancellationToken)
+    private async Task SettleAsync(Discovery discovery, IReadOnlyList<DeclaredCheck> checks, bool final, CancellationToken cancellationToken)
     {
-        await ConcludeAsync(discovery, checks, cancellationToken);
+        await ConcludeAsync(discovery, checks, final, cancellationToken);
 
         foreach (var follower in book.Followers(discovery.Job))
         {
             if (await ClaimAsync(follower.Job, cancellationToken))
             {
-                await ConcludedAsync(follower, checks, cancellationToken);
+                await ConcludedAsync(follower, checks, final, cancellationToken);
             }
         }
     }
 
-    private async Task ConcludedAsync(Discovery claimed, IReadOnlyList<DeclaredCheck> checks, CancellationToken cancellationToken)
+    private async Task ConcludedAsync(Discovery claimed, IReadOnlyList<DeclaredCheck> checks, bool final, CancellationToken cancellationToken)
     {
         try
         {
-            await ConcludeAsync(claimed, checks, cancellationToken);
+            await ConcludeAsync(claimed, checks, final, cancellationToken);
         }
         finally
         {
@@ -167,37 +174,62 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
         }
     }
 
-    private async Task ConcludeAsync(Discovery discovery, IReadOnlyList<DeclaredCheck> checks, CancellationToken cancellationToken)
+    private async Task ConcludeAsync(Discovery discovery, IReadOnlyList<DeclaredCheck> checks, bool final, CancellationToken cancellationToken)
     {
         if (checks.Count == 0)
         {
-            await book.KeepAsync(discovery with { State = DiscoveryState.NoneFound }, cancellationToken);
+            await book.KeepAsync(discovery with { State = DiscoveryState.NoneFound, Declaration = string.Empty, Final = final }, cancellationToken);
         }
         else
         {
             var declaration = CheckDeclaration.Write(checks);
             await jobs.ShipAsync(discovery.Job, declaration, cancellationToken);
-            await book.KeepAsync(discovery with { State = DiscoveryState.Found, Declaration = declaration }, cancellationToken);
+            await book.KeepAsync(discovery with { State = DiscoveryState.Found, Declaration = declaration, Final = true }, cancellationToken);
         }
 
-        await actions.RecheckAsync(discovery.Job, cancellationToken);
+        await RecheckAsync(discovery.Job, cancellationToken);
+    }
 
-        foreach (var child in await jobs.ChildrenAsync(discovery.Job, cancellationToken))
+    private async Task RecheckAsync(JobId job, CancellationToken cancellationToken)
+    {
+        await actions.RecheckAsync(job, cancellationToken);
+
+        foreach (var child in await jobs.ChildrenAsync(job, cancellationToken))
         {
-            await actions.RecheckAsync(child, cancellationToken);
+            await RecheckAsync(child, cancellationToken);
         }
     }
 
     private async Task DiscardScoutAsync(Discovery discovery, CancellationToken cancellationToken) =>
         await discovery.Scout.Match(scout => actions.DiscardAsync(scout, cancellationToken), () => Task.CompletedTask);
 
-    private async Task HandOverAsync(JobId ended, CancellationToken cancellationToken)
+    private async Task HandOverAsync(Discovery ended, CancellationToken cancellationToken)
     {
-        var followers = book.Followers(ended);
+        var followers = book.Followers(ended.Job);
 
-        if (followers.Count > 0)
+        if (followers.Count == 0)
         {
-            await FollowUpAsync(owner.RunAsync(token => RelaunchAsync(followers[0], [.. followers.Skip(1)], token), cancellationToken), cancellationToken);
+            return;
+        }
+
+        if (ended.State == DiscoveryState.Proposed)
+        {
+            await InheritAsync(ended, followers, cancellationToken);
+
+            return;
+        }
+
+        await FollowUpAsync(owner.RunAsync(token => RelaunchAsync(followers[0], [.. followers.Skip(1)], token), cancellationToken), cancellationToken);
+    }
+
+    private async Task InheritAsync(Discovery proposal, IReadOnlyList<Discovery> followers, CancellationToken cancellationToken)
+    {
+        var heir = followers[0];
+        await book.KeepAsync(heir with { State = DiscoveryState.Proposed, Declaration = proposal.Declaration, Reads = proposal.Reads, Follows = Option<JobId>.None }, cancellationToken);
+
+        foreach (var other in followers.Skip(1))
+        {
+            await book.KeepAsync(other with { Follows = heir.Job }, cancellationToken);
         }
     }
 
@@ -212,7 +244,7 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
             async place => await LaunchAsync(place, follower with { Follows = Option<JobId>.None, Reads = !await review.RunsAsync(place.Repository, cancellationToken) }, cancellationToken),
             async () =>
             {
-                await ConcludeAsync(follower, [], cancellationToken);
+                await ConcludeAsync(follower, [], final: false, cancellationToken);
 
                 return Option<Discovery>.None;
             });
@@ -232,10 +264,10 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
 
         var running = new Discovery(place.Job, place.Repository, DiscoveryState.Running, book.Now) { Reads = !await review.RunsAsync(place.Repository, cancellationToken) };
 
-        return await book.LatestFound(place.Repository).Match(
-            async found =>
+        return await book.LatestDecided(place.Repository).Match(
+            async decided =>
             {
-                await ConcludeAsync(running, found.Checks, cancellationToken);
+                await ConcludeAsync(running, decided.Checks, final: true, cancellationToken);
 
                 return Option<Discovery>.None;
             },
@@ -260,7 +292,7 @@ internal sealed class DiscoveryDesk(DiscoveryBook book, DiscoveredJobs jobs, Pro
             },
             async _ =>
             {
-                await ConcludeAsync(running, [], cancellationToken);
+                await ConcludeAsync(running, [], final: false, cancellationToken);
 
                 return Option<Discovery>.None;
             });

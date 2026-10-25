@@ -19,12 +19,16 @@ internal sealed record Discovery(JobId Job, string Repository, DiscoveryState St
 
     public bool Reads { get; init; }
 
+    public string Ran { get; init; } = string.Empty;
+
+    public bool Final { get; init; }
+
     public bool Settled => State is DiscoveryState.Found or DiscoveryState.NoneFound;
 
     public IReadOnlyList<DeclaredCheck> Checks =>
         Declaration.Length == 0 ? [] : CheckDeclaration.Parse(Declaration).Match(checks => checks, _ => []);
 
-    public ChecksDiscovery Public => new(Job, Repository, State, [.. Checks.Select(check => new CheckDeclared(check.Name, check.CommandLine, check.Timeout))]);
+    public ChecksDiscovery Public => new(Job, Repository, State, [.. Checks.Select(check => new CheckDeclared(check.Name, check.CommandLine, check.Timeout))]) { Reads = Reads };
 }
 
 internal interface IDiscoveryStore
@@ -43,7 +47,13 @@ internal sealed class DiscoveryBook(IDiscoveryStore store, IEventBus bus, TimePr
     public async Task RunAsync(CancellationToken cancellationToken) =>
         Volatile.Write(ref discoveries, (await store.DiscoveriesAsync(cancellationToken)).ToImmutableDictionary(discovery => discovery.Job));
 
-    public Option<ChecksDiscovery> OfJob(JobId job) => Of(job).Map(discovery => discovery.Public);
+    public Option<ChecksDiscovery> OfJob(JobId job) => Of(job).Map(discovery => Followed(discovery).Match(owner => owner.Public with { Job = job }, () => discovery.Public));
+
+    public Option<Discovery> Followed(Discovery discovery) =>
+        discovery.Settled ? Option<Discovery>.None : discovery.Follows.Bind(Of).Bind(owner => owner.State == DiscoveryState.Proposed ? owner : Option<Discovery>.None);
+
+    public async Task AnnounceAsync(JobId job, CancellationToken cancellationToken) =>
+        await OfJob(job).Match(found => bus.PublishAsync(new ChecksDiscoveryChanged(found), cancellationToken).AsTask(), () => Task.CompletedTask);
 
     public Option<Discovery> Of(JobId job) => Volatile.Read(ref discoveries).TryGetValue(job, out var found) ? found : Option<Discovery>.None;
 
@@ -63,9 +73,9 @@ internal sealed class DiscoveryBook(IDiscoveryStore store, IEventBus bus, TimePr
     public Option<Discovery> Scouting(string repository) =>
         Volatile.Read(ref discoveries).Values.FirstOrDefault(discovery => !discovery.Settled && discovery.Scout.IsSome && discovery.Repository == repository).ToOption();
 
-    public Option<Discovery> LatestFound(string repository) =>
+    public Option<Discovery> LatestDecided(string repository) =>
         Volatile.Read(ref discoveries).Values
-            .Where(discovery => discovery.State == DiscoveryState.Found && discovery.Repository == repository)
+            .Where(discovery => discovery.Settled && discovery.Final && discovery.Repository == repository)
             .MaxBy(discovery => discovery.At)
             .ToOption();
 
@@ -74,6 +84,6 @@ internal sealed class DiscoveryBook(IDiscoveryStore store, IEventBus bus, TimePr
         var discovery = changed with { At = clock.GetUtcNow() };
         await store.KeepAsync(discovery, cancellationToken);
         ImmutableInterlocked.Update(ref discoveries, kept => kept.SetItem(discovery.Job, discovery));
-        await bus.PublishAsync(new ChecksDiscoveryChanged(discovery.Public), cancellationToken);
+        await AnnounceAsync(discovery.Job, cancellationToken);
     }
 }

@@ -57,6 +57,10 @@ internal sealed class StoredDiscovery
 
     public bool Reads { get; set; }
 
+    public string Ran { get; set; } = string.Empty;
+
+    public bool Final { get; set; }
+
     public long At { get; set; }
 
     public static StoredDiscovery Of(Discovery discovery) => new()
@@ -69,6 +73,8 @@ internal sealed class StoredDiscovery
         Declaration = discovery.Declaration,
         Proposal = discovery.Proposal,
         Reads = discovery.Reads,
+        Ran = discovery.Ran,
+        Final = discovery.Final,
         At = discovery.At.UtcTicks,
     };
 
@@ -79,6 +85,8 @@ internal sealed class StoredDiscovery
         Declaration = Declaration,
         Proposal = Proposal,
         Reads = Reads,
+        Ran = Ran,
+        Final = Final,
     };
 }
 
