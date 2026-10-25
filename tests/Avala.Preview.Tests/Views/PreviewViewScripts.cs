@@ -5,6 +5,7 @@ using Avala.Preview.Tests.Pane;
 using Avala.Preview.UI;
 using Avala.Testing.UI;
 using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using CommunityToolkit.Mvvm.Messaging;
 
@@ -30,7 +31,7 @@ internal static class Screen
 
 public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 {
-    private static readonly string[] IconButtons = ["Back", "Reload", "Network", "OpenInBrowser", "Close"];
+    private static readonly string[] IconButtons = ["Back", "Reload", "Device", "Turn", "Network", "OpenInBrowser", "Close"];
 
     private readonly PaneBench bench = new();
 
@@ -44,7 +45,7 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 
             Assert.Equal(("localhost:24000", PreviewPhrases.Running), (view.TextOf("Address"), view.TextOf("State")));
             Assert.Equal(
-                ["Back", "Reload", "Allow network", "Open in browser", "Close preview"],
+                ["Back", "Reload", "Device", "Turn the device", "Allow network", "Open in browser", "Close preview"],
                 IconButtons.Select(name => AutomationProperties.GetName(view.Find(name))));
             Assert.True(view.Shows("Page"));
             Assert.False(view.Shows("RefusalBar"));
@@ -89,6 +90,21 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 
             Assert.True(pane.AllowsNetwork);
             Assert.True(view.Find<ToggleButton>("Network").IsChecked);
+        }, Cancellation);
+
+    [Fact]
+    public Task AChosenDeviceShowsThePageAtItsWidthAndNoTallerThanItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var pane = Opened();
+            var view = Screen.Show(pane);
+
+            pane.Frame.Choices.Single(choice => choice.Name == "iPhone").Choose.Execute(null);
+            view.Settle();
+            var page = view.Find("Page");
+
+            Assert.Equal(393, page.Bounds.Width);
+            Assert.True(page.Bounds.Height <= 852);
         }, Cancellation);
 
     [Fact]

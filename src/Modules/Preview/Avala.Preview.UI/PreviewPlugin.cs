@@ -32,6 +32,7 @@ public sealed class PreviewPlugin : IPlugin, IViewContributor
         views.Register<IPreviewPaneViewModel, PreviewPaneView>();
         views.Register<IRunningChipViewModel, RunningChipView>();
         views.Register<IRunScriptViewModel, RunScriptView>();
+        views.Register<IDeviceFrameViewModel, DeviceFrameView>();
         views.Register(new NativeSurfaceTemplate());
     }
 

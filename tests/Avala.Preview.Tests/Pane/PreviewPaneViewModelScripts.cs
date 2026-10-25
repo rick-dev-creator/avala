@@ -99,6 +99,48 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void LeavingTheJobsPageClosesThePageAndComingBackOpensItAgain()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var script = Opened();
+        var left = bench.Surfaces.Last;
+
+        script.ViewModel.Deactivate();
+
+        Assert.True(left.IsClosed);
+        Assert.Null(script.ViewModel.Surface);
+
+        script.ViewModel.Activate();
+
+        script.Then(pane =>
+        {
+            Assert.True(pane.IsOpen);
+            Assert.NotSame(left, pane.Surface);
+            Assert.Equal([FakeGateways.Through(target)], bench.Surfaces.Last.Visited);
+        });
+    }
+
+    [Fact]
+    public void EveryPageThePaneOpenedIsClosedOnceItsJobIsLeft()
+    {
+        var pane = bench.Pane();
+
+        for (var round = 0; round < 5; round++)
+        {
+            var job = JobId.New();
+            bench.Serve(job, 24_000 + round);
+            pane.OnRegionContextChanged(job);
+            bench.Messenger.Send(new PreviewRequested(job));
+        }
+
+        pane.OnRegionContextChanged(bench.Other);
+
+        Assert.Equal(5, bench.Surfaces.Opened.Count);
+        Assert.All(bench.Surfaces.Opened, surface => Assert.True(surface.IsClosed));
+        pane.Dispose();
+    }
+
+    [Fact]
     public void CloseClosesThePageAndThePane()
     {
         bench.Serve(bench.Job, 24_000);

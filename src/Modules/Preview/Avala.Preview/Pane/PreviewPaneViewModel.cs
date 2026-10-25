@@ -24,6 +24,8 @@ internal interface IPreviewPaneViewModel
 
     IWebSurface? Surface { get; }
 
+    IDeviceFrameViewModel Frame { get; }
+
     bool IsEmbedded { get; }
 
     string Notice { get; }
@@ -101,6 +103,8 @@ internal sealed partial class PreviewPaneViewModel
     [NotifyCanExecuteChangedFor(nameof(BackCommand), nameof(ReloadCommand), nameof(OpenInBrowserCommand))]
     public partial IWebSurface? Surface { get; private set; }
 
+    public IDeviceFrameViewModel Frame { get; } = new DeviceFrameViewModel();
+
     public bool IsEmbedded => Surface?.Embedding == SurfaceEmbedding.Embedded;
 
     public string Notice =>
@@ -118,7 +122,11 @@ internal sealed partial class PreviewPaneViewModel
         Refresh();
     }
 
-    public void Deactivate() => desk.Feed.Stop();
+    public void Deactivate()
+    {
+        desk.Feed.Stop();
+        Detach();
+    }
 
     public void Dispose()
     {

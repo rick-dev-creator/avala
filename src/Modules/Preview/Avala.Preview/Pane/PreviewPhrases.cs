@@ -17,6 +17,14 @@ internal static class PreviewPhrases
 
     public const string Waiting = "Waiting for the server to listen on its port…";
 
+    public const string Responsive = "Responsive";
+
+    public const string FitsThePane = "fits the pane";
+
+    public static string Size(int width, int height) => $"{width} × {height}";
+
+    public static string Device(string name, string size) => $"{name} · {size}";
+
     public static string Chip(PreviewTarget target) => $"Running · {target.Origin}";
 
     public static string Lease(PreviewTarget target) => target.Leased ? string.Empty : "unleased";

@@ -19,6 +19,12 @@
       <Setter Property="Padding" Value="{DynamicResource PaddingPill}" />
       <Setter Property="MinHeight" Value="28" />
     </Style>
+    <Style Selector="Panel#Stage.framed">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Border#Bezel">
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
+    </Style>
     <Style Selector="Border#RefusalBar">
       <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
@@ -32,7 +38,7 @@
             Padding="10,10,10,9"
             BorderBrush="{DynamicResource EdgeBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
         <Button x:Name="Back"
                 Classes="glyph"
                 Command="{Binding BackCommand}"
@@ -55,8 +61,9 @@
             <TextBlock x:Name="State" Classes="caption" Text="{Binding State}" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
+        <ContentControl x:Name="DeviceFrame" Grid.Column="3" Content="{Binding Frame}" />
         <ToggleButton x:Name="Network"
-                      Grid.Column="3"
+                      Grid.Column="4"
                       Classes="glyph"
                       IsChecked="{Binding AllowsNetwork, Mode=OneWay}"
                       Command="{Binding ToggleNetworkCommand}"
@@ -65,7 +72,7 @@
           <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconWeb}" />
         </ToggleButton>
         <Button x:Name="OpenInBrowser"
-                Grid.Column="4"
+                Grid.Column="5"
                 Classes="glyph"
                 Command="{Binding OpenInBrowserCommand}"
                 ToolTip.Tip="Open in browser"
@@ -73,7 +80,7 @@
           <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconExternal}" />
         </Button>
         <Button x:Name="Close"
-                Grid.Column="5"
+                Grid.Column="6"
                 Classes="glyph"
                 Command="{Binding CloseCommand}"
                 ToolTip.Tip="Close preview"
@@ -89,8 +96,13 @@
         <Button x:Name="DismissRefusal" Grid.Column="2" Classes="ghost" Margin="6,0,0,0" Content="Stay here" Command="{Binding DismissRefusalCommand}" />
       </Grid>
     </Border>
-    <Panel>
-      <ContentControl x:Name="Page" Content="{Binding Surface}" IsVisible="{Binding IsEmbedded}" />
+    <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFramed}">
+      <Border x:Name="Bezel"
+              IsVisible="{Binding IsEmbedded}"
+              MaxWidth="{Binding Frame.FrameWidth}"
+              MaxHeight="{Binding Frame.FrameHeight}">
+        <ContentControl x:Name="Page" Content="{Binding Surface}" />
+      </Border>
       <StackPanel x:Name="Notice"
                   IsVisible="{Binding !IsEmbedded}"
                   MaxWidth="320"
