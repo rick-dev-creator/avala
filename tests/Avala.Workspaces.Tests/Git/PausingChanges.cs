@@ -29,6 +29,9 @@ internal sealed class PausingChanges(IGitChanges inner) : IGitChanges
     public Task<Result<Option<CommitSha>, WorkspaceFailure>> TipOfAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
         inner.TipOfAsync(repository, branch, cancellationToken);
 
+    public Task<Result<Option<CommitSha>, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        inner.ShelvedTipAsync(repository, workspace, cancellationToken);
+
     public Task<Result<string, WorkspaceFailure>> TreeOfAsync(string repository, CommitSha commit, CancellationToken cancellationToken) =>
         inner.TreeOfAsync(repository, commit, cancellationToken);
 

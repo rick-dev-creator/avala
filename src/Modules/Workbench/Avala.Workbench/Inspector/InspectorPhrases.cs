@@ -250,6 +250,8 @@ internal static class InspectorPhrases
 
     public static string Scratch(string fact) => $"{fact} · scratch";
 
+    public static string Freed(string fact) => $"{fact} · freed, rebuilt when the job continues";
+
     public static string FolderUnopened(string folder) => $"The folder could not be opened here: it is {folder}.";
 
     public static string Worktree(string branch, Option<string> baseBranch)

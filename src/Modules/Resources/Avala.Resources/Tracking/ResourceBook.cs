@@ -64,6 +64,9 @@ internal sealed class ResourceBook(IResourceSettings settings, PortLeases leases
 
     public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => settings.LoadAsync(cancellationToken);
 
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken) =>
+        settings.ChangeWorktreesAsync(policy, cancellationToken);
+
     private ResourceUsage Tally(Func<TreeUsage, bool> tree, Func<FolderUsage, bool> folder) =>
         Latest.Match(
             sample => Tallies.Tally(sample.Trees.Where(tree), sample.Worktrees.Where(folder).Sum(used => used.Bytes)),

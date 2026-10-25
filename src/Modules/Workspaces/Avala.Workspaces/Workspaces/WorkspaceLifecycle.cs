@@ -18,7 +18,12 @@ internal static class WorkspaceLifecycle
 
         machine.Configure(WorkspaceState.Ready)
             .SubstateOf(WorkspaceState.Live)
-            .InternalTransition(WorkspaceTrigger.Checkpoint, () => { });
+            .InternalTransition(WorkspaceTrigger.Checkpoint, () => { })
+            .Permit(WorkspaceTrigger.Shelve, WorkspaceState.Shelved);
+
+        machine.Configure(WorkspaceState.Shelved)
+            .Permit(WorkspaceTrigger.Rebuild, WorkspaceState.Ready)
+            .Permit(WorkspaceTrigger.Remove, WorkspaceState.Removed);
 
         return machine;
     }

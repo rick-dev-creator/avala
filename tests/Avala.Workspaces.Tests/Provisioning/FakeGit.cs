@@ -117,6 +117,31 @@ internal sealed class FakeGit : IGit
     public Task<Result<string, WorkspaceFailure>> ResetTreeAsync(WorkspaceLocation location, CommitSha commit, CancellationToken cancellationToken) =>
         Task.FromResult<Result<string, WorkspaceFailure>>(string.Empty);
 
+    public Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<bool, WorkspaceFailure>>(false);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        worktrees.Remove(location);
+        Branches = [.. Branches.Where(existing => existing != branch)];
+
+        return Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
+    }
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        worktrees.Add(location);
+        Branches = [.. Branches, branch];
+
+        return Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
+    }
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
+
+    public Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
+        Task.FromResult(false);
+
     public IReadOnlyList<string> Pruned { get; private set; } = [];
 
     public Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken)

@@ -43,6 +43,8 @@ internal interface IGitChanges
 
     Task<bool> AdvanceCheckoutAsync(string checkout, CommitSha from, CommitSha to, CancellationToken cancellationToken);
 
+    Task<Result<Option<CommitSha>, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken);
+
     Task<Result<Option<CommitSha>, WorkspaceFailure>> LastMergedAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken);
 
     Task<bool> RecordMergedAsync(string repository, WorkspaceId workspace, CommitSha work, CancellationToken cancellationToken);

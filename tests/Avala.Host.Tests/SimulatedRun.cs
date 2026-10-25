@@ -402,6 +402,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<ReclaimedWorktree> ReclaimedAsync() => (await application.Reclaimed.UntilAsync(_ => true)).Reclaimed;
 
+    public async Task<FreedWorktree> FreedAsync() => (await application.Freed.UntilAsync(_ => true)).Freed;
+
     public async Task<PortLease> LeasedAsync() => (await application.Leased.UntilAsync(_ => true)).Lease;
 
     public async Task<JobQueued> QueuedAsync() => await application.Queued.UntilAsync(_ => true);

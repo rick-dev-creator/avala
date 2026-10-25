@@ -50,6 +50,7 @@ internal sealed class SimulatedApplication : IAsyncDisposable
         Opened = Watch<SessionOpened>();
         Orphans = Watch<OrphansFound>();
         Reclaimed = Watch<WorktreeReclaimed>();
+        Freed = Watch<WorktreeFreed>();
         Leased = Watch<PortsLeased>();
         Queued = Watch<JobQueued>();
         Sampled = Watch<ResourcesSampled>();
@@ -67,6 +68,8 @@ internal sealed class SimulatedApplication : IAsyncDisposable
     public EventWatch<OrphansFound> Orphans { get; }
 
     public EventWatch<WorktreeReclaimed> Reclaimed { get; }
+
+    public EventWatch<WorktreeFreed> Freed { get; }
 
     public EventWatch<PortsLeased> Leased { get; }
 

@@ -21,6 +21,7 @@ internal sealed class Pulse(JobBoard board)
         IHandle<OrphansFound>,
         IHandle<OrphansReaped>,
         IHandle<WorktreeReclaimed>,
+        IHandle<WorktreeFreed>,
         IHandle<WorktreesReconciled>,
         IHandle<ChildDelegated>,
         IHandle<DelegationRefused>,
@@ -57,6 +58,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(OrphansReaped integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(WorktreeReclaimed integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(WorktreeFreed integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(WorktreesReconciled integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 

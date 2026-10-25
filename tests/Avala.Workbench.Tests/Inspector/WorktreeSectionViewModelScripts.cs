@@ -26,6 +26,20 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AJobWhoseWorktreeWasFreedSaysSoAndOffersNoFolderToCopy()
+    {
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);
+        var job = InspectedJobs.Reviewed(bench);
+        var workspace = Outcomes.Present(job.Workspace);
+        bench.Workspaces.Known[workspace] = bench.Workspaces.Known[workspace] with { Shelved = true };
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(("fix-the-test from main · freed, rebuilt when the job continues", string.Empty), (section.Fact, section.Path.Value));
+        Assert.False(section.CopyPathCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task CopyingTheWorktreeCopiesItsFullPathAndBranchToTheClipboard()
     {
         using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs, bench.Clipboard);

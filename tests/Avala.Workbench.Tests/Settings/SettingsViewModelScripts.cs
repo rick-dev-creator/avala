@@ -34,7 +34,7 @@ public sealed class SettingsViewModelScripts
     {
         var page = Page();
 
-        Assert.Equal(("Accounts,Connections,Supervision,Notifications,Appearance,About", "Accounts", true), (string.Join(",", page.Entries.Select(entry => entry.Title)), page.Heading.Title, page.Entries[0].IsSelected));
+        Assert.Equal(("Accounts,Connections,Supervision,Worktrees,Notifications,Appearance,About", "Accounts", true), (string.Join(",", page.Entries.Select(entry => entry.Title)), page.Heading.Title, page.Entries[0].IsSelected));
     }
 
     [Fact]
@@ -130,6 +130,8 @@ public sealed class SettingsViewModelScripts
         public IDefaultConnectionViewModel DefaultConnection => machine.DefaultConnection;
 
         public INotificationsViewModel Notifications => machine.Notifications;
+
+        public IWorktreeSettingsViewModel Worktrees => machine.Worktrees;
 
         public IMachineAccountsViewModel Accounts => machine.Accounts;
 

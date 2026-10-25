@@ -5,5 +5,7 @@ internal enum WorkspaceTrigger
     MarkReady,
     Checkpoint,
     Fail,
+    Shelve,
+    Rebuild,
     Remove,
 }

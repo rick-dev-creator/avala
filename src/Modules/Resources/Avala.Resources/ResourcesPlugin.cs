@@ -1,5 +1,7 @@
 using Avala.Agents.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Claims;
 using Avala.Resources.Contracts;
 using Avala.Resources.Disks;
@@ -41,9 +43,13 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<OrphanReaper>()
             .AddForwarded<IOrphans, OrphanReaper>()
             .AddSingleton<RetainedWorktrees>()
+            .AddSingleton<IWorktreeFacts, WorktreeFacts>()
             .AddSingleton<WorktreeHousekeeper>()
             .AddForwarded<IWorktreeHousekeeping, WorktreeHousekeeper>()
             .AddForwarded<IStartupTask, WorktreeHousekeeper>()
+            .AddSingleton<WorktreeMoments>()
+            .AddForwarded<IHandle<ConversationsArchived>, WorktreeMoments>()
+            .AddForwarded<IHandle<PullRequestWatchChanged>, WorktreeMoments>()
             .AddSingleton<RetentionRecovery>()
             .AddForwarded<IStartupTask, RetentionRecovery>()
             .AddSingleton<SampleTaker>()

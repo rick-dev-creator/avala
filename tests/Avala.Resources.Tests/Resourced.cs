@@ -45,7 +45,7 @@ internal sealed class Resourced : IAsyncDisposable
         Book = new ResourceBook(Settings, Leases);
         Readings = new ProcessReadings(Trees, Listening);
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
-        Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Jobs), Settings, Bus, Clock);
+        Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Workspaces, Jobs, Facts), Settings, Bus, Clock);
         Tracker = new ResourceTracker(Book, Reaper, Leases, Housekeeper);
         Recovery = new RetentionRecovery(Catalog, Workspaces, Housekeeper, Reaper);
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
@@ -79,6 +79,8 @@ internal sealed class Resourced : IAsyncDisposable
     public FakeWorkspaces Workspaces { get; } = new();
 
     public FakeEndedJobs Jobs { get; } = new();
+
+    public FakeFacts Facts { get; } = new();
 
     public FixedSettings Settings { get; }
 

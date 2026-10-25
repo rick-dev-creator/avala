@@ -36,6 +36,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<JobQueues>()
             .AddSingleton<ConnectionChooser>()
             .AddSingleton<IConnectionPreview, ConnectionPreviewer>()
+            .AddSingleton<JobWorkspaces>()
             .AddSingleton<WorkspacePlanner>()
             .AddSingleton<JobMessenger>()
             .AddSingleton<DeferredJobs>()
