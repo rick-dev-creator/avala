@@ -10,6 +10,8 @@ internal sealed class PageServer : IAsyncDisposable
 {
     public const string Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' data: blob: ws://127.0.0.1:*";
 
+    public const string ViewerPolicy = Policy + "; frame-src 'self' http://127.0.0.1:* http://localhost:*";
+
     private static readonly Dictionary<string, string> Types = new(StringComparer.OrdinalIgnoreCase)
     {
         [".html"] = "text/html; charset=utf-8",
@@ -112,7 +114,7 @@ internal sealed class PageServer : IAsyncDisposable
 
             if (!AllowsNetwork)
             {
-                response.Headers["Content-Security-Policy"] = Policy;
+                response.Headers["Content-Security-Policy"] = ViewerFiles.Holds(Relative(context.Request.Url)) ? ViewerPolicy : Policy;
             }
 
             if (context.Request.HttpMethod is not ("GET" or "HEAD"))
@@ -147,9 +149,11 @@ internal sealed class PageServer : IAsyncDisposable
         }
     }
 
+    private static string Relative(Uri? address) => Uri.UnescapeDataString(address?.AbsolutePath ?? "/").TrimStart('/');
+
     private Option<Served> Find(Uri? address)
     {
-        var relative = Uri.UnescapeDataString(address?.AbsolutePath ?? "/").TrimStart('/');
+        var relative = Relative(address);
 
         if (ViewerFiles.Holds(relative))
         {

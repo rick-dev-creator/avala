@@ -20,8 +20,8 @@ public sealed class DeviceFrameViewScripts(HeadlessUi ui)
             view.Settle();
             var items = view.All<MenuItem>();
 
-            Assert.Equal(["Responsive", "iPhone", "Android", "Tablet"], items.Select(item => item.Header));
-            Assert.Equal([true, false, false, false], items.Select(item => item.IsChecked));
+            Assert.Equal(["Responsive", "iPhone SE", "iPhone 16", "iPhone 16 Pro Max", "Pixel 9", "Surface Duo", "iPad Air 11\""], items.Select(item => item.Header));
+            Assert.Equal([true, false, false, false, false, false, false], items.Select(item => item.IsChecked));
         }, Cancellation);
 
     [Fact]
@@ -35,9 +35,9 @@ public sealed class DeviceFrameViewScripts(HeadlessUi ui)
 
             ((MenuFlyout)device.Flyout!).ShowAt(device);
             view.Settle();
-            view.Click(view.All<MenuItem>().Single(item => Equals(item.Header, "Android")));
+            view.Click(view.All<MenuItem>().Single(item => Equals(item.Header, "Pixel 9")));
 
-            Assert.Equal("Android · 412 × 915", frame.Label);
+            Assert.Equal("Pixel 9 · 412 × 915", frame.Label);
             Assert.True(view.Shows("Turn"));
         }, Cancellation);
 
@@ -46,7 +46,7 @@ public sealed class DeviceFrameViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var frame = new DeviceFrameViewModel();
-            frame.Choices.Single(choice => choice.Name == "iPhone").Choose.Execute(null);
+            frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
             var view = Screen.Show(frame);
 
             view.Click("Turn");
@@ -61,6 +61,22 @@ public sealed class DeviceFrameViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignDeviceFrameViewModel());
 
             Assert.True(view.Shows("Turn"));
-            Assert.Equal("Device: iPhone · 393 × 852", ToolTip.GetTip(view.Find("Device")));
+            Assert.Equal("Device: iPhone 16 · 393 × 852", ToolTip.GetTip(view.Find("Device")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheThreeDimensionsToggleAppearsWithADeviceAndShowsWhetherItIsOnAsync() =>
+        ui.RunAsync(() =>
+        {
+            var frame = new DeviceFrameViewModel();
+            var view = Screen.Show(frame);
+            Assert.False(view.Shows("Depth"));
+            frame.Choices.Single(choice => choice.Name == "Pixel 9").Choose.Execute(null);
+            view.Settle();
+
+            view.Click("Depth");
+
+            Assert.True(frame.ShowsDepth);
+            Assert.True(view.Find<Avalonia.Controls.Primitives.ToggleButton>("Depth").IsChecked);
         }, Cancellation);
 }

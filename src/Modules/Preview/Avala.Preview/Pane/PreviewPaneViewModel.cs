@@ -63,6 +63,8 @@ internal sealed partial class PreviewPaneViewModel
     private Option<PreviewTarget> shown;
     private Option<Uri> page;
     private Option<Uri> refused;
+    private readonly DeviceFrameViewModel frame = new();
+    private readonly PageRoute route;
     private Option<string> viewed;
     private int version;
     private bool starting;
@@ -73,7 +75,9 @@ internal sealed partial class PreviewPaneViewModel
         this.surfaces = surfaces;
         this.links = links;
         this.messenger = messenger;
+        route = new PageRoute(desk, frame);
         messenger.RegisterAll(this);
+        frame.Changed += OnFrameChanged;
     }
 
     public event EventHandler<Presented>? Presented;
@@ -107,7 +111,7 @@ internal sealed partial class PreviewPaneViewModel
     [NotifyCanExecuteChangedFor(nameof(BackCommand), nameof(ReloadCommand), nameof(OpenInBrowserCommand))]
     public partial IWebSurface? Surface { get; private set; }
 
-    public IDeviceFrameViewModel Frame { get; } = new DeviceFrameViewModel();
+    public IDeviceFrameViewModel Frame => frame;
 
     public bool IsEmbedded => Surface?.Embedding == SurfaceEmbedding.Embedded;
 
@@ -136,6 +140,7 @@ internal sealed partial class PreviewPaneViewModel
     {
         desk.Feed.Dispose();
         messenger.UnregisterAll(this);
+        frame.Changed -= OnFrameChanged;
     }
 
     public void OnRegionContextChanged(Option<JobId> context)
@@ -211,7 +216,7 @@ internal sealed partial class PreviewPaneViewModel
     private async Task OpenInBrowserAsync(CancellationToken cancellationToken) =>
         await shown.Match(
             target => links.OpenAsync(Outside(target), cancellationToken).AsTask(),
-            () => (viewed.IsSome ? Surface?.Address ?? Option<Uri>.None : Option<Uri>.None).Match(
+            () => (viewed.IsSome ? Seen : Option<Uri>.None).Match(
                 address => links.OpenAsync(address, cancellationToken).AsTask(),
                 () => Task.FromResult(Result<Uri, FileOpenError>.Failure(FileOpenError.Unavailable))));
 
@@ -250,10 +255,11 @@ internal sealed partial class PreviewPaneViewModel
         Surface?.Reload();
     }
 
-    private Uri Outside(PreviewTarget target) =>
-        (Surface?.Address ?? Option<Uri>.None).Match(
-            page => page.IsAbsoluteUri && page.Port != target.Address.Port && page.Scheme is "http" or "https" ? new Uri(target.Address, page.PathAndQuery) : page,
-            () => target.Address);
+    private Option<Uri> Seen => route.Seen(Current);
+
+    private Option<IWebSurface> Current => Surface is { } surface ? Option<IWebSurface>.Some(surface) : Option<IWebSurface>.None;
+
+    private Uri Outside(PreviewTarget target) => route.Outside(target, Current);
 
     private bool CanGoBack() => Surface?.CanGoBack == true;
 
@@ -341,23 +347,20 @@ internal sealed partial class PreviewPaneViewModel
 
         shown = Option<PreviewTarget>.None;
         Address = PreviewPhrases.FileName(path);
-        served.Match(
-            address =>
-            {
-                State = PreviewPhrases.Viewing;
-                IsLive = true;
-                (Surface ?? Attach(owner)).Navigate(address);
-
-                return true;
-            },
-            error =>
-            {
-                State = PreviewPhrases.Problem(error);
-                IsLive = false;
-
-                return false;
-            });
+        State = served.Match(_ => PreviewPhrases.Viewing, PreviewPhrases.Problem);
+        IsLive = served.Match(_ => true, _ => false);
+        _ = served.Map(address => Navigating = route.GoAsync(owner, Surface ?? Attach(owner), address, () => Current));
         OpenInBrowserCommand.NotifyCanExecuteChanged();
+        Present();
+    }
+
+    private void Go(JobId owner, IWebSurface surface, Uri address) => Navigating = PresentOnceAsync(route.GoAsync(owner, surface, address, () => Current));
+
+    private void OnFrameChanged(object? sender, EventArgs e) => Navigating = PresentOnceAsync(route.AgainAsync(job, Current, () => Current));
+
+    private async Task PresentOnceAsync(Task going)
+    {
+        await going;
         Present();
     }
 
@@ -370,7 +373,7 @@ internal sealed partial class PreviewPaneViewModel
         if (Surface == surface && shown == Option<PreviewTarget>.Some(target))
         {
             var root = gateway.Match(address => address, _ => target.Address);
-            surface.Navigate(asked.Match(link => link.Port == target.Address.Port ? new Uri(root, link.PathAndQuery) : link, () => root));
+            Go(target.Job, surface, asked.Match(link => link.Port == target.Address.Port ? new Uri(root, link.PathAndQuery) : link, () => root));
             Present();
         }
     }
@@ -396,6 +399,7 @@ internal sealed partial class PreviewPaneViewModel
 
         Surface = null;
         shown = Option<PreviewTarget>.None;
+        route.Forget();
         Address = string.Empty;
         IsLive = false;
         DismissRefusal();

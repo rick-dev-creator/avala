@@ -59,7 +59,7 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
         }
 
         void Phone(Avalonia.Controls.Window window) =>
-            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone").Execute("Choose");
+            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone 16").Execute("Choose");
 
         void Turned(Avalonia.Controls.Window window) => pane["Frame"].Execute("TurnCommand");
 
@@ -67,6 +67,15 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "94-preview-device-iphone-dark", Open, Phone);
         await Camera.ShootAsync(run, "94-preview-device-iphone-light", ThemeVariant.Light, Open);
         await Camera.ShootAsync(run, "95-preview-device-turned-dark", Open, Turned);
+
+        void Classic(Avalonia.Controls.Window window) =>
+            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone SE").Execute("Choose");
+
+        void Dual(Avalonia.Controls.Window window) =>
+            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "Surface Duo").Execute("Choose");
+
+        await Camera.ShootAsync(run, "96-preview-device-iphone-se-light", ThemeVariant.Light, Open, Classic);
+        await Camera.ShootAsync(run, "97-preview-device-surface-duo-dark", Open, Dual);
 
         Assert.True(await run.Ui.ReadAsync(() => pane["HasRefusal"].Value<bool>()));
         await run.Ui.InvokeAsync(run.Get<ShellViewModel>().Deactivate, TestContext.Current.CancellationToken);

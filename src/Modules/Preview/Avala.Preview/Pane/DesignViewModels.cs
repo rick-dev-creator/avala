@@ -78,33 +78,45 @@ internal sealed class DesignRunScriptViewModel : IRunScriptViewModel
 
 internal sealed class DesignDeviceFrameViewModel : IDeviceFrameViewModel
 {
+    private static Device Phone => Device.Named("iPhone 16");
+
     public bool IsFramed => true;
 
-    public double FrameWidth => Device.Phone.Width;
+    public bool ShowsDepth => false;
 
-    public double FrameHeight => Device.Phone.Height;
+    public bool IsFlat => true;
 
-    public double Bezel => Device.Phone.Bezel;
+    public double FrameWidth => Phone.Width;
 
-    public double OuterWidth => Device.Phone.Width + (2 * Device.Phone.Bezel);
+    public double FrameHeight => Phone.Height;
 
-    public double OuterHeight => Device.Phone.Height + (2 * Device.Phone.Bezel);
+    public DeviceInsets Insets => Phone.Insets;
 
-    public bool IsPhone => true;
+    public double OuterWidth => Phone.Width + Phone.Insets.Left + Phone.Insets.Right;
 
-    public bool IsAndroid => false;
+    public double OuterHeight => Phone.Height + Phone.Insets.Top + Phone.Insets.Bottom;
+
+    public bool IsIsland => true;
+
+    public bool IsPunch => false;
+
+    public bool IsClassic => false;
+
+    public bool IsDual => false;
 
     public bool IsTablet => false;
 
     public bool IsTurned => false;
 
-    public string Label => PreviewPhrases.Device(Device.Phone.Name, PreviewPhrases.Size(Device.Phone.Width, Device.Phone.Height));
+    public string Label => PreviewPhrases.Device(Phone.Name, PreviewPhrases.Size(Phone.Width, Phone.Height));
 
     public IReadOnlyList<DeviceChoice> Choices { get; } =
     [
         new(PreviewPhrases.Responsive, PreviewPhrases.FitsThePane, false, new RelayCommand(() => { })),
-        .. Device.All.Select(device => new DeviceChoice(device.Name, PreviewPhrases.Size(device.Width, device.Height), device == Device.Phone, new RelayCommand(() => { }))),
+        .. Device.All.Select(device => new DeviceChoice(device.Name, PreviewPhrases.Size(device.Width, device.Height), device == Phone, new RelayCommand(() => { }))),
     ];
 
     public IRelayCommand TurnCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ToggleDepthCommand { get; } = new RelayCommand(() => { });
 }

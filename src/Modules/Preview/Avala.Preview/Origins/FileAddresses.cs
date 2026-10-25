@@ -9,6 +9,9 @@ internal static class FileAddresses
 
     private static readonly FrozenSet<string> Models = new[] { ".glb", ".gltf", ".stl", ".obj" }.ToFrozenSet(StringComparer.Ordinal);
 
+    public static bool IsViewer(Uri address) =>
+        address.IsAbsoluteUri && address.AbsolutePath.StartsWith("/" + ViewerFolder, StringComparison.Ordinal);
+
     public static bool IsModel(string path) => Models.Contains(Extension(path));
 
     public static Uri Viewed(Uri file, int version)

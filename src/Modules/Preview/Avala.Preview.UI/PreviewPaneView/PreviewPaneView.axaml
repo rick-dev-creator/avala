@@ -36,17 +36,26 @@
       <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
       <Setter Property="ClipToBounds" Value="True" />
     </Style>
-    <Style Selector="Panel#Device.phone Border#Body">
+    <Style Selector="Panel#Device.island Border#Body">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhone}" />
     </Style>
-    <Style Selector="Panel#Device.phone Border#Screen">
+    <Style Selector="Panel#Device.island Border#Screen">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhoneScreen}" />
     </Style>
-    <Style Selector="Panel#Device.android Border#Body">
+    <Style Selector="Panel#Device.punch Border#Body">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroid}" />
     </Style>
-    <Style Selector="Panel#Device.android Border#Screen">
+    <Style Selector="Panel#Device.punch Border#Screen">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroidScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.classic Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceClassic}" />
+    </Style>
+    <Style Selector="Panel#Device.dual Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceDual}" />
+    </Style>
+    <Style Selector="Panel#Device.dual Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceDualScreen}" />
     </Style>
     <Style Selector="Panel#Device.tablet Border#Body">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTablet}" />
@@ -58,7 +67,7 @@
       <Setter Property="IsVisible" Value="False" />
       <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
-    <Style Selector="Panel#Device.phone Border#Island">
+    <Style Selector="Panel#Device.island Border#Island">
       <Setter Property="IsVisible" Value="True" />
       <Setter Property="Width" Value="104" />
       <Setter Property="Height" Value="30" />
@@ -68,14 +77,14 @@
       <Setter Property="VerticalAlignment" Value="Top" />
       <Setter Property="Margin" Value="0,22,0,0" />
     </Style>
-    <Style Selector="Panel#Device.phone.turned Border#Island">
+    <Style Selector="Panel#Device.island.turned Border#Island">
       <Setter Property="Width" Value="30" />
       <Setter Property="Height" Value="104" />
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="22,0,0,0" />
     </Style>
-    <Style Selector="Panel#Device.android Border#Lens">
+    <Style Selector="Panel#Device.punch Border#Lens">
       <Setter Property="IsVisible" Value="True" />
       <Setter Property="Width" Value="14" />
       <Setter Property="Height" Value="14" />
@@ -95,7 +104,7 @@
       <Setter Property="VerticalAlignment" Value="Top" />
       <Setter Property="Margin" Value="0,7,0,0" />
     </Style>
-    <Style Selector="Panel#Device.android.turned Border#Lens">
+    <Style Selector="Panel#Device.punch.turned Border#Lens">
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="22,0,0,0" />
@@ -105,7 +114,55 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="7,0,0,0" />
     </Style>
-    <Style Selector="Panel#Device.phone Border.button, Panel#Device.android Border.button">
+    <Style Selector="Panel#Device.classic Border#Speaker">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="50" />
+      <Setter Property="Height" Value="5" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceSpeaker}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,32,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.classic.turned Border#Speaker">
+      <Setter Property="Width" Value="5" />
+      <Setter Property="Height" Value="50" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="32,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.classic Border#Home">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="46" />
+      <Setter Property="Height" Value="46" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceHome}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Bottom" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style Selector="Panel#Device.classic.turned Border#Home">
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style Selector="Panel#Device.dual Border#Hinge">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="34" />
+      <Setter Property="Background" Value="{DynamicResource DeviceBodyBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DeviceRimBrush}" />
+      <Setter Property="BorderThickness" Value="1,0" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Panel#Device.dual.turned Border#Hinge">
+      <Setter Property="Width" Value="NaN" />
+      <Setter Property="Height" Value="34" />
+      <Setter Property="BorderThickness" Value="0,1" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Panel#Device.island Border.button, Panel#Device.punch Border.button, Panel#Device.classic Border.button">
       <Setter Property="IsVisible" Value="True" />
       <Setter Property="Width" Value="3" />
       <Setter Property="Background" Value="{DynamicResource DeviceButtonBrush}" />
@@ -203,21 +260,26 @@
         <Button x:Name="DismissRefusal" Grid.Column="2" Classes="ghost" Margin="6,0,0,0" Content="Stay here" Command="{Binding DismissRefusalCommand}" />
       </Grid>
     </Border>
-    <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFramed}">
+    <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFlat}">
       <Panel x:Name="Device"
              IsVisible="{Binding IsEmbedded}"
              MaxWidth="{Binding Frame.OuterWidth}"
              MaxHeight="{Binding Frame.OuterHeight}"
-             Classes.phone="{Binding Frame.IsPhone}"
-             Classes.android="{Binding Frame.IsAndroid}"
+             Classes.island="{Binding Frame.IsIsland}"
+             Classes.punch="{Binding Frame.IsPunch}"
+             Classes.classic="{Binding Frame.IsClassic}"
+             Classes.dual="{Binding Frame.IsDual}"
              Classes.tablet="{Binding Frame.IsTablet}"
              Classes.turned="{Binding Frame.IsTurned}">
         <Border x:Name="Body" />
-        <Border x:Name="Screen" Margin="{Binding Frame.Bezel, Converter={x:Static ui:DeviceInsets.Around}}">
+        <Border x:Name="Screen" Margin="{Binding Frame.Insets, Converter={x:Static ui:DeviceInsetsConverter.Margin}}">
           <ContentControl x:Name="Page" Content="{Binding Surface}" />
         </Border>
         <Border x:Name="Island" Classes="part" />
         <Border x:Name="Lens" Classes="part" />
+        <Border x:Name="Speaker" Classes="part" />
+        <Border x:Name="Home" Classes="part" />
+        <Border x:Name="Hinge" Classes="part" />
         <Border x:Name="Power" Classes="part button" />
         <Border x:Name="VolumeUp" Classes="part button" />
         <Border x:Name="VolumeDown" Classes="part button" />

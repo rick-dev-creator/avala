@@ -20,8 +20,9 @@ Agents draw diagrams, charts and notes on a canvas in the conversation, and a pa
 3. **Look closer** with **Open** in the canvas's header, and close it with Escape. An SVG or Mermaid diagram opens fitted, with the same zoom as the Docs pane: **Zoom out**, the zoom in percent (choose it for the actual size), **Zoom in** and **Fit to view**; the wheel or a pinch zooms where the pointer is and dragging moves it. Markdown scrolls.
 4. **Run the project** with **Run** in the job's header: it starts the worktree's `dev` script, or `start`, with the package manager its lock file names (pnpm, yarn, bun or npm), or serves `index.html` when there is no script. Stop ends it.
 5. **Open the preview** from the **Running** chip in the job's header. The pane has Back, Reload, Device, Allow network, Open in browser and Close preview.
-6. **See it on a device** with **Device** in the pane's toolbar: Responsive fills the pane, and iPhone (393 × 852), Android (412 × 915) and Tablet (820 × 1180) show the page at that device's width inside a drawing of the device: an iPhone with its Dynamic Island and side buttons, an Android phone with its punch-hole camera, or a tablet. **Turn the device** swaps its width and height. A device taller or wider than the pane is shown at the pane's size, so widen the pane for a tablet.
-7. **Resize the pane** by dragging its edge, and reset it with a double-click.
+6. **See it on a device** with **Device** in the pane's toolbar: Responsive fills the pane, and iPhone SE (375 × 667), iPhone 16 (393 × 852), iPhone 16 Pro Max (440 × 956), Pixel 9 (412 × 915), Surface Duo (1114 × 720, both screens) and iPad Air 11" (820 × 1180) show the page at that device's size inside a drawing of it: its Dynamic Island, punch-hole camera, home button or hinge, and its side buttons. **Turn the device** swaps its width and height. A device taller or wider than the pane is shown at the pane's size, so widen the pane for a tablet or the Duo.
+7. **Turn it in 3D** with **Show the device in 3D**, beside Turn: the device becomes a model you drag to turn, scroll to zoom and right-drag to pan, with **Front**, **Fit** and **Spin** in its bar, and the page stays live on its screen, so you can tap through it and watch the agent's changes arrive. Choose it again to go back to the flat frame.
+8. **Resize the pane** by dragging its edge, and reset it with a double-click.
 
 ## Settings and files
 
@@ -35,6 +36,7 @@ Agents draw diagrams, charts and notes on a canvas in the conversation, and a pa
 - Nothing on a canvas responds to input, and CSS animations and scripts do not run. Anything interactive, such as an app or a three.js scene, belongs in a page the agent serves for the preview.
 - A canvas in any other format shows its source. A Mermaid diagram that cannot be drawn shows its source with a note.
 - Allow network lasts for that job until Avala restarts.
+- The 3D devices are drawn by Avala from each model's measurements; no maker's model files are used.
 - The device you choose stays for every job until Avala restarts. Device sets the page's size only: the page still gets a desktop user agent and mouse events, not touches.
 - Leaving the jobs page, for Overview or Settings, closes the page's web view so nothing keeps running unseen; coming back opens it again at its first address.
 - The preview uses the system's web view: WebView2 on Windows, WKWebView on macOS, WPE WebKit or WebKitGTK on Linux. Where the page cannot be embedded, it opens in a window of its own, or the pane offers your browser; see [Troubleshooting](troubleshooting.md#the-preview-is-blank-or-opens-in-its-own-window).
