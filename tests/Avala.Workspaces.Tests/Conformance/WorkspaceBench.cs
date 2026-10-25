@@ -32,6 +32,7 @@ internal sealed class WorkspaceBench : IAsyncDisposable
             composition.Get<IWorkingCommits>()),
         composition.Get<IRepositories>(),
         composition.Get<IRemoteRepositories>(),
+        composition.Get<IRepositoryOrigins>(),
         composition.Get<IRepositoryIndex>(),
         repository.Path,
         (path, content, token) => repository.CommitAsync(path, content, token));

@@ -25,6 +25,8 @@ internal interface IMachineSettingsViewModel
 
     IReadOnlyList<object> Harnesses { get; }
 
+    IReadOnlyList<object> Fleet { get; }
+
     string Silence { get; }
 
     string SupervisionFile { get; }
@@ -45,6 +47,8 @@ internal interface IMachineSettingsViewModel
 internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl, IPersonalDetailsViewModel PersonalDetails)
 {
     public IReadOnlyList<object> Harnesses { get; init; } = [];
+
+    public IReadOnlyList<object> Fleet { get; init; } = [];
 }
 
 internal static class SilenceDial
@@ -80,6 +84,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         Notifications = sections.Notifications;
         Worktrees = worktrees;
         Harnesses = sections.Harnesses;
+        Fleet = sections.Fleet;
         accounts = new MachineAccountsViewModel(editor, sections.SourceControl, sections.PersonalDetails, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
@@ -99,6 +104,8 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     public IMachineAccountsViewModel Accounts => accounts;
 
     public IReadOnlyList<object> Harnesses { get; }
+
+    public IReadOnlyList<object> Fleet { get; }
 
     public IConnectionEditorViewModel Editor => accounts.Editing;
 
@@ -160,7 +167,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         await Worktrees.LoadAsync(cancellationToken);
         await SourceControl.LoadAsync(cancellationToken);
 
-        foreach (var harness in Harnesses.OfType<IActivatable>())
+        foreach (var harness in Harnesses.Concat(Fleet).OfType<IActivatable>())
         {
             harness.Activate();
         }

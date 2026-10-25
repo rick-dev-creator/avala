@@ -30,3 +30,7 @@ How to use Avala, one feature per page. Read Getting started first; the rest can
 15. [Privacy and usage statistics](privacy-and-usage-statistics.md): what is sent, and hiding personal details.
 16. [Keyboard shortcuts](keyboard-shortcuts.md).
 17. [Troubleshooting](troubleshooting.md): could not start, logs, Wayland and web views.
+
+## Team
+
+18. [Fleet server](fleet-server.md): running a server of your own for every instance, and the Fleet page.

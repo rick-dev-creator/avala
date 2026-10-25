@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\tests\FleetWire\**\*.*" LinkBase="FleetWire" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Fleet\Avala.Server\Avala.Server.csproj" />
+    <ProjectReference Include="..\Avala.Server.Testing\Avala.Server.Testing.csproj" />
+  </ItemGroup>
+</Project>

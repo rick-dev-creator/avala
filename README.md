@@ -18,7 +18,7 @@ under your rules, with evidence for every result and a cost for every job.
 [![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Install](#install) · [Quick start](#quick-start) · [Features](#features) · [Privacy](#privacy) · [Build from source](#build-from-source) · [Docs](#docs)
+[Install](#install) · [Quick start](#quick-start) · [Features](#features) · [For teams](#for-teams) · [Privacy](#privacy) · [Build from source](#build-from-source) · [Docs](#docs)
 
 <br>
 
@@ -32,41 +32,49 @@ under your rules, with evidence for every result and a cost for every job.
 
 ## Why Avala
 
-- **Evidence, not the agent's word.** A job is done only when the checks your repository declares pass in its worktree. The review shows that verdict first, then the diff.
-- **Policies, not prompts.** Every permission, question and plan approval is answered in place or by rules the agent cannot edit, at the autonomy you allow, and every decision is audited.
-- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, the memory, CPU and ports of Avala's agents are measured, and leftover processes, ports and worktrees are reclaimed.
-- **Claude Code, every account.** Claude Code is the harness Avala supports. Each Claude Code login is a connection, and jobs, and the sub-agents they delegate to, run on several at once. Harnesses plug in behind one contract, so more can follow.
-- **A usage limit is not a dead end.** A job that nears the limit of a usage window waits for the reset, or is handed off with a brief of its work to the connection with the most room left.
+- **Evidence, not the agent's word.** A job is done only when your repository's checks pass in its worktree.
+- **Policies, not prompts.** Permissions, questions and plans are answered by rules the agent cannot edit, and every decision is audited.
+- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
+- **Every account at once.** Each Claude Code login is a connection, and jobs and their sub-agents run on several in parallel.
+- **A usage limit is not a dead end.** A job near the limit waits for the reset, or is relayed to the connection with the most room left.
 
 ## Features
+
+### Start and follow the work
 
 <table>
 <tr>
 <td width="50%" valign="top">
-
-**Start from one sentence.** Describe a task on the welcome screen and pick the connection, model and effort from the chip in the composer, or open a folder, clone a repository or start a new one. In a job, attach files and images by drop or paste, and mention files, commits and other jobs with @.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/welcome-dark.png">
   <img src="docs/assets/readme/welcome-light.png" alt="The welcome screen with a task typed in the composer and the menu of connections open, Auto recommended">
 </picture>
 
+**Start from one sentence.** Type a task on the welcome screen, pick the connection, model and effort, or open, clone or create a repository.
+
 </td>
 <td width="50%" valign="top">
-
-**A conversation that feels native.** Replies render Markdown with code in VS Code's colors, callouts, footnotes and typeset math; files, commits and issues they mention open with a click, and each file edit expands into its diff, and Ctrl/⌘+F finds within it. Canvases are drawn as Markdown, SVG (animations included) and Mermaid. The sidebar groups conversations by project, with Chats for those started without a repository, and archives the finished ones out of the way.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/conversation-dark.png">
   <img src="docs/assets/readme/conversation-light.png" alt="An agent's reply with a heading, a list, a highlighted Go code block and a table">
 </picture>
 
+**A native conversation.** Markdown, highlighted code, math and Mermaid; each file edit expands into its diff.
+
 </td>
 </tr>
+</table>
+
+- Attach files and images by drop or paste, and mention files, commits and other jobs with `@`.
+- Canvases drawn as Markdown, SVG and Mermaid; conversations grouped by project and archived when finished.
+
+### Trust the result
+
+<table>
 <tr>
 <td width="50%" valign="top">
-
-**Permissions in place.** Allow a command once, for that program for the rest of the job, or for everything in the job, or let your repository's rules answer.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/permission-dark.webp">
@@ -74,10 +82,10 @@ under your rules, with evidence for every result and a cost for every job.
   <img src="docs/assets/readme/permission-light.gif" alt="A permission card for dotnet ef database update: Always dotnet in this job is chosen, the command is allowed and the job finishes ready for review">
 </picture>
 
+**Permissions in place.** Allow a command once, for that program, or for the whole job, or let your repository's rules answer.
+
 </td>
 <td width="50%" valign="top">
-
-**Review from the verdict.** The review opens on the evidence, lists only what deserves a look, and shows the diff before you approve, send back or discard.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/review-dark.webp">
@@ -85,34 +93,43 @@ under your rules, with evidence for every result and a cost for every job.
   <img src="docs/assets/readme/review-light.gif" alt="The review sheet: verified on attempt 2 of 2, the failed first attempt worth a look, the one-line diff, then approved">
 </picture>
 
+**Review from the verdict.** The evidence first, then only what deserves a look, then the diff.
+
 </td>
 </tr>
+</table>
+
+- **Checks found for you.** In a repository without `.avala/checks.json`, Avala finds its own build, lint and test commands, for any stack. [Checks and review](docs/guide/checks-and-review.md)
+- **Feature documentation.** A job can document what it builds, from its plan to the result, as Markdown with a C4 diagram in your repository. [Feature documentation](docs/guide/feature-documentation.md)
+
+### Run on every account
+
+<table>
 <tr>
 <td width="50%" valign="top">
-
-**Several accounts at once.** Each Claude Code login is a connection, and jobs run on all of them in parallel. Overview draws every connection with its usage window and the jobs it carries.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
   <img src="docs/assets/readme/overview-light.png" alt="Overview with two connections, claude at 95% of its 5-hour window and claude-work at 29%, each surrounded by the jobs running, held or ready for review on it">
 </picture>
 
+**Several accounts at once.** Overview draws every connection with its usage window and the jobs it carries.
+
 </td>
 <td width="50%" valign="top">
-
-**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. A child's question goes to its orchestrator, which answers it or asks you, its permissions come to you, and reviewers only read. The tree, with each job's own sub-agents, follows the work in a pane beside the conversation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/delegation-dark.png">
   <img src="docs/assets/readme/delegation-light.png" alt="The delegation view: an orchestrator on claude with two sub-agents, one on claude and one on claude-work, each with the budget carved for it and integrated into its parent">
 </picture>
 
+**Sub-agents across connections.** An agent hands work to child jobs, each in its own worktree and with a budget carved from its parent's.
+
 </td>
 </tr>
-<tr>
-<td colspan="2" valign="top">
+</table>
 
-**Handoff at the usage limit.** When a job nears the limit of its connection's usage window, it is held and, when your rules allow, handed off to the connection with the most capacity left, with a brief of the work so far built from Avala's own records. You can also move a held job yourself with Continue on from its harness chip. A held job waits for your message once its window resets, so a new window is never spent while you are away.
+<div align="center">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/handoff-dark.webp">
@@ -120,44 +137,55 @@ under your rules, with evidence for every result and a cost for every job.
   <img src="docs/assets/readme/handoff-light.gif" alt="A job on claude reaches 95% of its 5-hour window, is handed off to claude-work with a brief of its work, fixes the calculator there and passes its check; the inspector reads Handed off from claude to claude-work at 95% of the 5-hour window" width="900">
 </picture>
 
-</td>
-</tr>
+</div>
+
+**Relayed at the usage limit.** With Elastic Harness Chaining, a job near the limit of its window winds down, and the next connection carries on from a brief of its work. The Relays pane draws the route. [Budgets and usage limits](docs/guide/budgets-and-usage-limits.md)
+
+### Stay in control
+
+<table>
 <tr>
 <td width="50%" valign="top">
-
-**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, every job against its cap and how often it was held, and usage by day, under a daily ceiling for the machine. The job's header shows the context and usage left as two small rings, and Claude Code compacts a long conversation at a window you choose in Settings. Before a message to a large conversation left idle past its cache, the composer says what it will re-read and offers to compact it first.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/usage-dark.png">
   <img src="docs/assets/readme/usage-light.png" alt="The Usage page: claude near the end of its 5-hour and 7-day windows, claude-work at 29%, and the jobs with their cost against a 0.50 USD cap, one of them held once">
 </picture>
 
+**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, and every job against its cap.
+
 </td>
 <td width="50%" valign="top">
-
-**Avala's agents, measured.** The sidebar card and the Resources page show the memory, CPU, processes, disk and ports of Avala's agents alone, per job and connection, and anything left behind, which you can stop or clean up.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/resources-dark.png">
   <img src="docs/assets/readme/resources-light.png" alt="The Resources page: memory, CPU, disk and leased ports of Avala's agents, nothing left behind, and each job's process tree with its connection, memory, CPU and port">
 </picture>
 
+**Avala's agents, measured.** Memory, CPU, processes, disk and ports per job and connection, and anything left behind.
+
 </td>
 </tr>
+</table>
+
+- Caps on tokens, cost and memory per job, and a daily ceiling for the machine.
+- Worktrees are freed once a job no longer needs them, and rebuilt when it continues. [Worktrees and disk space](docs/guide/worktrees-and-disk-space.md)
+
+### Compare and preview
+
+<table>
 <tr>
 <td width="50%" valign="top">
-
-**Best of N.** Run one request as several candidates, each in its own worktree; the best is kept by its evidence and the others are discarded once you approve it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/contest-dark.png">
   <img src="docs/assets/readme/contest-light.png" alt="Three candidates of one request, the winner's review open and the inspector ranking them by evidence, diff and cost">
 </picture>
 
+**Best of N.** Run one request as several candidates; the best is kept by its evidence.
+
 </td>
 <td width="50%" valign="top">
-
-**A preview beside the conversation.** When a job starts a server, its page opens in a pane by itself, behind a loopback gateway that keeps other origins out.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/preview-dark.webp">
@@ -165,33 +193,63 @@ under your rules, with evidence for every result and a cost for every job.
   <img src="docs/assets/readme/preview-light.gif" alt="The agent builds and runs a service, and the preview pane opens by itself with the running orders page">
 </picture>
 
+**A live preview.** When a job starts a server, its page opens beside the conversation, behind a loopback gateway.
+
 </td>
 </tr>
+</table>
+
+### Automate
+
+<table>
 <tr>
 <td width="50%" valign="top">
-
-**Triggers and forges.** Start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, and open pull requests whose checks are watched.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/triggers-dark.png">
   <img src="docs/assets/readme/triggers-light.png" alt="The Triggers page with a forge trigger, its next poll and its events with their verdicts">
 </picture>
 
+**Triggers and forges.** Start jobs on a schedule, from a signed webhook, or from GitHub, Gitea and Forgejo events, and follow their pull requests.
+
 </td>
 <td width="50%" valign="top">
-
-**Notifications on your phone.** When a job needs you while you are away, Avala tells you through ntfy or a webhook of your own, and shows exactly what is sent. With Claude Code signed in to claude.ai, Continue on your phone opens the job in the Claude app through Remote Control, while Avala's rules still decide.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/notifications-dark.png">
   <img src="docs/assets/readme/notifications-light.png" alt="The notification settings: an ntfy topic, the events that send, quiet hours and the exact request sent for a decision">
 </picture>
 
+**Notifications on your phone.** Hear through ntfy or your own webhook when a job needs you, and see exactly what is sent.
+
 </td>
 </tr>
 </table>
 
-Also: caps on tokens and memory per job, an autopilot that works through a backlog, follow-up jobs an agent proposes, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application by its screen tests, which drive it headless on the development simulator; [Contributing](CONTRIBUTING.md) explains how.
+- An autopilot that works through a backlog, follow-up jobs an agent proposes, and jobs that survive a restart.
+
+The [guide](docs/guide/README.md) has a page for each feature.
+
+## For teams
+
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/fleet-dark.png">
+  <img src="docs/assets/readme/fleet-light.png" alt="The Fleet page over a week: spend and tokens per day, and how they split across repositories, instances and models" width="900">
+</picture>
+
+</div>
+
+**A fleet server of your own.** Run it with Docker Compose, register each computer, and the Fleet page shows your team's spend and tokens over a day, a week, a month or a year, split by repository, instance and model.
+
+- **Your server, your data.** It receives what each job does, its statuses, model, tokens, cost and verification, and never a path, a prompt or a file name.
+- **Ready to deploy.** PostgreSQL, the server and Caddy for HTTPS in one compose file, with a `fleet` command to register and revoke computers and back up the database.
+- **Keys that stay put.** Each computer's key lives in its system keychain and is sent only to your server, over HTTPS.
+
+[Fleet server](docs/guide/fleet-server.md) shows how to install it.
+
+<sub>The pictures of the application are captured by its screen tests, which drive it headless on the development simulator, as [Contributing](CONTRIBUTING.md) explains. The Fleet page is captured from Avala connected to a fleet server holding sample data.</sub>
 
 ## Install
 
@@ -222,12 +280,13 @@ The installers and archives are attached to each [release](https://github.com/ri
   <img align="right" width="380" src="docs/assets/readme/privacy-light.png" alt="The privacy step of the welcome tour: hide personal details, and share anonymous usage statistics">
 </picture>
 
-A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf.
+A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf, unless you connect it to a fleet server of your own.
 
 - **What is sent.** An `installed` event once ever, and an `active` event at most once per local day, each with Avala's version, your operating system's name, version and architecture, and a random install ID made on first run. The install ID is never derived from your hardware, user name or paths.
 - **What is never sent.** Repositories, jobs, prompts, paths, harnesses, connections, accounts, costs, the features you use or your locale.
 - **Turning it off.** Choose Turn off on the notice shown on first run, or clear Send usage statistics in Settings, About; or set `DO_NOT_TRACK=1` or `AVALA_TELEMETRY=0` in Avala's environment. Settings shows the exact event that is sent and lets you reset the install ID.
 - **Builds from source** send nothing: only a packaged release holds the key that makes sending possible.
+- **A fleet server** receives what each job does only once you connect one in Settings, Fleet, and never a path, title, instruction, prompt, branch or file name. The server is your own; [Privacy and usage statistics](docs/guide/privacy-and-usage-statistics.md) lists exactly what it gets.
 
 <br clear="right">
 
@@ -246,6 +305,7 @@ A build from source also holds the development simulator, which the released pac
 ## Docs
 
 - [Guide](docs/guide/README.md): one page per feature, starting with [Getting started](docs/guide/getting-started.md).
+- [Fleet server](docs/guide/fleet-server.md): install a server for your team and connect Avala to it.
 - [Documentation index](docs/README.md): every document, by who it is for.
 - [Architecture](docs/architecture.md): the big picture and the rules every change must pass.
 - [Releasing](docs/release.md): packages, usage statistics, signing and the update check.

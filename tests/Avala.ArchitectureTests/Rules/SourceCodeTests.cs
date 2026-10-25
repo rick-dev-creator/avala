@@ -14,6 +14,7 @@ public sealed class SourceCodeTests
         .. SolutionLayout.FilesUnder(SolutionLayout.SourceDirectory, "*.cs"),
         .. SolutionLayout.FilesUnder(SolutionLayout.TestsDirectory, "*.cs"),
         .. SolutionLayout.FilesUnder(Path.Combine(SolutionLayout.Root.FullName, "scripts"), "*.cs"),
+        .. SolutionLayout.FilesUnder(Path.Combine(SolutionLayout.Root.FullName, "backend"), "*.cs"),
     ];
 
     [Fact]
@@ -56,6 +57,20 @@ public sealed class SourceCodeTests
     [Fact]
     public void TheRepositoryHoldsNoScriptsInOtherLanguages() =>
         Assert.Empty(ScriptLanguages.ForeignScripts(SolutionLayout.FilesUnder(SolutionLayout.Root.FullName, "*")));
+
+    [Fact]
+    public async Task TheRepositoryHoldsNoShebangScriptsButTheFleetCommandAsync()
+    {
+        List<(string Path, string FirstLine)> files = [];
+
+        foreach (var path in SolutionLayout.FilesUnder(SolutionLayout.Root.FullName, "*").Where(path => Path.GetExtension(path).Length == 0))
+        {
+            using var reader = new StreamReader(path);
+            files.Add((Path.GetRelativePath(SolutionLayout.Root.FullName, path), await reader.ReadLineAsync(Cancellation) ?? string.Empty));
+        }
+
+        Assert.Empty(ScriptLanguages.ShebangScripts(files));
+    }
 
     [Fact]
     public async Task TheRepositoryTracksNothingOfThePrivateMethodAsync()

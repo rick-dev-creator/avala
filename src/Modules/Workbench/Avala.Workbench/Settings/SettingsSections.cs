@@ -9,6 +9,7 @@ internal enum SettingsSection
     Supervision,
     Worktrees,
     Notifications,
+    Fleet,
     Appearance,
     About,
     Repository,
@@ -59,6 +60,7 @@ internal static class SectionPhrases
         new(SettingsSection.Supervision, "Supervision", "IconEye"),
         new(SettingsSection.Worktrees, "Worktrees", "IconFolder"),
         new(SettingsSection.Notifications, "Notifications", "IconBell"),
+        new(SettingsSection.Fleet, "Fleet", "IconFleet"),
         new(SettingsSection.Appearance, "Appearance", "IconAppearance"),
         new(SettingsSection.About, "About", "IconInfo"),
     ];
@@ -70,6 +72,7 @@ internal static class SectionPhrases
         SettingsSection.Supervision => new("Supervision", "When Avala holds a job that went silent, and what jobs may use of this computer."),
         SettingsSection.Worktrees => new("Worktrees", "When Avala frees the disk a finished job's worktree takes, so this computer never fills up."),
         SettingsSection.Notifications => new("Notifications", "What reaches your phone while you are away from this window."),
+        SettingsSection.Fleet => new("Fleet", "The fleet server this computer sends its jobs, usage and cost to, so your team sees them together."),
         SettingsSection.Appearance => new("Appearance", "How Avala looks, moves and reads."),
         SettingsSection.About => new("About", "This build, its diagnostics and what it shares."),
         _ => new("Repositories", "Choose a repository to see the rules its .avala files give every job."),

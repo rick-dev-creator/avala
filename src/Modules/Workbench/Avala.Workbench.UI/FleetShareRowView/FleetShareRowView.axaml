@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetShareRowView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetShareRowViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetShareRowViewModel />
+  </Design.DataContext>
+  <Button x:Name="RowButton" Classes="row" Classes.selected="{Binding IsChosen}" IsHitTestVisible="{Binding CanChoose}" Command="{Binding ChooseCommand}">
+    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+      <TextBlock x:Name="NameText" Classes="mono" privacy:PersonalDetails.Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="ValueText" Grid.Column="1" Classes="caption" Text="{Binding Value}" />
+      <ProgressBar x:Name="ShareBar" Grid.Row="1" Grid.ColumnSpan="2" Classes="bar" Value="{Binding Share}" Margin="0,4,0,0" />
+    </Grid>
+  </Button>
+</UserControl>

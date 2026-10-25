@@ -288,6 +288,8 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public IReadOnlyList<object> Harnesses { get; init; } = [];
 
+    public IReadOnlyList<object> Fleet { get; init; } = [];
+
     public IMachineAccountsViewModel Accounts { get; init; } = new DesignMachineAccountsViewModel();
 
     public string Silence => "600s";
@@ -399,6 +401,8 @@ internal sealed class DesignSettingsViewModel : ISettingsViewModel
     public bool ShowsWorktrees => Section == SettingsSection.Worktrees;
 
     public bool ShowsNotifications => Section == SettingsSection.Notifications;
+
+    public bool ShowsFleet => Section == SettingsSection.Fleet;
 
     public bool ShowsAppearance => Section == SettingsSection.Appearance;
 

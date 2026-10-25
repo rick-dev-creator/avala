@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetTrendView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetTrendViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetTrendViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ProgressBar.column">
+      <Setter Property="Orientation" Value="Vertical" />
+      <Setter Property="Minimum" Value="0" />
+      <Setter Property="Maximum" Value="1" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+  </UserControl.Styles>
+  <Border Classes="card" Padding="16,14">
+    <StackPanel Spacing="10">
+      <DockPanel>
+        <Border Classes="segments" DockPanel.Dock="Right">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="ShowSpendButton" Classes="segment" Classes.selected="{Binding ShowsSpend}" Content="Spend" IsEnabled="{Binding CanShowSpend}" Command="{Binding ShowSpendCommand}" />
+            <Button x:Name="ShowTokensButton" Classes="segment" Classes.selected="{Binding !ShowsSpend}" Content="Tokens" Command="{Binding ShowTokensCommand}" />
+          </StackPanel>
+        </Border>
+        <StackPanel Spacing="2">
+          <TextBlock Classes="section" Text="Over time" />
+          <TextBlock x:Name="AxisText" Classes="caption" Text="{Binding Axis}" />
+        </StackPanel>
+      </DockPanel>
+      <TextBlock x:Name="EmptyText" Classes="caption" Text="Nothing was spent in this range" IsVisible="{Binding IsEmpty}" />
+      <ItemsControl x:Name="ColumnList" ItemsSource="{Binding Columns}" Height="180" IsVisible="{Binding !IsEmpty}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Rows="1" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

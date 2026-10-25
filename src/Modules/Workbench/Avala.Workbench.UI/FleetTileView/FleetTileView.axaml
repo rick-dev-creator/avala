@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetTileView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetTileViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetTileViewModel />
+  </Design.DataContext>
+  <Border Classes="card" Padding="14,12" Margin="0,0,12,12">
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="LabelText" Classes="caption" Text="{Binding Label}" />
+      <TextBlock x:Name="ValueText" Classes="figure" Text="{Binding Value}" />
+      <TextBlock x:Name="CaptionText" Classes="hint" Text="{Binding Caption}" TextWrapping="Wrap" />
+    </StackPanel>
+  </Border>
+</UserControl>

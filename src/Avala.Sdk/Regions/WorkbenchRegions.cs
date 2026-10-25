@@ -9,4 +9,6 @@ public static class WorkbenchRegions
     public static RegionName Preview { get; } = new("Workbench.Preview");
 
     public static RegionName Settings { get; } = new("Workbench.Settings");
+
+    public static RegionName Fleet { get; } = new("Workbench.Fleet");
 }

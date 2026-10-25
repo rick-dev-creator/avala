@@ -7,7 +7,7 @@ namespace Avala.Host.Tests;
 
 public sealed class SettingsScreens(HeadlessUi ui, PublishedPlugins plugins)
 {
-    private static readonly string[] Sections = ["Accounts", "Connections", "Supervision", "Notifications", "Appearance", "About"];
+    private static readonly string[] Sections = ["Accounts", "Connections", "Supervision", "Notifications", "Fleet", "Appearance", "About"];
 
     private static readonly string[] Tabs = ["Permissions", "Checks", "Budget", "Delivery", "Docs", "Files"];
 

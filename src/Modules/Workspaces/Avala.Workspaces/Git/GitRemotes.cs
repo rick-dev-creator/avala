@@ -5,10 +5,46 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workspaces.Git;
 
-internal sealed class GitRemotes(IProcessRunner processes) : IRemoteRepositories
+internal sealed class GitRemotes(IProcessRunner processes) : IRemoteRepositories, IRepositoryOrigins
 {
+    private const string Fetch = " (fetch)";
+
     private static readonly ImmutableDictionary<string, string> Unprompted =
         ImmutableDictionary<string, string>.Empty.Add("GIT_TERMINAL_PROMPT", "0");
+
+    public async ValueTask<Result<IReadOnlyList<OriginRemote>, WorkspaceFailure>> RemotesAsync(string repository, CancellationToken cancellationToken)
+    {
+        var listed = await RunAsync(["-C", repository, "remote", "-v"], cancellationToken);
+
+        if (!listed.Succeeded)
+        {
+            return WorkspaceFailure.GitFailed;
+        }
+
+        return Result<IReadOnlyList<OriginRemote>, WorkspaceFailure>.Success(
+        [
+            .. Lines(listed.Output)
+                .Where(line => line.EndsWith(Fetch, StringComparison.Ordinal) && line.Contains('\t', StringComparison.Ordinal))
+                .Select(line => line[..^Fetch.Length].Split('\t', 2))
+                .Select(parts => new OriginRemote(parts[0], parts[1]))
+                .DistinctBy(remote => remote.Name, StringComparer.Ordinal)
+                .OrderBy(remote => remote.Name, StringComparer.Ordinal),
+        ]);
+    }
+
+    public async ValueTask<Result<IReadOnlyList<string>, WorkspaceFailure>> RootCommitsAsync(string repository, CancellationToken cancellationToken)
+    {
+        var roots = await RunAsync(["-C", repository, "rev-list", "--max-parents=0", "HEAD", "--"], cancellationToken);
+
+        if (roots.Succeeded)
+        {
+            return Result<IReadOnlyList<string>, WorkspaceFailure>.Success([.. Lines(roots.Output).Order(StringComparer.Ordinal)]);
+        }
+
+        var unborn = await RunAsync(["-C", repository, "rev-parse", "--git-dir"], cancellationToken);
+
+        return unborn.Succeeded ? Result<IReadOnlyList<string>, WorkspaceFailure>.Success([]) : WorkspaceFailure.GitFailed;
+    }
 
     public async ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken)
     {
@@ -97,6 +133,9 @@ internal sealed class GitRemotes(IProcessRunner processes) : IRemoteRepositories
     }
 
     private static bool IsUrl(string url) => url.Length > 0 && !url.StartsWith('-') && !url.Any(char.IsControl);
+
+    private static string[] Lines(string output) =>
+        output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private async Task<Result<string, WorkspaceFailure>> CloneIntoAsync(string source, string path, CancellationToken cancellationToken)
     {

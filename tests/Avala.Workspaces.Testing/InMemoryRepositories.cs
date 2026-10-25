@@ -6,7 +6,7 @@ using Avala.Workspaces.Contracts;
 namespace Avala.Workspaces.Testing;
 
 internal sealed partial class InMemoryRepositories(InMemoryGit git, string scratch, TimeProvider clock) :
-    IRepositories, IScratchRepositories, IRemoteRepositories, IRepositoryIndex, IWorkingFiles, IWorkingCommits
+    IRepositories, IScratchRepositories, IRemoteRepositories, IRepositoryOrigins, IRepositoryIndex, IWorkingFiles, IWorkingCommits
 {
     private const int MaximumBytes = 64 * 1024;
 
@@ -70,6 +70,18 @@ internal sealed partial class InMemoryRepositories(InMemoryGit git, string scrat
         ValueTask.FromResult(git.RootOf(repository).Bind(root => git.Remote(git.WorkspaceAt(root).Match(held => held.Repository, () => root), remote)));
 
     public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
+
+    public ValueTask<Result<IReadOnlyList<OriginRemote>, WorkspaceFailure>> RemotesAsync(string repository, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(git.RootOf(repository).Match(
+            root => Result<IReadOnlyList<OriginRemote>, WorkspaceFailure>.Success(
+                [.. git.Remotes(git.WorkspaceAt(root).Match(held => held.Repository, () => root)).Select(remote => new OriginRemote(remote.Name, remote.Url))]),
+            () => WorkspaceFailure.GitFailed));
+
+    public async ValueTask<Result<IReadOnlyList<string>, WorkspaceFailure>> RootCommitsAsync(string repository, CancellationToken cancellationToken) =>
+        await git.RootOf(repository).Match<Task<Result<IReadOnlyList<string>, WorkspaceFailure>>>(
+            async root => Result<IReadOnlyList<string>, WorkspaceFailure>.Success(
+                git.Owns(root) && await git.HistoryAsync(root, int.MaxValue, cancellationToken) is [.., var first] ? [first.Id] : []),
+            () => Task.FromResult<Result<IReadOnlyList<string>, WorkspaceFailure>>(WorkspaceFailure.GitFailed));
 
     public async ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken)
     {

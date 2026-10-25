@@ -65,6 +65,51 @@ public sealed class GitRemotesTests
         Assert.Equal(WorkspaceFailure.NoBaseBranch, Outcomes.FailsWith(await new GitRemotes(Processes).PublishAsync(scratch.Path, "origin", remote, Cancellation)));
     }
 
+    [Fact]
+    public async Task RemotesAreListedByNameWithTheirFetchUrlsAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await repository.GitAsync(Cancellation, "remote", "add", "upstream", "https://forge.example/octo/shop.git");
+        await repository.GitAsync(Cancellation, "remote", "add", "origin", "git@forge.example:rick/shop.git");
+        await repository.GitAsync(Cancellation, "remote", "set-url", "--push", "origin", "git@forge.example:rick/push-only.git");
+
+        var remotes = Outcomes.Succeeds(await new GitRemotes(Processes).RemotesAsync(repository.Path, Cancellation));
+
+        Assert.Equal(
+            [new OriginRemote("origin", "git@forge.example:rick/shop.git"), new OriginRemote("upstream", "https://forge.example/octo/shop.git")],
+            remotes);
+    }
+
+    [Fact]
+    public async Task TheRootCommitIsListedByItsHashAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var first = await repository.GitAsync(Cancellation, "rev-list", "--max-parents=0", "HEAD");
+        await repository.CommitAsync("later.txt", "later\n", Cancellation);
+
+        Assert.Equal([first], Outcomes.Succeeds(await new GitRemotes(Processes).RootCommitsAsync(repository.Path, Cancellation)));
+    }
+
+    [Fact]
+    public async Task ARepositoryWithoutCommitsHasNoRootCommitAsync()
+    {
+        await using var scratch = new TemporaryFolder();
+        await GitAsync(scratch.Path, "init", "--quiet");
+
+        Assert.Empty(Outcomes.Succeeds(await new GitRemotes(Processes).RootCommitsAsync(scratch.Path, Cancellation)));
+    }
+
+    [Fact]
+    public async Task AFolderOutsideAnyRepositoryIsAFailureNotARepositoryWithoutOriginsAsync()
+    {
+        await using var outside = new TemporaryFolder();
+        var remotes = new GitRemotes(Processes);
+
+        Assert.Equal(
+            (WorkspaceFailure.GitFailed, WorkspaceFailure.GitFailed),
+            (Outcomes.FailsWith(await remotes.RemotesAsync(outside.Path, Cancellation)), Outcomes.FailsWith(await remotes.RootCommitsAsync(outside.Path, Cancellation))));
+    }
+
     [Theory]
     [InlineData("credential.helper=store", true)]
     [InlineData("credential.helper=", false)]

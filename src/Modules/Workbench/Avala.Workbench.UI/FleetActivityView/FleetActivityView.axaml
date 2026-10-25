@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetActivityView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetActivityViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetActivityViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <ContainerQuery Name="FleetPage" Query="max-width:760">
+      <Style Selector="UniformGrid.tiles">
+        <Setter Property="Columns" Value="2" />
+      </Style>
+      <Style Selector="UniformGrid.lists">
+        <Setter Property="Columns" Value="1" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="16" Container.Name="FleetPage" Container.Sizing="Width">
+      <DockPanel>
+        <Button x:Name="RefreshButton" DockPanel.Dock="Right" VerticalAlignment="Top" Content="Refresh" Command="{Binding RefreshCommand}" />
+        <StackPanel Spacing="2">
+          <TextBlock Classes="title" Text="Fleet" />
+          <TextBlock Classes="caption" Text="Spend and tokens across your instances, from your fleet server" />
+        </StackPanel>
+      </DockPanel>
+      <ContentControl x:Name="RangeContent" Content="{Binding Range}" />
+      <TextBlock x:Name="ZoneNoteText" Classes="caption" Text="{Binding ZoneNote}" IsVisible="{Binding HasZoneNote}" TextWrapping="Wrap" />
+      <Border x:Name="ScopeChip" Classes="segments" HorizontalAlignment="Left" IsVisible="{Binding IsScoped}">
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,2">
+          <TextBlock Classes="caption" Text="Only" VerticalAlignment="Center" />
+          <TextBlock x:Name="ScopeText" Classes="mono" privacy:PersonalDetails.Text="{Binding Scope}" VerticalAlignment="Center" />
+          <Button x:Name="ClearScopeButton" Classes="link" Content="Show the whole fleet" Command="{Binding ClearScopeCommand}" />
+        </StackPanel>
+      </Border>
+      <TextBlock x:Name="NoticeText" Classes="caption" Text="{Binding Notice}" IsVisible="{Binding HasNotice}" TextWrapping="Wrap" />
+      <StackPanel x:Name="Figures" Spacing="16" IsVisible="{Binding HasFigures}">
+        <ItemsControl x:Name="TileList" ItemsSource="{Binding Tiles}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Classes="tiles" Columns="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <ContentControl x:Name="TrendContent" Content="{Binding Trend}" />
+        <ItemsControl x:Name="ShareLists" ItemsSource="{Binding Lists}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Classes="lists" Columns="3" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <ContentControl x:Name="JobsContent" Content="{Binding Jobs}" IsVisible="{Binding IsScoped}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

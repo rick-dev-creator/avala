@@ -207,6 +207,12 @@
               <ContentControl x:Name="Notifications" Content="{Binding Machine.Notifications}" />
             </StackPanel>
           </ScrollViewer>
+          <ScrollViewer x:Name="FleetScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsFleet}">
+            <StackPanel Classes="column">
+              <ItemsControl x:Name="FleetSections" ItemsSource="{Binding Machine.Fleet}" />
+              <TextBlock x:Name="NoFleet" Classes="caption" Text="This build has no Fleet module." IsVisible="{Binding !Machine.Fleet.Count}" />
+            </StackPanel>
+          </ScrollViewer>
           <ScrollViewer x:Name="AppearanceScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsAppearance}">
             <StackPanel Classes="column">
               <ContentControl x:Name="Appearance" Content="{Binding Appearance}" />

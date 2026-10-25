@@ -290,6 +290,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterDocumentationViews(views);
         RegisterReadinessViews(views);
         RegisterFollowingViews(views);
+        views.RegisterFleetViews();
     }
 
     private static void RegisterInspector(IPluginRegistrar registrar)
@@ -373,14 +374,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ConnectSheetViewModel>()
             .AddSingleton<SourceControlViewModel>()
             .AddForwarded<ISourceControlViewModel, SourceControlViewModel>()
-            .AddSingleton(provider => new MachineSections(
-                provider.GetRequiredService<IDefaultConnectionViewModel>(),
-                provider.GetRequiredService<INotificationsViewModel>(),
-                provider.GetRequiredService<ISourceControlViewModel>(),
-                provider.GetRequiredService<IPersonalDetailsViewModel>())
-            {
-                Harnesses = [.. provider.GetServices<RegionContribution>().Where(contribution => contribution.Region == WorkbenchRegions.Settings).OrderBy(contribution => contribution.Order).Select(contribution => contribution.ViewModel)],
-            });
+            .AddSingleton(SettingsSectionsRegistration.Sections);
 
     private static IServiceCollection RegisterPulse(IServiceCollection services) =>
         services
@@ -489,6 +483,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IPage, ResourcesViewModel>()
             .AddForwarded<IPage, WorktreesViewModel>()
             .AddForwarded<IPage, TriggersViewModel>()
+            .AddFleetActivity()
             .AddForwarded<IPage, SettingsViewModel>();
 
     private static void RegisterFollowingViews(IViewRegistrar views)

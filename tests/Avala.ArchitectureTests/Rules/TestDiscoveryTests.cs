@@ -25,18 +25,20 @@ public sealed class TestDiscoveryTests
     [Fact]
     public async Task EveryTestProjectRunsInExactlyOneSolutionFilterAsync()
     {
-        string[] filters = ["Avala.UnitTests.slnf", "Avala.SystemTests.slnf"];
+        string[] filters = ["Avala.UnitTests.slnf", "Avala.SystemTests.slnf", "Avala.ContainerTests.slnf"];
         var listed = await Task.WhenAll(filters.Select(FilteredProjectsAsync));
         var tests = await TestProjectsAsync();
 
         var violations = tests
             .Select(project => (Project: project, Filters: filters.Where((_, index) => listed[index].Contains(project)).ToList()))
             .Where(found => found.Filters.Count != 1)
-            .Select(found => $"{found.Project} runs in {found.Filters.Count} solution filters, not exactly one of {string.Join(" and ", filters)}.")
+            .Select(found => $"{found.Project} runs in {found.Filters.Count} solution filters, not exactly one of {string.Join(", ", filters)}.")
             .ToList();
 
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
+
+    private static readonly string[] TestFolders = ["tests/", "backend/tests/"];
 
     private static async Task<IReadOnlyList<string>> TestProjectsAsync()
     {
@@ -47,7 +49,7 @@ public sealed class TestDiscoveryTests
         [
             .. solution.Descendants("Project")
                 .Select(project => (string?)project.Attribute("Path") ?? string.Empty)
-                .Where(path => path.StartsWith("tests/", StringComparison.Ordinal) && path.EndsWith("Tests.csproj", StringComparison.Ordinal)),
+                .Where(path => TestFolders.Any(folder => path.StartsWith(folder, StringComparison.Ordinal)) && path.EndsWith("Tests.csproj", StringComparison.Ordinal)),
         ];
     }
 

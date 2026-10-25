@@ -25,7 +25,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
         {
             var view = Wide(new DesignSettingsViewModel());
 
-            Assert.Equal((7, 4), (view.Find<ItemsControl>("Sections").ItemCount, view.Find<ItemsControl>("Repositories").ItemCount));
+            Assert.Equal((8, 4), (view.Find<ItemsControl>("Sections").ItemCount, view.Find<ItemsControl>("Repositories").ItemCount));
             Assert.Equal(("Accounts", "The agents and source control this computer signs in with."), (view.TextOf("SectionTitle"), view.TextOf("SectionNote")));
             Assert.Equal(
                 (true, false, false, false, false, false, false),
@@ -46,6 +46,15 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             Assert.Equal(("Appearance", true, false), (view.TextOf("SectionTitle"), view.Shows("Appearance"), view.Shows("MachineAccounts")));
             Assert.Equal(["Appearance"], settings.Entries.Where(entry => entry.IsSelected).Select(entry => entry.Title));
             Assert.Contains("selected", Entry(view, "Appearance").Classes);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheFleetSectionShowsWhatTheFleetModuleContributesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignSettingsViewModel { Section = SettingsSection.Fleet, Machine = new DesignMachineSettingsViewModel { Fleet = [new DesignAboutViewModel()] } });
+
+            Assert.Equal(("Fleet", true, 1, false), (view.TextOf("SectionTitle"), view.Shows("FleetScroller"), view.Find<ItemsControl>("FleetSections").ItemCount, view.Shows("NoFleet")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -73,7 +82,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal((false, true, true), (view.Shows("Navigation"), view.Shows("TopNavigation"), view.Shows("RepositoryChooser")));
-            Assert.Equal(7, view.Find<ItemsControl>("SectionTabs").ItemCount);
+            Assert.Equal(8, view.Find<ItemsControl>("SectionTabs").ItemCount);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

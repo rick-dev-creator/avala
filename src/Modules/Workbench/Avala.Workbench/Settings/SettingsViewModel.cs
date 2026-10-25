@@ -35,6 +35,8 @@ internal interface ISettingsViewModel
 
     bool ShowsNotifications { get; }
 
+    bool ShowsFleet { get; }
+
     bool ShowsAppearance { get; }
 
     bool ShowsAbout { get; }
@@ -97,6 +99,7 @@ internal sealed partial class SettingsViewModel : ISettingsViewModel, IPage, IAc
         nameof(ShowsSupervision),
         nameof(ShowsWorktrees),
         nameof(ShowsNotifications),
+        nameof(ShowsFleet),
         nameof(ShowsAppearance),
         nameof(ShowsAbout),
         nameof(ShowsRepository))]
@@ -115,6 +118,8 @@ internal sealed partial class SettingsViewModel : ISettingsViewModel, IPage, IAc
     public bool ShowsWorktrees => Section == SettingsSection.Worktrees;
 
     public bool ShowsNotifications => Section == SettingsSection.Notifications;
+
+    public bool ShowsFleet => Section == SettingsSection.Fleet;
 
     public bool ShowsAppearance => Section == SettingsSection.Appearance;
 

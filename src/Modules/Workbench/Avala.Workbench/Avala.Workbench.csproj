@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" />
     <ProjectReference Include="..\..\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
     <ProjectReference Include="..\..\Notifications\Avala.Notifications.Contracts\Avala.Notifications.Contracts.csproj" />
+    <ProjectReference Include="..\..\Fleet\Avala.Fleet.Contracts\Avala.Fleet.Contracts.csproj" />
     <ProjectReference Include="..\..\Contests\Avala.Contests.Contracts\Avala.Contests.Contracts.csproj" />
     <ProjectReference Include="..\..\Projects\Avala.Projects.Contracts\Avala.Projects.Contracts.csproj" />
   </ItemGroup>
