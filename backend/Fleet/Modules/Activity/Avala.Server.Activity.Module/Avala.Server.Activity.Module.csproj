@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Avala.Server.CrossCuttingConcerns\Avala.Server.CrossCuttingConcerns.csproj" />
+    <ProjectReference Include="..\Avala.Server.Activity.Application\Avala.Server.Activity.Application.csproj" />
+    <ProjectReference Include="..\Avala.Server.Activity.EndPoints\Avala.Server.Activity.EndPoints.csproj" />
+    <ProjectReference Include="..\Avala.Server.Activity.Infrastructure\Avala.Server.Activity.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Activity.Tests" />
+  </ItemGroup>
+</Project>

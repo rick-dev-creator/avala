@@ -110,6 +110,12 @@
       "tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj",
       "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj",
       "backend/Fleet/Avala.Server.CrossCuttingConcerns/Avala.Server.CrossCuttingConcerns.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.Application/Avala.Server.Activity.Application.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.Contracts/Avala.Server.Activity.Contracts.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.Domain/Avala.Server.Activity.Domain.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.EndPoints/Avala.Server.Activity.EndPoints.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.Infrastructure/Avala.Server.Activity.Infrastructure.csproj",
+      "backend/Fleet/Modules/Activity/Avala.Server.Activity.Module/Avala.Server.Activity.Module.csproj",
       "backend/Fleet/Modules/Instances/Avala.Server.Instances.Application/Avala.Server.Instances.Application.csproj",
       "backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj",
       "backend/Fleet/Modules/Instances/Avala.Server.Instances.Domain/Avala.Server.Instances.Domain.csproj",
@@ -117,7 +123,8 @@
       "backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj",
       "backend/Fleet/Modules/Instances/Avala.Server.Instances.Module/Avala.Server.Instances.Module.csproj",
       "backend/tests/Avala.Server.Testing/Avala.Server.Testing.csproj",
-      "backend/tests/Avala.Server.Instances.Tests/Avala.Server.Instances.Tests.csproj"
+      "backend/tests/Avala.Server.Instances.Tests/Avala.Server.Instances.Tests.csproj",
+      "backend/tests/Avala.Server.Activity.Tests/Avala.Server.Activity.Tests.csproj"
     ]
   }
 }

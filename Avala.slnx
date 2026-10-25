@@ -222,6 +222,14 @@
     <Project Path="backend/Fleet/Avala.Server.ServiceDefaults/Avala.Server.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/Backend/Fleet/Modules/" />
+  <Folder Name="/Backend/Fleet/Modules/Activity/">
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.Application/Avala.Server.Activity.Application.csproj" />
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.Contracts/Avala.Server.Activity.Contracts.csproj" />
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.Domain/Avala.Server.Activity.Domain.csproj" />
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.EndPoints/Avala.Server.Activity.EndPoints.csproj" />
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.Infrastructure/Avala.Server.Activity.Infrastructure.csproj" />
+    <Project Path="backend/Fleet/Modules/Activity/Avala.Server.Activity.Module/Avala.Server.Activity.Module.csproj" />
+  </Folder>
   <Folder Name="/Backend/Fleet/Modules/Instances/">
     <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Application/Avala.Server.Instances.Application.csproj" />
     <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj" />
@@ -231,6 +239,8 @@
     <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Module/Avala.Server.Instances.Module.csproj" />
   </Folder>
   <Folder Name="/Backend/tests/">
+    <Project Path="backend/tests/Avala.Server.Activity.IntegrationTests/Avala.Server.Activity.IntegrationTests.csproj" />
+    <Project Path="backend/tests/Avala.Server.Activity.Tests/Avala.Server.Activity.Tests.csproj" />
     <Project Path="backend/tests/Avala.Server.ArchitectureTests/Avala.Server.ArchitectureTests.csproj" />
     <Project Path="backend/tests/Avala.Server.Instances.IntegrationTests/Avala.Server.Instances.IntegrationTests.csproj" />
     <Project Path="backend/tests/Avala.Server.Instances.Tests/Avala.Server.Instances.Tests.csproj" />

@@ -1,6 +1,7 @@
 #:property PublishAot=false
 #:package Microsoft.EntityFrameworkCore.Design
 #:package Npgsql.EntityFrameworkCore.PostgreSQL
+#:project ../backend/Fleet/Modules/Activity/Avala.Server.Activity.Infrastructure/Avala.Server.Activity.Infrastructure.csproj
 #:project ../backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj
 
 using System.Reflection;

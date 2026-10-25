@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Fleet\Modules\Activity\Avala.Server.Activity.Module\Avala.Server.Activity.Module.csproj" />
+    <ProjectReference Include="..\Avala.Server.Testing\Avala.Server.Testing.csproj" />
+  </ItemGroup>
+</Project>

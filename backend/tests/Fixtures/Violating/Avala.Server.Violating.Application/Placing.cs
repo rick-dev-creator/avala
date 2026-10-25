@@ -11,6 +11,11 @@ internal interface IOrderRepository
     Order Find(Guid id);
 }
 
+internal interface IRepository<T>
+{
+    T Find(Guid id);
+}
+
 internal sealed class OrderReminder(OrdersDbContext database)
 {
     public int Pending => database.Orders.Count();

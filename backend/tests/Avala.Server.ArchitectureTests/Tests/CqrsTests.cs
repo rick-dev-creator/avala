@@ -66,6 +66,10 @@ public sealed class CqrsTests
     [Fact]
     public void DetectsRepositories() =>
         Assert.Equal(
-            ["Avala.Server.Violating.Application.IOrderRepository", "Avala.Server.Violating.Infrastructure.OrderRepository"],
+            ["Avala.Server.Violating.Application.IOrderRepository", "Avala.Server.Violating.Application.IRepository`1", "Avala.Server.Violating.Infrastructure.OrderRepository"],
             Violations.Sorted(CqrsRules.RepositoryAbstractions(Violating)));
+
+    [Fact]
+    public void TheRepositoryWordInADomainNameIsNotTheRepositoryPattern() =>
+        Assert.DoesNotContain("Avala.Server.Violating.Domain.RepositoryKey", CqrsRules.RepositoryAbstractions(Violating));
 }

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Activity.Application" />
+    <InternalsVisibleTo Include="Avala.Server.Activity.Infrastructure" />
+    <InternalsVisibleTo Include="Avala.Server.Activity.Tests" />
+    <InternalsVisibleTo Include="Avala.Server.Activity.IntegrationTests" />
+  </ItemGroup>
+</Project>

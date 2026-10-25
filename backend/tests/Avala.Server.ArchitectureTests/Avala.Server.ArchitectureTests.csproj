@@ -10,6 +10,7 @@
     <PackageReference Include="TngTech.ArchUnitNET" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Fleet\Modules\Activity\Avala.Server.Activity.Module\Avala.Server.Activity.Module.csproj" />
     <ProjectReference Include="..\..\Fleet\Modules\Instances\Avala.Server.Instances.Module\Avala.Server.Instances.Module.csproj" />
     <ProjectReference Include="..\Fixtures\Violating\Avala.Server.Partial.Domain\Avala.Server.Partial.Domain.csproj" />
     <ProjectReference Include="..\Fixtures\Violating\Avala.Server.Violating.Module\Avala.Server.Violating.Module.csproj" />

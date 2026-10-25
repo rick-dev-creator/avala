@@ -46,8 +46,8 @@ internal static class CqrsRules
 
     public static IEnumerable<string> RepositoryAbstractions(ServerScope scope) =>
         scope.Types
-            .Where(found => found.Type.Name.Contains("Repository", StringComparison.Ordinal)
-                || found.Type.Name.Contains("UnitOfWork", StringComparison.Ordinal))
+            .Where(found => WithoutArity(found.Type.Name) is var name
+                && (name.EndsWith("Repository", StringComparison.Ordinal) || name.EndsWith("UnitOfWork", StringComparison.Ordinal)))
             .Select(found => Named(found.Type));
 
     private static IEnumerable<(ModuleAssembly Owner, Type Type)> Messages(ServerScope scope) =>
@@ -69,6 +69,8 @@ internal static class CqrsRules
     private static bool IsAllowedCollaborator(ServerScope scope, ModuleAssembly owner, Type parameter) =>
         (parameter.IsSubclassOf(typeof(DbContext)) && scope.Owning(parameter) is { } context && context.Module == owner.Module)
         || HandlerCollaborators.Contains(parameter.IsGenericType ? parameter.GetGenericTypeDefinition() : parameter);
+
+    private static string WithoutArity(string name) => name.Split('`')[0];
 
     private static string Named(Type type) => type.FullName ?? type.Name;
 }

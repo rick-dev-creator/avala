@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Avala.Server.CrossCuttingConcerns\Avala.Server.CrossCuttingConcerns.csproj" />
     <ProjectReference Include="..\Avala.Server.ServiceDefaults\Avala.Server.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Modules\Activity\Avala.Server.Activity.Module\Avala.Server.Activity.Module.csproj" />
     <ProjectReference Include="..\Modules\Instances\Avala.Server.Instances.Module\Avala.Server.Instances.Module.csproj" />
   </ItemGroup>
 </Project>

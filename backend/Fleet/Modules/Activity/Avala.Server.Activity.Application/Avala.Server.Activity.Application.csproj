@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Server.Activity.Contracts\Avala.Server.Activity.Contracts.csproj" />
+    <ProjectReference Include="..\Avala.Server.Activity.Domain\Avala.Server.Activity.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Activity.Module" />
+    <InternalsVisibleTo Include="Avala.Server.Activity.Tests" />
+  </ItemGroup>
+</Project>
