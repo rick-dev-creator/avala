@@ -52,33 +52,8 @@
                   LargeChange="5"
                   AutomationProperties.Name="Prepare at this share of the window"
                   Value="{Binding Threshold}" />
-          <DockPanel>
-            <TextBlock x:Name="HardCapLabel" DockPanel.Dock="Right" Text="{Binding HardCapLabel}" />
-            <TextBlock Text="Hard cap" />
-          </DockPanel>
-          <Slider x:Name="HardCap"
-                  Minimum="50"
-                  Maximum="100"
-                  SmallChange="1"
-                  LargeChange="5"
-                  AutomationProperties.Name="Never pass this share of the window"
-                  Value="{Binding HardCap}" />
-          <TextBlock Classes="caption" Text="A job starts preparing at the first mark and is stopped at the hard cap, whatever it is doing." TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="Past this share of a usage window, a job holds or relays rather than start another turn." TextWrapping="Wrap" />
         </StackPanel>
-        <Border Classes="separator" Margin="16,0" />
-        <DockPanel Margin="16,12">
-          <ToggleSwitch x:Name="WindsDown"
-                        DockPanel.Dock="Right"
-                        VerticalAlignment="Center"
-                        OnContent="{x:Null}"
-                        OffContent="{x:Null}"
-                        IsChecked="{Binding WindsDown}"
-                        AutomationProperties.Name="Wind down before the limit" />
-          <StackPanel Spacing="2" VerticalAlignment="Center">
-            <TextBlock Text="Wind down first" />
-            <TextBlock Classes="caption" Text="The agent leaves its work in a valid state and stops its sub-agents before the baton passes." TextWrapping="Wrap" />
-          </StackPanel>
-        </DockPanel>
         <Border Classes="separator" Margin="16,0" />
         <DockPanel Margin="16,12">
           <ToggleSwitch x:Name="ResumesByItself"
@@ -108,6 +83,35 @@
           </StackPanel>
         </DockPanel>
         <StackPanel x:Name="Relaying" IsVisible="{Binding HandsOff}">
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="WindsDown"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding WindsDown}"
+                        AutomationProperties.Name="Wind down before the limit" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Wind down first" />
+            <TextBlock Classes="caption" Text="The agent leaves its work in a valid state and stops its sub-agents before the baton passes." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <StackPanel Margin="16,12" Spacing="6">
+            <DockPanel>
+              <TextBlock x:Name="HardCapLabel" DockPanel.Dock="Right" Text="{Binding HardCapLabel}" />
+              <TextBlock Text="Hard cap" />
+            </DockPanel>
+            <Slider x:Name="HardCap"
+                    Minimum="50"
+                    Maximum="100"
+                    SmallChange="1"
+                    LargeChange="5"
+                    AutomationProperties.Name="Never pass this share of the window"
+                    Value="{Binding HardCap}" />
+            <TextBlock Classes="caption" Text="A job winding down that still reaches this share is stopped there, whatever it is doing, and the baton passes." TextWrapping="Wrap" />
+          </StackPanel>
           <Border Classes="separator" Margin="16,0" />
           <DockPanel Margin="16,12">
             <ComboBox x:Name="Strategies"

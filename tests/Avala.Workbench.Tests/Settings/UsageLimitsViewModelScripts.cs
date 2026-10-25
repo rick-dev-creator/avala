@@ -18,7 +18,7 @@ public sealed class UsageLimitsViewModelScripts
         Assert.Equal(("Hold the job", 90d, 98d, false, false), (shown.Action, shown.Threshold, shown.HardCap, shown.HandsOff, shown.IsChanged));
         Assert.Equal("limits.json: not created yet, so these defaults apply", shown.File);
         Assert.Equal(["claude-work", "claude-max"], shown.Connections.Select(row => row.Name));
-        Assert.StartsWith("At 90% a job winds down, leaving its work in a valid state, and holds, and never passes 98%.", shown.Summary, StringComparison.Ordinal);
+        Assert.Equal("Past 90% a job holds when its turn ends, rather than starting another. It asks you before it continues at the reset.", shown.Summary);
     }
 
     [Fact]

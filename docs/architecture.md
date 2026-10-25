@@ -68,7 +68,7 @@ A new capability, such as an issue tracker or another way to isolate work, arriv
 | Budgets | Caps per job and per connection, the daily ceiling and admission of running jobs |
 | Resources | Processes, ports and disk per job, port leases and reclaiming what is left behind |
 | Observability | Usage, cost and limits per provider, account, connection, session and job |
-| Handoffs | Waiting for a usage window to reset, or handing a job to another connection with a brief |
+| Handoffs | Waiting for a usage window to reset, or handing a job to another connection with a brief: Elastic Harness Chaining, with winding down, a hard cap and relay marks |
 | Delegation | Child jobs an orchestrating agent hands work to |
 | Autopilot | Loops that work through a backlog unattended |
 | Triggers | Jobs started on a schedule, from a webhook or from a forge event |

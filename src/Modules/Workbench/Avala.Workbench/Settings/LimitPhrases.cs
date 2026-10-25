@@ -5,7 +5,7 @@ namespace Avala.Workbench.Settings;
 
 internal static class LimitPhrases
 {
-    public const string EveryConnection = "None chosen: every connection on this machine can take the baton.";
+    public const string EveryConnection = "None chosen: a job started on Auto relays to any connection Auto compared. Choose connections so a job started on one of them relays too.";
 
     public const string Override = "A repository's .avala/jobs.json limits section replaces these for its own jobs.";
 
@@ -55,7 +55,7 @@ internal static class LimitPhrases
         {
             OnLimit.HandOffSameHarness => $"At {at} a job {preparing}hands off to another connection of its harness; none passes {cap}. With no connection left, it {reset}.",
             OnLimit.HandOffAnyHarness => $"At {at} a job {preparing}hands off to another connection, on any harness; none passes {cap}. With no connection left, it {reset}.",
-            _ => $"At {at} a job {preparing}holds, and never passes {cap}. It {reset}.",
+            _ => $"Past {at} a job holds when its turn ends, rather than starting another. It {reset}.",
         };
     }
 
