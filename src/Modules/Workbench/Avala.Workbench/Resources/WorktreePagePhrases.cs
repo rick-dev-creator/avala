@@ -103,9 +103,11 @@ internal static class WorktreePagePhrases
     }
 
     public static string Duration(TimeSpan span) =>
-        span >= TimeSpan.FromDays(1) ? string.Create(CultureInfo.InvariantCulture, $"{span.TotalDays:0.#} days")
-        : span >= TimeSpan.FromHours(1) ? string.Create(CultureInfo.InvariantCulture, $"{span.TotalHours:0.#} hours")
-        : string.Create(CultureInfo.InvariantCulture, $"{Math.Max(1, span.TotalMinutes):0} minutes");
+        span >= TimeSpan.FromDays(1) ? Measure(span.TotalDays.ToString("0.#", CultureInfo.InvariantCulture), "day")
+        : span >= TimeSpan.FromHours(1) ? Measure(span.TotalHours.ToString("0.#", CultureInfo.InvariantCulture), "hour")
+        : Measure(Math.Max(1, span.TotalMinutes).ToString("0", CultureInfo.InvariantCulture), "minute");
+
+    private static string Measure(string amount, string unit) => amount == "1" ? $"1 {unit}" : $"{amount} {unit}s";
 
     public static string Day(WorktreeDay day) =>
         string.Create(CultureInfo.InvariantCulture, $"{day.Created} created · {day.Freed} freed · {Bytes(day.Recovered)} recovered");

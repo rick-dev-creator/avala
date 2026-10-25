@@ -79,6 +79,20 @@ public sealed class WorktreesViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ALifetimeOfOneUnitIsSaidInTheSingularAsync()
+    {
+        history.Report = new WorktreeReport(
+            [new WorktreeDay(Today, 1L << 30, 1, 1, 1, 1L << 30)],
+            [new WorktreeEvent(job.Job, "/worktrees/a", JobStatus.Approved, WorktreeMoment.Delivered, 1L << 30, Now) { Lifetime = TimeSpan.FromSeconds(20) }]);
+        using var page = Page();
+
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Lifetime.Length > 0, () => "no lifetime");
+
+        Assert.Equal("A worktree lives 1 minute on average before it is freed.", await ui.ReadAsync(() => page.Lifetime));
+    }
+
+    [Fact]
     public async Task AHistoryRowNamesItsJobAndOpensItAsync()
     {
         history.Report = new WorktreeReport([], [new WorktreeEvent(job.Job, "/worktrees/a", JobStatus.Approved, WorktreeMoment.Delivered, 1L << 20, Now)]);
