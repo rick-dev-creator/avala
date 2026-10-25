@@ -24,11 +24,18 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
 
     public static async Task<FolderSnapshot> ReadAsync(string folder, FolderSnapshot tracked, CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(folder))
+        try
+        {
+            return Directory.Exists(folder) ? await PresentAsync(folder, tracked, cancellationToken) : Empty;
+        }
+        catch (DirectoryNotFoundException) when (!Directory.Exists(folder))
         {
             return Empty;
         }
+    }
 
+    private static async Task<FolderSnapshot> PresentAsync(string folder, FolderSnapshot tracked, CancellationToken cancellationToken)
+    {
         var ignore = await GitIgnore.ReadAsync(folder, cancellationToken);
         var snapshot = Empty;
 
@@ -44,12 +51,24 @@ internal sealed record FolderSnapshot(ImmutableSortedDictionary<string, byte[]> 
             snapshot = entry switch
             {
                 { LinkTarget: { } target } => snapshot.With(relative, Encoding.UTF8.GetBytes(target), Link),
-                FileInfo file => snapshot.With(relative, await File.ReadAllBytesAsync(file.FullName, cancellationToken), ModeOf(file)),
+                FileInfo file => (await StillThereAsync(file, cancellationToken)).Match(bytes => snapshot.With(relative, bytes, ModeOf(file)), () => snapshot),
                 _ => snapshot,
             };
         }
 
         return snapshot;
+    }
+
+    private static async Task<Option<byte[]>> StillThereAsync(FileInfo file, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await File.ReadAllBytesAsync(file.FullName, cancellationToken);
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return Option<byte[]>.None;
+        }
     }
 
     public static async Task<Option<byte[]>> ReadEntryAsync(string folder, string path, CancellationToken cancellationToken)
