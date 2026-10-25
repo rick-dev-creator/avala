@@ -84,6 +84,20 @@ internal sealed class DesignDeviceFrameViewModel : IDeviceFrameViewModel
 
     public double FrameHeight => Device.Phone.Height;
 
+    public double Bezel => Device.Phone.Bezel;
+
+    public double OuterWidth => Device.Phone.Width + (2 * Device.Phone.Bezel);
+
+    public double OuterHeight => Device.Phone.Height + (2 * Device.Phone.Bezel);
+
+    public bool IsPhone => true;
+
+    public bool IsAndroid => false;
+
+    public bool IsTablet => false;
+
+    public bool IsTurned => false;
+
     public string Label => PreviewPhrases.Device(Device.Phone.Name, PreviewPhrases.Size(Device.Phone.Width, Device.Phone.Height));
 
     public IReadOnlyList<DeviceChoice> Choices { get; } =

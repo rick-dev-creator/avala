@@ -12,6 +12,20 @@ internal interface IDeviceFrameViewModel
 
     double FrameHeight { get; }
 
+    double Bezel { get; }
+
+    double OuterWidth { get; }
+
+    double OuterHeight { get; }
+
+    bool IsPhone { get; }
+
+    bool IsAndroid { get; }
+
+    bool IsTablet { get; }
+
+    bool IsTurned { get; }
+
     string Label { get; }
 
     IReadOnlyList<DeviceChoice> Choices { get; }
@@ -35,12 +49,28 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
 
     public double FrameHeight => Shown.Match(device => (double)device.Height, () => double.PositiveInfinity);
 
+    public double Bezel => chosen.Match(device => (double)device.Bezel, () => 0d);
+
+    public double OuterWidth => FrameWidth + (2 * Bezel);
+
+    public double OuterHeight => FrameHeight + (2 * Bezel);
+
+    public bool IsPhone => Is(DeviceShape.Phone);
+
+    public bool IsAndroid => Is(DeviceShape.Android);
+
+    public bool IsTablet => Is(DeviceShape.Tablet);
+
+    public bool IsTurned => chosen.IsSome && turned;
+
     public string Label => Shown.Match(device => PreviewPhrases.Device(device.Name, Size(device)), () => PreviewPhrases.Responsive);
 
     [ObservableProperty]
     public partial IReadOnlyList<DeviceChoice> Choices { get; private set; }
 
     private Option<Device> Shown => chosen.Map(device => turned ? device.Turn() : device);
+
+    private bool Is(DeviceShape shape) => chosen.Match(device => device.Shape == shape, () => false);
 
     private static string Size(Device device) => PreviewPhrases.Size(device.Width, device.Height);
 
@@ -64,6 +94,13 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
         OnPropertyChanged(nameof(IsFramed));
         OnPropertyChanged(nameof(FrameWidth));
         OnPropertyChanged(nameof(FrameHeight));
+        OnPropertyChanged(nameof(Bezel));
+        OnPropertyChanged(nameof(OuterWidth));
+        OnPropertyChanged(nameof(OuterHeight));
+        OnPropertyChanged(nameof(IsPhone));
+        OnPropertyChanged(nameof(IsAndroid));
+        OnPropertyChanged(nameof(IsTablet));
+        OnPropertyChanged(nameof(IsTurned));
         OnPropertyChanged(nameof(Label));
         TurnCommand.NotifyCanExecuteChanged();
     }

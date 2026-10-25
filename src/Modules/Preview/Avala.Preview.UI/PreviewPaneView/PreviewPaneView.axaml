@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:pane="using:Avala.Preview.Pane"
+             xmlns:ui="using:Avala.Preview.UI"
              x:Class="Avala.Preview.UI.PreviewPaneView"
              x:ClassModifier="internal"
              x:DataType="pane:IPreviewPaneViewModel">
@@ -22,8 +23,114 @@
     <Style Selector="Panel#Stage.framed">
       <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
     </Style>
-    <Style Selector="Panel#Stage.framed Border#Bezel">
+    <Style Selector="Panel#Stage.framed Panel#Device">
+      <Setter Property="Margin" Value="28" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Border#Body">
+      <Setter Property="Background" Value="{DynamicResource DeviceBodyBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DeviceRimBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
       <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Border#Screen">
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Panel#Device.phone Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhone}" />
+    </Style>
+    <Style Selector="Panel#Device.phone Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhoneScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.android Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroid}" />
+    </Style>
+    <Style Selector="Panel#Device.android Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroidScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTablet}" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTabletScreen}" />
+    </Style>
+    <Style Selector="Panel#Device Border.part">
+      <Setter Property="IsVisible" Value="False" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Panel#Device.phone Border#Island">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="104" />
+      <Setter Property="Height" Value="30" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceIsland}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,22,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.phone.turned Border#Island">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="104" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="22,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.android Border#Lens">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceLens}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,22,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Lens">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceLensSmall}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceLensBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,7,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.android.turned Border#Lens">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="22,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.tablet.turned Border#Lens">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="7,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.phone Border.button, Panel#Device.android Border.button">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="3" />
+      <Setter Property="Background" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Panel#Device.turned Border.button">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Panel#Device Border#Power">
+      <Setter Property="Height" Value="78" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,196,-3,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonRight}" />
+    </Style>
+    <Style Selector="Panel#Device Border#VolumeUp">
+      <Setter Property="Height" Value="56" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="-3,176,0,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonLeft}" />
+    </Style>
+    <Style Selector="Panel#Device Border#VolumeDown">
+      <Setter Property="Height" Value="56" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="-3,244,0,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonLeft}" />
     </Style>
     <Style Selector="Border#RefusalBar">
       <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
@@ -97,12 +204,24 @@
       </Grid>
     </Border>
     <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFramed}">
-      <Border x:Name="Bezel"
-              IsVisible="{Binding IsEmbedded}"
-              MaxWidth="{Binding Frame.FrameWidth}"
-              MaxHeight="{Binding Frame.FrameHeight}">
-        <ContentControl x:Name="Page" Content="{Binding Surface}" />
-      </Border>
+      <Panel x:Name="Device"
+             IsVisible="{Binding IsEmbedded}"
+             MaxWidth="{Binding Frame.OuterWidth}"
+             MaxHeight="{Binding Frame.OuterHeight}"
+             Classes.phone="{Binding Frame.IsPhone}"
+             Classes.android="{Binding Frame.IsAndroid}"
+             Classes.tablet="{Binding Frame.IsTablet}"
+             Classes.turned="{Binding Frame.IsTurned}">
+        <Border x:Name="Body" />
+        <Border x:Name="Screen" Margin="{Binding Frame.Bezel, Converter={x:Static ui:DeviceInsets.Around}}">
+          <ContentControl x:Name="Page" Content="{Binding Surface}" />
+        </Border>
+        <Border x:Name="Island" Classes="part" />
+        <Border x:Name="Lens" Classes="part" />
+        <Border x:Name="Power" Classes="part button" />
+        <Border x:Name="VolumeUp" Classes="part button" />
+        <Border x:Name="VolumeDown" Classes="part button" />
+      </Panel>
       <StackPanel x:Name="Notice"
                   IsVisible="{Binding !IsEmbedded}"
                   MaxWidth="320"

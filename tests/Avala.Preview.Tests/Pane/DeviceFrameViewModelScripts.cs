@@ -25,6 +25,20 @@ public sealed class DeviceFrameViewModelScripts
         Assert.Equal(["iPhone"], frame.Choices.Where(choice => choice.IsChosen).Select(choice => choice.Name));
     }
 
+    [Theory]
+    [InlineData("iPhone", 12, true, false, false)]
+    [InlineData("Android", 10, false, true, false)]
+    [InlineData("Tablet", 20, false, false, true)]
+    public void ADeviceIsFramedByABezelOfItsShape(string name, double bezel, bool phone, bool android, bool tablet)
+    {
+        var frame = new DeviceFrameViewModel();
+
+        Choose(frame, name);
+
+        Assert.Equal((bezel, frame.FrameWidth + (2 * bezel), frame.FrameHeight + (2 * bezel)), (frame.Bezel, frame.OuterWidth, frame.OuterHeight));
+        Assert.Equal((phone, android, tablet), (frame.IsPhone, frame.IsAndroid, frame.IsTablet));
+    }
+
     [Fact]
     public void TurningTheDeviceSwapsItsWidthAndHeight()
     {
@@ -33,7 +47,7 @@ public sealed class DeviceFrameViewModelScripts
 
         frame.TurnCommand.Execute(null);
 
-        Assert.Equal((1180d, 820d, "Tablet · 1180 × 820"), (frame.FrameWidth, frame.FrameHeight, frame.Label));
+        Assert.Equal((1180d, 820d, "Tablet · 1180 × 820", true), (frame.FrameWidth, frame.FrameHeight, frame.Label, frame.IsTurned));
     }
 
     [Fact]
@@ -56,7 +70,7 @@ public sealed class DeviceFrameViewModelScripts
 
         Choose(frame, "Responsive");
 
-        Assert.Equal((false, double.PositiveInfinity), (frame.IsFramed, frame.FrameWidth));
+        Assert.Equal((false, double.PositiveInfinity, 0d), (frame.IsFramed, frame.FrameWidth, frame.Bezel));
         Assert.False(frame.TurnCommand.CanExecute(null));
     }
 

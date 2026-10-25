@@ -107,6 +107,23 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
             Assert.True(page.Bounds.Height <= 852);
         }, Cancellation);
 
+    [Theory]
+    [InlineData("Responsive", false, false, false)]
+    [InlineData("iPhone", true, false, true)]
+    [InlineData("Android", false, true, true)]
+    [InlineData("Tablet", false, true, false)]
+    public Task EachDeviceIsDrawnWithItsOwnIslandOrLensAndButtonsAsync(string name, bool island, bool lens, bool buttons) =>
+        ui.RunAsync(() =>
+        {
+            var pane = Opened();
+            var view = Screen.Show(pane);
+
+            pane.Frame.Choices.Single(choice => choice.Name == name).Choose.Execute(null);
+            view.Settle();
+
+            Assert.Equal((island, lens, buttons, buttons), (view.Shows("Island"), view.Shows("Lens"), view.Shows("Power"), view.Shows("VolumeUp")));
+        }, Cancellation);
+
     [Fact]
     public Task WithoutAnEmbeddableWebViewTheNoticeOffersTheBrowserAsync() =>
         ui.RunAsync(() =>
