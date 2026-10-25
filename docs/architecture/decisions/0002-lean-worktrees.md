@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted. All three steps of the delivery are built.
 
 ## Context
 
@@ -68,7 +68,7 @@ Two guards keep the computer from filling regardless of the moments above:
 - **A space budget**: worktrees together may use at most 20 GB by default.
 - **A disk floor**: Avala keeps at least 10% of the disk that holds the data folder free.
 
-When either is crossed, Avala frees the worktrees whose jobs have been idle the longest, never one whose job is running or checking, until both hold again. If that is not enough, a notice tells the person, once, what still takes the space.
+When either is crossed, Avala frees the worktrees whose jobs have been idle the longest, never one whose job is running or checking, until both hold again. If that is not enough, the Worktrees page says once what still takes the space.
 
 A worktree no job knows about is removed at startup by default: `reconcile` becomes `clean`.
 
@@ -84,7 +84,7 @@ A page of its own, reached from the disk figure of Resources, tells the person w
 - **Trends**, for 7 or 30 days like Usage: space taken per day and its peak, worktrees created against freed, the space Avala recovered and why, and how long a worktree lives.
 - **History**: each time Avala freed or deleted worktrees, how much and why, linked to the job, which can still be reopened.
 
-Resources records each worktree freed or deleted with its size and reason in a database of its own, `resources.db`, with a daily sample of the space taken, so the view has data from the day it ships.
+Resources records each worktree freed, with its size and reason, and each one deleted, in a database of its own, `resources.db`, with a daily sample of the space taken, so the view has data from the day it ships.
 
 ### Delivery
 

@@ -104,6 +104,8 @@ public sealed class ResourcesViewScripts(HeadlessUi ui)
         public IAsyncRelayCommand ReconcileCommand => design.ReconcileCommand;
 
         public IAsyncRelayCommand CleanCommand => design.CleanCommand;
+
+        public IRelayCommand OpenWorktreesCommand => design.OpenWorktreesCommand;
     }
 }
 

@@ -252,7 +252,7 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
-    public async Task CleaningDeletesTheStrayFoldersAndForgetsTheMissingWorktreesButKeepsTheirBranchesAndWhatTheirLinksLeadToAsync()
+    public async Task CleaningDeletesTheStrayFoldersAndShelvesTheMissingWorktreesSoTheirWorkIsKeptAndWhatTheirLinksLeadToAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
         var service = Service(repository);
@@ -263,6 +263,7 @@ public sealed class GitWorkspacesTests
         var readme = new FileInfo(Path.Combine(repository.Path, "README.md")) { IsReadOnly = true };
         File.CreateSymbolicLink(Path.Combine(stray, "readme"), readme.FullName);
         Directory.CreateSymbolicLink(Path.Combine(stray, "loop"), stray);
+        Directory.SetLastWriteTimeUtc(stray, DateTime.UnixEpoch);
 
         var cleaned = await service.CleanAsync(await service.ReconcileAsync(Cancellation), Cancellation);
 
@@ -271,12 +272,26 @@ public sealed class GitWorkspacesTests
         Assert.Equal([stray], cleaned.Strays);
         Assert.Equal([lost], cleaned.Missing);
         Assert.False(Directory.Exists(stray));
-        Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.FindAsync(lost.Id, Cancellation)));
+        Assert.True(Outcomes.Succeeds(await service.FindAsync(lost.Id, Cancellation)).Shelved);
         Assert.DoesNotContain(lost.Path, await repository.GitAsync(Cancellation, "worktree", "list"), StringComparison.Ordinal);
-        Assert.NotEmpty(await repository.GitAsync(Cancellation, "branch", "--list", lost.Branch));
+        Assert.Empty(await repository.GitAsync(Cancellation, "branch", "--list", lost.Branch));
+        Assert.NotEmpty(await repository.GitAsync(Cancellation, "for-each-ref", $"refs/avala/shelved/{lost.Id.Value:N}"));
         var after = await service.ReconcileAsync(Cancellation);
         Assert.Empty(after.Strays);
         Assert.Empty(after.Missing);
+    }
+
+    [Fact]
+    public async Task CleaningLeavesAnUnknownFolderThatChangedWithinTheLastHourSinceAWorktreeMayBeBeingAddedThereAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var service = Service(repository);
+        var adding = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "being-added")).FullName.Canonical();
+
+        var cleaned = await service.CleanAsync(await service.ReconcileAsync(Cancellation), Cancellation);
+
+        Assert.Empty(cleaned.Strays);
+        Assert.True(Directory.Exists(adding));
     }
 
     [Fact]
@@ -287,7 +302,7 @@ public sealed class GitWorkspacesTests
         var store = new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
         var git = new GitCli(recording, NullLogger<GitCli>.Instance);
-        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, TimeProvider.System));
         var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
 
         Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "turn 1", Cancellation));
@@ -388,7 +403,7 @@ public sealed class GitWorkspacesTests
         var kept = store ?? new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(worktreeRoot);
 
-        return new(git, kept, settings, new WorktreeReconciler(git, kept, settings));
+        return new(git, kept, settings, new WorktreeReconciler(git, kept, settings, TimeProvider.System));
     }
 
     private static BaseFileReader BaseFiles(InMemoryWorkspaceStore store) => new(new GitCli(Processes, NullLogger<GitCli>.Instance), store);

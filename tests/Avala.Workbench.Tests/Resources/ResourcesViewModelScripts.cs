@@ -10,6 +10,9 @@ using Avala.Workbench.Resources;
 using Avala.Workbench.Upkeep;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
+using CommunityToolkit.Mvvm.Messaging;
+using Avala.Workbench.Navigation;
+using Avala.Sdk.Presentation;
 
 namespace Avala.Workbench.Tests.Resources;
 
@@ -19,6 +22,7 @@ public sealed class ResourcesViewModelScripts : IDisposable
     private readonly FakeOrphans orphans = new();
     private readonly FakeHousekeeping worktrees = new();
     private readonly Leftovers leftovers = new();
+    private readonly IMessenger messenger = new StrongReferenceMessenger();
     private readonly TestUiDispatcher ui = new();
     private readonly JobSummary job = Pages.Summary("Fix flaky CheckoutForm test", JobStatus.Discarded);
 
@@ -141,6 +145,18 @@ public sealed class ResourcesViewModelScripts : IDisposable
         Assert.Empty(await ui.ReadAsync(() => page.Orphans.ToList()));
     }
 
+    [Fact]
+    public void OpeningWorktreesAsksTheShellForTheWorktreesPage()
+    {
+        var requested = new List<IPage>();
+        messenger.Register<List<IPage>, PageRequested>(requested, (list, message) => list.Add(message.Page));
+        using var page = Page();
+
+        page.OpenWorktreesCommand.Execute(null);
+
+        Assert.IsType<WorktreesViewModel>(Assert.Single(requested));
+    }
+
     public void Dispose() => ui.Dispose();
 
     private OrphanReport Orphan(OrphanDisposal disposal) =>
@@ -149,5 +165,8 @@ public sealed class ResourcesViewModelScripts : IDisposable
     private ResourceReader Reader() => new(resources, orphans, leftovers, Pages.Board(job));
 
     private ResourcesViewModel Page() =>
-        new(Reader(), new Housekeeping(orphans, worktrees), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance));
+        new(Reader(), new Housekeeping(orphans, worktrees), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new WorktreesEntry(new JobFocus(new TestRegions(), messenger), WorktreesPage()));
+
+    private WorktreesViewModel WorktreesPage() =>
+        new(new WorktreeReader(resources, worktrees, new FakeWorktreeHistory(), Pages.Board(job)), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger));
 }

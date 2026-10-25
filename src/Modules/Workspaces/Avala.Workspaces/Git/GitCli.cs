@@ -114,18 +114,51 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
         RunAsync(["-C", location.Path, "status", "--porcelain"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
             .MapAsync(status => status.Trim().Length > 0);
 
-    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(
+    public async Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken) =>
+        (await processes.RunAsync(new ProcessRequest("git", ["-C", location.Path, "symbolic-ref", "-q", "HEAD"], location.Path), cancellationToken))
+            .MapError(_ => WorkspaceFailure.GitFailed)
+            .Map(outcome => outcome.Succeeded && outcome.Output.Trim() == $"{GitRefs.Heads}{branch.Value}");
+
+    public Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
+        RunAsync(["-C", location.Path, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
+            .MapAsync(output => (IReadOnlyList<string>)[.. output.Split('\0', StringSplitOptions.RemoveEmptyEntries)]);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> KeepTipAsync(
         WorkspaceLocation location,
         BranchName branch,
         WorkspaceId workspace,
         CancellationToken cancellationToken) =>
         administration.RunAsync(
             token => AdministrationAsync(["-C", location.Repository, "update-ref", "-m", "avala: shelved", GitRefs.ShelvedOf(workspace), $"{GitRefs.Heads}{branch.Value}"], token)
-                .BindAsync(_ => Directory.Exists(location.Path)
-                    ? AdministrationAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], token)
-                    : AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token))
-                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "branch", "-D", branch.Value], token))
                 .MapAsync(_ => location),
+            cancellationToken);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ReleaseWorktreeAsync(
+        WorkspaceLocation location,
+        BranchName branch,
+        CancellationToken cancellationToken) =>
+        administration.RunAsync(
+            async token =>
+            {
+                if (Directory.Exists(location.Path) && (await AdministrationAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], token)).IsFailure)
+                {
+                    DeleteLeftover(location.Path);
+                }
+
+                _ = await AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token);
+
+                if (Directory.Exists(location.Path))
+                {
+                    return Result<WorkspaceLocation, WorkspaceFailure>.Failure(WorkspaceFailure.GitFailed);
+                }
+
+                if (await BranchPresentAsync(location.Repository, branch, token))
+                {
+                    _ = await AdministrationAsync(["-C", location.Repository, "branch", "-D", branch.Value], token);
+                }
+
+                return Result<WorkspaceLocation, WorkspaceFailure>.Success(location);
+            },
             cancellationToken);
 
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(
@@ -134,10 +167,28 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
         WorkspaceId workspace,
         CancellationToken cancellationToken) =>
         administration.RunAsync(
-            token => AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token)
-                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, GitRefs.ShelvedOf(workspace)], token))
-                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.ShelvedOf(workspace)], token))
-                .MapAsync(_ => location),
+            async token =>
+            {
+                if (!await CheckedOutAsync(location, branch, token))
+                {
+                    _ = await AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token);
+                    DeleteLeftover(location.Path);
+
+                    var added = await BranchPresentAsync(location.Repository, branch, token)
+                        ? await AdministrationAsync(["-C", location.Repository, "update-ref", $"{GitRefs.Heads}{branch.Value}", GitRefs.ShelvedOf(workspace)], token)
+                            .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "worktree", "add", location.Path, branch.Value], token))
+                        : await AdministrationAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, GitRefs.ShelvedOf(workspace)], token);
+
+                    if (added.IsFailure)
+                    {
+                        return Result<WorkspaceLocation, WorkspaceFailure>.Failure(WorkspaceFailure.GitFailed);
+                    }
+                }
+
+                _ = await AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.ShelvedOf(workspace)], token);
+
+                return Result<WorkspaceLocation, WorkspaceFailure>.Success(location);
+            },
             cancellationToken);
 
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(
@@ -150,6 +201,9 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
                 .MapAsync(_ => location),
             cancellationToken);
 
+    public Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ResolveCommitAsync(repository, GitRefs.ShelvedOf(workspace), cancellationToken);
+
     public async Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest("git", ["-C", repository, "merge-base", "--is-ancestor", commit.Value, reference]), cancellationToken))
             .Match(outcome => outcome.Succeeded, _ => false);
@@ -158,6 +212,36 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
         administration.RunAsync(token => AdministrationAsync(["-C", repository, "worktree", "prune"], token), cancellationToken);
 
     public ValueTask DisposeAsync() => administration.DisposeAsync();
+
+    private async Task<bool> BranchPresentAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
+        (await processes.RunAsync(new ProcessRequest("git", ["-C", repository, "rev-parse", "--verify", "--quiet", $"{GitRefs.Heads}{branch.Value}"]), cancellationToken))
+            .Match(outcome => outcome.Succeeded, _ => false);
+
+    private async Task<bool> CheckedOutAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken) =>
+        Directory.Exists(location.Path)
+        && (await processes.RunAsync(new ProcessRequest("git", ["-C", location.Path, "rev-parse", "--show-toplevel"], location.Path), cancellationToken))
+            .Match(outcome => outcome.Succeeded && location.IsAt(outcome.Output.Trim()), _ => false)
+        && (await OnBranchAsync(location, branch, cancellationToken)).Match(on => on, _ => false);
+
+    private static void DeleteLeftover(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder))
+            {
+                foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }))
+                {
+                    file.Attributes = FileAttributes.Normal;
+                }
+
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+    }
 
     private async Task<Result<string, WorkspaceFailure>> AdministrationAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest("git", arguments), cancellationToken))

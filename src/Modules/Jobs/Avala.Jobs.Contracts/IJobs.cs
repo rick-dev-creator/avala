@@ -50,6 +50,8 @@ public interface IOpenDeliveries
 public interface IEndedJobs
 {
     ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
+
+    ValueTask<bool> WhileRestingAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken);
 }
 
 public interface IJobRounds

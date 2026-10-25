@@ -27,7 +27,10 @@ public sealed class ResourceSettingsTests
                 "freeFailedHours": 0.5,
                 "deleteDiscardedHours": 24,
                 "deleteFailedHours": null,
-                "reconcile": "clean"
+                "freeIdleHours": 12,
+                "spaceBudgetGigabytes": 2.5,
+                "diskFloorPercent": null,
+                "reconcile": "report"
               }
             }
             """));
@@ -42,13 +45,16 @@ public sealed class ResourceSettingsTests
                 {
                     DeleteDiscarded = TimeSpan.FromHours(24),
                     DeleteFailed = Option<TimeSpan>.None,
+                    Idle = TimeSpan.FromHours(12),
+                    SpaceBudget = 2_684_354_560,
+                    DiskFloor = Option<double>.None,
                 },
-                ReconcilePolicy.Clean),
+                ReconcilePolicy.Report),
             settings);
     }
 
     [Fact]
-    public void TheEarlierRetentionFieldsStillSetWhenWorkIsDeletedAndWhenUndeliveredWorkIsFreed()
+    public void TheEarlierRetentionFieldsStillRead()
     {
         var policy = Outcomes.Succeeds(ResourceSettingsParser.Parse("""
             { "worktrees": { "keepDiscardedHours": 1, "keepFailedHours": null, "keepApprovedHours": 24 } }
@@ -74,7 +80,7 @@ public sealed class ResourceSettingsTests
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
         var policy = ResourceSettingsParser.Defaults.Worktrees with { Archived = Option<TimeSpan>.None, DeleteFailed = TimeSpan.FromHours(3) };
 
-        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(policy, Cancellation));
+        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(policy, ReconcilePolicy.Clean, Cancellation));
         await using var reread = new ResourceSettingsFile(new AvalaPaths(data.Path));
         var read = await reread.LoadAsync(Cancellation);
 
@@ -90,7 +96,7 @@ public sealed class ResourceSettingsTests
         await using var data = new TemporaryFolder();
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
 
-        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, Cancellation));
+        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, ReconcilePolicy.Clean, Cancellation));
 
         Assert.Equal(ResourceSettingsParser.Defaults with { Worktrees = ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, File = ResourceFileStatus.Applied }, changed);
         Assert.True(File.Exists(Path.Combine(data.Path, ResourceSettingsFile.FileName)));
@@ -104,7 +110,7 @@ public sealed class ResourceSettingsTests
         await File.WriteAllTextAsync(path, """{ "orphans": "ignore" }""", Cancellation);
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
 
-        Assert.Equal(ResourceError.UnknownPolicy, Outcomes.FailsWith(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees, Cancellation)));
+        Assert.Equal(ResourceError.UnknownPolicy, Outcomes.FailsWith(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees, ReconcilePolicy.Clean, Cancellation)));
         Assert.Equal("""{ "orphans": "ignore" }""", await File.ReadAllTextAsync(path, Cancellation));
     }
 
@@ -131,6 +137,8 @@ public sealed class ResourceSettingsTests
     [InlineData("{ \"worktrees\": { \"keepFailedHours\": \"ever\" } }", ResourceError.Malformed)]
     [InlineData("{ \"worktrees\": { \"freeArchivedHours\": -1 } }", ResourceError.InvalidRetention)]
     [InlineData("{ \"worktrees\": { \"freeEverythingHours\": 1 } }", ResourceError.UnknownField)]
+    [InlineData("{ \"worktrees\": { \"spaceBudgetGigabytes\": 0 } }", ResourceError.InvalidRetention)]
+    [InlineData("{ \"worktrees\": { \"diskFloorPercent\": 95 } }", ResourceError.InvalidRetention)]
     public void AnInvalidFileIsRejectedWithItsError(string text, ResourceError expected) =>
         Assert.Equal(expected, Outcomes.FailsWith(ResourceSettingsParser.Parse(text)));
 
@@ -144,10 +152,17 @@ public sealed class ResourceSettingsTests
 
         Assert.Equal(ResourceSettingsParser.Defaults with { File = ResourceFileStatus.Absent }, settings);
         Assert.Equal(
-            (TimeSpan.FromSeconds(5), OrphanPolicy.Kill, new PortRange(24_000, 24_999, 10), ReconcilePolicy.Report),
+            (TimeSpan.FromSeconds(5), OrphanPolicy.Kill, new PortRange(24_000, 24_999, 10), ReconcilePolicy.Clean),
             (settings.Sampling, settings.Orphans, settings.Ports, settings.Reconcile));
         Assert.Equal(
-            new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30) },
+            new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero)
+            {
+                DeleteDiscarded = TimeSpan.FromDays(7),
+                DeleteFailed = TimeSpan.FromDays(30),
+                Idle = TimeSpan.FromDays(3),
+                SpaceBudget = 20L << 30,
+                DiskFloor = 0.1,
+            },
             settings.Worktrees);
     }
 

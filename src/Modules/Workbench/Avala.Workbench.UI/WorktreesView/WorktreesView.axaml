@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.WorktreesView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IWorktreesViewModel">
+  <Design.DataContext>
+    <resources:DesignWorktreesViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl.rows > ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="ItemsControl.rows > ContentPresenter:nth-child(1)">
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <TextBlock x:Name="Scope" DockPanel.Dock="Right" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24,36,24,48" Spacing="34" MaxWidth="772">
+        <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+          <DockPanel>
+            <Button x:Name="FreeNow"
+                    DockPanel.Dock="Right"
+                    VerticalAlignment="Center"
+                    Content="{x:Static resources:WorktreePagePhrases.FreeNow}"
+                    Command="{Binding FreeNowCommand}"
+                    ToolTip.Tip="Free every worktree whose job is not working, keeping its work" />
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="Now" />
+              <TextBlock x:Name="Space" Classes="figure" Text="{Binding Space}" TextTrimming="CharacterEllipsis" />
+              <TextBlock x:Name="Limits" Classes="caption" Text="{Binding Limits}" TextWrapping="Wrap" />
+              <TextBlock x:Name="Freed" Classes="caption" Text="{Binding Freed}" TextWrapping="Wrap" IsVisible="{Binding Freed, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
+        <Border x:Name="Shortage" Classes="quiet" Padding="12,8" IsVisible="{Binding Shortage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Classes="caption failure" Text="{Binding Shortage}" TextWrapping="Wrap" />
+        </Border>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="Largest" />
+          <TextBlock Classes="caption" Text="{x:Static resources:WorktreePagePhrases.NothingLarge}" IsVisible="{Binding !Largest.Count}" />
+          <ItemsControl x:Name="Largest" Classes="rows" ItemsSource="{Binding Largest}" IsVisible="{Binding !!Largest.Count}" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="Next to be freed" />
+          <TextBlock Classes="caption" Text="{x:Static resources:WorktreePagePhrases.NothingUpcoming}" IsVisible="{Binding !Upcoming.Count}" />
+          <ItemsControl x:Name="Upcoming" Classes="rows" ItemsSource="{Binding Upcoming}" IsVisible="{Binding !!Upcoming.Count}" />
+        </StackPanel>
+
+        <StackPanel Spacing="10">
+          <DockPanel>
+            <Border x:Name="Segments" DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal">
+                <Button x:Name="ShowWeek" Classes="segment" Classes.selected="{Binding ShowsWeek}" Content="7 days" Command="{Binding ShowWeekCommand}" />
+                <Button x:Name="ShowMonth" Classes="segment" Classes.selected="{Binding ShowsMonth}" Content="30 days" Command="{Binding ShowMonthCommand}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Classes="section" Text="Space by day" VerticalAlignment="Center" />
+          </DockPanel>
+          <ItemsControl x:Name="Days" ItemsSource="{Binding Days}" Grid.IsSharedSizeScope="True" />
+          <TextBlock x:Name="Lifetime" Classes="caption" Text="{Binding Lifetime}" TextWrapping="Wrap" IsVisible="{Binding Lifetime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="Recovered, and why" />
+          <TextBlock Classes="caption" Text="{x:Static resources:WorktreePagePhrases.NothingFreed}" IsVisible="{Binding !Recovered.Count}" />
+          <ItemsControl x:Name="Recovered" Classes="rows" ItemsSource="{Binding Recovered}" IsVisible="{Binding !!Recovered.Count}" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="History" />
+          <TextBlock Classes="caption" Text="{x:Static resources:WorktreePagePhrases.NothingFreed}" IsVisible="{Binding !History.Count}" />
+          <ItemsControl x:Name="History" Classes="rows" ItemsSource="{Binding History}" IsVisible="{Binding !!History.Count}" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

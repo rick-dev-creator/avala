@@ -108,6 +108,22 @@ public sealed class ChildJobTests
     }
 
     [Fact]
+    public async Task ApprovingAChildIntoAHeldParentWhoseWorktreeWasFreedRebuildsTheParentFirstAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Strategies.Add(new ScriptedStrategy("merge", new ApprovalDelivery("merge", "avala/parent", "abc123")));
+        var parent = await flow.RunningAsync();
+        var child = await ReviewedChildAsync(flow, parent);
+        _ = Outcomes.Succeeds(await flow.Jobs.HoldAsync(parent.Id, HoldReason.LimitNearlyReached, Cancellation));
+        _ = await flow.Workspaces.ShelveAsync(Outcomes.Present(parent.Workspace), Cancellation);
+
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(child.Id, Cancellation));
+
+        Assert.Contains(Outcomes.Present(parent.Workspace), flow.Workspaces.Rebuilt);
+        Assert.Equal(JobState.Approved, child.State);
+    }
+
+    [Fact]
     public async Task AnIntegratedChildTakesNoMessageSinceItsWorkBelongsToItsParentAsync()
     {
         var flow = JobFlow.With();

@@ -4,6 +4,7 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Projects.Contracts;
 using Avala.Resources.Contracts;
+using Avala.Resources.History;
 using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Settings;
@@ -24,9 +25,9 @@ internal sealed class FixedSettings(ResourceSettings settings) : IResourceSettin
 
     public ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Current);
 
-    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken)
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken)
     {
-        Current = Current with { Worktrees = policy };
+        Current = Current with { Worktrees = policy, Reconcile = reconcile };
 
         return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Success(Current));
     }
@@ -70,7 +71,20 @@ internal sealed class FakeFolders : IFolderSizes
         return Task.FromResult(Sizes.GetValueOrDefault(folder));
     }
 
+    public Dictionary<string, long> Builds { get; } = [];
+
+    public Task<(long Bytes, long Build)> MeasureAsync(string folder, CancellationToken cancellationToken)
+    {
+        Measured++;
+
+        return Task.FromResult((Sizes.GetValueOrDefault(folder), Builds.GetValueOrDefault(folder)));
+    }
+
     public Task<long> DataFolderAsync(CancellationToken cancellationToken) => Task.FromResult(Data);
+
+    public Option<DiskSpace> Space { get; set; }
+
+    public Option<DiskSpace> Disk() => Space;
 }
 
 internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceShelf
@@ -129,8 +143,13 @@ internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceShelf
         return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(known[entry.Key]));
     }
 
-    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        var entry = known.Single(found => found.Value.Id == workspace);
+        known[entry.Key] = entry.Value with { Shelved = false };
+
+        return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(known[entry.Key]));
+    }
 
     public ValueTask<Result<bool, WorkspaceFailure>> DeliveredAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<bool, WorkspaceFailure>.Success(Delivered.Contains(workspace)));
@@ -277,4 +296,64 @@ internal sealed class FakePullRequests : IPullRequests
     public Option<ForgeError> RefusalOf(JobId job) => Option<ForgeError>.None;
 
     public ValueTask<Result<PullRequestWatchState, ForgeError>> RefreshAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+}
+
+internal sealed class FakeHistoryStore : IWorktreeHistoryStore
+{
+    private readonly Dictionary<string, DateTimeOffset> seen = [];
+
+    public List<WorktreeEvent> Events { get; } = [];
+
+    public Dictionary<DateOnly, WorktreeDay> Days { get; } = [];
+
+    public Task RecordAsync(WorktreeEvent recorded, CancellationToken cancellationToken)
+    {
+        Events.Add(recorded);
+
+        return Task.CompletedTask;
+    }
+
+    public Task SaveDayAsync(WorktreeDay day, CancellationToken cancellationToken)
+    {
+        Days[day.Day] = day;
+
+        return Task.CompletedTask;
+    }
+
+    public Task<Option<WorktreeDay>> DayAsync(DateOnly day, CancellationToken cancellationToken) =>
+        Task.FromResult(Days.TryGetValue(day, out var found) ? found : Option<WorktreeDay>.None);
+
+    public Task<bool> SeeAsync(string path, DateTimeOffset at, CancellationToken cancellationToken) => Task.FromResult(seen.TryAdd(path, at));
+
+    public Task<Option<DateTimeOffset>> FirstSeenAsync(string path, CancellationToken cancellationToken) =>
+        Task.FromResult(seen.TryGetValue(path, out var first) ? first : Option<DateTimeOffset>.None);
+
+    public Dictionary<JobId, DateTimeOffset> Resting { get; } = [];
+
+    public Task RestAsync(JobId job, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        Resting.TryAdd(job, since);
+
+        return Task.CompletedTask;
+    }
+
+    public Task WakeAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Resting.Remove(job);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<Option<DateTimeOffset>> RestingSinceAsync(JobId job, CancellationToken cancellationToken) =>
+        Task.FromResult(Resting.TryGetValue(job, out var since) ? since : Option<DateTimeOffset>.None);
+
+    public Task ForgetSeenAsync(string path, CancellationToken cancellationToken)
+    {
+        seen.Remove(path);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<WorktreeReport> ReadAsync(DateOnly from, CancellationToken cancellationToken) =>
+        Task.FromResult(new WorktreeReport([.. Days.Values.Where(day => day.Day >= from)], [.. Events]));
 }

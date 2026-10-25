@@ -28,10 +28,12 @@ internal sealed class WatcherWorld : IAsyncDisposable
     {
         Book = new WatchBook(Store, Bus);
         var connections = new ForgeConnections(new DeclaredForge(), [Forge], new DirectTransports());
-        Watcher = new PullRequestWatcher(Book, new PullRequestReader(connections), new Waker(Deliveries, new JobPlaces(Catalog, new FoundWorkspaces()), Git), Clock);
+        Watcher = new PullRequestWatcher(Book, new PullRequestReader(connections), new Waker(Deliveries, new JobPlaces(Catalog, Workspaces), Git), Clock);
     }
 
     public JobId Job { get; } = new(Guid.CreateVersion7());
+
+    public FoundWorkspaces Workspaces { get; } = new();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero));
 
@@ -96,10 +98,12 @@ internal sealed class WatcherWorld : IAsyncDisposable
         public ValueTask<Result<ForgeResponse, ForgeError>> SendAsync(ForgeRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class FoundWorkspaces : IWorkspaces
+    internal sealed class FoundWorkspaces : IWorkspaces
     {
+        public bool Shelved { get; set; }
+
         public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(new WorkspaceInfo(workspace, Worktree, Pull.Head, "abc1234")));
+            ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(new WorkspaceInfo(workspace, Worktree, Pull.Head, "abc1234") { Shelved = Shelved }));
 
         public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 

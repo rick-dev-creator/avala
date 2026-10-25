@@ -54,6 +54,8 @@ internal sealed class Worktree
 
     public bool Gone { get; init; }
 
+    public bool Freed { get; init; }
+
     public Avala.Workbench.Tests.RepositoryChoice.FakeRemotes Remotes { get; } = new();
 
     private FakeCatalog catalog = new();
@@ -70,7 +72,7 @@ internal sealed class Worktree
 
         if (!Gone)
         {
-            workspaces.Known[workspace] = new WorkspaceInfo(workspace, Folder, "avala/solar", "ba5e");
+            workspaces.Known[workspace] = new WorkspaceInfo(workspace, Folder, "avala/solar", "ba5e") { Shelved = Freed };
         }
 
         return new WorkedFiles(catalog, Changes, workspaces, Files);

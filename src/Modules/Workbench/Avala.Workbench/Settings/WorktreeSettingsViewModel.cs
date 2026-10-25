@@ -11,6 +11,10 @@ internal interface IWorktreeSettingsViewModel
 
     IReadOnlyList<IWorktreeRuleViewModel> Deletions { get; }
 
+    IReadOnlyList<IWorktreeLimitViewModel> Limits { get; }
+
+    bool CleansUnknown { get; set; }
+
     string File { get; }
 
     string Error { get; }
@@ -20,6 +24,17 @@ internal interface IWorktreeSettingsViewModel
     IAsyncRelayCommand SaveCommand { get; }
 
     Task LoadAsync(CancellationToken cancellationToken);
+}
+
+internal interface IWorktreeLimitViewModel
+{
+    string Title { get; }
+
+    string Explanation { get; }
+
+    IReadOnlyList<string> Choices { get; }
+
+    string Choice { get; set; }
 }
 
 internal interface IWorktreeRuleViewModel
@@ -45,10 +60,16 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
 
     private IReadOnlyList<WorktreeRuleViewModel> moments = [];
     private IReadOnlyList<WorktreeRuleViewModel> deletions = [];
+    private IReadOnlyList<WorktreeLimitViewModel> limits = [];
 
     public IReadOnlyList<IWorktreeRuleViewModel> Moments => moments;
 
     public IReadOnlyList<IWorktreeRuleViewModel> Deletions => deletions;
+
+    public IReadOnlyList<IWorktreeLimitViewModel> Limits => limits;
+
+    [ObservableProperty]
+    public partial bool CleansUnknown { get; set; } = true;
 
     [ObservableProperty]
     public partial string File { get; private set; } = string.Empty;
@@ -70,7 +91,7 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
     [RelayCommand(CanExecute = nameof(IsChanged))]
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        var changed = await resources.ChangeWorktreesAsync(Draft(), cancellationToken);
+        var changed = await resources.ChangeWorktreesAsync(Draft(), Reconcile(), cancellationToken);
         Error = changed.Match(_ => string.Empty, WorktreePhrases.Refused);
 
         if (changed.TryGetValue(out var settings, out _))
@@ -89,11 +110,20 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
             Rule(DiscardedWork, WorktreePhrases.DeletionNote, WorktreePhrases.DeleteChoices(policy.DeleteDiscarded), policy.DeleteDiscarded),
             Rule(FailedWork, WorktreePhrases.DeletionNote, WorktreePhrases.DeleteChoices(policy.DeleteFailed), policy.DeleteFailed),
         ];
+        var budget = policy.SpaceBudget.Map(bytes => Math.Round(bytes / WorktreePhrases.Gigabyte, 3));
+        var floor = policy.DiskFloor.Map(share => Math.Round(share * 100, 3));
+        limits =
+        [
+            new(new WorktreeLimit(WorktreePhrases.BudgetTitle, WorktreePhrases.BudgetNote, WorktreePhrases.BudgetChoices(budget), budget), Refresh),
+            new(new WorktreeLimit(WorktreePhrases.FloorTitle, WorktreePhrases.FloorNote, WorktreePhrases.FloorChoices(floor), floor), Refresh),
+        ];
         OnPropertyChanged(nameof(Moments));
         OnPropertyChanged(nameof(Deletions));
+        OnPropertyChanged(nameof(Limits));
+        CleansUnknown = settings.Reconcile == ReconcilePolicy.Clean;
         File = WorktreePhrases.File(settings);
         showing = false;
-        saved = WorktreePhrases.Key(Draft());
+        saved = Key();
         Refresh();
     }
 
@@ -111,7 +141,16 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
         {
             DeleteDiscarded = deletions[0].After,
             DeleteFailed = deletions[1].After,
+            Idle = moments[6].After,
+            SpaceBudget = limits[0].Value.Map(gigabytes => (long)Math.Round(gigabytes * WorktreePhrases.Gigabyte)),
+            DiskFloor = limits[1].Value.Map(percent => percent / 100),
         };
+
+    partial void OnCleansUnknownChanged(bool value) => Refresh();
+
+    private ReconcilePolicy Reconcile() => CleansUnknown ? ReconcilePolicy.Clean : ReconcilePolicy.Report;
+
+    private string Key() => $"{WorktreePhrases.Key(Draft())},{Reconcile()}";
 
     private void Refresh()
     {
@@ -120,7 +159,7 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
             return;
         }
 
-        IsChanged = WorktreePhrases.Key(Draft()) != saved;
+        IsChanged = Key() != saved;
     }
 }
 
@@ -137,6 +176,23 @@ internal sealed partial class WorktreeRuleViewModel(WorktreeRule rule, Action ch
     public partial string Choice { get; set; } = rule.Choices.First(choice => choice.After == rule.Current).Label;
 
     public Option<TimeSpan> After => rule.Choices.First(choice => choice.Label == Choice).After;
+
+    partial void OnChoiceChanged(string value) => changed();
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class WorktreeLimitViewModel(WorktreeLimit limit, Action changed) : IWorktreeLimitViewModel
+{
+    public string Title { get; } = limit.Title;
+
+    public string Explanation { get; } = limit.Explanation;
+
+    public IReadOnlyList<string> Choices { get; } = [.. limit.Choices.Select(choice => choice.Label)];
+
+    [ObservableProperty]
+    public partial string Choice { get; set; } = limit.Choices.First(choice => WorktreePhrases.Same(choice.Value, limit.Current)).Label;
+
+    public Option<double> Value => limit.Choices.First(choice => choice.Label == Choice).Value;
 
     partial void OnChoiceChanged(string value) => changed();
 }

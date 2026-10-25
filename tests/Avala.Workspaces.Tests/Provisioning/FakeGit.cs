@@ -120,7 +120,16 @@ internal sealed class FakeGit : IGit
     public Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
         Task.FromResult<Result<bool, WorkspaceFailure>>(false);
 
-    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken)
+    public Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<bool, WorkspaceFailure>>(true);
+
+    public Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<IReadOnlyList<string>, WorkspaceFailure>>(Array.Empty<string>());
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> KeepTipAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ReleaseWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken)
     {
         worktrees.Remove(location);
         Branches = [.. Branches.Where(existing => existing != branch)];
@@ -138,6 +147,9 @@ internal sealed class FakeGit : IGit
 
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken) =>
         Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
+
+    public Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<CommitSha, WorkspaceFailure>>(Head);
 
     public Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
         Task.FromResult(false);

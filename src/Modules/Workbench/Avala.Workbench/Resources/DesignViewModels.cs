@@ -2,6 +2,7 @@ using Avala.Components.Privacy;
 using Avala.Components.Meters;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.Input;
@@ -136,4 +137,87 @@ internal sealed class DesignResourcesViewModel : IResourcesViewModel
     public IAsyncRelayCommand ReconcileCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand CleanCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand OpenWorktreesCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignWorktreesViewModel : IWorktreesViewModel
+{
+    public string Title => "Worktrees";
+
+    public string Scope => WorktreePagePhrases.Scope;
+
+    public string Space { get; init; } = "3.4 GB in 4 worktrees";
+
+    public string Limits { get; init; } = "of a 20 GB budget · 38% of the disk free, keeping 10%";
+
+    public string Shortage { get; init; } = string.Empty;
+
+    public string Freed { get; init; } = string.Empty;
+
+    public string Lifetime { get; init; } = "A worktree lives 1.6 days on average before it is freed.";
+
+    public bool ShowsWeek => true;
+
+    public bool ShowsMonth => false;
+
+    public IReadOnlyList<IWorktreeRowViewModel> Largest { get; init; } =
+    [
+        new WorktreeRowViewModel("Add GitHub login", "82% build output", "1.9 GB"),
+        new WorktreeRowViewModel("Rate-limit POST /login", "64% build output", "1.1 GB"),
+    ];
+
+    public IReadOnlyList<IWorktreeRowViewModel> Upcoming { get; init; } =
+    [
+        new WorktreeRowViewModel("Rate-limit POST /login", "approved, not delivered", "in 18 h"),
+    ];
+
+    public IReadOnlyList<IWorktreeDayViewModel> Days { get; init; } =
+    [
+        new WorktreeDayViewModel(new WorktreeDay(new DateOnly(2026, 10, 25), 3_650_722_201, 4, 2, 3, 2_147_483_648), 3_650_722_201, true),
+        new WorktreeDayViewModel(new WorktreeDay(new DateOnly(2026, 10, 24), 2_147_483_648, 3, 3, 1, 734_003_200), 3_650_722_201, false),
+    ];
+
+    public IReadOnlyList<IWorktreeRowViewModel> Recovered { get; init; } =
+    [
+        new WorktreeRowViewModel("on its base branch", "3 worktrees", "2.4 GB"),
+        new WorktreeRowViewModel("archived", "1 worktree", "0.7 GB"),
+    ];
+
+    public IReadOnlyList<IWorktreeRowViewModel> History { get; init; } =
+    [
+        new WorktreeRowViewModel("0199f2c4", "freed 1.2 GB, on its base branch", "10:42"),
+    ];
+
+    public IRelayCommand ShowWeekCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ShowMonthCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand FreeNowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignWorktreeRowViewModel : IWorktreeRowViewModel
+{
+    public string Title { get; init; } = "Add GitHub login";
+
+    public string Detail { get; init; } = "82% build output";
+
+    public string Amount { get; init; } = "1.9 GB";
+
+    public bool CanOpen { get; init; } = true;
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignWorktreeDayViewModel : IWorktreeDayViewModel
+{
+    public string Day { get; init; } = "Sun 25 Oct · today";
+
+    public double Share { get; init; } = 0.6;
+
+    public string Peak { get; init; } = "3.4 GB";
+
+    public string Detail { get; init; } = "2 created · 3 freed · 2 GB recovered";
+
+    public bool IsToday { get; init; } = true;
 }

@@ -62,7 +62,7 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel)],
             regions[ShellRegions.Inspector]);
-        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Triggers", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
+        Assert.Equal(["Jobs", "New job", "Docs", "Overview", "Usage", "Resources", "Worktrees", "Triggers", "Settings", "Archived"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
         Assert.Equal(
             [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Triggers", "IconTriggers"), ("Settings", "IconSettings")],
@@ -146,6 +146,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IBaseFiles>(new CommittedFiles())
             .AddSingleton<IOrphans>(new FakeOrphans())
             .AddSingleton<IWorktreeHousekeeping>(new FakeHousekeeping())
+            .AddSingleton<IWorktreeHistory>(new FakeWorktreeHistory())
             .AddSingleton<Sdk.Appearance.IOnboarding>(new Onboarding.FakeOnboarding()));
     }
 }

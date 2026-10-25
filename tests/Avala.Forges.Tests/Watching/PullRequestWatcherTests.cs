@@ -92,6 +92,19 @@ public sealed class PullRequestWatcherTests
     }
 
     [Fact]
+    public async Task AConflictOfAJobWhoseWorktreeWasFreedFetchesTheBaseIntoItsRepositoryAsync()
+    {
+        await using var world = await new WatcherWorld().WatchingAsync(watch => watch);
+        world.Forge.Observed = WatcherWorld.Observing(CheckStatus.Passed, Mergeability.Conflicting);
+        world.Deliveries.Continues(world.Job);
+        world.Workspaces.Shelved = true;
+
+        _ = await world.RefreshAsync();
+
+        Assert.Equal([("/repo", "origin", "main")], world.Git.Fetched);
+    }
+
+    [Fact]
     public async Task WhenTheWakeUpsAreSpentTheWatchHoldsThePullRequestForAPersonAndSaysSoOnItAsync()
     {
         await using var world = await new WatcherWorld().WatchingAsync(watch => watch with { WakeUps = 3 });

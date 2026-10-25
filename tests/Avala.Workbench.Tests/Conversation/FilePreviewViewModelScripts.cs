@@ -116,6 +116,18 @@ public sealed class FilePreviewViewModelScripts
         Assert.Equal((false, string.Empty, "Open in your browser"), (tool.Preview.IsOpen, tool.Preview.Notice, tool.Preview.Hint));
     }
 
+    [Fact]
+    public async Task APageOfAJobWhoseWorktreeWasFreedIsNotOpenedFromTheRepositoryInsteadAsync()
+    {
+        var worktree = new Worktree { Freed = true };
+        worktree.Files.Stored[Path.Combine(Worktree.Repository, "sistema-solar.html")] = [60];
+        var tool = worktree.Tool(Written("sistema-solar.html"));
+
+        await tool.Preview.OpenCommand.ExecuteAsync(null);
+
+        Assert.Empty(worktree.Opener.Opened);
+    }
+
     [Theory]
     [InlineData("sistema-solar.html")]
     [InlineData("orbit.png")]

@@ -5,7 +5,7 @@ using Avala.Workspaces.Workspaces;
 
 namespace Avala.Workspaces.Provisioning;
 
-internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceStore store) : IWorkspaceShelf
+internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceStore store, WorkspaceSettings settings) : IWorkspaceShelf
 {
     public const string KeptLabel = "Kept when its worktree was freed";
 
@@ -20,7 +20,7 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
 
         if (found.IsShelved)
         {
-            return found.Describe();
+            return await ReleaseAsync(found, cancellationToken);
         }
 
         if (found.State != WorkspaceState.Ready)
@@ -28,8 +28,16 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
             return WorkspaceFailure.InvalidState;
         }
 
-        if (!(await KeepChangesAsync(found, cancellationToken)).TryGetValue(out _, out failure)
-            || !(await git.ShelveWorktreeAsync(found.Location, found.Branch, found.Id, cancellationToken)).TryGetValue(out _, out failure)
+        var present = Directory.Exists(found.Location.Path);
+
+        if (present && !(await git.OnBranchAsync(found.Location, found.Branch, cancellationToken)).Match(on => on, _ => false))
+        {
+            return WorkspaceFailure.InvalidState;
+        }
+
+        if (!(await KeepChangesAsync(found, present, cancellationToken)).TryGetValue(out _, out failure)
+            || !(await KeepIgnoredAsync(found, present, cancellationToken)).TryGetValue(out _, out failure)
+            || !(await git.KeepTipAsync(found.Location, found.Branch, found.Id, cancellationToken)).TryGetValue(out _, out failure)
             || !Valid(found.Shelve()).TryGetValue(out _, out failure))
         {
             return failure;
@@ -37,7 +45,7 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
 
         await store.SaveAsync(found, cancellationToken);
 
-        return found.Describe();
+        return await ReleaseAsync(found, cancellationToken);
     }
 
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken)
@@ -58,6 +66,7 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
             return failure;
         }
 
+        RestoreIgnored(found);
         await store.SaveAsync(found, cancellationToken);
 
         return found.Describe();
@@ -83,9 +92,12 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
             () => Task.FromResult(false));
     }
 
-    private async Task<Result<bool, WorkspaceFailure>> KeepChangesAsync(Workspace workspace, CancellationToken cancellationToken)
+    private async Task<Result<WorkspaceInfo, WorkspaceFailure>> ReleaseAsync(Workspace workspace, CancellationToken cancellationToken) =>
+        await git.ReleaseWorktreeAsync(workspace.Location, workspace.Branch, cancellationToken).MapAsync(_ => workspace.Describe());
+
+    private async Task<Result<bool, WorkspaceFailure>> KeepChangesAsync(Workspace workspace, bool present, CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(workspace.Location.Path))
+        if (!present)
         {
             return false;
         }
@@ -103,6 +115,68 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
         return await git.CommitAllAsync(workspace.Location, KeptLabel, cancellationToken)
             .BindAsync(commit => Valid(workspace.RecordCheckpoint(commit, KeptLabel)))
             .MapAsync(_ => true);
+    }
+
+    private async Task<Result<bool, WorkspaceFailure>> KeepIgnoredAsync(Workspace workspace, bool present, CancellationToken cancellationToken)
+    {
+        if (!present)
+        {
+            return false;
+        }
+
+        if (!(await git.IgnoredAsync(workspace.Location, cancellationToken)).TryGetValue(out var ignored, out var failure))
+        {
+            return failure;
+        }
+
+        try
+        {
+            foreach (var entry in ignored.Where(entry => !BuildOutputs.Holds(entry)))
+            {
+                Move(Path.Combine(workspace.Location.Path, entry), Path.Combine(KeptOf(workspace), entry));
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return WorkspaceFailure.FileUnwritable;
+        }
+
+        return true;
+    }
+
+    private void RestoreIgnored(Workspace workspace)
+    {
+        var kept = KeptOf(workspace);
+
+        if (!Directory.Exists(kept))
+        {
+            return;
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(kept))
+        {
+            Move(entry, Path.Combine(workspace.Location.Path, Path.GetRelativePath(kept, entry)));
+        }
+
+        Directory.Delete(kept, recursive: true);
+    }
+
+    private string KeptOf(Workspace workspace) => Path.Combine(settings.Kept, $"{workspace.Id.Value:N}");
+
+    private static void Move(string from, string to)
+    {
+        var source = Path.TrimEndingDirectorySeparator(from);
+        var target = Path.TrimEndingDirectorySeparator(to);
+        Directory.CreateDirectory(Path.GetDirectoryName(target) ?? target);
+
+        if (Directory.Exists(source))
+        {
+            Directory.Move(source, target);
+        }
+        else if (File.Exists(source))
+        {
+            File.Move(source, target, overwrite: true);
+        }
     }
 
     private async Task<Result<Workspace, WorkspaceFailure>> LoadAsync(WorkspaceId id, CancellationToken cancellationToken) =>

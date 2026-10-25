@@ -83,7 +83,7 @@ public sealed class WorkspaceCheckpointsTests
         await using var store = new SqliteWorkspaceStore(new AvalaPaths(data.Path));
         var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
-        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, TimeProvider.System));
         var changes = new PausingChanges(new GitChangesCli(Processes));
         var checkpoints = new WorkspaceCheckpoints(store, service, changes, git);
         var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
@@ -106,7 +106,7 @@ public sealed class WorkspaceCheckpointsTests
         var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
         var store = new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
-        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, TimeProvider.System));
 
         return (service, new WorkspaceCheckpoints(store, service, new GitChangesCli(Processes), git));
     }
