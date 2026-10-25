@@ -59,6 +59,23 @@ public sealed class RelayTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AWoundDownTurnWhoseChecksFailRelaysWithTheirEvidenceInTheBriefAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(WindingDown));
+        var recorded = run.Watch<HandoffRecorded>();
+        var progress = run.Watch<JobProgressed>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("wind-down-broken"))));
+        var handoff = (await recorded.UntilAsync(announced => announced.Handoff.Job == job)).Handoff;
+        await ReviewedAsync(progress, job);
+
+        var brief = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts[1].Guidance);
+        Assert.Equal((One, Two), (handoff.From, handoff.To));
+        Assert.Contains("- calculator: failed, exit 1", brief, StringComparison.Ordinal);
+        Assert.Contains("- Make the failing checks pass: calculator.", brief, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AJobThatReachesItsHardCapIsStoppedMidTurnAndRelayedWithoutWindingDownAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(CappedAtOnce));

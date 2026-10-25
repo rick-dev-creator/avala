@@ -113,6 +113,21 @@ internal static class LimitScenarios
         ],
     ]);
 
+    public static Scenario WindDownBroken { get; } = new("wind-down-broken",
+    [
+        [
+            new Recall(new ItemId("told")),
+            new IfTold("handed off", Told: false, new ReportLimitResetting("5h", 0.92, TimeSpan.FromHours(1))),
+            new IfTold("handed off", Told: false, new AwaitMessage()),
+            new IfTold("handed off", Told: false, new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n")),
+            new IfTold("handed off", Told: true, new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 4\n")),
+            new IfTold("handed off", Told: false, Message("Wound down: ", "the calculator still adds wrong, and the rest is in this note.")),
+            new IfTold("handed off", Told: true, Message("Picked up the relay: ", "the calculator is fixed.")),
+            new ReportUsage(new TokenUsage(3_200, 250, 1_600, 320, 62), new Cost(0.0160m, "USD")),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario RelayChain { get; } = new("relay-chain",
     [
         [
@@ -129,5 +144,5 @@ internal static class LimitScenarios
 
     private const string ChainEnd = "continue it on simulator-three";
 
-    public static IReadOnlyList<Scenario> All { get; } = [NearLimit, SpentWindow, WindowRunsOut, FixPastTheWindow, AccountExhausted, SpentElsewhere, TwoWindowsSpent, WindDown, RelayChain];
+    public static IReadOnlyList<Scenario> All { get; } = [NearLimit, SpentWindow, WindowRunsOut, FixPastTheWindow, AccountExhausted, SpentElsewhere, TwoWindowsSpent, WindDown, WindDownBroken, RelayChain];
 }
