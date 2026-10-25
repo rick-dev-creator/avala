@@ -11,6 +11,11 @@
   <CornerRadius x:Key="RadiusDeviceAndroidScreen">32</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceTablet">34</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceTabletScreen">16</CornerRadius>
+  <CornerRadius x:Key="RadiusDeviceClassic">44</CornerRadius>
+  <CornerRadius x:Key="RadiusDeviceFold">40</CornerRadius>
+  <CornerRadius x:Key="RadiusDeviceFoldScreen">28</CornerRadius>
+  <CornerRadius x:Key="RadiusDeviceHome">23</CornerRadius>
+  <CornerRadius x:Key="RadiusDeviceSpeaker">2.5</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceIsland">15</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceLens">7</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceLensSmall">3.5</CornerRadius>

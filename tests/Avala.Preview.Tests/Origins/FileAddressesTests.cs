@@ -23,4 +23,11 @@ public sealed class FileAddressesTests
     [Fact]
     public void AServedPathKeepsItsFoldersWhateverTheirSeparator() =>
         Assert.Equal(new Uri("http://127.0.0.1:24009/models/a%23b/robot.glb"), FileAddresses.Served(Files, "models\\a#b\\robot.glb"));
+
+    [Theory]
+    [InlineData("http://127.0.0.1:24009/__avala/viewer/index.html?model=robot.glb", true)]
+    [InlineData("http://127.0.0.1:24009/__avala/viewer/device.html?device=pixel-9", true)]
+    [InlineData("http://127.0.0.1:24009/index.html", false)]
+    public void AvalasOwnViewerIsToldApartFromTheJobsPages(string address, bool viewer) =>
+        Assert.Equal(viewer, FileAddresses.IsViewer(new Uri(address)));
 }

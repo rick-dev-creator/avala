@@ -8,7 +8,7 @@
     <pane:DesignDeviceFrameViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="Button.glyph Path.icon">
+    <Style Selector="Button.glyph Path.icon, ToggleButton.glyph Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
   </UserControl.Styles>
@@ -40,5 +40,14 @@
             AutomationProperties.Name="Turn the device">
       <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconTurn}" />
     </Button>
+    <ToggleButton x:Name="Depth"
+                  Classes="glyph"
+                  IsChecked="{Binding ShowsDepth, Mode=OneWay}"
+                  Command="{Binding ToggleDepthCommand}"
+                  IsVisible="{Binding IsFramed}"
+                  ToolTip.Tip="Show the device in 3D: drag to turn it, scroll to zoom, right-drag to pan"
+                  AutomationProperties.Name="Show the device in 3D">
+      <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconPreviewModel}" />
+    </ToggleButton>
   </StackPanel>
 </UserControl>

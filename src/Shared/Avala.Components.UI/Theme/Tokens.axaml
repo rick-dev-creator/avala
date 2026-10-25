@@ -66,6 +66,7 @@
       <SolidColorBrush x:Key="DeviceIslandBrush" Color="#000000" />
       <SolidColorBrush x:Key="DeviceLensBrush" Color="#1E2230" />
       <SolidColorBrush x:Key="DeviceButtonBrush" Color="#6C6C72" />
+      <SolidColorBrush x:Key="DeviceCreaseBrush" Color="#1F000000" />
       <LinearGradientBrush x:Key="DeviceRimBrush" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="#B8B8BE" />
         <GradientStop Offset="0.35" Color="#5A5A60" />
@@ -170,6 +171,7 @@
       <SolidColorBrush x:Key="DeviceIslandBrush" Color="#000000" />
       <SolidColorBrush x:Key="DeviceLensBrush" Color="#1E2230" />
       <SolidColorBrush x:Key="DeviceButtonBrush" Color="#6C6C72" />
+      <SolidColorBrush x:Key="DeviceCreaseBrush" Color="#1F000000" />
       <LinearGradientBrush x:Key="DeviceRimBrush" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="#B8B8BE" />
         <GradientStop Offset="0.35" Color="#5A5A60" />

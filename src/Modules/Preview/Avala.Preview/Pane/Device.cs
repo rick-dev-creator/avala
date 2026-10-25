@@ -4,20 +4,36 @@ namespace Avala.Preview.Pane;
 
 internal enum DeviceShape
 {
-    Phone,
-    Android,
+    Island,
+    Punch,
+    Classic,
+    Fold,
     Tablet,
 }
 
-internal sealed record Device(string Name, DeviceShape Shape, int Width, int Height, int Bezel)
+internal sealed record DeviceInsets(double Left, double Top, double Right, double Bottom)
 {
-    public static Device Phone { get; } = new("iPhone", DeviceShape.Phone, 393, 852, 12);
+    public static DeviceInsets None { get; } = new(0, 0, 0, 0);
 
-    public static Device Android { get; } = new("Android", DeviceShape.Android, 412, 915, 10);
+    public static DeviceInsets Even(double bezel) => new(bezel, bezel, bezel, bezel);
 
-    public static Device Tablet { get; } = new("Tablet", DeviceShape.Tablet, 820, 1180, 20);
+    public DeviceInsets Turn() => this with { Left = Top, Top = Right, Right = Bottom, Bottom = Left };
+}
 
-    public static ImmutableArray<Device> All { get; } = [Phone, Android, Tablet];
+internal sealed record Device(string Name, string Model, DeviceShape Shape, int Width, int Height, DeviceInsets Insets)
+{
+    public static ImmutableArray<Device> All { get; } =
+    [
+        new("iPhone SE", "iphone-se", DeviceShape.Classic, 375, 667, new DeviceInsets(12, 70, 12, 70)),
+        new("iPhone 16", "iphone-16", DeviceShape.Island, 393, 852, DeviceInsets.Even(12)),
+        new("iPhone 16 Pro Max", "iphone-16-pro-max", DeviceShape.Island, 440, 956, DeviceInsets.Even(11)),
+        new("Pixel 9", "pixel-9", DeviceShape.Punch, 412, 915, DeviceInsets.Even(10)),
+        new("iPhone Duo", "iphone-duo", DeviceShape.Fold, 772, 548, DeviceInsets.Even(14)),
+        new("iPhone Duo (closed)", "iphone-duo-closed", DeviceShape.Punch, 380, 548, DeviceInsets.Even(12)),
+        new("iPad Air 11\"", "ipad-air-11", DeviceShape.Tablet, 820, 1180, DeviceInsets.Even(20)),
+    ];
 
-    public Device Turn() => this with { Width = Height, Height = Width };
+    public static Device Named(string name) => All.Single(device => device.Name == name);
+
+    public Device Turn() => this with { Width = Height, Height = Width, Insets = Insets.Turn() };
 }

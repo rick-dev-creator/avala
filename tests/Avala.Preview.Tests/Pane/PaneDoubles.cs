@@ -119,8 +119,9 @@ internal sealed class FakePreviews(PreviewBook book, FakeGateways pages) : IPrev
         FilesServed.Add((job, path));
         pages.Ports.AddOrUpdate(job, [Files.Port], (_, known) => known.Add(Files.Port));
 
-        return ValueTask.FromResult(path.StartsWith(Worktree, StringComparison.Ordinal)
-            ? Result<Uri, PreviewError>.Success(new Uri(Files, path[Worktree.Length..]))
+        return ValueTask.FromResult(
+            path.StartsWith(Worktree, StringComparison.Ordinal) ? Result<Uri, PreviewError>.Success(new Uri(Files, path[Worktree.Length..]))
+            : !path.StartsWith('/') ? Result<Uri, PreviewError>.Success(new Uri(Files, path))
             : Result<Uri, PreviewError>.Failure(PreviewError.Outside));
     }
 

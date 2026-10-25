@@ -31,7 +31,9 @@ internal static class Screen
 
 public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 {
-    private static readonly string[] IconButtons = ["Back", "Reload", "Device", "Turn", "Network", "OpenInBrowser", "Close"];
+    private static readonly string[] IconButtons = ["Back", "Reload", "Device", "Turn", "Depth", "Network", "OpenInBrowser", "Close"];
+
+    private static readonly string[] DeviceParts = ["Island", "Lens", "Speaker", "Home", "Crease", "Power", "VolumeUp"];
 
     private readonly PaneBench bench = new();
 
@@ -45,7 +47,7 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 
             Assert.Equal(("localhost:24000", PreviewPhrases.Running), (view.TextOf("Address"), view.TextOf("State")));
             Assert.Equal(
-                ["Back", "Reload", "Device", "Turn the device", "Allow network", "Open in browser", "Close preview"],
+                ["Back", "Reload", "Device", "Turn the device", "Show the device in 3D", "Allow network", "Open in browser", "Close preview"],
                 IconButtons.Select(name => AutomationProperties.GetName(view.Find(name))));
             Assert.True(view.Shows("Page"));
             Assert.False(view.Shows("RefusalBar"));
@@ -93,26 +95,29 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
         }, Cancellation);
 
     [Fact]
-    public Task AChosenDeviceShowsThePageAtItsWidthAndNoTallerThanItAsync() =>
+    public Task ATurnedDeviceKeepsItsShapeAndShrinksToFitThePaneAsync() =>
         ui.RunAsync(() =>
         {
             var pane = Opened();
             var view = Screen.Show(pane);
 
-            pane.Frame.Choices.Single(choice => choice.Name == "iPhone").Choose.Execute(null);
+            pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+            pane.Frame.TurnCommand.Execute(null);
             view.Settle();
-            var page = view.Find("Page");
+            var device = view.Find("Body").Bounds;
 
-            Assert.Equal(393, page.Bounds.Width);
-            Assert.True(page.Bounds.Height <= 852);
+            Assert.InRange(device.Width / device.Height, (876d / 417d) - 0.02, (876d / 417d) + 0.02);
+            Assert.InRange(device.Width, 1, 876);
         }, Cancellation);
 
     [Theory]
-    [InlineData("Responsive", false, false, false)]
-    [InlineData("iPhone", true, false, true)]
-    [InlineData("Android", false, true, true)]
-    [InlineData("Tablet", false, true, false)]
-    public Task EachDeviceIsDrawnWithItsOwnIslandOrLensAndButtonsAsync(string name, bool island, bool lens, bool buttons) =>
+    [InlineData("Responsive", "")]
+    [InlineData("iPhone SE", "Speaker Home Power VolumeUp")]
+    [InlineData("iPhone 16", "Island Power VolumeUp")]
+    [InlineData("Pixel 9", "Lens Power VolumeUp")]
+    [InlineData("iPhone Duo", "Crease")]
+    [InlineData("iPad Air 11\"", "Lens")]
+    public Task EachDeviceIsDrawnWithItsOwnPartsAsync(string name, string parts) =>
         ui.RunAsync(() =>
         {
             var pane = Opened();
@@ -121,7 +126,22 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
             pane.Frame.Choices.Single(choice => choice.Name == name).Choose.Execute(null);
             view.Settle();
 
-            Assert.Equal((island, lens, buttons, buttons), (view.Shows("Island"), view.Shows("Lens"), view.Shows("Power"), view.Shows("VolumeUp")));
+            Assert.Equal(parts, string.Join(' ', DeviceParts.Where(view.Shows)));
+        }, Cancellation);
+
+    [Fact]
+    public Task InThreeDimensionsThePageFillsThePaneWithoutAFlatFrameAsync() =>
+        ui.RunAsync(() =>
+        {
+            var pane = Opened();
+            var view = Screen.Show(pane);
+            pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+
+            view.Click("Depth");
+
+            Assert.False(view.HasClass("Stage", "framed"));
+            Assert.Equal(view.Find("Stage").Bounds.Width, view.Find("Page").Bounds.Width);
+            Assert.False(view.Shows("Island"));
         }, Cancellation);
 
     [Fact]

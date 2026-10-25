@@ -1,3 +1,4 @@
+using Avala.Preview.Navigation;
 using Avala.Sdk;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,19 +9,27 @@ internal interface IDeviceFrameViewModel
 {
     bool IsFramed { get; }
 
+    bool ShowsDepth { get; }
+
+    bool IsFlat { get; }
+
     double FrameWidth { get; }
 
     double FrameHeight { get; }
 
-    double Bezel { get; }
+    DeviceInsets Insets { get; }
 
     double OuterWidth { get; }
 
     double OuterHeight { get; }
 
-    bool IsPhone { get; }
+    bool IsIsland { get; }
 
-    bool IsAndroid { get; }
+    bool IsPunch { get; }
+
+    bool IsClassic { get; }
+
+    bool IsFold { get; }
 
     bool IsTablet { get; }
 
@@ -31,6 +40,8 @@ internal interface IDeviceFrameViewModel
     IReadOnlyList<DeviceChoice> Choices { get; }
 
     IRelayCommand TurnCommand { get; }
+
+    IRelayCommand ToggleDepthCommand { get; }
 }
 
 internal sealed record DeviceChoice(string Name, string Size, bool IsChosen, IRelayCommand Choose);
@@ -40,28 +51,41 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
 {
     private Option<Device> chosen;
     private bool turned;
+    private bool depth;
 
     public DeviceFrameViewModel() => Choices = Listed();
 
+    public event EventHandler? Changed;
+
     public bool IsFramed => chosen.IsSome;
 
-    public double FrameWidth => Shown.Match(device => (double)device.Width, () => double.PositiveInfinity);
+    public bool ShowsDepth => chosen.IsSome && depth;
 
-    public double FrameHeight => Shown.Match(device => (double)device.Height, () => double.PositiveInfinity);
+    public bool IsFlat => Flat.IsSome;
 
-    public double Bezel => chosen.Match(device => (double)device.Bezel, () => 0d);
+    public Option<DeviceView> View => Shown.Map(device => new DeviceView(device.Model, device.Width, device.Height, turned, depth));
 
-    public double OuterWidth => FrameWidth + (2 * Bezel);
+    public double FrameWidth => Flat.Match(device => (double)device.Width, () => double.PositiveInfinity);
 
-    public double OuterHeight => FrameHeight + (2 * Bezel);
+    public double FrameHeight => Flat.Match(device => (double)device.Height, () => double.PositiveInfinity);
 
-    public bool IsPhone => Is(DeviceShape.Phone);
+    public DeviceInsets Insets => Flat.Match(device => device.Insets, () => DeviceInsets.None);
 
-    public bool IsAndroid => Is(DeviceShape.Android);
+    public double OuterWidth => FrameWidth + Insets.Left + Insets.Right;
+
+    public double OuterHeight => FrameHeight + Insets.Top + Insets.Bottom;
+
+    public bool IsIsland => Is(DeviceShape.Island);
+
+    public bool IsPunch => Is(DeviceShape.Punch);
+
+    public bool IsClassic => Is(DeviceShape.Classic);
+
+    public bool IsFold => Is(DeviceShape.Fold);
 
     public bool IsTablet => Is(DeviceShape.Tablet);
 
-    public bool IsTurned => chosen.IsSome && turned;
+    public bool IsTurned => Flat.IsSome && turned;
 
     public string Label => Shown.Match(device => PreviewPhrases.Device(device.Name, Size(device)), () => PreviewPhrases.Responsive);
 
@@ -70,7 +94,9 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
 
     private Option<Device> Shown => chosen.Map(device => turned ? device.Turn() : device);
 
-    private bool Is(DeviceShape shape) => chosen.Match(device => device.Shape == shape, () => false);
+    private Option<Device> Flat => depth ? Option<Device>.None : Shown;
+
+    private bool Is(DeviceShape shape) => Flat.Match(device => device.Shape == shape, () => false);
 
     private static string Size(Device device) => PreviewPhrases.Size(device.Width, device.Height);
 
@@ -78,31 +104,31 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
     private void Turn()
     {
         turned = !turned;
-        Changed();
+        Announce();
+    }
+
+    [RelayCommand(CanExecute = nameof(IsFramed))]
+    private void ToggleDepth()
+    {
+        depth = !depth;
+        Announce();
     }
 
     private void Choose(Option<Device> device)
     {
         chosen = device;
         turned = false;
+        depth = depth && device.IsSome;
         Choices = Listed();
-        Changed();
+        Announce();
     }
 
-    private void Changed()
+    private void Announce()
     {
-        OnPropertyChanged(nameof(IsFramed));
-        OnPropertyChanged(nameof(FrameWidth));
-        OnPropertyChanged(nameof(FrameHeight));
-        OnPropertyChanged(nameof(Bezel));
-        OnPropertyChanged(nameof(OuterWidth));
-        OnPropertyChanged(nameof(OuterHeight));
-        OnPropertyChanged(nameof(IsPhone));
-        OnPropertyChanged(nameof(IsAndroid));
-        OnPropertyChanged(nameof(IsTablet));
-        OnPropertyChanged(nameof(IsTurned));
-        OnPropertyChanged(nameof(Label));
+        OnPropertyChanged(string.Empty);
         TurnCommand.NotifyCanExecuteChanged();
+        ToggleDepthCommand.NotifyCanExecuteChanged();
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private List<DeviceChoice> Listed() =>

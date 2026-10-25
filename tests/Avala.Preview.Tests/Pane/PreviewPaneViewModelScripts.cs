@@ -253,6 +253,104 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ThreeDimensionsShowTheRunningPageInsideTheDeviceModelAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 393, 852, FakeGateways.Through(target)), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task LeavingThreeDimensionsShowsThePageOnTheFlatScreenAgainAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "Pixel 9").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("pixel-9", 412, 915, FakeGateways.Through(target), screen: "screen"), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task ATurnedDeviceShowsThePageAtTheDevicesOwnWidthAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.TurnCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 852, 393, FakeGateways.Through(target), turned: true, screen: "screen"), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task ResponsiveShowsThePageItselfAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.Choices.Single(choice => choice.Name == "Responsive").Choose.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(FakeGateways.Through(target), bench.Surfaces.Last.Visited[^1]);
+    }
+
+    [Fact]
+    public async Task TurningTheDeviceInThreeDimensionsShowsItTurnedAsync()
+    {
+        var target = bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        pane.Frame.TurnCommand.Execute(null);
+        await pane.Navigating;
+
+        Assert.Equal(Device("iphone-16", 852, 393, FakeGateways.Through(target), turned: true), Unversioned(bench.Surfaces.Last.Visited[^1]));
+    }
+
+    [Fact]
+    public async Task AModelIsShownInItsViewerEvenInThreeDimensionsAsync()
+    {
+        var pane = Selected(bench.Pane()).ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+
+        bench.Messenger.Send(new WorktreeFileRequested(bench.Job, FakePreviews.Worktree + "robot.glb"));
+        await pane.Viewing;
+
+        Assert.Equal([Viewer("robot.glb", 1)], bench.Surfaces.Last.Visited);
+    }
+
+    [Fact]
+    public async Task OpenInBrowserFromThreeDimensionsOpensThePageNotTheDeviceAsync()
+    {
+        bench.Serve(bench.Job, 24_000);
+        var pane = Opened().ViewModel;
+        pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+        pane.Frame.ToggleDepthCommand.Execute(null);
+        await pane.Navigating;
+
+        await pane.OpenInBrowserCommand.ExecuteAsync(null);
+
+        Assert.Equal([new Uri("http://localhost:24000/")], bench.Links.Opened);
+    }
+
+    [Fact]
     public void ThePaneFollowsTheSelectionToAnotherJobsPreviewOrClosesWhenItHasNone()
     {
         bench.Serve(bench.Job, 24_000);
@@ -370,6 +468,11 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     }
 
     public void Dispose() => bench.Dispose();
+
+    private static Uri Device(string model, int width, int height, Uri page, bool turned = false, string screen = "device") =>
+        new(FakePreviews.Files, $"/__avala/viewer/{screen}.html?device={model}&w={width}&h={height}&turned={(turned ? 1 : 0)}&page={Uri.EscapeDataString(page.AbsoluteUri)}");
+
+    private static Uri Unversioned(Uri address) => new(address.AbsoluteUri[..address.AbsoluteUri.LastIndexOf("&v=", StringComparison.Ordinal)]);
 
     private static Uri Viewer(string model, int version) => new(FakePreviews.Files, $"/__avala/viewer/index.html?model={model}&v={version}");
 

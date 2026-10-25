@@ -25,7 +25,7 @@ public sealed class PreviewPaneLeakScripts(HeadlessUi ui) : IDisposable
                 bench.Serve(job, port++);
                 pane.OnRegionContextChanged(job);
                 bench.Messenger.Send(new PreviewRequested(job));
-                pane.Frame.Choices.Single(choice => choice.Name == "iPhone").Choose.Execute(null);
+                pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
                 view.Settle();
                 pane.Frame.Choices.Single(choice => choice.Name == "Responsive").Choose.Execute(null);
                 pane.OnRegionContextChanged(bench.Other);
