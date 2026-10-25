@@ -10,6 +10,8 @@ internal sealed class ShellReader(string text)
 {
     private const int Deepest = 32;
 
+    private const int MostPlaces = 16;
+
     private static readonly FrozenSet<string> Discarded = FrozenSet.Create(StringComparer.Ordinal, "/dev/null", "/dev/stdout", "/dev/stderr");
 
     private static readonly SearchValues<char> Parameter = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_#@*!?$-");
@@ -24,6 +26,9 @@ internal sealed class ShellReader(string text)
     private readonly List<ShellCommand> commands = [];
     private readonly List<string> writes = [];
     private readonly List<string> reads = [];
+    private readonly List<string> landings = [];
+    private readonly List<string> adrift = [];
+    private List<string>? places = [string.Empty];
     private List<string> redirected = [];
     private readonly Queue<(string Delimiter, bool Quoted, bool Tabs)> heredocs = new();
     private int at;
@@ -38,8 +43,8 @@ internal sealed class ShellReader(string text)
         return new CommandLine(
             commands,
             writes,
-            opaque || heredocs.Count > 0 || (commands.Count == 0 && writes.Count == 0) || (movesDirectory && writes.Exists(path => !CommandLine.Rooted(path))),
-            movesDirectory) { Reads = reads };
+            opaque || heredocs.Count > 0 || (commands.Count == 0 && writes.Count == 0) || adrift.Count > 0,
+            movesDirectory) { Reads = reads, Landings = landings, Adrift = adrift };
     }
 
     private static bool Diverges(char c) => c is '"' or '\'' or '`' or '$' or '#' or ';' or '&' or '|' or '<' or '>' or '(' or ')' or '{' or '}';
@@ -228,6 +233,19 @@ internal sealed class ShellReader(string text)
         {
             writes.Add(target.Value);
             redirected.Add(target.Value);
+            Land(target.Value);
+        }
+    }
+
+    private void Land(string path)
+    {
+        if (CommandLine.Rooted(path) || places is not null)
+        {
+            landings.AddRange(places is null ? [path] : places.Select(place => CommandLine.Within(place, path)).Distinct(StringComparer.Ordinal));
+        }
+        else
+        {
+            adrift.Add(path);
         }
     }
 
@@ -463,15 +481,36 @@ internal sealed class ShellReader(string text)
 
     public void Unanalysable() => opaque = true;
 
-    public void MovesDirectory() => movesDirectory = true;
+    public void MovesDirectory() => (movesDirectory, places) = (true, null);
+
+    public void ChangesDirectory(ShellWord target)
+    {
+        if (target.Literal && !target.Value.StartsWith('-') && places is not null)
+        {
+            List<string> reached = [.. places.Concat(places.Select(place => CommandLine.Within(place, target.Value))).Distinct(StringComparer.Ordinal)];
+            (movesDirectory, places) = (true, reached.Count > MostPlaces ? null : reached);
+        }
+        else
+        {
+            MovesDirectory();
+        }
+    }
 
     public void Merge(string script, bool opaque)
     {
-        var line = depth < Deepest ? new ShellReader(script) { depth = depth + 1 }.Read() : new CommandLine([], [], Opaque: true, MovesDirectory: false);
+        var line = depth < Deepest
+            ? new ShellReader(script) { depth = depth + 1, places = places is null ? null : [.. places] }.Read()
+            : new CommandLine([], [], Opaque: true, MovesDirectory: false);
         commands.AddRange(line.Commands);
         writes.AddRange(line.Writes);
         reads.AddRange(line.Reads);
+        landings.AddRange(line.Landings);
+        adrift.AddRange(line.Adrift);
         this.opaque |= opaque || line.Opaque;
-        movesDirectory |= line.MovesDirectory;
+
+        if (line.MovesDirectory)
+        {
+            MovesDirectory();
+        }
     }
 }
