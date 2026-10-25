@@ -5,6 +5,7 @@ using Avala.Shell;
 using Avala.Testing;
 using Avala.Testing.UI;
 using Avalonia.Styling;
+using Avalonia.VisualTree;
 
 namespace Avala.Host.Tests;
 
@@ -36,7 +37,7 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
         var regions = workbench.Page["Regions"];
         var chip = regions["Header"].Items.Single(item => item.Kind == "RunningChipViewModel");
         var script = regions["Header"].Items.Single(item => item.Kind == "RunScriptViewModel");
-        var pane = Assert.Single(regions["Preview"].Items);
+        var pane = regions["Preview"].Items.Single(item => item.Kind == "PreviewPaneViewModel");
         await run.Ui.PresentedAsync(chip.Presentation, () => chip["IsShown"].Value<bool>(), () => chip["Text"].Text);
         await run.Ui.PresentedAsync(script.Presentation, () => script["IsShown"].Value<bool>(), () => script["Label"].Text);
 
@@ -50,6 +51,22 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "91-preview-pane-light", ThemeVariant.Light, Open);
         await Camera.ShootAsync(run, "92-preview-refused-navigation-dark", Open, Refuse);
         await Camera.ShootAsync(run, "92-preview-refused-navigation-light", ThemeVariant.Light, Open, Refuse);
+
+        void Menu(Avalonia.Controls.Window window)
+        {
+            var device = window.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Single(button => button.Name == "Device");
+            device.Flyout!.ShowAt(device);
+        }
+
+        void Phone(Avalonia.Controls.Window window) =>
+            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone").Execute("Choose");
+
+        void Turned(Avalonia.Controls.Window window) => pane["Frame"].Execute("TurnCommand");
+
+        await Camera.ShootAsync(run, "93-preview-device-menu-dark", Open, Menu);
+        await Camera.ShootAsync(run, "94-preview-device-iphone-dark", Open, Phone);
+        await Camera.ShootAsync(run, "94-preview-device-iphone-light", ThemeVariant.Light, Open);
+        await Camera.ShootAsync(run, "95-preview-device-turned-dark", Open, Turned);
 
         Assert.True(await run.Ui.ReadAsync(() => pane["HasRefusal"].Value<bool>()));
         await run.Ui.InvokeAsync(run.Get<ShellViewModel>().Deactivate, TestContext.Current.CancellationToken);

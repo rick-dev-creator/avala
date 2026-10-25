@@ -17,6 +17,8 @@ internal sealed class DesignPreviewPaneViewModel : IPreviewPaneViewModel
 
     public IWebSurface? Surface => null;
 
+    public IDeviceFrameViewModel Frame { get; } = new DesignDeviceFrameViewModel();
+
     public bool IsEmbedded => true;
 
     public string Notice => string.Empty;
@@ -72,4 +74,37 @@ internal sealed class DesignRunScriptViewModel : IRunScriptViewModel
     public bool HasProblem => false;
 
     public IAsyncRelayCommand ToggleCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignDeviceFrameViewModel : IDeviceFrameViewModel
+{
+    public bool IsFramed => true;
+
+    public double FrameWidth => Device.Phone.Width;
+
+    public double FrameHeight => Device.Phone.Height;
+
+    public double Bezel => Device.Phone.Bezel;
+
+    public double OuterWidth => Device.Phone.Width + (2 * Device.Phone.Bezel);
+
+    public double OuterHeight => Device.Phone.Height + (2 * Device.Phone.Bezel);
+
+    public bool IsPhone => true;
+
+    public bool IsAndroid => false;
+
+    public bool IsTablet => false;
+
+    public bool IsTurned => false;
+
+    public string Label => PreviewPhrases.Device(Device.Phone.Name, PreviewPhrases.Size(Device.Phone.Width, Device.Phone.Height));
+
+    public IReadOnlyList<DeviceChoice> Choices { get; } =
+    [
+        new(PreviewPhrases.Responsive, PreviewPhrases.FitsThePane, false, new RelayCommand(() => { })),
+        .. Device.All.Select(device => new DeviceChoice(device.Name, PreviewPhrases.Size(device.Width, device.Height), device == Device.Phone, new RelayCommand(() => { }))),
+    ];
+
+    public IRelayCommand TurnCommand { get; } = new RelayCommand(() => { });
 }
