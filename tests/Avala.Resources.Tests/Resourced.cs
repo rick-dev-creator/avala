@@ -20,6 +20,20 @@ internal sealed class FakeEndedJobs : IEndedJobs
 {
     public HashSet<JobId> Working { get; } = [];
 
+    public HashSet<JobId> Resting { get; } = [];
+
+    public async ValueTask<bool> WhileRestingAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
+    {
+        if (!Resting.Contains(job))
+        {
+            return false;
+        }
+
+        await work(cancellationToken);
+
+        return true;
+    }
+
     public async ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         if (Working.Contains(job))
@@ -47,6 +61,7 @@ internal sealed class Resourced : IAsyncDisposable
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
         Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Workspaces, Jobs, Facts), Settings, Bus, Clock);
         Tracker = new ResourceTracker(Book, Reaper, Leases, Housekeeper);
+        Desk = new WorktreeDesk(Housekeeper, Reaper);
         Recovery = new RetentionRecovery(Catalog, Workspaces, Housekeeper, Reaper);
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
     }
@@ -95,6 +110,8 @@ internal sealed class Resourced : IAsyncDisposable
     public OrphanReaper Reaper { get; }
 
     public WorktreeHousekeeper Housekeeper { get; }
+
+    public WorktreeDesk Desk { get; }
 
     public ResourceTracker Tracker { get; }
 

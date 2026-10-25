@@ -187,6 +187,39 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobWaitingForReviewIsFreedOnceIdleAndApprovingItRebuildsItsWorktreeAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeIdleHours": 1, "freeUndeliveredHours": null } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        await run.DeliveredAsync();
+
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        var freed = await run.FreedAsync();
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+
+        Assert.Equal((run.Job, JobStatus.AwaitingReview, WorktreeMoment.Idle), (freed.Job, freed.Status, freed.Moment));
+        Assert.True(Directory.Exists(worktree));
+    }
+
+    [Fact]
+    public async Task AWorktreeOverTheSpaceBudgetIsFreedAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "diskSeconds": 0.1, "worktrees": { "freeUndeliveredHours": null, "spaceBudgetGigabytes": 0.000000001 } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+
+        run.Clock.Advance(TimeSpan.FromSeconds(10));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, WorktreeMoment.Space), (freed.Job, freed.Moment));
+    }
+
+    [Fact]
     public async Task AnApprovedJobWhoseWorkWasMergedIsFreedAtOnceAsync()
     {
         await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [], [(".avala/jobs.json", """{ "approval": "merge" }""")]);

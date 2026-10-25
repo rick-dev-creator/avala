@@ -10,7 +10,7 @@ internal sealed class RetentionRecovery(IJobCatalog catalog, IWorkspaces workspa
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
-        foreach (var job in (await catalog.ListAsync(cancellationToken)).Where(job => job.Status.Ended()))
+        foreach (var job in (await catalog.ListAsync(cancellationToken)).Where(job => job.Status.Ended() || job.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp))
         {
             var found = await job.Workspace.Match(
                 workspace => workspaces.FindAsync(workspace, cancellationToken).AsTask(),
@@ -18,7 +18,9 @@ internal sealed class RetentionRecovery(IJobCatalog catalog, IWorkspaces workspa
 
             if (found.TryGetValue(out var worktree, out _))
             {
-                await housekeeper.RetainAsync(job.Job, job.Status, [worktree.Path], job.Ended.Match(at => at, () => job.Submitted), reaper, cancellationToken);
+                await (job.Status.Ended()
+                    ? housekeeper.RetainAsync(job.Job, job.Status, [worktree.Path], job.Ended.Match(at => at, () => job.Submitted), reaper, cancellationToken)
+                    : housekeeper.RetainAsync(job.Job, job.Status, [worktree.Path], reaper, cancellationToken));
             }
         }
     }

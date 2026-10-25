@@ -27,7 +27,10 @@ public sealed class ResourceSettingsTests
                 "freeFailedHours": 0.5,
                 "deleteDiscardedHours": 24,
                 "deleteFailedHours": null,
-                "reconcile": "clean"
+                "freeIdleHours": 12,
+                "spaceBudgetGigabytes": 2.5,
+                "diskFloorPercent": null,
+                "reconcile": "report"
               }
             }
             """));
@@ -42,8 +45,11 @@ public sealed class ResourceSettingsTests
                 {
                     DeleteDiscarded = TimeSpan.FromHours(24),
                     DeleteFailed = Option<TimeSpan>.None,
+                    Idle = TimeSpan.FromHours(12),
+                    SpaceBudget = 2_684_354_560,
+                    DiskFloor = Option<double>.None,
                 },
-                ReconcilePolicy.Clean),
+                ReconcilePolicy.Report),
             settings);
     }
 
@@ -131,6 +137,8 @@ public sealed class ResourceSettingsTests
     [InlineData("{ \"worktrees\": { \"keepFailedHours\": \"ever\" } }", ResourceError.Malformed)]
     [InlineData("{ \"worktrees\": { \"freeArchivedHours\": -1 } }", ResourceError.InvalidRetention)]
     [InlineData("{ \"worktrees\": { \"freeEverythingHours\": 1 } }", ResourceError.UnknownField)]
+    [InlineData("{ \"worktrees\": { \"spaceBudgetGigabytes\": 0 } }", ResourceError.InvalidRetention)]
+    [InlineData("{ \"worktrees\": { \"diskFloorPercent\": 95 } }", ResourceError.InvalidRetention)]
     public void AnInvalidFileIsRejectedWithItsError(string text, ResourceError expected) =>
         Assert.Equal(expected, Outcomes.FailsWith(ResourceSettingsParser.Parse(text)));
 
@@ -144,10 +152,17 @@ public sealed class ResourceSettingsTests
 
         Assert.Equal(ResourceSettingsParser.Defaults with { File = ResourceFileStatus.Absent }, settings);
         Assert.Equal(
-            (TimeSpan.FromSeconds(5), OrphanPolicy.Kill, new PortRange(24_000, 24_999, 10), ReconcilePolicy.Report),
+            (TimeSpan.FromSeconds(5), OrphanPolicy.Kill, new PortRange(24_000, 24_999, 10), ReconcilePolicy.Clean),
             (settings.Sampling, settings.Orphans, settings.Ports, settings.Reconcile));
         Assert.Equal(
-            new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30) },
+            new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero)
+            {
+                DeleteDiscarded = TimeSpan.FromDays(7),
+                DeleteFailed = TimeSpan.FromDays(30),
+                Idle = TimeSpan.FromDays(3),
+                SpaceBudget = 20L << 30,
+                DiskFloor = 0.1,
+            },
             settings.Worktrees);
     }
 

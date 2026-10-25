@@ -71,6 +71,10 @@ internal sealed class FakeFolders : IFolderSizes
     }
 
     public Task<long> DataFolderAsync(CancellationToken cancellationToken) => Task.FromResult(Data);
+
+    public Option<DiskSpace> Space { get; set; }
+
+    public Option<DiskSpace> Disk() => Space;
 }
 
 internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceShelf

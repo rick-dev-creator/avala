@@ -1,4 +1,5 @@
 using System.IO.Enumeration;
+using Avala.Resources.Contracts;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
 
@@ -16,6 +17,20 @@ internal sealed class FolderSizes(AvalaPaths paths) : IFolderSizes
     };
 
     public Task<long> SizeAsync(string folder, CancellationToken cancellationToken) => Task.Run(() => Measure(folder), cancellationToken);
+
+    public Option<DiskSpace> Disk()
+    {
+        try
+        {
+            var drive = new DriveInfo(Path.GetFullPath(paths.Data));
+
+            return drive.IsReady ? new DiskSpace(drive.AvailableFreeSpace, drive.TotalSize) : Option<DiskSpace>.None;
+        }
+        catch (Exception exception) when (exception is IOException or ArgumentException or UnauthorizedAccessException)
+        {
+            return Option<DiskSpace>.None;
+        }
+    }
 
     private static long Measure(string folder)
     {

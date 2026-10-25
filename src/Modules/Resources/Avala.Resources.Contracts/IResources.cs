@@ -50,6 +50,10 @@ public interface IWorktreeHousekeeping
 
     IReadOnlyList<FreedWorktree> Freed();
 
+    Option<WorktreeSpace> Shortage();
+
+    ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken);
+
     ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken);
 
     ValueTask<WorktreeReconciliation> CleanAsync(CancellationToken cancellationToken);

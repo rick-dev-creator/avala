@@ -45,7 +45,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<RetainedWorktrees>()
             .AddSingleton<IWorktreeFacts, WorktreeFacts>()
             .AddSingleton<WorktreeHousekeeper>()
-            .AddForwarded<IWorktreeHousekeeping, WorktreeHousekeeper>()
+            .AddSingleton<IWorktreeHousekeeping, WorktreeDesk>()
             .AddForwarded<IStartupTask, WorktreeHousekeeper>()
             .AddSingleton<WorktreeMoments>()
             .AddForwarded<IHandle<ConversationsArchived>, WorktreeMoments>()

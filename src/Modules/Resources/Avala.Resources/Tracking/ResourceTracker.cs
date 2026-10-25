@@ -54,6 +54,12 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
 
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
     {
+        if (integrationEvent.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp)
+        {
+            await housekeeper.RetainAsync(integrationEvent.Job, integrationEvent.Status, book.Attribution.HomesOf(integrationEvent.Job), reaper, cancellationToken);
+            return;
+        }
+
         if (!integrationEvent.Status.Ended())
         {
             await housekeeper.ReleaseAsync(integrationEvent.Job, cancellationToken);

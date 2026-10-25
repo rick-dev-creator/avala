@@ -46,7 +46,7 @@ public sealed class ResourcesPluginTests
         Assert.Same(composition.Get<PortLeases>(), composition.Get<IProcessEnvironment>());
         Assert.Same(composition.Get<ResourceBook>(), composition.Get<IResources>());
         Assert.Same(composition.Get<OrphanReaper>(), composition.Get<IOrphans>());
-        Assert.Same(composition.Get<WorktreeHousekeeper>(), composition.Get<IWorktreeHousekeeping>());
+        Assert.IsType<WorktreeDesk>(composition.Get<IWorktreeHousekeeping>());
         Assert.Equal<object>(
             [composition.Get<WorktreeHousekeeper>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
             composition.All<IStartupTask>());

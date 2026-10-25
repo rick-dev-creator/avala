@@ -70,6 +70,22 @@ public sealed class RetentionRecoveryTests
     }
 
     [Fact]
+    public async Task AtStartupAJobWaitingForReviewIsFreedOnceItHasBeenIdleSinceTheStartAsync()
+    {
+        await using var resources = new Resourced();
+        var workspace = resources.Workspaces.Add(Resourced.Home("waiting"));
+        var job = resources.Catalog.Add(JobStatus.AwaitingReview, workspace.Id, Option<DateTimeOffset>.None);
+        resources.Jobs.Resting.Add(job.Job);
+
+        await resources.Recovery.RunAsync(Cancellation);
+        Assert.Empty(resources.Workspaces.Shelved);
+        resources.Clock.Advance(TimeSpan.FromDays(3));
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+
+        Assert.Equal([workspace.Id], resources.Workspaces.Shelved);
+    }
+
+    [Fact]
     public async Task AtStartupTheWorktreesOfJobsStillGoingAreKeptAsync()
     {
         await using var resources = new Resourced();

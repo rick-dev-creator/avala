@@ -20,5 +20,6 @@ internal static class SettingsRegistrations
         views.Register<INotificationsViewModel, NotificationsView>();
         views.Register<IWorktreeSettingsViewModel, WorktreeSettingsView>();
         views.Register<IWorktreeRuleViewModel, WorktreeRuleView>();
+        views.Register<IWorktreeLimitViewModel, WorktreeLimitView>();
     }
 }

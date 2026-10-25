@@ -8,11 +8,11 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Review;
 
-internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defaults, IEnumerable<IApprovalStrategy> strategies, JobQueues queues)
+internal sealed class Approvals(JobWorkspaces worktrees, IRepositoryDefaults defaults, IEnumerable<IApprovalStrategy> strategies, JobQueues queues)
 {
     public async Task<Result<ApprovalDelivery, JobRejection>> DeliverAsync(Job job, Option<string> strategy, CancellationToken cancellationToken)
     {
-        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await worktrees.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -28,7 +28,7 @@ internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defa
 
     public async Task<Result<DeliveryPlan, JobRejection>> PlanAsync(Job job, CancellationToken cancellationToken)
     {
-        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await worktrees.Workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -63,7 +63,7 @@ internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defa
             return JobRejection.ParentNotRunning;
         }
 
-        if ((await workspaces.CheckpointAsync(parent, $"Before integrating job {request.Job.Value}", cancellationToken)).IsFailure)
+        if ((await worktrees.Workspaces.CheckpointAsync(parent, $"Before integrating job {request.Job.Value}", cancellationToken)).IsFailure)
         {
             return JobRejection.WorkspaceUnavailable;
         }

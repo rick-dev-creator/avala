@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.WorktreeLimitView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IWorktreeLimitViewModel">
+  <Design.DataContext>
+    <settings:DesignWorktreeLimitViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox">
+      <Setter Property="MinWidth" Value="200" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel Margin="16,12">
+    <ComboBox x:Name="Choices"
+              DockPanel.Dock="Right"
+              VerticalAlignment="Center"
+              Margin="12,0,0,0"
+              ItemsSource="{Binding Choices}"
+              SelectedItem="{Binding Choice, Converter={x:Static states:Kept.Selection}}"
+              AutomationProperties.Name="{Binding Title}" />
+    <StackPanel Spacing="2" VerticalAlignment="Center">
+      <TextBlock x:Name="Title" Text="{Binding Title}" />
+      <TextBlock x:Name="Explanation" Classes="caption" Text="{Binding Explanation}" TextWrapping="Wrap" />
+    </StackPanel>
+  </DockPanel>
+</UserControl>

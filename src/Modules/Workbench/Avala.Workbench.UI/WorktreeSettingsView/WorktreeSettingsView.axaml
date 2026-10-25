@@ -37,6 +37,18 @@
       </Border>
     </StackPanel>
     <StackPanel Spacing="8">
+      <TextBlock Classes="section" Text="Limits" />
+      <Border Classes="grouped">
+        <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Border>
+    </StackPanel>
+    <StackPanel Spacing="8">
       <DockPanel Margin="4,0">
         <Button x:Name="Save"
                 DockPanel.Dock="Right"

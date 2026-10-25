@@ -51,6 +51,9 @@ public enum WorktreeMoment
     Undelivered,
     Discarded,
     Failed,
+    Idle,
+    Space,
+    Requested,
 }
 
 public sealed record WorktreePolicy(
@@ -65,6 +68,12 @@ public sealed record WorktreePolicy(
 
     public Option<TimeSpan> DeleteFailed { get; init; }
 
+    public Option<TimeSpan> Idle { get; init; }
+
+    public Option<long> SpaceBudget { get; init; }
+
+    public Option<double> DiskFloor { get; init; }
+
     public Option<TimeSpan> FreeAfter(WorktreeMoment moment) => moment switch
     {
         WorktreeMoment.Archived => Archived,
@@ -72,7 +81,9 @@ public sealed record WorktreePolicy(
         WorktreeMoment.PullRequest => PullRequest,
         WorktreeMoment.Undelivered => Undelivered,
         WorktreeMoment.Discarded => Discarded,
-        _ => Failed,
+        WorktreeMoment.Failed => Failed,
+        WorktreeMoment.Idle => Idle,
+        _ => Option<TimeSpan>.None,
     };
 }
 
@@ -107,7 +118,22 @@ public sealed record FolderUsage(string Path, long Bytes)
     public Option<JobId> Job { get; init; }
 }
 
-public sealed record ResourceSample(DateTimeOffset At, IReadOnlyList<TreeUsage> Trees, IReadOnlyList<FolderUsage> Worktrees, long DataFolderBytes);
+public sealed record ResourceSample(DateTimeOffset At, IReadOnlyList<TreeUsage> Trees, IReadOnlyList<FolderUsage> Worktrees, long DataFolderBytes)
+{
+    public Option<DiskSpace> Disk { get; init; }
+}
+
+public sealed record DiskSpace(long Available, long Total)
+{
+    public double FreeShare => Total <= 0 ? 1 : (double)Available / Total;
+}
+
+public sealed record WorktreeSpace(long Worktrees, Option<long> Budget, Option<DiskSpace> Disk, Option<double> Floor, DateTimeOffset At)
+{
+    public bool Within =>
+        Budget.Match(budget => Worktrees <= budget, () => true)
+        && Floor.Match(floor => Disk.Match(disk => disk.FreeShare >= floor, () => true), () => true);
+}
 
 public sealed record ResourceUsage(int Processes, long MemoryBytes, TimeSpan CpuTime, double CpuLoad, IReadOnlyList<int> Ports, long DiskBytes);
 
@@ -159,5 +185,7 @@ public sealed record PortConflictObserved(PortConflict Conflict) : IIntegrationE
 public sealed record WorktreeReclaimed(ReclaimedWorktree Reclaimed) : IIntegrationEvent;
 
 public sealed record WorktreeFreed(FreedWorktree Freed) : IIntegrationEvent;
+
+public sealed record WorktreeSpaceShort(WorktreeSpace Space) : IIntegrationEvent;
 
 public sealed record WorktreesReconciled(WorktreeReconciliation Found, bool Cleaned) : IIntegrationEvent;

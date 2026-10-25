@@ -131,6 +131,9 @@ public static class WorkspaceConformance
         Check((await services.Workspaces.FindAsync(prepared.Id, cancellationToken)).Match(found => found.Shelved, _ => false), problems, "a shelved workspace is not found as shelved");
         Check((await services.Workspaces.ReconcileAsync(cancellationToken)).Missing.All(missing => missing.Id != prepared.Id), problems, "a shelved workspace is reported missing");
 
+        var rules = await services.BaseFiles.ReadAsync(prepared.Path, Rules, cancellationToken);
+        Check(rules.Match(file => file.Content == Option<string>.Some("{ \"rules\": [] }\n") && file.Origin.EditedInWorktree, _ => false), problems, $"a shelved workspace's rule file does not keep its committed content and its edit: {Shown(rules)}");
+
         var diff = await services.Changes.DiffAsync(prepared.Id, cancellationToken);
         Check(diff.Match(found => found.Files.Any(file => file.Path == "kept.txt"), _ => false), problems, $"a shelved workspace's diff does not hold the changes it kept: {Shown(diff.Map(found => string.Join(", ", found.Files)))}");
         Check((await services.Shelf.DeliveredAsync(prepared.Id, cancellationToken)).Match(delivered => !delivered, _ => false), problems, "work kept after the merge is delivered");

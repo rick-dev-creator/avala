@@ -34,6 +34,8 @@ internal interface IGit
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken);
 
+    Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken);
+
     Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken);
 
     Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(string repository, CommitSha commit, string path, CancellationToken cancellationToken);

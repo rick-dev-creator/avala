@@ -199,7 +199,9 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken) =>
         await git.WorkspaceAt(worktree).Match<Task<Result<BaseFile, WorkspaceFailure>>>(
-            async found => await ReadAsync(Commit(found.Info.RulesCommit), found.Info.Path, path, cancellationToken),
+            async found => found.Info.Shelved
+                ? Read(Commit(found.Info.RulesCommit), path, Commit(found.Head).Files.Entry(path))
+                : await ReadAsync(Commit(found.Info.RulesCommit), found.Info.Path, path, cancellationToken),
             () => Task.FromResult<Result<BaseFile, WorkspaceFailure>>(WorkspaceFailure.UnknownWorkspace));
 
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken) =>
@@ -236,10 +238,12 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         return checkpoint;
     }
 
-    private static async Task<Result<BaseFile, WorkspaceFailure>> ReadAsync(GitCommit commit, string folder, string path, CancellationToken cancellationToken)
+    private static async Task<Result<BaseFile, WorkspaceFailure>> ReadAsync(GitCommit commit, string folder, string path, CancellationToken cancellationToken) =>
+        Read(commit, path, await FolderSnapshot.ReadEntryAsync(folder, path, cancellationToken));
+
+    private static Result<BaseFile, WorkspaceFailure> Read(GitCommit commit, string path, Option<byte[]> current)
     {
         var committed = commit.Files.Entry(path);
-        var current = await FolderSnapshot.ReadEntryAsync(folder, path, cancellationToken);
 
         return new BaseFile(path, new FileOrigin(commit.Id, !FolderSnapshot.Same(committed, current)), committed.Map(Encoding.UTF8.GetString));
     }

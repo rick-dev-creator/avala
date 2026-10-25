@@ -150,6 +150,9 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
                 .MapAsync(_ => location),
             cancellationToken);
 
+    public Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ResolveCommitAsync(repository, GitRefs.ShelvedOf(workspace), cancellationToken);
+
     public async Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest("git", ["-C", repository, "merge-base", "--is-ancestor", commit.Value, reference]), cancellationToken))
             .Match(outcome => outcome.Succeeded, _ => false);

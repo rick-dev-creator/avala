@@ -139,6 +139,9 @@ internal sealed class FakeGit : IGit
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken) =>
         Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);
 
+    public Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<CommitSha, WorkspaceFailure>>(Head);
+
     public Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
         Task.FromResult(false);
 

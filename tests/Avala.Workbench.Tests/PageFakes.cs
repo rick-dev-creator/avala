@@ -350,7 +350,7 @@ internal sealed class FakeResources : IResources
         TimeSpan.FromSeconds(60),
         OrphanPolicy.Report,
         new PortRange(24000, 24999, 10),
-        new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30) },
+        new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30), Idle = TimeSpan.FromDays(3), SpaceBudget = 20L << 30, DiskFloor = 0.1 },
         ReconcilePolicy.Report);
 
     public List<PortLease> Leased { get; } = [];
@@ -417,6 +417,10 @@ internal sealed class FakeHousekeeping : IWorktreeHousekeeping
     public IReadOnlyList<ReclaimedWorktree> Reclaimed() => [];
 
     public IReadOnlyList<FreedWorktree> Freed() => [];
+
+    public Option<WorktreeSpace> Shortage() => Option<WorktreeSpace>.None;
+
+    public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<FreedWorktree>>([]);
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {
