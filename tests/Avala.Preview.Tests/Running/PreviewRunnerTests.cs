@@ -142,4 +142,24 @@ public sealed class PreviewRunnerTests
         Assert.Equal([bench.Job], bench.Pages.Stopped);
         Assert.Empty(bench.Trees.Opened);
     }
+
+    [Fact]
+    public async Task AFileOfTheWorktreeIsServedOnTheJobsFilesGatewayAsync()
+    {
+        await using var bench = new RunBench(Option<Launch>.None, RunBench.Leased);
+
+        var address = Outcomes.Succeeds(await bench.Previews.ServeFileAsync(bench.Job, Path.Combine(bench.Worktree.Path, "models", "robot.glb"), Cancellation));
+
+        Assert.Equal(new Uri("http://127.0.0.1:24010/models/robot.glb"), address);
+    }
+
+    [Fact]
+    public async Task AFileOutsideTheWorktreeIsRefusedAsync()
+    {
+        await using var bench = new RunBench(Option<Launch>.None, RunBench.Leased);
+
+        var refused = await bench.Previews.ServeFileAsync(bench.Job, Path.Combine(bench.Worktree.Path, "..", "elsewhere.glb"), Cancellation);
+
+        Assert.Equal(PreviewError.Outside, Outcomes.FailsWith(refused));
+    }
 }

@@ -16,4 +16,6 @@ public interface IPreviews
     ValueTask<Result<PreviewRun, PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken);
 
     ValueTask<Result<PreviewRun, PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken);
+
+    ValueTask<Result<Uri, PreviewError>> ServeFileAsync(JobId job, string path, CancellationToken cancellationToken);
 }

@@ -178,6 +178,8 @@ internal sealed class FakeSitePreviews : Preview.Contracts.IPreviews
 
     public ValueTask<Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 
+    public ValueTask<Result<Uri, Preview.Contracts.PreviewError>> ServeFileAsync(JobId job, string path, CancellationToken cancellationToken) => throw new NotSupportedException();
+
     public ValueTask<Result<Preview.Contracts.PreviewRun, Preview.Contracts.PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken)
     {
         Served.Add((job, config));

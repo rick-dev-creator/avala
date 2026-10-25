@@ -9,7 +9,7 @@ public sealed class FilePreviewTests(HeadlessUi ui, PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AWrittenSvgIsDrawnInItsPreviewAndAWrittenPageOpensFromTheWorktreeInTheBrowserAsync()
+    public async Task AWrittenSvgIsDrawnInItsPreviewAndAWrittenPageOpensFromTheWorktreeBesideTheConversationAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "previews");
         var workbench = await run.WorkbenchAsync();
@@ -39,7 +39,10 @@ public sealed class FilePreviewTests(HeadlessUi ui, PublishedPlugins plugins)
 
         Assert.Equal((true, true, await File.ReadAllTextAsync(Path.Combine(run.Worktree, "orbits.svg"), Cancellation), false), shown);
         Assert.True(drawn);
-        Assert.Equal([new Uri(Path.Combine(run.Worktree, "sistema-solar.html"))], run.Links.Opened);
+        await workbench.ShowsAsync(() => run.Surfaces.Opened.Count == 1 && run.Surfaces.Opened[0].Visited.Count == 1);
+        var visited = run.Surfaces.Opened[0].Visited[0];
+        Assert.Equal(("127.0.0.1", "/sistema-solar.html", "?v=1"), (visited.Host, visited.AbsolutePath, visited.Query));
+        Assert.Empty(run.Links.Opened);
     }
 
     private static List<Bound> Previewing(Bound conversation) =>

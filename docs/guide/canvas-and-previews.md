@@ -10,6 +10,7 @@ Agents draw diagrams, charts and notes on a canvas in the conversation, and a pa
   - **Mermaid**, for flowcharts and sequence, state, class and entity-relationship diagrams.
 - **SVG is sanitized.** Scripts, embedded pages, event handlers and external references are removed, and a note under the drawing says how many were blocked. Images embedded as `data:` PNG, JPEG, GIF or WebP stay.
 - **The preview** shows a page the job serves beside its conversation. A server a job starts opens the pane by itself, once; a link in a reply to that server opens in the pane too.
+- **A page or a 3D model the agent writes** shows as a card on its line in the conversation. Choosing the card shows it in the preview beside the conversation, and choosing it again reloads it, so you see the latest version. A 3D model, `.glb`, `.gltf`, `.stl` or `.obj`, opens in Avala's own viewer: drag to orbit, scroll to zoom, right-drag to pan, and **Fit**, **Wireframe** and **Grid** in its bar.
 - **Previews are confined.** Every page goes through a loopback gateway of the job's own, which keeps other sites out until you allow the network, and a link that leaves the job's pages is offered to your browser instead.
 
 ## How to use it
@@ -30,6 +31,7 @@ Agents draw diagrams, charts and notes on a canvas in the conversation, and a pa
 
 ## Good to know
 
+- The 3D viewer draws only when something moves, so a still model costs nothing while you look at it; an animated glTF plays its animations. The viewer comes with Avala and loads nothing from the internet.
 - Nothing on a canvas responds to input, and CSS animations and scripts do not run. Anything interactive, such as an app or a three.js scene, belongs in a page the agent serves for the preview.
 - A canvas in any other format shows its source. A Mermaid diagram that cannot be drawn shows its source with a note.
 - Allow network lasts for that job until Avala restarts.

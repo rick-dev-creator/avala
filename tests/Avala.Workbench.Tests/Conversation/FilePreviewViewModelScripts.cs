@@ -1,8 +1,10 @@
 using System.Text;
 using Avala.Agents.Contracts.Events;
+using Avala.Preview.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Timeline;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Conversation;
 
@@ -16,8 +18,10 @@ public sealed class FilePreviewViewModelScripts
     [InlineData("sky.webp", true)]
     [InlineData("orbits.svg", true)]
     [InlineData("sistema-solar.htm", true)]
+    [InlineData("models/robot.glb", true)]
+    [InlineData("parts/bracket.STL", true)]
     [InlineData("src/money.ts", false)]
-    public void OnlyAWrittenImageSvgOrPageOffersAPreview(string path, bool previews) =>
+    public void OnlyAWrittenImageSvgPageOrModelOffersAPreview(string path, bool previews) =>
         Assert.Equal(previews, new Worktree().Tool(Written(path)).ShowsPreview);
 
     [Fact]
@@ -103,7 +107,7 @@ public sealed class FilePreviewViewModelScripts
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task APageOpensInTheBrowserFromTheWorktreeOrOnceItIsGoneFromTheRepositoryAsync(bool gone)
+    public async Task APageNoPaneShowsOpensInTheBrowserFromTheWorktreeOrOnceItIsGoneFromTheRepositoryAsync(bool gone)
     {
         var worktree = new Worktree { Gone = gone };
         worktree.Files.Stored[Path.Combine(Worktree.Folder, "sistema-solar.html")] = [60];
@@ -113,7 +117,43 @@ public sealed class FilePreviewViewModelScripts
         await tool.Preview.OpenCommand.ExecuteAsync(null);
 
         Assert.Equal([new Uri(Path.Combine(gone ? Worktree.Repository : Worktree.Folder, "sistema-solar.html"))], worktree.Opener.Opened);
-        Assert.Equal((false, string.Empty, "Open in your browser"), (tool.Preview.IsOpen, tool.Preview.Notice, tool.Preview.Hint));
+        Assert.Equal((false, string.Empty, "Show in the preview"), (tool.Preview.IsOpen, tool.Preview.Notice, tool.Preview.Hint));
+    }
+
+    [Theory]
+    [InlineData("sistema-solar.html", "Page")]
+    [InlineData("models/robot.glb", "3D model")]
+    public async Task APageOrAModelOpensInItsJobsPreviewBesideTheConversationAsync(string path, string caption)
+    {
+        var worktree = new Worktree();
+        var file = Path.Combine(Worktree.Folder, path);
+        worktree.Files.Stored[file] = [60];
+        var asked = new List<WorktreeFileRequested>();
+        worktree.Messenger.Register<List<WorktreeFileRequested>, WorktreeFileRequested>(asked, (list, message) =>
+        {
+            message.Show();
+            list.Add(message);
+        });
+        var tool = worktree.Tool(Written(path));
+
+        await tool.Preview.OpenCommand.ExecuteAsync(null);
+
+        Assert.Equal([(worktree.Job, file)], asked.Select(message => (message.Job, message.Path)));
+        Assert.Equal((true, caption, string.Empty), (tool.Preview.IsArtifact, tool.Preview.Caption, tool.Preview.Notice));
+        Assert.Empty(worktree.Opener.Opened);
+    }
+
+    [Fact]
+    public async Task AModelNoPaneShowsAsksToOpenItsJobInsteadOfTheBrowserAsync()
+    {
+        var worktree = new Worktree();
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "robot.glb")] = [60];
+        var tool = worktree.Tool(Written("robot.glb"));
+
+        await tool.Preview.OpenCommand.ExecuteAsync(null);
+
+        Assert.Equal("Open this job's conversation to see robot.glb.", tool.Preview.Notice);
+        Assert.Empty(worktree.Opener.Opened);
     }
 
     [Fact]

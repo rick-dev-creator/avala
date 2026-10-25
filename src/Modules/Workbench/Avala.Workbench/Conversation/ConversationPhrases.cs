@@ -46,6 +46,14 @@ internal static class ConversationPhrases
 
     public const string OpenInBrowser = "Open in your browser";
 
+    public const string ShowInPreview = "Show in the preview";
+
+    public const string PageKind = "Page";
+
+    public const string ModelKind = "3D model";
+
+    public static string OpenTheJob(string name) => $"Open this job's conversation to see {name}.";
+
     public static string Missing(string name) => $"{name} is no longer in the workspace or the repository.";
 
     public static string MoreLines(int count) => count == 1 ? "… 1 more line" : $"… {count.ToString(System.Globalization.CultureInfo.InvariantCulture)} more lines";

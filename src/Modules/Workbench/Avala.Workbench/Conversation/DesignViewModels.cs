@@ -341,6 +341,10 @@ internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel
 
     public string Hint => ConversationPhrases.Preview;
 
+    public bool IsArtifact => false;
+
+    public string Caption => ConversationPhrases.PageKind;
+
     public bool IsOpen => false;
 
     public bool HasThumbnail => true;

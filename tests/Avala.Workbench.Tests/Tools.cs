@@ -52,6 +52,8 @@ internal sealed class Worktree
 
     public FakePictures Pictures { get; } = new();
 
+    public IMessenger Messenger { get; } = new StrongReferenceMessenger();
+
     public bool Gone { get; init; }
 
     public bool Freed { get; init; }
@@ -87,7 +89,7 @@ internal sealed class Worktree
 
     public FileViewing Viewing(WorkedFiles worked)
     {
-        var links = new Links(Opener, new StrongReferenceMessenger());
+        var links = new Links(Opener, Messenger);
 
         return new(worked, links, Pictures, new ReplyTools(Tools.Code, new JobReferences(catalog, Remotes, links)));
     }

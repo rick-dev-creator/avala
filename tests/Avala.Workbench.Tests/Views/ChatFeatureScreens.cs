@@ -216,6 +216,18 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             Assert.True(Save(view, $"13-image-preview-sheet-{variant}"));
         });
 
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AWrittenModelShowsACardThatOpensItInThePreviewAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var files = new FakeWorkingFiles { Stored = { ["/repo/models/robot.glb"] = [60] } };
+            var view = Show(Conversation(Modeled(), JobStatus.NeedsHelp, new FakeChanges(), files), variant);
+            var card = view.All<Button>().Single(button => button.Name == "Artifact" && button.IsEffectivelyVisible);
+            Hover(view, card);
+            Assert.True(Save(view, $"14-model-card-{variant}"));
+        });
+
     internal static byte[] Orbits()
     {
         var bitmap = new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(720, 420));
@@ -328,6 +340,15 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             .Apply(new ItemStarted(session, turn, new ItemId("drawn"), ItemKind.Message, "Message"), Start.AddSeconds(32))
             .Apply(new ItemProgressed(session, turn, new ItemId("drawn"), "Drew **orbits.png**: the sun and the eight planets on their orbits, to scale by order."), Start.AddSeconds(33))
             .Apply(new ItemCompleted(session, turn, new ItemId("drawn"), ItemOutcome.Succeeded), Start.AddSeconds(34))
+            .Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Start.AddSeconds(35));
+
+    private Transcript Modeled() =>
+        Begun()
+            .Apply(new ItemStarted(session, turn, new ItemId("glb"), ItemKind.FileEdit, "Write models/robot.glb") { Input = "GLB" }, Start.AddSeconds(30))
+            .Apply(new ItemCompleted(session, turn, new ItemId("glb"), ItemOutcome.Succeeded), Start.AddSeconds(31))
+            .Apply(new ItemStarted(session, turn, new ItemId("modeled"), ItemKind.Message, "Message"), Start.AddSeconds(32))
+            .Apply(new ItemProgressed(session, turn, new ItemId("modeled"), "Modeled **models/robot.glb**: a body, a head and one wheel, 36 triangles, about two units wide."), Start.AddSeconds(33))
+            .Apply(new ItemCompleted(session, turn, new ItemId("modeled"), ItemOutcome.Succeeded), Start.AddSeconds(34))
             .Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Start.AddSeconds(35));
 
     private Transcript Begun() =>
