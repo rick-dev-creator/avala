@@ -20,8 +20,8 @@ public sealed class DeviceFrameViewScripts(HeadlessUi ui)
             view.Settle();
             var items = view.All<MenuItem>();
 
-            Assert.Equal(["Responsive", "iPhone SE", "iPhone 16", "iPhone 16 Pro Max", "Pixel 9", "Surface Duo", "iPad Air 11\""], items.Select(item => item.Header));
-            Assert.Equal([true, false, false, false, false, false, false], items.Select(item => item.IsChecked));
+            Assert.Equal(["Responsive", "iPhone SE", "iPhone 16", "iPhone 16 Pro Max", "Pixel 9", "iPhone Duo", "iPhone Duo (closed)", "iPad Air 11\""], items.Select(item => item.Header));
+            Assert.Equal([true, false, false, false, false, false, false, false], items.Select(item => item.IsChecked));
         }, Cancellation);
 
     [Fact]

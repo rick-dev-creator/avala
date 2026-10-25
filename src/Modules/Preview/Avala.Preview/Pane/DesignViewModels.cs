@@ -102,7 +102,7 @@ internal sealed class DesignDeviceFrameViewModel : IDeviceFrameViewModel
 
     public bool IsClassic => false;
 
-    public bool IsDual => false;
+    public bool IsFold => false;
 
     public bool IsTablet => false;
 

@@ -33,7 +33,7 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
 {
     private static readonly string[] IconButtons = ["Back", "Reload", "Device", "Turn", "Depth", "Network", "OpenInBrowser", "Close"];
 
-    private static readonly string[] DeviceParts = ["Island", "Lens", "Speaker", "Home", "Hinge", "Power", "VolumeUp"];
+    private static readonly string[] DeviceParts = ["Island", "Lens", "Speaker", "Home", "Crease", "Power", "VolumeUp"];
 
     private readonly PaneBench bench = new();
 
@@ -95,18 +95,19 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
         }, Cancellation);
 
     [Fact]
-    public Task AChosenDeviceShowsThePageAtItsWidthAndNoTallerThanItAsync() =>
+    public Task ATurnedDeviceKeepsItsShapeAndShrinksToFitThePaneAsync() =>
         ui.RunAsync(() =>
         {
             var pane = Opened();
             var view = Screen.Show(pane);
 
             pane.Frame.Choices.Single(choice => choice.Name == "iPhone 16").Choose.Execute(null);
+            pane.Frame.TurnCommand.Execute(null);
             view.Settle();
-            var page = view.Find("Page");
+            var device = view.Find("Body").Bounds;
 
-            Assert.Equal(393, page.Bounds.Width);
-            Assert.True(page.Bounds.Height <= 852);
+            Assert.InRange(device.Width / device.Height, (876d / 417d) - 0.02, (876d / 417d) + 0.02);
+            Assert.InRange(device.Width, 1, 876);
         }, Cancellation);
 
     [Theory]
@@ -114,7 +115,7 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
     [InlineData("iPhone SE", "Speaker Home Power VolumeUp")]
     [InlineData("iPhone 16", "Island Power VolumeUp")]
     [InlineData("Pixel 9", "Lens Power VolumeUp")]
-    [InlineData("Surface Duo", "Hinge")]
+    [InlineData("iPhone Duo", "Crease")]
     [InlineData("iPad Air 11\"", "Lens")]
     public Task EachDeviceIsDrawnWithItsOwnPartsAsync(string name, string parts) =>
         ui.RunAsync(() =>

@@ -18,9 +18,9 @@ public sealed class DeviceFrameViewModelScripts
     }
 
     [Fact]
-    public void TheMenuOffersSixDevicesAfterResponsive() =>
+    public void TheMenuOffersSevenDevicesAfterResponsive() =>
         Assert.Equal(
-            ["Responsive", "iPhone SE", "iPhone 16", "iPhone 16 Pro Max", "Pixel 9", "Surface Duo", "iPad Air 11\""],
+            ["Responsive", "iPhone SE", "iPhone 16", "iPhone 16 Pro Max", "Pixel 9", "iPhone Duo", "iPhone Duo (closed)", "iPad Air 11\""],
             new DeviceFrameViewModel().Choices.Select(choice => choice.Name));
 
     [Fact]
@@ -38,7 +38,8 @@ public sealed class DeviceFrameViewModelScripts
     [InlineData("iPhone SE", 24, 140, "classic")]
     [InlineData("iPhone 16", 24, 24, "island")]
     [InlineData("Pixel 9", 20, 20, "punch")]
-    [InlineData("Surface Duo", 28, 80, "dual")]
+    [InlineData("iPhone Duo", 28, 28, "fold")]
+    [InlineData("iPhone Duo (closed)", 24, 24, "punch")]
     [InlineData("iPad Air 11\"", 40, 40, "tablet")]
     public void ADeviceIsFramedByTheBezelsOfItsShape(string name, double across, double along, string shape)
     {
@@ -96,19 +97,30 @@ public sealed class DeviceFrameViewModelScripts
 
         Assert.Equal((true, false, double.PositiveInfinity), (frame.ShowsDepth, frame.IsFlat, frame.OuterWidth));
         Assert.Equal(string.Empty, Shape(frame));
-        Assert.Equal(Option<DeviceView>.Some(new DeviceView("iphone-16-pro-max", 440, 956, false)), frame.Depth);
+        Assert.Equal(Option<DeviceView>.Some(new DeviceView("iphone-16-pro-max", 440, 956, false, true)), frame.View);
     }
 
     [Fact]
     public void ATurnedDeviceInThreeDimensionsNamesItsTurnedSize()
     {
         var frame = new DeviceFrameViewModel();
-        Choose(frame, "Surface Duo");
+        Choose(frame, "iPhone Duo");
         frame.ToggleDepthCommand.Execute(null);
 
         frame.TurnCommand.Execute(null);
 
-        Assert.Equal(Option<DeviceView>.Some(new DeviceView("surface-duo", 720, 1114, true)), frame.Depth);
+        Assert.Equal(Option<DeviceView>.Some(new DeviceView("iphone-duo", 548, 772, true, true)), frame.View);
+    }
+
+    [Fact]
+    public void AFlatDeviceNamesItsTurnedSizeForTheScreen()
+    {
+        var frame = new DeviceFrameViewModel();
+        Choose(frame, "iPhone 16");
+
+        frame.TurnCommand.Execute(null);
+
+        Assert.Equal(Option<DeviceView>.Some(new DeviceView("iphone-16", 852, 393, true, false)), frame.View);
     }
 
     [Fact]
@@ -139,7 +151,7 @@ public sealed class DeviceFrameViewModelScripts
     }
 
     private static string Shape(DeviceFrameViewModel frame) =>
-        frame.IsIsland ? "island" : frame.IsPunch ? "punch" : frame.IsClassic ? "classic" : frame.IsDual ? "dual" : frame.IsTablet ? "tablet" : string.Empty;
+        frame.IsIsland ? "island" : frame.IsPunch ? "punch" : frame.IsClassic ? "classic" : frame.IsFold ? "fold" : frame.IsTablet ? "tablet" : string.Empty;
 
     private static void Choose(DeviceFrameViewModel frame, string name) =>
         frame.Choices.Single(choice => choice.Name == name).Choose.Execute(null);

@@ -73,6 +73,7 @@ public sealed class PageServerTests
     [InlineData("__avala/viewer/three/three.module.js", "text/javascript")]
     [InlineData("__avala/viewer/three/addons/loaders/GLTFLoader.js", "text/javascript")]
     [InlineData("__avala/viewer/device.html", "text/html")]
+    [InlineData("__avala/viewer/models/iphone-duo.glb", "model/gltf-binary")]
     [InlineData("__avala/viewer/three/addons/renderers/CSS3DRenderer.js", "text/javascript")]
     public async Task TheModelViewerIsServedFromAvalaItselfAsync(string path, string type)
     {

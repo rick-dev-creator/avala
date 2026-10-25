@@ -72,10 +72,10 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
             pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone SE").Execute("Choose");
 
         void Dual(Avalonia.Controls.Window window) =>
-            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "Surface Duo").Execute("Choose");
+            pane["Frame"]["Choices"].Items.Single(choice => choice["Name"].Text == "iPhone Duo").Execute("Choose");
 
         await Camera.ShootAsync(run, "96-preview-device-iphone-se-light", ThemeVariant.Light, Open, Classic);
-        await Camera.ShootAsync(run, "97-preview-device-surface-duo-dark", Open, Dual);
+        await Camera.ShootAsync(run, "97-preview-device-iphone-duo-dark", Open, Dual);
 
         Assert.True(await run.Ui.ReadAsync(() => pane["HasRefusal"].Value<bool>()));
         await run.Ui.InvokeAsync(run.Get<ShellViewModel>().Deactivate, TestContext.Current.CancellationToken);

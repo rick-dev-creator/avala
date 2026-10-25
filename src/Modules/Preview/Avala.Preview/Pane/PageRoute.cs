@@ -33,7 +33,7 @@ internal sealed class PageRoute(PreviewDesk desk, DeviceFrameViewModel frame)
         inner = address;
         wrapped = false;
         var asked = ++wraps;
-        var around = PreviewDesk.IsViewer(address) ? Option<DeviceView>.None : frame.Depth;
+        var around = PreviewDesk.IsViewer(address) ? Option<DeviceView>.None : frame.View;
 
         if (around.IsNone)
         {

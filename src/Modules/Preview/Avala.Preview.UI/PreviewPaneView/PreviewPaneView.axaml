@@ -51,11 +51,11 @@
     <Style Selector="Panel#Device.classic Border#Body">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceClassic}" />
     </Style>
-    <Style Selector="Panel#Device.dual Border#Body">
-      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceDual}" />
+    <Style Selector="Panel#Device.fold Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceFold}" />
     </Style>
-    <Style Selector="Panel#Device.dual Border#Screen">
-      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceDualScreen}" />
+    <Style Selector="Panel#Device.fold Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceFoldScreen}" />
     </Style>
     <Style Selector="Panel#Device.tablet Border#Body">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTablet}" />
@@ -147,18 +147,15 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="0,0,12,0" />
     </Style>
-    <Style Selector="Panel#Device.dual Border#Hinge">
+    <Style Selector="Panel#Device.fold Border#Crease">
       <Setter Property="IsVisible" Value="True" />
-      <Setter Property="Width" Value="34" />
-      <Setter Property="Background" Value="{DynamicResource DeviceBodyBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource DeviceRimBrush}" />
-      <Setter Property="BorderThickness" Value="1,0" />
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource DeviceCreaseBrush}" />
       <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
-    <Style Selector="Panel#Device.dual.turned Border#Hinge">
+    <Style Selector="Panel#Device.fold.turned Border#Crease">
       <Setter Property="Width" Value="NaN" />
-      <Setter Property="Height" Value="34" />
-      <Setter Property="BorderThickness" Value="0,1" />
+      <Setter Property="Height" Value="1" />
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
@@ -261,29 +258,28 @@
       </Grid>
     </Border>
     <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFlat}">
-      <Panel x:Name="Device"
-             IsVisible="{Binding IsEmbedded}"
-             MaxWidth="{Binding Frame.OuterWidth}"
-             MaxHeight="{Binding Frame.OuterHeight}"
-             Classes.island="{Binding Frame.IsIsland}"
-             Classes.punch="{Binding Frame.IsPunch}"
-             Classes.classic="{Binding Frame.IsClassic}"
-             Classes.dual="{Binding Frame.IsDual}"
-             Classes.tablet="{Binding Frame.IsTablet}"
-             Classes.turned="{Binding Frame.IsTurned}">
-        <Border x:Name="Body" />
-        <Border x:Name="Screen" Margin="{Binding Frame.Insets, Converter={x:Static ui:DeviceInsetsConverter.Margin}}">
-          <ContentControl x:Name="Page" Content="{Binding Surface}" />
-        </Border>
-        <Border x:Name="Island" Classes="part" />
-        <Border x:Name="Lens" Classes="part" />
-        <Border x:Name="Speaker" Classes="part" />
-        <Border x:Name="Home" Classes="part" />
-        <Border x:Name="Hinge" Classes="part" />
-        <Border x:Name="Power" Classes="part button" />
-        <Border x:Name="VolumeUp" Classes="part button" />
-        <Border x:Name="VolumeDown" Classes="part button" />
-      </Panel>
+      <ui:DeviceBox OuterWidth="{Binding Frame.OuterWidth}" OuterHeight="{Binding Frame.OuterHeight}" IsVisible="{Binding IsEmbedded}">
+        <Panel x:Name="Device"
+               Classes.island="{Binding Frame.IsIsland}"
+               Classes.punch="{Binding Frame.IsPunch}"
+               Classes.classic="{Binding Frame.IsClassic}"
+               Classes.fold="{Binding Frame.IsFold}"
+               Classes.tablet="{Binding Frame.IsTablet}"
+               Classes.turned="{Binding Frame.IsTurned}">
+          <Border x:Name="Body" />
+          <Border x:Name="Screen" Margin="{Binding Frame.Insets, Converter={x:Static ui:DeviceInsetsConverter.Margin}}">
+            <ContentControl x:Name="Page" Content="{Binding Surface}" />
+          </Border>
+          <Border x:Name="Island" Classes="part" />
+          <Border x:Name="Lens" Classes="part" />
+          <Border x:Name="Speaker" Classes="part" />
+          <Border x:Name="Home" Classes="part" />
+          <Border x:Name="Crease" Classes="part" />
+          <Border x:Name="Power" Classes="part button" />
+          <Border x:Name="VolumeUp" Classes="part button" />
+          <Border x:Name="VolumeDown" Classes="part button" />
+        </Panel>
+      </ui:DeviceBox>
       <StackPanel x:Name="Notice"
                   IsVisible="{Binding !IsEmbedded}"
                   MaxWidth="320"

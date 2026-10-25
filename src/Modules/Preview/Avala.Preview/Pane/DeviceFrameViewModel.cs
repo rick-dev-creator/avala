@@ -29,7 +29,7 @@ internal interface IDeviceFrameViewModel
 
     bool IsClassic { get; }
 
-    bool IsDual { get; }
+    bool IsFold { get; }
 
     bool IsTablet { get; }
 
@@ -63,8 +63,7 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
 
     public bool IsFlat => Flat.IsSome;
 
-    public Option<DeviceView> Depth =>
-        ShowsDepth ? Shown.Map(device => new DeviceView(device.Model, device.Width, device.Height, turned)) : Option<DeviceView>.None;
+    public Option<DeviceView> View => Shown.Map(device => new DeviceView(device.Model, device.Width, device.Height, turned, depth));
 
     public double FrameWidth => Flat.Match(device => (double)device.Width, () => double.PositiveInfinity);
 
@@ -82,7 +81,7 @@ internal sealed partial class DeviceFrameViewModel : IDeviceFrameViewModel
 
     public bool IsClassic => Is(DeviceShape.Classic);
 
-    public bool IsDual => Is(DeviceShape.Dual);
+    public bool IsFold => Is(DeviceShape.Fold);
 
     public bool IsTablet => Is(DeviceShape.Tablet);
 

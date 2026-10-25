@@ -7,7 +7,7 @@ internal enum DeviceShape
     Island,
     Punch,
     Classic,
-    Dual,
+    Fold,
     Tablet,
 }
 
@@ -28,7 +28,8 @@ internal sealed record Device(string Name, string Model, DeviceShape Shape, int 
         new("iPhone 16", "iphone-16", DeviceShape.Island, 393, 852, DeviceInsets.Even(12)),
         new("iPhone 16 Pro Max", "iphone-16-pro-max", DeviceShape.Island, 440, 956, DeviceInsets.Even(11)),
         new("Pixel 9", "pixel-9", DeviceShape.Punch, 412, 915, DeviceInsets.Even(10)),
-        new("Surface Duo", "surface-duo", DeviceShape.Dual, 1114, 720, new DeviceInsets(14, 40, 14, 40)),
+        new("iPhone Duo", "iphone-duo", DeviceShape.Fold, 772, 548, DeviceInsets.Even(14)),
+        new("iPhone Duo (closed)", "iphone-duo-closed", DeviceShape.Punch, 380, 548, DeviceInsets.Even(12)),
         new("iPad Air 11\"", "ipad-air-11", DeviceShape.Tablet, 820, 1180, DeviceInsets.Even(20)),
     ];
 
