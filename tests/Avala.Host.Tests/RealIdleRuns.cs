@@ -20,6 +20,10 @@ public sealed class RealIdleRuns(PublishedPlugins plugins)
         ? folder
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude-work");
 
+    private static string Output => Environment.GetEnvironmentVariable("AVALA_REAL_CLAUDE_OUT") is { Length: > 0 } folder
+        ? folder
+        : Path.Combine(Path.GetTempPath(), "avala-real-idle");
+
     private static bool Wanted => Environment.GetEnvironmentVariable(Gate) == "1" && Environment.GetEnvironmentVariable("AVALA_REAL_CLAUDE") == "1";
 
     [Fact]
@@ -46,10 +50,12 @@ public sealed class RealIdleRuns(PublishedPlugins plugins)
         await using var run = await SimulatedRun.PreparedAsync(plugins, [("connections.json", Connections)], [], harnesses: true);
         Directory.CreateDirectory(Path.Combine(run.Repository.Path, ".avala"));
         await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, ".avala", "permissions.json"), """{ "autonomy": "autonomous" }""", Cancellation);
+        Directory.CreateDirectory(Path.Combine(run.Repository.Path, ".claude"));
+        await File.WriteAllTextAsync(Path.Combine(run.Repository.Path, ".claude", "settings.json"), """{ "env": { "BASH_MAX_TIMEOUT_MS": "10800000" } }""", Cancellation);
         await run.Repository.GitAsync(Cancellation, "add", "--all");
         await run.Repository.GitAsync(Cancellation, "commit", "--quiet", "-m", "Run autonomously");
         using var pace = Paced(run);
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "Run the shell command `sleep 9137` with your Bash tool's run_in_background option, then end your turn at once without waiting for it and without checking on it.")));
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "Run the shell command `sleep 9137` with your Bash tool's run_in_background option and a timeout of 10800000, then end your turn at once without waiting for it and without checking on it.")));
 
         var held = await UntilAsync(TimeSpan.FromMinutes(150), async () =>
         {
@@ -113,7 +119,7 @@ public sealed class RealIdleRuns(PublishedPlugins plugins)
             ["name"] = "claude",
             ["provider"] = "claude-code",
             ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Login },
-            ["settings"] = new JsonObject { ["model"] = "haiku" },
+            ["settings"] = new JsonObject { ["model"] = "haiku", ["transcripts"] = Path.Combine(Output, "raw") },
         }),
     }.ToJsonString();
 }

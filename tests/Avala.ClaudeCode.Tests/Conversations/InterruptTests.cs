@@ -107,6 +107,29 @@ public sealed class InterruptTests
         Assert.Equal(new TurnCompleted(talk.Session, woken.Turn, TurnOutcome.Interrupted), talk.Events.OfType<TurnCompleted>().SingleOrDefault());
     }
 
+    [Fact]
+    public void InterruptingATurnKeptLiveByABackgroundCommandAlsoStopsThatCommandSinceClaudeCodesInterruptLeavesItRunning()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(
+            Cli.Lifecycle(talk.Command, "queued"),
+            Cli.Lifecycle(talk.Command, "started"),
+            Cli.Init(),
+            Cli.ToolUse("t1", "Bash", """{ "command": "sleep 9137", "run_in_background": true }"""),
+            Cli.Parse("""{ "type": "system", "subtype": "task_started", "task_id": "b1", "tool_use_id": "t1", "description": "Sleep", "is_backgrounded": true, "task_type": "local_bash" }"""),
+            Cli.ToolResult("t1", "Command running in background with ID: b1."),
+            Cli.Said("m1", "text", "Started it in the background."),
+            Cli.Result(0.003m),
+            Cli.Lifecycle(talk.Command, "completed"));
+        talk.Drain();
+
+        talk.Take(talk.Conversation.Interrupt().Match(begun => begun.Reaction, _ => Reaction.None));
+
+        Assert.Equal(
+            [("interrupt", null), ("stop_task", "b1")],
+            talk.Sent.Select(sent => ((string?)sent["request"]?["subtype"], (string?)sent["request"]?["task_id"])).ToList());
+    }
+
     [Fact(Skip = "Third adversary round, recorded as open in the plan: no real recording shows Claude Code streaming after it acknowledges an interrupt, and holding woken turns until a result would block them for good when an idle Claude Code sends none")]
     public void WhatClaudeCodeStillStreamsOfAWokenTurnAfterAcknowledgingItsInterruptOpensNoNewTurn()
     {
