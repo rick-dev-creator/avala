@@ -53,6 +53,15 @@ public sealed class CapsViewModelScripts
         Assert.Equal([new SettingLine("No caps", "jobs run without a budget")], SettingsPhrases.Lines(new Budgets.Contracts.BudgetCaps([], Option<long>.None, Option<double>.None)));
 }
 
+public sealed class SettingsEntryViewModelScripts
+{
+    [Fact]
+    public void AnEntryNamesItsSectionAndIconAndIsMarkedWhenChosen() =>
+        ViewModelScript.Given(new SettingsEntryViewModel(SettingsSection.Notifications, "Notifications", "IconBell"))
+            .When(entry => entry.IsSelected = true)
+            .Then(entry => Assert.Equal((SettingsSection.Notifications, "Notifications", "IconBell", true), (entry.Section, entry.Title, entry.Icon, entry.IsSelected)));
+}
+
 public sealed class CheckViewModelScripts
 {
     [Fact]

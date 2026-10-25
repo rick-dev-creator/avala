@@ -12,7 +12,7 @@ Avala tells your phone when a job needs you while you are away from its window, 
 
 ## How to use it
 
-1. Open **Settings**, **Machine**, **Notifications** and choose **Set up**. Avala creates `notifications.json` with a private, random ntfy.sh topic.
+1. Open **Settings**, **Notifications** and choose **Set up**. Avala creates `notifications.json` with a private, random ntfy.sh topic.
 2. Install the ntfy app on your phone and subscribe to that topic.
 3. Choose **Send test**: "Avala test notification" should reach every device subscribed to the topic.
 4. Choose what to be told of under **Send when**, and **Minimal** or **Detailed** under **Detail**. "Exactly what is sent" shows the message for a decision.

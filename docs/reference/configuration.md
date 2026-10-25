@@ -11,7 +11,7 @@ Every setting Avala reads, where and with which default. Avala reads three kinds
 - **Machine settings**: small JSON files in the data folder, for this computer. Most are written by Settings; you can also edit them.
 - **Repository rules**: JSON files in a repository's `.avala` folder, committed with the code. A job reads them from the commit it started from, so an agent's edit to them never applies to its own job.
 
-A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repository rules shows the rules of every repository a job ran in, as read from each job's base commit.
+A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repositories shows the rules of every repository a job ran in, one tab per kind of rule, as read from each job's base commit.
 
 ## Environment variables
 
@@ -88,7 +88,7 @@ Your own harness connections, beside the ones found on their own: `~/.claude`, e
 | `readable.json` | `folders`: absolute or `~/` paths every job may read outside its worktree. Without the file, the projects folder; `[]` makes nothing readable; a malformed file makes nothing readable. |
 | `forges.json` | `pollSeconds`: 15 to 3600, 60 by default. `forges[]`: `name`, `forge` (`github`, `gitea` or `forgejo`), `url` and `credential`, whose `source` is `cli` or `env` with a variable's name as `reference`. |
 | `budgets.json` | `runningJobs`: how many jobs run at once, unlimited by default. `spendPerDay`: an amount per currency. `connections`: the same per connection. |
-| `limits.json` | The `limits` section below, for every repository that declares none; Settings, Machine, Usage limits edits it. |
+| `limits.json` | The `limits` section below, for every repository that declares none; Settings, Connections, Usage limits edits it. |
 | `autopilot.json` | The loop limits of the `autopilot` section below, for every repository; a repository can only tighten them. |
 | `supervision.json` | `silenceSeconds`: how long a silent job runs before it is held, above 0 and at most a day; 900 by default. |
 | `verification.json` | `discoverChecks`: `false` stops Avala from finding the checks of a repository that declares none; on by default. |

@@ -23,7 +23,7 @@ public sealed class AboutViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignAboutViewModel());
 
             Assert.Equal(("0.9.0-beta.1", "5c371e6a1b2d", "~/.local/share/Avala/logs"), (view.TextOf("Version"), view.TextOf("Commit"), view.TextOf("LogFolder")));
-            Assert.Superset(new HashSet<string>(["About", "Diagnostics", "Repository", "License (MIT)", "Open", "Updates", "Version 0.9.0 is available.", "Download", "Check now"]), view.VisibleTexts.ToHashSet());
+            Assert.Superset(new HashSet<string>(["This build", "Diagnostics", "Repository", "License (MIT)", "Open", "Updates", "Version 0.9.0 is available.", "Download", "Check now"]), view.VisibleTexts.ToHashSet());
             Assert.False(view.Shows("Note"));
         }, Cancellation);
 

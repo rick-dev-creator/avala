@@ -11,12 +11,19 @@ internal sealed class SettingsLink(SettingsViewModel settings, JobFocus focus)
 {
     public void Open() => focus.Show(settings);
 
+    public void OpenAccounts()
+    {
+        settings.Show(SettingsSection.Accounts);
+        Open();
+    }
+
     public async Task DeclareChecksAsync(string repository)
     {
         Open();
         await settings.Loading;
+        await settings.OpenRepositoryCommand.ExecuteAsync(repository);
         var rules = settings.Repository;
-        await rules.OpenCommand.ExecuteAsync(repository);
+        rules.ShowTabCommand.Execute(RepositoryTab.Checks);
 
         if (rules.Files.FirstOrDefault(file => file.Path == RuleFiles.Checks) is { } checks)
         {
@@ -26,7 +33,7 @@ internal sealed class SettingsLink(SettingsViewModel settings, JobFocus focus)
 
     public Task ConnectAsync()
     {
-        Open();
+        OpenAccounts();
 
         return settings.Machine.Accounts.SourceControl.ConnectCommand.ExecuteAsync(null);
     }
@@ -36,7 +43,7 @@ internal sealed class ReadinessLinks(Func<SettingsLink> settings) : IReadinessLi
 {
     public Task DeclareChecksAsync(string repository) => settings().DeclareChecksAsync(repository);
 
-    public void OpenSettings() => settings().Open();
+    public void OpenSettings() => settings().OpenAccounts();
 }
 
 internal sealed class WelcomeLinks(JobFocus focus, SettingsLink settings, NewJobViewModel newJob) : IWelcomeLinks
@@ -57,5 +64,5 @@ internal sealed class WelcomeLinks(JobFocus focus, SettingsLink settings, NewJob
 
     public Task ConnectAsync() => settings.ConnectAsync();
 
-    public void OpenSettings() => settings.Open();
+    public void OpenSettings() => settings.OpenAccounts();
 }

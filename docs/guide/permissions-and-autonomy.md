@@ -62,7 +62,7 @@ Every edit, command, question and plan an agent proposes goes through rules it c
 
 - `folders`: absolute paths, or paths starting with `~/`. Without the file, the projects folder is readable; `{ "folders": [] }` makes nothing outside the worktree readable. A malformed file makes nothing readable. A change applies to the next request.
 
-The `.avala/permissions.json` file is at most 64 KB, and an unknown or duplicate key rejects it. A rejected file leaves the built-in rules, at Supervised. **Settings**, **Repository rules** shows the rules of every repository a job ran in, read from each job's base commit.
+The `.avala/permissions.json` file is at most 64 KB, and an unknown or duplicate key rejects it. A rejected file leaves the built-in rules, at Supervised. **Settings**, **Repositories** lists every repository a job ran in, and a repository's **Permissions** tab shows its rules as read from each job's base commit.
 
 ## Good to know
 

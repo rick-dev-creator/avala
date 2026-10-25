@@ -89,7 +89,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         await run.Ui.InvokeAsync(() => review.Execute("OpenSettingsCommand"), Cancellation);
 
-        Assert.Equal("Settings", await run.Ui.ReadAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title));
+        Assert.Equal(("Settings", true), await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, run.Page("Settings")["ShowsAccounts"].Value<bool>())));
     }
 
     [Fact]
@@ -306,10 +306,12 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         await run.Ui.RunAsync(() => evidence.ExecuteAsync("DeclareChecksCommand"));
 
-        var settings = run.Page("Settings")["Repository"];
+        var page = run.Page("Settings");
+        var settings = page["Repository"];
         Assert.Equal(
             ("Settings", run.Repository.Path, true, ".avala/checks.json"),
             await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, settings["Shown"].Text, settings["Editor"]["IsOpen"].Value<bool>(), settings["Editor"]["Path"].Text)));
+        Assert.Equal((true, true), await run.Ui.ReadAsync(() => (page["ShowsRepository"].Value<bool>(), settings["ShowsChecks"].Value<bool>())));
     }
 
     private static Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run) => ReviewAsync(run, run.Job);

@@ -14,15 +14,15 @@ Caps on cost, tokens and memory hold a job before it overspends, and a job that 
 
 ## How to use it
 
-1. **Set a repository's caps** in `.avala/budget.json` and commit it; Settings, Repository rules shows them.
+1. **Set a repository's caps** in `.avala/budget.json` and commit it; Settings shows them on the repository's **Budget** tab.
 2. **Set the machine's limits** in `budgets.json` in the data folder.
 3. **Choose what happens at a limit** in the `limits` section of `.avala/jobs.json`, or for every repository in `limits.json` in the data folder.
 4. **Follow spending** on the **Usage** page: Connections, Jobs · cost against their cap, Interventions across jobs and Usage by day, for Today, 7 days or 30 days.
-5. **Choose it in Settings.** Settings, Machine, **Usage limits** sets what a job does near a connection's limit: **Near a connection's limit** (Hold the job, Hand off on the same harness, Hand off to any harness), **Prepare at**, **Continue by itself at the reset**, **Compact before continuing**, and, for a handoff, **Wind down first**, **Hard cap**, **Next connection** and **Connections in the relay**, in order. A sentence under it says what will happen; **Save** writes `limits.json` and applies it at once.
+5. **Choose it in Settings.** Settings, **Connections**, **Usage limits** sets what a job does near a connection's limit: **Near a connection's limit** (Hold the job, Hand off on the same harness, Hand off to any harness), **Prepare at**, **Continue by itself at the reset**, **Compact before continuing**, and, for a handoff, **Wind down first**, **Hard cap**, **Next connection** and **Connections in the relay**, in order. A sentence under it says what will happen; **Save** writes `limits.json` and applies it at once.
 6. **Watch the relay.** A job that has ever relayed, waited for a reset or wound down shows the relays glyph in its header; it opens the **Relays** pane beside the conversation. It draws one lane per connection, with what is left of its window, and the baton's route across them as it happens: each handoff, each wait for a reset, each cap. Under it, the journey lists every leg, where it ran, for how long and what ended it.
 7. **See what is left while you work.** A job's header shows what is left of the most used usage window on its connection, such as "28% usage left", and turns amber near the limit. Hover it for every window with its use and reset; click it to open Usage with that connection marked. A connection that reports no usage window, such as one with an API key, shows nothing there.
 8. **Continue a held job** with **Raise budget and continue** in its inspector, which adds one more original allowance above what it already spent, or move it with "Continue on" another connection from its harness chip.
-9. **Change the silence** after which a job is held in Settings, Machine, Supervision: "Hold a job after silence of … seconds".
+9. **Change the silence** after which a job is held in Settings, Supervision: "Hold a job after silence of … seconds".
 
 ## Settings and files
 
