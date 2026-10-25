@@ -502,6 +502,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentTreeViewModel, SubagentTreeView>();
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
+        views.Register<IRelaysPaneViewModel, RelaysPaneView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 
