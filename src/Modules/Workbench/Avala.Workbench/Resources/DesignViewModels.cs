@@ -203,6 +203,10 @@ internal sealed class DesignWorktreeRowViewModel : IWorktreeRowViewModel
     public string Detail { get; init; } = "82% build output";
 
     public string Amount { get; init; } = "1.9 GB";
+
+    public bool CanOpen { get; init; } = true;
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignWorktreeDayViewModel : IWorktreeDayViewModel

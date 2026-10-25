@@ -49,6 +49,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
                 .BindAsync(_ => Valid(found.Remove())))
             .BindAsync(async removed =>
             {
+                ForgetKept(removed.Workspace);
                 await store.RemoveAsync(removed.Workspace, cancellationToken);
 
                 return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
@@ -119,6 +120,23 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
     }
 
     private static WorkspaceInfo Describe(Workspace workspace) => workspace.Describe();
+
+    private void ForgetKept(WorkspaceId workspace)
+    {
+        var kept = Path.Combine(settings.Kept, $"{workspace.Value:N}");
+
+        try
+        {
+            if (Directory.Exists(kept))
+            {
+                Directory.Delete(kept, recursive: true);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+    }
 
     private static Result<T, WorkspaceFailure> Valid<T>(Result<T, WorkspaceError> result) =>
         result.MapError(_ => WorkspaceFailure.InvalidState);

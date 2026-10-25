@@ -15,7 +15,10 @@ internal sealed record WorktreeState(
     Option<WorktreeSpace> Shortage,
     IReadOnlyList<UpcomingWorktree> Upcoming,
     WorktreeReport Report,
-    DateTimeOffset Now);
+    DateTimeOffset Now)
+{
+    public IReadOnlyDictionary<Jobs.Contracts.JobId, BoardJob> Jobs { get; init; } = new Dictionary<Jobs.Contracts.JobId, BoardJob>();
+}
 
 internal sealed class WorktreeReader(IResources resources, IWorktreeHousekeeping housekeeping, IWorktreeHistory history, JobBoard board)
 {
@@ -26,6 +29,7 @@ internal sealed class WorktreeReader(IResources resources, IWorktreeHousekeeping
         var today = DateOnly.FromDateTime(now.ToLocalTime().DateTime);
         var sample = resources.Latest;
         var settings = await resources.SettingsAsync(cancellationToken);
+        var report = await history.ReportAsync(today.AddDays(1 - Days), cancellationToken);
 
         return new WorktreeState(
             sample.Match(found => found.Worktrees.Where(folder => folder.Bytes > 0).Select(folder => new WorktreeFolder(folder, folder.Job.Bind(board.Find))).ToList(), () => []),
@@ -33,8 +37,11 @@ internal sealed class WorktreeReader(IResources resources, IWorktreeHousekeeping
             settings.Worktrees,
             housekeeping.Shortage(),
             [.. housekeeping.Upcoming().Select(due => new UpcomingWorktree(due, board.Find(due.Job)))],
-            await history.ReportAsync(today.AddDays(1 - Days), cancellationToken),
-            now);
+            report,
+            now)
+        {
+            Jobs = report.History.Select(recorded => recorded.Job).Distinct().SelectMany(job => board.Find(job).Match<BoardJob[]>(found => [found], () => [])).ToDictionary(found => found.Job),
+        };
     }
 
     public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => housekeeping.FreeNowAsync(cancellationToken);

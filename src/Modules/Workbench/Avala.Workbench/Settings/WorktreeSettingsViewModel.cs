@@ -13,6 +13,8 @@ internal interface IWorktreeSettingsViewModel
 
     IReadOnlyList<IWorktreeLimitViewModel> Limits { get; }
 
+    bool CleansUnknown { get; set; }
+
     string File { get; }
 
     string Error { get; }
@@ -67,6 +69,9 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
     public IReadOnlyList<IWorktreeLimitViewModel> Limits => limits;
 
     [ObservableProperty]
+    public partial bool CleansUnknown { get; set; } = true;
+
+    [ObservableProperty]
     public partial string File { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -86,7 +91,7 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
     [RelayCommand(CanExecute = nameof(IsChanged))]
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        var changed = await resources.ChangeWorktreesAsync(Draft(), cancellationToken);
+        var changed = await resources.ChangeWorktreesAsync(Draft(), Reconcile(), cancellationToken);
         Error = changed.Match(_ => string.Empty, WorktreePhrases.Refused);
 
         if (changed.TryGetValue(out var settings, out _))
@@ -115,9 +120,10 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
         OnPropertyChanged(nameof(Moments));
         OnPropertyChanged(nameof(Deletions));
         OnPropertyChanged(nameof(Limits));
+        CleansUnknown = settings.Reconcile == ReconcilePolicy.Clean;
         File = WorktreePhrases.File(settings);
         showing = false;
-        saved = WorktreePhrases.Key(Draft());
+        saved = Key();
         Refresh();
     }
 
@@ -140,6 +146,12 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
             DiskFloor = limits[1].Value.Map(percent => percent / 100),
         };
 
+    partial void OnCleansUnknownChanged(bool value) => Refresh();
+
+    private ReconcilePolicy Reconcile() => CleansUnknown ? ReconcilePolicy.Clean : ReconcilePolicy.Report;
+
+    private string Key() => $"{WorktreePhrases.Key(Draft())},{Reconcile()}";
+
     private void Refresh()
     {
         if (showing || saved.Length == 0)
@@ -147,7 +159,7 @@ internal sealed partial class WorktreeSettingsViewModel(IResources resources, IU
             return;
         }
 
-        IsChanged = WorktreePhrases.Key(Draft()) != saved;
+        IsChanged = Key() != saved;
     }
 }
 

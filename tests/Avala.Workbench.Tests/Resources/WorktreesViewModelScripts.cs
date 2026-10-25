@@ -4,8 +4,11 @@ using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Following;
+using Avala.Workbench.Contracts.Presentation;
+using Avala.Workbench.Navigation;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Upkeep;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -19,6 +22,7 @@ public sealed class WorktreesViewModelScripts : IDisposable
     private readonly FakeHousekeeping housekeeping = new();
     private readonly FakeWorktreeHistory history = new();
     private readonly TestUiDispatcher ui = new();
+    private readonly IMessenger messenger = new StrongReferenceMessenger();
     private readonly JobSummary job = Pages.Summary("Add GitHub login", JobStatus.Approved);
 
     private static DateOnly Today => DateOnly.FromDateTime(Now.ToLocalTime().DateTime);
@@ -34,7 +38,7 @@ public sealed class WorktreesViewModelScripts : IDisposable
         await ui.PresentedAsync(page, () => page.Largest.Count == 2, () => $"{page.Largest.Count} largest");
 
         Assert.Equal(
-            ("3.5 GB in 2 worktrees", "of a 20 GB budget · 40% of the disk free, keeping 10%"),
+            ("3.5 GB in 2 worktrees: 1 finished, 1 other", "of a 20 GB budget · 40% of the disk free, keeping 10%"),
             await ui.ReadAsync(() => (page.Space, page.Limits)));
         Assert.Equal(
             [("Add GitHub login", "50% build output", "3 GB"), ("b", "no build output", "512 MB")],
@@ -75,6 +79,23 @@ public sealed class WorktreesViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AHistoryRowNamesItsJobAndOpensItAsync()
+    {
+        history.Report = new WorktreeReport([], [new WorktreeEvent(job.Job, "/worktrees/a", JobStatus.Approved, WorktreeMoment.Delivered, 1L << 20, Now)]);
+        var selected = new List<JobId>();
+        messenger.Register<List<JobId>, JobSelected>(selected, (list, message) => list.Add(message.Job));
+        using var page = Page();
+
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.History.Count == 1, () => $"{page.History.Count} in history");
+        var row = await ui.ReadAsync(() => page.History[0]);
+        row.OpenCommand.Execute(null);
+
+        Assert.Equal(("Add GitHub login", true), (row.Title, row.CanOpen));
+        Assert.Equal([job.Job], selected);
+    }
+
+    [Fact]
     public async Task AShortageSaysThatEveryWorktreeLeftBelongsToAWorkingJobAsync()
     {
         housekeeping.Short = new WorktreeSpace(5L << 30, 1L << 30, Option<DiskSpace>.None, Option<double>.None, Now);
@@ -100,5 +121,5 @@ public sealed class WorktreesViewModelScripts : IDisposable
     public void Dispose() => ui.Dispose();
 
     private WorktreesViewModel Page() =>
-        new(new WorktreeReader(resources, housekeeping, history, Pages.Board(job)), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance, new FakeTimeProvider(Now)));
+        new(new WorktreeReader(resources, housekeeping, history, Pages.Board(job)), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance, new FakeTimeProvider(Now)), new JobFocus(new TestRegions(), messenger));
 }

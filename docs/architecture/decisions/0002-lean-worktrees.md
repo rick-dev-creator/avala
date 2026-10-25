@@ -84,7 +84,7 @@ A page of its own, reached from the disk figure of Resources, tells the person w
 - **Trends**, for 7 or 30 days like Usage: space taken per day and its peak, worktrees created against freed, the space Avala recovered and why, and how long a worktree lives.
 - **History**: each time Avala freed or deleted worktrees, how much and why, linked to the job, which can still be reopened.
 
-Resources records each worktree freed or deleted with its size and reason in a database of its own, `resources.db`, with a daily sample of the space taken, so the view has data from the day it ships.
+Resources records each worktree freed, with its size and reason, and each one deleted, in a database of its own, `resources.db`, with a daily sample of the space taken, so the view has data from the day it ships.
 
 ### Delivery
 

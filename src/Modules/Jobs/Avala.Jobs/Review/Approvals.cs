@@ -63,7 +63,8 @@ internal sealed class Approvals(JobWorkspaces worktrees, IRepositoryDefaults def
             return JobRejection.ParentNotRunning;
         }
 
-        if ((await worktrees.Workspaces.CheckpointAsync(parent, $"Before integrating job {request.Job.Value}", cancellationToken)).IsFailure)
+        if ((await worktrees.ReadyAsync(parent, cancellationToken)).IsFailure
+            || (await worktrees.Workspaces.CheckpointAsync(parent, $"Before integrating job {request.Job.Value}", cancellationToken)).IsFailure)
         {
             return JobRejection.WorkspaceUnavailable;
         }

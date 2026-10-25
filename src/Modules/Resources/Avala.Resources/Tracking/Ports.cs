@@ -7,7 +7,7 @@ internal interface IResourceSettings
 {
     ValueTask<ResourceSettings> LoadAsync(CancellationToken cancellationToken);
 
-    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken);
+    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken);
 }
 
 internal interface IFolderSizes

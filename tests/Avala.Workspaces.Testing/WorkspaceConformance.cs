@@ -126,6 +126,10 @@ public static class WorkspaceConformance
         Check((await services.Shelf.DeliveredAsync(prepared.Id, cancellationToken)).Match(delivered => delivered, _ => false), problems, "merged work is not delivered");
 
         await File.WriteAllTextAsync(Path.Combine(prepared.Path, "kept.txt"), "kept\n", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(prepared.Path, ".gitignore"), "local.env\nbin/\n", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(prepared.Path, "local.env"), "TOKEN=secret\n", cancellationToken);
+        Directory.CreateDirectory(Path.Combine(prepared.Path, "bin"));
+        await File.WriteAllTextAsync(Path.Combine(prepared.Path, "bin", "app.dll"), "built\n", cancellationToken);
         var shelved = await services.Shelf.ShelveAsync(prepared.Id, cancellationToken);
         Check(shelved.Match(found => found.Shelved, _ => false) && !Directory.Exists(prepared.Path), problems, $"shelving does not free the worktree: {Shown(shelved)}");
         Check((await services.Workspaces.FindAsync(prepared.Id, cancellationToken)).Match(found => found.Shelved, _ => false), problems, "a shelved workspace is not found as shelved");
@@ -141,6 +145,8 @@ public static class WorkspaceConformance
         var rebuilt = await services.Shelf.RebuildAsync(prepared.Id, cancellationToken);
         Check(rebuilt.Match(found => !found.Shelved && found.Path == prepared.Path, _ => false), problems, $"rebuilding reads otherwise: {Shown(rebuilt)}");
         Check(await ReadAsync(prepared.Path, "kept.txt", cancellationToken) == "kept\n" && await ReadAsync(prepared.Path, "added.txt", cancellationToken) == "new\n", problems, "a rebuilt worktree does not hold its work");
+        Check(await ReadAsync(prepared.Path, "local.env", cancellationToken) == "TOKEN=secret\n", problems, "a rebuilt worktree does not hold the ignored file it kept");
+        Check(!File.Exists(Path.Combine(prepared.Path, "bin", "app.dll")), problems, "a rebuilt worktree brings back its build output");
         Check((await services.Workspaces.CheckpointAsync(prepared.Id, "After rebuilding", cancellationToken)).IsSuccess, problems, "a rebuilt workspace takes no checkpoint");
     }
 

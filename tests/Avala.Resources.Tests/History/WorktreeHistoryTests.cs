@@ -16,7 +16,7 @@ public sealed class WorktreeHistoryTests
     [Fact]
     public async Task ASampleRecordsTheDaysPeakItsWorktreesAndThoseSeenForTheFirstTimeAsync()
     {
-        var history = new WorktreeHistory(store);
+        var history = new WorktreeHistory(store, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Morning));
 
         await history.HandleAsync(Sampled(Morning, ("one", 100), ("two", 50)), Cancellation);
         await history.HandleAsync(Sampled(Morning.AddHours(1), ("one", 120)), Cancellation);
@@ -27,7 +27,7 @@ public sealed class WorktreeHistoryTests
     [Fact]
     public async Task AFreedWorktreeIsRecordedWithHowLongItLivedAndCountedForItsDayAsync()
     {
-        var history = new WorktreeHistory(store);
+        var history = new WorktreeHistory(store, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Morning));
         var job = JobId.New();
         await history.HandleAsync(Sampled(Morning, ("one", 100)), Cancellation);
 
@@ -39,9 +39,34 @@ public sealed class WorktreeHistoryTests
     }
 
     [Fact]
+    public async Task AWorktreeRebuiltAfterItWasFreedCountsAsCreatedAgainAsync()
+    {
+        var history = new WorktreeHistory(store, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Morning));
+        await history.HandleAsync(Sampled(Morning, ("one", 100)), Cancellation);
+        await history.HandleAsync(new WorktreeFreed(new FreedWorktree(JobId.New(), "one", JobStatus.Approved, WorktreeMoment.Delivered, 100, Morning.AddHours(1))), Cancellation);
+
+        await history.HandleAsync(Sampled(Morning.AddHours(2), ("one", 100)), Cancellation);
+
+        Assert.Equal(2, store.Days[Day(Morning)].Created);
+    }
+
+    [Fact]
+    public async Task AJobThatStartsWaitingIsRecordedAsRestingUntilItWorksAgainAsync()
+    {
+        var history = new WorktreeHistory(store, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Morning));
+        var job = JobId.New();
+
+        await history.HandleAsync(new JobProgressed(job, JobStatus.AwaitingReview), Cancellation);
+        var resting = await store.RestingSinceAsync(job, Cancellation);
+        await history.HandleAsync(new JobProgressed(job, JobStatus.Running), Cancellation);
+
+        Assert.Equal((Option<DateTimeOffset>.Some(Morning), Option<DateTimeOffset>.None), (resting, await store.RestingSinceAsync(job, Cancellation)));
+    }
+
+    [Fact]
     public async Task DeletedWorkIsRecordedWithoutAMomentAsync()
     {
-        var history = new WorktreeHistory(store);
+        var history = new WorktreeHistory(store, new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Morning));
 
         await history.HandleAsync(new WorktreeReclaimed(new ReclaimedWorktree(JobId.New(), "one", JobStatus.Discarded, Morning)), Cancellation);
 
@@ -52,38 +77,4 @@ public sealed class WorktreeHistoryTests
         new(new ResourceSample(at, [], [.. folders.Select(folder => new FolderUsage(folder.Path, folder.Bytes))], 0));
 
     private static DateOnly Day(DateTimeOffset at) => DateOnly.FromDateTime(at.ToLocalTime().DateTime);
-
-    private sealed class FakeHistoryStore : IWorktreeHistoryStore
-    {
-        private readonly Dictionary<string, DateTimeOffset> seen = [];
-
-        public List<WorktreeEvent> Events { get; } = [];
-
-        public Dictionary<DateOnly, WorktreeDay> Days { get; } = [];
-
-        public Task RecordAsync(WorktreeEvent recorded, CancellationToken cancellationToken)
-        {
-            Events.Add(recorded);
-
-            return Task.CompletedTask;
-        }
-
-        public Task SaveDayAsync(WorktreeDay day, CancellationToken cancellationToken)
-        {
-            Days[day.Day] = day;
-
-            return Task.CompletedTask;
-        }
-
-        public Task<Option<WorktreeDay>> DayAsync(DateOnly day, CancellationToken cancellationToken) =>
-            Task.FromResult(Days.TryGetValue(day, out var found) ? found : Option<WorktreeDay>.None);
-
-        public Task<bool> SeeAsync(string path, DateTimeOffset at, CancellationToken cancellationToken) => Task.FromResult(seen.TryAdd(path, at));
-
-        public Task<Option<DateTimeOffset>> FirstSeenAsync(string path, CancellationToken cancellationToken) =>
-            Task.FromResult(seen.TryGetValue(path, out var first) ? first : Option<DateTimeOffset>.None);
-
-        public Task<WorktreeReport> ReadAsync(DateOnly from, CancellationToken cancellationToken) =>
-            Task.FromResult(new WorktreeReport([.. Days.Values.Where(day => day.Day >= from)], [.. Events]));
-    }
 }

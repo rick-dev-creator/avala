@@ -8,6 +8,7 @@
     <resources:DesignWorktreeRowViewModel />
   </Design.DataContext>
   <DockPanel Margin="0,9">
+    <Button x:Name="Open" DockPanel.Dock="Right" Classes="link" Margin="12,0,0,0" Padding="0" Content="Open" IsVisible="{Binding CanOpen}" Command="{Binding OpenCommand}" VerticalAlignment="Center" ToolTip.Tip="Open this job" />
     <TextBlock x:Name="Amount" DockPanel.Dock="Right" Margin="16,0,0,0" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Amount}" VerticalAlignment="Center" />
     <StackPanel Spacing="2" VerticalAlignment="Center">
       <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />

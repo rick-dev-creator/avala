@@ -375,7 +375,7 @@ internal sealed class FakeResources : IResources
 
     public ResourceError? Refusal { get; set; }
 
-    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken)
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken)
     {
         if (Refusal is { } refusal)
         {
@@ -383,7 +383,7 @@ internal sealed class FakeResources : IResources
         }
 
         Policies.Add(policy);
-        Settings = Settings with { Worktrees = policy, File = ResourceFileStatus.Applied };
+        Settings = Settings with { Worktrees = policy, Reconcile = reconcile, File = ResourceFileStatus.Applied };
 
         return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Success(Settings));
     }

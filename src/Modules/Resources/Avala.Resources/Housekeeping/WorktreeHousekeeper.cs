@@ -39,7 +39,7 @@ internal sealed class RetainedWorktrees(IWorkspaces workspaces, IWorkspaceShelf 
     }
 
     public async Task<bool> ShelvedAsync(string worktree, CancellationToken cancellationToken) =>
-        (await workspaces.FindAtAsync(worktree, cancellationToken)).Match(found => found.Shelved, _ => false);
+        (await workspaces.FindAtAsync(worktree, cancellationToken)).Match(found => found.Shelved && !Directory.Exists(found.Path), _ => false);
 
     public async Task<bool> DeliveredAsync(string worktree, CancellationToken cancellationToken) =>
         (await workspaces.FindAtAsync(worktree, cancellationToken).AsTask().BindAsync(found => shelf.DeliveredAsync(found.Id, cancellationToken).AsTask()))
@@ -70,7 +70,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
     private readonly SerialExecutor owner = new();
     private readonly List<Retained> retained = [];
-    private readonly Dictionary<string, JobId> gone = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (JobId Job, DateTimeOffset At)> gone = new(StringComparer.Ordinal);
     private ImmutableList<ReclaimedWorktree> reclaimed = [];
     private ImmutableList<FreedWorktree> freed = [];
     private ImmutableDictionary<string, long> sizes = ImmutableDictionary<string, long>.Empty;
@@ -139,7 +139,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
                 for (var index = 0; index < retained.Count; index++)
                 {
-                    if (retained[index].Job == job && retained[index].Status.Ended() && !retained[index].Moments.ContainsKey(moment))
+                    if (retained[index].Job == job && (moment == WorktreeMoment.Archived || retained[index].Status.Ended()) && !retained[index].Moments.ContainsKey(moment))
                     {
                         retained[index] = retained[index] with { Moments = retained[index].Moments.Add(moment, now) };
                     }
@@ -155,7 +155,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
             {
                 retained.RemoveAll(kept => kept.Job == job);
 
-                foreach (var path in gone.Where(entry => entry.Value == job).Select(entry => entry.Key).ToList())
+                foreach (var path in gone.Where(entry => entry.Value.Job == job).Select(entry => entry.Key).ToList())
                 {
                     gone.Remove(path);
                 }
@@ -203,7 +203,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
         return new Retained(job, worktree, status, since)
         {
-            Moments = status.Ended() && facts.Archived(job) ? moments.SetItem(WorktreeMoment.Archived, since) : moments,
+            Moments = facts.Archived(job) ? moments.SetItem(WorktreeMoment.Archived, since) : moments,
             Freed = await worktrees.ShelvedAsync(worktree, cancellationToken),
             Checked = clock.GetUtcNow(),
         };
@@ -220,11 +220,13 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
         {
             var outcome = policy.DeletedAfter(kept.Status).Match(span => kept.Ended + span <= now, () => false)
                 ? await DeleteAsync(kept, orphans, now, cancellationToken)
-                : kept.Freed ? kept : await FreeAsync(await CheckedAsync(kept, now, cancellationToken), policy, orphans, now, cancellationToken);
+                : kept.Freed ? await StillFreedAsync(kept, now, cancellationToken)
+                : kept.NotBefore > now ? kept
+                : await FreeAsync(await CheckedAsync(kept, now, cancellationToken), policy, orphans, now, cancellationToken);
             Replace(kept, outcome, policy);
         }
 
-        Volatile.Write(ref upcoming, [.. retained.Where(kept => !kept.Freed).SelectMany(kept => DueOf(kept, policy).Match<WorktreeDue[]>(due => [new(kept.Job, kept.Worktree, due.Moment, due.Due)], () => [])).OrderBy(due => due.Due)]);
+        Volatile.Write(ref upcoming, [.. retained.Where(kept => !kept.Freed).SelectMany(kept => DueOf(kept, policy).Match<WorktreeDue[]>(due => [new(kept.Job, kept.Worktree, due.Moment, due.Due > kept.NotBefore ? due.Due : kept.NotBefore)], () => [])).OrderBy(due => due.Due)]);
     }
 
     private static Option<(WorktreeMoment Moment, DateTimeOffset Due)> DueOf(Retained kept, WorktreePolicy policy)
@@ -240,7 +242,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
     private void Replace(Retained kept, Option<Retained> outcome, WorktreePolicy policy)
     {
         var index = retained.IndexOf(kept);
-        var next = outcome.Match<Retained?>(found => found.Freed && policy.DeletedAfter(found.Status).IsNone ? null : found, () => null);
+        var next = outcome.Match<Retained?>(found => found.Freed && found.Status.Ended() && policy.DeletedAfter(found.Status).IsNone ? null : found, () => null);
 
         if (next is null)
         {
@@ -250,6 +252,18 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
         {
             retained[index] = next;
         }
+    }
+
+    private async Task<Option<Retained>> StillFreedAsync(Retained kept, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (kept.Status.Ended() || now - kept.Checked < DeliveryCheck)
+        {
+            return kept;
+        }
+
+        return await worktrees.ShelvedAsync(kept.Worktree, cancellationToken)
+            ? kept with { Checked = now }
+            : kept with { Freed = false, Checked = now, Moments = kept.Moments.SetItem(WorktreeMoment.Idle, now) };
     }
 
     private async Task<Retained> CheckedAsync(Retained kept, DateTimeOffset now, CancellationToken cancellationToken)
@@ -279,14 +293,14 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
         if (attempt.IsNone)
         {
-            return kept.Status.Ended() ? Option<Retained>.None : kept;
+            return kept.Status.Ended() ? Option<Retained>.None : kept with { NotBefore = now + DeliveryCheck };
         }
 
         var shelved = attempt.Match(found => found, () => WorkspaceFailure.UnknownWorkspace);
 
         if (shelved.IsSuccess)
         {
-            gone[kept.Worktree] = kept.Job;
+            gone[kept.Worktree] = (kept.Job, now);
             var release = new FreedWorktree(kept.Job, kept.Worktree, kept.Status, moment, bytes, now);
             ImmutableInterlocked.Update(ref freed, known => known.Add(release));
             await bus.PublishAsync(new WorktreeFreed(release), cancellationToken);
@@ -294,7 +308,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
             return kept with { Freed = true };
         }
 
-        return shelved.Match(_ => false, failure => failure == WorkspaceFailure.UnknownWorkspace) ? Option<Retained>.None : kept;
+        return shelved.Match(_ => false, failure => failure == WorkspaceFailure.UnknownWorkspace) ? Option<Retained>.None : kept with { NotBefore = now + DeliveryCheck };
     }
 
     private async Task<Option<Retained>> DeleteAsync(Retained kept, IOrphans orphans, DateTimeOffset now, CancellationToken cancellationToken)
@@ -312,7 +326,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
         if (removed.IsSuccess)
         {
-            gone[kept.Worktree] = kept.Job;
+            gone[kept.Worktree] = (kept.Job, now);
             var reclaim = new ReclaimedWorktree(kept.Job, kept.Worktree, kept.Status, now);
             ImmutableInterlocked.Update(ref reclaimed, known => known.Add(reclaim));
             await bus.PublishAsync(new WorktreeReclaimed(reclaim), cancellationToken);
@@ -326,14 +340,16 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
         var policy = await PolicyAsync(cancellationToken);
         var space = Space(sample, policy);
 
-        foreach (var kept in retained.Where(kept => !kept.Freed).OrderBy(kept => kept.Moments.Values.Min()).ToList())
+        var now = clock.GetUtcNow();
+
+        foreach (var kept in retained.Where(kept => !kept.Freed && kept.NotBefore <= now).OrderBy(kept => kept.Moments.Values.Min()).ToList())
         {
             if (space.Within)
             {
                 break;
             }
 
-            Replace(kept, await ShelveNowAsync(kept, WorktreeMoment.Space, orphans, clock.GetUtcNow(), cancellationToken), policy);
+            Replace(kept, await ShelveNowAsync(kept, WorktreeMoment.Space, orphans, now, cancellationToken), policy);
             space = Space(sample, policy);
         }
 
@@ -350,6 +366,11 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
 
     private WorktreeSpace Space(ResourceSample sample, WorktreePolicy policy)
     {
+        foreach (var path in gone.Where(entry => entry.Value.At < sample.Measured).Select(entry => entry.Key).ToList())
+        {
+            gone.Remove(path);
+        }
+
         var used = sample.Worktrees.Where(folder => !gone.ContainsKey(folder.Path)).Sum(folder => folder.Bytes);
         var released = sample.Worktrees.Where(folder => gone.ContainsKey(folder.Path)).Sum(folder => folder.Bytes);
 
@@ -363,5 +384,7 @@ internal sealed class WorktreeHousekeeper(RetainedWorktrees worktrees, IResource
         public bool Freed { get; init; }
 
         public DateTimeOffset Checked { get; init; }
+
+        public DateTimeOffset NotBefore { get; init; }
     }
 }

@@ -10,13 +10,27 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avala.Resources.Storage.Migrations
 {
     [DbContext(typeof(ResourcesDbContext))]
-    [Migration("20261025114423_Initial")]
+    [Migration("20261025123633_Initial")]
     internal sealed partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+
+            modelBuilder.Entity("Avala.Resources.Storage.StoredRestingJob", b =>
+                {
+                    b.Property<Guid>("Job")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Since")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Job");
+
+                    b.ToTable("RestingJobs", (string)null);
+                });
 
             modelBuilder.Entity("Avala.Resources.Storage.StoredSeenWorktree", b =>
                 {

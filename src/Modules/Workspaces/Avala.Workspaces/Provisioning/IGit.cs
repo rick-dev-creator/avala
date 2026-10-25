@@ -28,7 +28,13 @@ internal interface IGit
 
     Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken);
 
-    Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+    Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
+
+    Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> KeepTipAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> ReleaseWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
 

@@ -57,6 +57,10 @@ internal interface IWorktreeRowViewModel
     string Detail { get; }
 
     string Amount { get; }
+
+    bool CanOpen { get; }
+
+    IRelayCommand OpenCommand { get; }
 }
 
 internal interface IWorktreeDayViewModel
@@ -78,7 +82,7 @@ internal sealed class WorktreesEntry(JobFocus focus, WorktreesViewModel worktree
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed feed) : IWorktreesViewModel, IPage, IActivatable, IPresentation, IDisposable
+internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed feed, JobFocus focus) : IWorktreesViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private const int Shown = 5;
 
@@ -176,9 +180,9 @@ internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed
         var range = Enumerable.Range(0, count).Select(back => today.AddDays(-back)).Select(day => known.GetValueOrDefault(day, new WorktreeDay(day, 0, 0, 0, 0, 0))).ToList();
         var peak = range.Select(day => day.Peak).DefaultIfEmpty(0).Max();
         days.ShowOnly(range.Select(day => new WorktreeDayViewModel(day, peak, day.Day == today)));
-        var since = new DateTimeOffset(today.AddDays(1 - count).ToDateTime(TimeOnly.MinValue), state.Now.Offset);
+        var first = today.AddDays(1 - count);
         recovered.ShowOnly(state.Report.History
-            .Where(recorded => recorded.At >= since && recorded.Moment.IsSome)
+            .Where(recorded => DateOnly.FromDateTime(recorded.At.ToLocalTime().DateTime) >= first && recorded.Moment.IsSome)
             .GroupBy(recorded => recorded.Moment.Match(moment => moment, () => WorktreeMoment.Requested))
             .OrderByDescending(group => group.Sum(recorded => recorded.Bytes))
             .Select(group => new WorktreeRowViewModel(WorktreePagePhrases.Moment(group.Key), WorktreePagePhrases.Count(group.Count()), WorktreePagePhrases.Bytes(group.Sum(recorded => recorded.Bytes)))));
@@ -189,22 +193,28 @@ internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed
     private void Show(WorktreeState state)
     {
         last = state;
-        Space = $"{WorktreePagePhrases.Bytes(state.Folders.Sum(folder => folder.Folder.Bytes))} in {WorktreePagePhrases.Count(state.Folders.Count)}";
+        var states = WorktreePagePhrases.States(state.Folders.Select(folder => folder.Job));
+        Space = $"{WorktreePagePhrases.Bytes(state.Folders.Sum(folder => folder.Folder.Bytes))} in {WorktreePagePhrases.Count(state.Folders.Count)}{(states.Length > 0 ? $": {states}" : string.Empty)}";
         Limits = WorktreePagePhrases.Limits(state.Policy, state.Disk);
         Shortage = state.Shortage.Match(WorktreePagePhrases.Shortage, () => string.Empty);
         largest.ShowOnly(state.Folders
             .OrderByDescending(folder => folder.Folder.Bytes)
             .Take(Shown)
-            .Select(folder => new WorktreeRowViewModel(WorktreePagePhrases.Title(folder.Job, folder.Folder.Path), WorktreePagePhrases.Build(folder.Folder), WorktreePagePhrases.Bytes(folder.Folder.Bytes))));
+            .Select(folder => new WorktreeRowViewModel(WorktreePagePhrases.Title(folder.Job, folder.Folder.Path), WorktreePagePhrases.Build(folder.Folder), WorktreePagePhrases.Bytes(folder.Folder.Bytes)) { Open = Opening(folder.Job.Map(job => job.Job)) }));
         upcoming.ShowOnly(state.Upcoming
             .Take(Shown)
-            .Select(next => new WorktreeRowViewModel(WorktreePagePhrases.Title(next.Job, next.Due.Path), WorktreePagePhrases.Moment(next.Due.Moment), WorktreePagePhrases.When(next.Due.Due, state.Now))));
+            .Select(next => new WorktreeRowViewModel(WorktreePagePhrases.Title(next.Job, next.Due.Path), WorktreePagePhrases.Moment(next.Due.Moment), WorktreePagePhrases.When(next.Due.Due, state.Now)) { Open = Opening(next.Due.Job) }));
         history.ShowOnly(state.Report.History
             .Take(Kept)
-            .Select(recorded => new WorktreeRowViewModel(Path.GetFileName(Path.TrimEndingDirectorySeparator(recorded.Path)), WorktreePagePhrases.Event(recorded), Amounts.Time(recorded.At))));
+            .Select(recorded => new WorktreeRowViewModel(HistoryTitle(state, recorded), WorktreePagePhrases.Event(recorded), Amounts.Time(recorded.At)) { Open = Opening(recorded.Job) }));
         Lifetime = WorktreePagePhrases.Lifetime(state.Report.History);
         _ = ShowTrends(state);
     }
+
+    private static string HistoryTitle(WorktreeState state, WorktreeEvent recorded) =>
+        WorktreePagePhrases.Title(state.Jobs.GetValueOrDefault(recorded.Job).ToOption(), recorded.Path);
+
+    private Option<Action> Opening(Option<Jobs.Contracts.JobId> job) => job.Map<Action>(found => () => focus.Select(found));
 }
 
 internal sealed class WorktreeRowViewModel(string title, string detail, string amount) : IWorktreeRowViewModel
@@ -214,6 +224,14 @@ internal sealed class WorktreeRowViewModel(string title, string detail, string a
     public string Detail { get; } = detail;
 
     public string Amount { get; } = amount;
+
+    private RelayCommand? open;
+
+    public Option<Action> Open { get; init; }
+
+    public bool CanOpen => Open.IsSome;
+
+    public IRelayCommand OpenCommand => open ??= new RelayCommand(() => Open.Match(action => action, () => () => { })(), () => CanOpen);
 }
 
 internal sealed class WorktreeDayViewModel(WorktreeDay day, long peak, bool isToday) : IWorktreeDayViewModel

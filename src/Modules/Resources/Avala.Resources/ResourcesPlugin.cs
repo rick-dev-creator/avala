@@ -57,6 +57,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddForwarded<IHandle<ResourcesSampled>, WorktreeHistory>()
             .AddForwarded<IHandle<WorktreeFreed>, WorktreeHistory>()
             .AddForwarded<IHandle<WorktreeReclaimed>, WorktreeHistory>()
+            .AddForwarded<IHandle<JobProgressed>, WorktreeHistory>()
             .AddSingleton<WorktreeMoments>()
             .AddForwarded<IHandle<ConversationsArchived>, WorktreeMoments>()
             .AddForwarded<IHandle<PullRequestWatchChanged>, WorktreeMoments>()

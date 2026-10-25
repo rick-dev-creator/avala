@@ -13,6 +13,7 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
     private readonly Dictionary<ProcessTreeId, (DateTimeOffset At, IReadOnlyDictionary<int, TimeSpan> Cpu)> previous = [];
     private readonly HashSet<(int Port, string Worktree, int? Process)> reported = [];
     private (IReadOnlyList<FolderUsage> Worktrees, long Data, Option<DiskSpace> Disk) disks = ([], 0, Option<DiskSpace>.None);
+    private DateTimeOffset measured = DateTimeOffset.MinValue;
 
     public async Task TakeAsync(DateTimeOffset at, bool measureDisks, CancellationToken cancellationToken)
     {
@@ -28,13 +29,14 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
         if (measureDisks)
         {
             disks = await DisksAsync(attribution, cancellationToken);
+            measured = at;
         }
 
         var holders = usage
             .SelectMany(tree => tree.Processes.Select(process => (process.Id, tree.Tree, tree.Home)))
             .DistinctBy(held => held.Id)
             .ToDictionary(held => held.Id);
-        var sample = new ResourceSample(at, usage, disks.Worktrees, disks.Data) { Disk = disks.Disk };
+        var sample = new ResourceSample(at, usage, disks.Worktrees, disks.Data) { Disk = disks.Disk, Measured = measured };
         book.Keep(sample);
 
         foreach (var (port, lease, process) in PortBook.Conflicts(
@@ -70,7 +72,7 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
     {
         var worktrees = new List<FolderUsage>();
 
-        foreach (var home in attribution.Sessions.Values.Select(facts => facts.Home).Distinct(StringComparer.Ordinal))
+        foreach (var home in attribution.Homes)
         {
             var (bytes, build) = await folders.MeasureAsync(home, cancellationToken);
             worktrees.Add(new FolderUsage(home, bytes) { Job = attribution.JobAt(home), BuildBytes = build });

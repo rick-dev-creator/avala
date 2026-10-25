@@ -1,3 +1,4 @@
+using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Resources.History;
 using Avala.Sdk;
@@ -89,6 +90,39 @@ internal sealed class SqliteWorktreeHistoryStore(AvalaPaths paths) : IWorktreeHi
                 return found is null ? Option<DateTimeOffset>.None : new DateTimeOffset(found.First, TimeSpan.Zero);
             },
             cancellationToken);
+
+    public Task RestAsync(JobId job, DateTimeOffset since, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                if (await database.Resting.AsNoTracking().AnyAsync(row => row.Job == job.Value, cancellationToken))
+                {
+                    return 0;
+                }
+
+                await database.Resting.AddAsync(new StoredRestingJob { Job = job.Value, Since = since.UtcTicks }, cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task WakeAsync(JobId job, CancellationToken cancellationToken) =>
+        owner.RunAsync(database => database.Resting.Where(row => row.Job == job.Value).ExecuteDeleteAsync(cancellationToken), cancellationToken);
+
+    public Task<Option<DateTimeOffset>> RestingSinceAsync(JobId job, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                var found = await database.Resting.AsNoTracking().FirstOrDefaultAsync(row => row.Job == job.Value, cancellationToken);
+
+                return found is null ? Option<DateTimeOffset>.None : new DateTimeOffset(found.Since, TimeSpan.Zero);
+            },
+            cancellationToken);
+
+    public Task ForgetSeenAsync(string path, CancellationToken cancellationToken) =>
+        owner.RunAsync(database => database.Seen.Where(row => row.Path == path).ExecuteDeleteAsync(cancellationToken), cancellationToken);
 
     public Task<WorktreeReport> ReadAsync(DateOnly from, CancellationToken cancellationToken) =>
         owner.RunAsync(

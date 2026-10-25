@@ -68,6 +68,28 @@ public sealed class WorktreeSettingsViewModelScripts
     }
 
     [Fact]
+    public async Task TurningOffTheStartupCleanSavesThatUnknownWorktreesAreOnlyListedAsync()
+    {
+        var shown = await ShownAsync();
+
+        shown.CleansUnknown = false;
+        await shown.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(ReconcilePolicy.Report, resources.Settings.Reconcile);
+    }
+
+    [Fact]
+    public async Task ACustomDelayThatReadsLikeAChoiceIsKeptApartFromItAsync()
+    {
+        resources.Settings = resources.Settings with { Worktrees = resources.Settings.Worktrees with { Archived = TimeSpan.FromHours(1.001) } };
+
+        var shown = await ShownAsync();
+        await shown.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(("Free it after 1 hour, as saved", false), (shown.Moments[0].Choice, shown.IsChanged));
+    }
+
+    [Fact]
     public async Task ADelayTheFileGivesThatIsNotAmongTheChoicesIsOfferedAsItIsAsync()
     {
         resources.Settings = resources.Settings with { Worktrees = resources.Settings.Worktrees with { Archived = TimeSpan.FromHours(2.5) } };

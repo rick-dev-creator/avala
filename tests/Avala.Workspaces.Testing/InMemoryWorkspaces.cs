@@ -10,6 +10,8 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
     private const string KeptLabel = "Kept when its worktree was freed";
 
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<WorkspaceId, IReadOnlyList<(string Path, byte[] Content)>> kept = new();
+
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken)
     {
         var top = git.RootOf(request.RepositoryPath).Match(found => found, () => string.Empty);
@@ -83,10 +85,14 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
     public async ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken)
     {
         var current = await ReconcileAsync(cancellationToken);
-        var strays = current.Strays.Where(stray => found.Strays.Contains(stray, StringComparer.Ordinal)).ToList();
+        var settled = TimeProvider.System.GetUtcNow().UtcDateTime - TimeSpan.FromHours(1);
+        var strays = current.Strays.Where(stray => found.Strays.Contains(stray, StringComparer.Ordinal) && Directory.GetLastWriteTimeUtc(stray) <= settled).ToList();
         var missing = current.Missing.Where(gone => found.Missing.Any(listed => listed.Id == gone.Id)).ToList();
         strays.ForEach(Delete);
-        missing.ForEach(gone => git.Forget(gone.Id));
+        foreach (var held in missing.SelectMany(gone => git.Workspace(gone.Id).Match<HeldWorkspace[]>(held => [held], () => [])))
+        {
+            _ = git.Hold(held with { Info = held.Info with { Shelved = true } });
+        }
 
         return new WorktreeReconciliation(strays, missing);
     }
@@ -112,6 +118,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
                 _ = await CheckpointAsync(found, KeptLabel, cancellationToken);
             }
 
+            kept[workspace] = await IgnoredAsync(found.Info.Path, cancellationToken);
             Delete(found.Info.Path);
         }
 
@@ -138,6 +145,16 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         }
 
         await CheckOutAsync(Commit(found.Head), found.Info.Path, found.Repository, workspace, cancellationToken);
+
+        if (kept.TryRemove(workspace, out var ignored))
+        {
+            foreach (var (path, content) in ignored)
+            {
+                var target = Path.Combine(found.Info.Path, path);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                await File.WriteAllBytesAsync(target, content, cancellationToken);
+            }
+        }
 
         return git.Hold(found with { Info = found.Info with { Shelved = false } }).Info;
     }
@@ -263,6 +280,24 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         }
 
         return false;
+    }
+
+    private static async Task<IReadOnlyList<(string Path, byte[] Content)>> IgnoredAsync(string folder, CancellationToken cancellationToken)
+    {
+        var ignore = await GitIgnore.ReadAsync(folder, cancellationToken);
+        var found = new List<(string Path, byte[] Content)>();
+
+        foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true }).Select(file => file.FullName))
+        {
+            var relative = FolderSnapshot.Normal(Path.GetRelativePath(folder, file));
+
+            if (relative != GitEntry && ignore.Ignores(relative) && !BuildOutputs.Holds(relative))
+            {
+                found.Add((relative, await File.ReadAllBytesAsync(file, cancellationToken)));
+            }
+        }
+
+        return found;
     }
 
     private static async Task CheckOutAsync(GitCommit commit, string path, string repository, WorkspaceId id, CancellationToken cancellationToken)

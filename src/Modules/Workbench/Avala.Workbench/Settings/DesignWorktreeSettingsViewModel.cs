@@ -24,6 +24,8 @@ internal sealed class DesignWorktreeSettingsViewModel : IWorktreeSettingsViewMod
         new WorktreeLimitViewModel(new WorktreeLimit(WorktreePhrases.FloorTitle, WorktreePhrases.FloorNote, WorktreePhrases.FloorChoices(10d), 10d), () => { }),
     ];
 
+    public bool CleansUnknown { get; set; } = true;
+
     public string File { get; init; } = "resources.json: Absent";
 
     public string Error { get; init; } = string.Empty;

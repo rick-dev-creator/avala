@@ -96,12 +96,15 @@ internal static class WorktreePhrases
     private static IReadOnlyList<LimitChoice> WithCurrent(IReadOnlyList<LimitChoice> choices, Option<double> current, Func<double, string> label) =>
         choices.Any(choice => Same(choice.Value, current))
             ? choices
-            : [.. choices, new LimitChoice(current.Match(label, () => string.Empty), current)];
+            : [.. choices, new LimitChoice(Distinct(choices.Select(choice => choice.Label), current.Match(label, () => string.Empty)), current)];
 
     private static IReadOnlyList<WorktreeChoice> WithCurrent(IReadOnlyList<WorktreeChoice> choices, Option<TimeSpan> current, Func<TimeSpan, string> label) =>
         choices.Any(choice => choice.After == current)
             ? choices
-            : [.. choices, new WorktreeChoice(current.Match(label, () => string.Empty), current)];
+            : [.. choices, new WorktreeChoice(Distinct(choices.Select(choice => choice.Label), current.Match(label, () => string.Empty)), current)];
+
+    private static string Distinct(IEnumerable<string> taken, string label) =>
+        taken.Contains(label, StringComparer.Ordinal) ? $"{label}, as saved" : label;
 
     private static string Count(double amount, string unit)
     {

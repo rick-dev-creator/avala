@@ -65,3 +65,10 @@ internal sealed class StoredSeenWorktree
 
     public long First { get; init; }
 }
+
+internal sealed class StoredRestingJob
+{
+    public Guid Job { get; init; }
+
+    public long Since { get; init; }
+}

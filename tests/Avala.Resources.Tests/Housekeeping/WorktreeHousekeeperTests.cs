@@ -235,6 +235,20 @@ public sealed class WorktreeHousekeeperTests
     }
 
     [Fact]
+    public async Task APullRequestOfAJobStillWaitingForReviewDoesNotFreeItsWorktreeAsync()
+    {
+        await using var resources = new Resourced(WithPolicy(policy => policy with { Idle = Option<TimeSpan>.None }));
+        var job = JobId.New();
+        resources.Jobs.Resting.Add(job);
+        _ = await EndedAsync(resources, JobStatus.AwaitingReview, job);
+        var open = new PullRequestWatchState(job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/owner/shop/pull/7"), "avala/job", "main"), OnPullRequest.WatchOnly, 3);
+
+        await Moments(resources).HandleAsync(new PullRequestWatchChanged(open), Cancellation);
+
+        Assert.Empty(resources.Workspaces.Shelved);
+    }
+
+    [Fact]
     public async Task AMomentSetToKeepNeverFreesTheWorktreeAsync()
     {
         await using var resources = new Resourced(WithPolicy(policy => policy with { Discarded = Option<TimeSpan>.None, DeleteDiscarded = Option<TimeSpan>.None }));
@@ -253,14 +267,14 @@ public sealed class WorktreeHousekeeperTests
         await using var resources = new Resourced();
         var (_, _, workspace) = await EndedAsync(resources, JobStatus.Approved);
 
-        _ = await resources.Settings.ChangeWorktreesAsync(resources.Settings.Current.Worktrees with { Undelivered = TimeSpan.Zero }, Cancellation);
+        _ = await resources.Settings.ChangeWorktreesAsync(resources.Settings.Current.Worktrees with { Undelivered = TimeSpan.Zero }, ReconcilePolicy.Clean, Cancellation);
         await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         Assert.Equal([workspace.Id], resources.Workspaces.Shelved);
     }
 
     [Fact]
-    public async Task AWorktreeThatCannotBeFreedIsTriedAgainAtTheNextSweepAsync()
+    public async Task AWorktreeThatCannotBeFreedIsTriedAgainTenMinutesLaterAsync()
     {
         await using var resources = new Resourced();
         var job = JobId.New();
@@ -272,6 +286,8 @@ public sealed class WorktreeHousekeeperTests
         await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
         resources.Workspaces.Failure = null;
         await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+        Assert.Empty(resources.Workspaces.Shelved);
+        resources.Clock.Advance(WorktreeHousekeeper.DeliveryCheck);
         await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         Assert.Single(resources.Workspaces.Shelved);
@@ -325,7 +341,7 @@ public sealed class WorktreeHousekeeperTests
     }
 
     [Fact]
-    public async Task AWaitingJobWhoseAgentEndsAfterItsIdleTimeIsFreedAtTheNextSweepAsync()
+    public async Task AWaitingJobWhoseAgentEndsAfterItsIdleTimeIsFreedAtTheNextTryAsync()
     {
         await using var resources = new Resourced();
         var (job, _, workspace) = await EndedAsync(resources, JobStatus.AwaitingReview);
@@ -333,9 +349,42 @@ public sealed class WorktreeHousekeeperTests
         await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         resources.Jobs.Resting.Add(job);
+        resources.Clock.Advance(WorktreeHousekeeper.DeliveryCheck);
         await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         Assert.Equal([workspace.Id], resources.Workspaces.Shelved);
+    }
+
+    [Fact]
+    public async Task AFreedWaitingWorktreeRebuiltWithoutItsJobMovingIsFreedAgainOnceIdleAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        resources.Jobs.Resting.Add(job);
+        var (_, _, workspace) = await EndedAsync(resources, JobStatus.AwaitingReview, job);
+        resources.Clock.Advance(TimeSpan.FromDays(3));
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+
+        _ = await resources.Workspaces.RebuildAsync(workspace.Id, Cancellation);
+        resources.Clock.Advance(WorktreeHousekeeper.DeliveryCheck);
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+        resources.Clock.Advance(TimeSpan.FromDays(3));
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+
+        Assert.Equal([workspace.Id, workspace.Id], resources.Workspaces.Shelved);
+    }
+
+    [Fact]
+    public async Task ArchivingAJobWaitingForReviewFreesItsWorktreeAtOnceAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        resources.Jobs.Resting.Add(job);
+        _ = await EndedAsync(resources, JobStatus.AwaitingReview, job);
+
+        await Moments(resources).HandleAsync(new ConversationsArchived([job]), Cancellation);
+
+        Assert.Equal(WorktreeMoment.Archived, Assert.Single(resources.Housekeeper.Freed()).Moment);
     }
 
     [Fact]
@@ -372,6 +421,24 @@ public sealed class WorktreeHousekeeperTests
         Assert.Equal((older, WorktreeMoment.Space, 8L), (freed.Job, freed.Moment, freed.Bytes));
         Assert.Equal([olderWorkspace.Id], resources.Workspaces.Shelved);
         Assert.True(resources.Housekeeper.Shortage().IsNone);
+    }
+
+    [Fact]
+    public async Task AFolderFreedEarlierCountsAgainOnceANewerMeasurementSeesItAsync()
+    {
+        await using var resources = new Resourced(WithPolicy(policy => policy with { Undelivered = Option<TimeSpan>.None, SpaceBudget = 10L }));
+        var (_, olderHome, olderWorkspace) = await EndedAsync(resources, JobStatus.Approved, home: "older");
+        resources.Clock.Advance(TimeSpan.FromHours(1));
+        var (newer, newerHome, _) = await EndedAsync(resources, JobStatus.Approved, home: "newer");
+        resources.Folders.Sizes[olderHome] = 8;
+        resources.Folders.Sizes[newerHome] = 8;
+        await resources.Tracker.HandleAsync(new ResourcesSampled(await resources.SampleAsync()), Cancellation);
+
+        _ = await resources.Workspaces.RebuildAsync(olderWorkspace.Id, Cancellation);
+        resources.Clock.Advance(TimeSpan.FromMinutes(1));
+        await resources.Tracker.HandleAsync(new ResourcesSampled(await resources.SampleAsync()), Cancellation);
+
+        Assert.Equal(newer, resources.Housekeeper.Freed()[^1].Job);
     }
 
     [Fact]

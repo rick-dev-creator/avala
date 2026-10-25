@@ -16,6 +16,20 @@ namespace Avala.Resources.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("Avala.Resources.Storage.StoredRestingJob", b =>
+                {
+                    b.Property<Guid>("Job")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Since")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Job");
+
+                    b.ToTable("RestingJobs", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Resources.Storage.StoredSeenWorktree", b =>
                 {
                     b.Property<string>("Path")

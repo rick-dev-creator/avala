@@ -1,12 +1,13 @@
 using Avala.Jobs.Contracts;
-using Avala.Resources.Reaping;
+using Avala.Resources.History;
+using Avala.Resources.Tracking;
 using Avala.Resources.Usage;
 using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Resources.Housekeeping;
 
-internal sealed class RetentionRecovery(IJobCatalog catalog, IWorkspaces workspaces, WorktreeHousekeeper housekeeper, OrphanReaper reaper) : IStartupTask
+internal sealed class RetentionRecovery(IJobCatalog catalog, IWorkspaces workspaces, ResourceTracker tracker, IWorktreeHistoryStore history) : IStartupTask
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -18,9 +19,7 @@ internal sealed class RetentionRecovery(IJobCatalog catalog, IWorkspaces workspa
 
             if (found.TryGetValue(out var worktree, out _))
             {
-                await (job.Status.Ended()
-                    ? housekeeper.RetainAsync(job.Job, job.Status, [worktree.Path], job.Ended.Match(at => at, () => job.Submitted), reaper, cancellationToken)
-                    : housekeeper.RetainAsync(job.Job, job.Status, [worktree.Path], reaper, cancellationToken));
+                await tracker.RecoverAsync(job, worktree.Path, job.Status.Ended() ? Option<DateTimeOffset>.None : await history.RestingSinceAsync(job.Job, cancellationToken), cancellationToken);
             }
         }
     }

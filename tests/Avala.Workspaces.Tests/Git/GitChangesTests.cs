@@ -275,7 +275,7 @@ public sealed class GitChangesTests
             var store = new InMemoryWorkspaceStore();
             var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
             var settings = new WorkspaceSettings(repository.WorktreeRoot);
-            var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+            var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings, TimeProvider.System));
             var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
 
             return new Job(repository, service, new WorkspaceChanges(store, new GitChangesCli(Processes)), workspace);

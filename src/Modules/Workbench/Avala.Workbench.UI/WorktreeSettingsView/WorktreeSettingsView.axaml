@@ -39,13 +39,28 @@
     <StackPanel Spacing="8">
       <TextBlock Classes="section" Text="Limits" />
       <Border Classes="grouped">
-        <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
+        <StackPanel>
+          <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <DockPanel Margin="16,12">
+            <ToggleSwitch x:Name="CleansUnknown"
+                          DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          OnContent="{x:Null}"
+                          OffContent="{x:Null}"
+                          IsChecked="{Binding CleansUnknown}"
+                          AutomationProperties.Name="Remove worktrees no job knows about when Avala starts" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Remove unknown worktrees at start" />
+              <TextBlock Classes="caption" Text="Folders a crash left behind. When off, the Resources page only lists them." TextWrapping="Wrap" />
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
       </Border>
     </StackPanel>
     <StackPanel Spacing="8">

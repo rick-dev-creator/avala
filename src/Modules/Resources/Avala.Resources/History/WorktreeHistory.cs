@@ -1,10 +1,12 @@
+using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Resources.History;
 
-internal sealed class WorktreeHistory(IWorktreeHistoryStore store) : IWorktreeHistory, IHandle<ResourcesSampled>, IHandle<WorktreeFreed>, IHandle<WorktreeReclaimed>
+internal sealed class WorktreeHistory(IWorktreeHistoryStore store, TimeProvider clock)
+    : IWorktreeHistory, IHandle<ResourcesSampled>, IHandle<WorktreeFreed>, IHandle<WorktreeReclaimed>, IHandle<JobProgressed>
 {
     private Option<WorktreeDay> today;
 
@@ -32,10 +34,16 @@ internal sealed class WorktreeHistory(IWorktreeHistoryStore store) : IWorktreeHi
         await KeepAsync(day, next, cancellationToken);
     }
 
+    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken) =>
+        await (integrationEvent.Status is JobStatus.AwaitingReview or JobStatus.NeedsHelp
+            ? store.RestAsync(integrationEvent.Job, clock.GetUtcNow(), cancellationToken)
+            : store.WakeAsync(integrationEvent.Job, cancellationToken));
+
     public async ValueTask HandleAsync(WorktreeFreed integrationEvent, CancellationToken cancellationToken)
     {
         var freed = integrationEvent.Freed;
         await RecordAsync(new WorktreeEvent(freed.Job, freed.Path, freed.Status, freed.Moment, freed.Bytes, freed.At), cancellationToken);
+        await store.ForgetSeenAsync(freed.Path, cancellationToken);
         var day = await DayAsync(Day(freed.At), cancellationToken);
         await KeepAsync(day, day with { Freed = day.Freed + 1, Recovered = day.Recovered + freed.Bytes }, cancellationToken);
     }

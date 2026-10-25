@@ -54,7 +54,7 @@ public sealed class ResourceSettingsTests
     }
 
     [Fact]
-    public void TheEarlierRetentionFieldsStillSetWhenWorkIsDeletedAndWhenUndeliveredWorkIsFreed()
+    public void TheEarlierRetentionFieldsStillRead()
     {
         var policy = Outcomes.Succeeds(ResourceSettingsParser.Parse("""
             { "worktrees": { "keepDiscardedHours": 1, "keepFailedHours": null, "keepApprovedHours": 24 } }
@@ -80,7 +80,7 @@ public sealed class ResourceSettingsTests
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
         var policy = ResourceSettingsParser.Defaults.Worktrees with { Archived = Option<TimeSpan>.None, DeleteFailed = TimeSpan.FromHours(3) };
 
-        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(policy, Cancellation));
+        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(policy, ReconcilePolicy.Clean, Cancellation));
         await using var reread = new ResourceSettingsFile(new AvalaPaths(data.Path));
         var read = await reread.LoadAsync(Cancellation);
 
@@ -96,7 +96,7 @@ public sealed class ResourceSettingsTests
         await using var data = new TemporaryFolder();
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
 
-        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, Cancellation));
+        var changed = Outcomes.Succeeds(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, ReconcilePolicy.Clean, Cancellation));
 
         Assert.Equal(ResourceSettingsParser.Defaults with { Worktrees = ResourceSettingsParser.Defaults.Worktrees with { Failed = TimeSpan.FromDays(2) }, File = ResourceFileStatus.Applied }, changed);
         Assert.True(File.Exists(Path.Combine(data.Path, ResourceSettingsFile.FileName)));
@@ -110,7 +110,7 @@ public sealed class ResourceSettingsTests
         await File.WriteAllTextAsync(path, """{ "orphans": "ignore" }""", Cancellation);
         await using var file = new ResourceSettingsFile(new AvalaPaths(data.Path));
 
-        Assert.Equal(ResourceError.UnknownPolicy, Outcomes.FailsWith(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees, Cancellation)));
+        Assert.Equal(ResourceError.UnknownPolicy, Outcomes.FailsWith(await file.ChangeWorktreesAsync(ResourceSettingsParser.Defaults.Worktrees, ReconcilePolicy.Clean, Cancellation)));
         Assert.Equal("""{ "orphans": "ignore" }""", await File.ReadAllTextAsync(path, Cancellation));
     }
 

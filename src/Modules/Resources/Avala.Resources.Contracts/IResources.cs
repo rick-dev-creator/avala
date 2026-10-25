@@ -25,7 +25,7 @@ public interface IResources
 
     ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken);
 
-    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken);
+    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken);
 }
 
 public interface IPortLeases

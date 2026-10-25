@@ -86,6 +86,36 @@ public sealed class RetentionRecoveryTests
     }
 
     [Fact]
+    public async Task AtStartupAWorktreeFromAnEarlierRunIsMeasuredForItsJobAsync()
+    {
+        await using var resources = new Resourced(ResourceSettingsParser.Defaults with { Worktrees = ResourceSettingsParser.Defaults.Worktrees with { Undelivered = Option<TimeSpan>.None } });
+        var home = Resourced.Home("approved");
+        var workspace = resources.Workspaces.Add(home);
+        var job = resources.Catalog.Add(JobStatus.Approved, workspace.Id, DateTimeOffset.UnixEpoch);
+        resources.Folders.Sizes[home] = 2_048;
+
+        await resources.Recovery.RunAsync(Cancellation);
+        var sample = await resources.SampleAsync();
+
+        var measured = Assert.Single(sample.Worktrees);
+        Assert.Equal((home, 2_048L, Option<JobId>.Some(job.Job)), (measured.Path, measured.Bytes, measured.Job));
+    }
+
+    [Fact]
+    public async Task AtStartupAWaitingJobKeepsTheIdleTimeItHadBeforeAsync()
+    {
+        await using var resources = new Resourced();
+        var workspace = resources.Workspaces.Add(Resourced.Home("waiting"));
+        var job = resources.Catalog.Add(JobStatus.AwaitingReview, workspace.Id, Option<DateTimeOffset>.None);
+        resources.Jobs.Resting.Add(job.Job);
+        resources.History.Resting[job.Job] = resources.Clock.GetUtcNow() - TimeSpan.FromDays(3);
+
+        await resources.Recovery.RunAsync(Cancellation);
+
+        Assert.Equal([workspace.Id], resources.Workspaces.Shelved);
+    }
+
+    [Fact]
     public async Task AtStartupTheWorktreesOfJobsStillGoingAreKeptAsync()
     {
         await using var resources = new Resourced();

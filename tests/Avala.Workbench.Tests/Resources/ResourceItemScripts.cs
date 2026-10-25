@@ -109,7 +109,7 @@ public sealed class ResourceIndicatorViewModelScripts : IDisposable
     private ResourceIndicatorViewModel Indicator(FakeOrphans orphans, Leftovers leftovers)
     {
         var reader = new ResourceReader(new FakeResources(), orphans, leftovers, new JobBoard());
-        var worktrees = new WorktreesViewModel(new WorktreeReader(new FakeResources(), new FakeHousekeeping(), new FakeWorktreeHistory(), new JobBoard()), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance));
+        var worktrees = new WorktreesViewModel(new WorktreeReader(new FakeResources(), new FakeHousekeeping(), new FakeWorktreeHistory(), new JobBoard()), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger));
         var resources = new ResourcesViewModel(reader, new Housekeeping(orphans, new FakeHousekeeping()), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new WorktreesEntry(new JobFocus(new TestRegions(), messenger), worktrees));
 
         return new ResourceIndicatorViewModel(reader, new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger), resources);

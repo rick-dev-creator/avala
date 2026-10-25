@@ -168,5 +168,5 @@ public sealed class ResourcesViewModelScripts : IDisposable
         new(Reader(), new Housekeeping(orphans, worktrees), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new WorktreesEntry(new JobFocus(new TestRegions(), messenger), WorktreesPage()));
 
     private WorktreesViewModel WorktreesPage() =>
-        new(new WorktreeReader(resources, worktrees, new FakeWorktreeHistory(), Pages.Board(job)), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance));
+        new(new WorktreeReader(resources, worktrees, new FakeWorktreeHistory(), Pages.Board(job)), new LiveFeed(new Pulse(new JobBoard()), ui, NullLogger<LiveFeed>.Instance), new JobFocus(new TestRegions(), messenger));
 }

@@ -6,6 +6,7 @@ using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Usage;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
 
@@ -84,6 +85,18 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
 
     public async ValueTask HandleAsync(ResourcesSampled integrationEvent, CancellationToken cancellationToken) =>
         await housekeeper.SweepAsync(integrationEvent.Sample, reaper, cancellationToken);
+
+    public Task RecoverAsync(JobSummary job, string worktree, Option<DateTimeOffset> resting, CancellationToken cancellationToken)
+    {
+        var home = Folders.Key(worktree);
+        book.Attribute(attribution => attribution.Known(home, job.Job));
+
+        return job.Status.Ended()
+            ? housekeeper.RetainAsync(job.Job, job.Status, [home], job.Ended.Match(at => at, () => job.Submitted), reaper, cancellationToken)
+            : resting.Match(
+                since => housekeeper.RetainAsync(job.Job, job.Status, [home], since, reaper, cancellationToken),
+                () => housekeeper.RetainAsync(job.Job, job.Status, [home], reaper, cancellationToken));
+    }
 
     private async Task EndedAsync(SessionId session, CancellationToken cancellationToken)
     {

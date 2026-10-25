@@ -16,13 +16,6 @@ internal sealed class FolderSizes(AvalaPaths paths) : IFolderSizes
         AttributesToSkip = FileAttributes.ReparsePoint,
     };
 
-    private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
-
-    private static readonly HashSet<string> BuildOutputs = new(StringComparer.Ordinal)
-    {
-        "node_modules", "bin", "obj", "target", "dist", "build", ".venv", "venv", "__pycache__", ".gradle", ".next", ".nuxt", ".turbo", ".cache",
-    };
-
     public Task<long> SizeAsync(string folder, CancellationToken cancellationToken) => Task.Run(() => Measure(folder), cancellationToken);
 
     public Task<(long Bytes, long Build)> MeasureAsync(string folder, CancellationToken cancellationToken) => Task.Run(() => MeasureBuild(folder), cancellationToken);
@@ -58,8 +51,7 @@ internal sealed class FolderSizes(AvalaPaths paths) : IFolderSizes
     }
 
     private static bool InBuildOutput(string root, string directory) =>
-        directory.Length > root.Length
-        && directory[(root.Length + 1)..].Split(Separators).Any(BuildOutputs.Contains);
+        directory.Length > root.Length && BuildOutputs.Holds(directory[(root.Length + 1)..]);
 
     public Option<DiskSpace> Disk()
     {

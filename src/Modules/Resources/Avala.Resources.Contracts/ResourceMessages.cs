@@ -123,6 +123,8 @@ public sealed record FolderUsage(string Path, long Bytes)
 public sealed record ResourceSample(DateTimeOffset At, IReadOnlyList<TreeUsage> Trees, IReadOnlyList<FolderUsage> Worktrees, long DataFolderBytes)
 {
     public Option<DiskSpace> Disk { get; init; }
+
+    public DateTimeOffset Measured { get; init; } = At;
 }
 
 public sealed record DiskSpace(long Available, long Total)

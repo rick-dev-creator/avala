@@ -10,6 +10,8 @@ internal sealed class ResourcesDbContext(string database) : DbContext
 
     public DbSet<StoredSeenWorktree> Seen => Set<StoredSeenWorktree>();
 
+    public DbSet<StoredRestingJob> Resting => Set<StoredRestingJob>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -31,6 +33,11 @@ internal sealed class ResourcesDbContext(string database) : DbContext
         {
             row.ToTable("SeenWorktrees");
             row.HasKey(stored => stored.Path);
+        });
+        modelBuilder.Entity<StoredRestingJob>(row =>
+        {
+            row.ToTable("RestingJobs");
+            row.HasKey(stored => stored.Job);
         });
     }
 }

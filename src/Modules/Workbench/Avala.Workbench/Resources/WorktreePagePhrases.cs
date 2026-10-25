@@ -17,6 +17,8 @@ internal static class WorktreePagePhrases
 
     public const string FreeNow = "Free space now";
 
+    private static readonly string[] StateOrder = ["working", "waiting", "finished", "other"];
+
     public static string Bytes(long bytes) =>
         bytes >= 1L << 30
             ? string.Create(CultureInfo.InvariantCulture, $"{bytes / (double)(1L << 30):0.#} GB")
@@ -33,8 +35,27 @@ internal static class WorktreePagePhrases
         return $"{budget}{free}{floor}";
     }
 
-    public static string Shortage(WorktreeSpace space) =>
-        $"Avala freed every worktree it could and still needs space: worktrees take {Bytes(space.Worktrees)}, all of them from jobs that are working.";
+    public static string Shortage(WorktreeSpace space)
+    {
+        var budget = space.Budget.Match(bytes => $" of a {Bytes(bytes)} budget", () => string.Empty);
+        var disk = space.Disk.Match(found => string.Create(CultureInfo.InvariantCulture, $", and the disk has {found.FreeShare * 100:0}% free"), () => string.Empty);
+
+        return $"Avala freed every worktree it could and is still past the limits: worktrees take {Bytes(space.Worktrees)}{budget}{disk}. What is left belongs to jobs that are working or could not be freed.";
+    }
+
+    public static string States(IEnumerable<Option<BoardJob>> jobs)
+    {
+        var states = jobs.GroupBy(job => job.Match(found => found.Status switch
+            {
+                Jobs.Contracts.JobStatus.AwaitingReview or Jobs.Contracts.JobStatus.NeedsHelp => "waiting",
+                Jobs.Contracts.JobStatus.Approved or Jobs.Contracts.JobStatus.Discarded or Jobs.Contracts.JobStatus.Failed => "finished",
+                _ => "working",
+            }, () => "other"))
+            .OrderBy(group => Array.IndexOf(StateOrder, group.Key))
+            .Select(group => string.Create(CultureInfo.InvariantCulture, $"{group.Count()} {group.Key}"));
+
+        return string.Join(", ", states);
+    }
 
     public static string Title(Option<BoardJob> job, string path) =>
         job.Match(found => FirstLine(found.Summary.Instruction), () => Path.GetFileName(Path.TrimEndingDirectorySeparator(path)));

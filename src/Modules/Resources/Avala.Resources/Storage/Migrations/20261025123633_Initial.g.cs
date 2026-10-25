@@ -10,6 +10,18 @@ namespace Avala.Resources.Storage.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "RestingJobs",
+                columns: table => new
+                {
+                    Job = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Since = table.Column<long>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RestingJobs", x => x.Job);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SeenWorktrees",
                 columns: table => new
                 {
@@ -64,6 +76,9 @@ namespace Avala.Resources.Storage.Migrations
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "RestingJobs");
+
             migrationBuilder.DropTable(
                 name: "SeenWorktrees");
 
