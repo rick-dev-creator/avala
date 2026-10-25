@@ -3,11 +3,13 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Transcripts.Contracts;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -136,9 +138,25 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ADiscardedJobsWorktreeIsReclaimedAsync()
+    public async Task ADiscardedJobsWorktreeIsFreedAtOnceAndItsWorkKeptAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, JobStatus.Discarded, WorktreeMoment.Discarded), (freed.Job, freed.Status, freed.Moment));
+        Assert.False(Directory.Exists(worktree));
+        Assert.True(Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAtAsync(worktree, Cancellation)).Shelved);
+        Assert.Equal([freed], run.Get<IWorktreeHousekeeping>().Freed());
+    }
+
+    [Fact]
+    public async Task ADiscardedJobsWorkDueForDeletionAtOnceIsReclaimedAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "deleteDiscardedHours": 0 } }""")], []);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var worktree = run.Worktree;
 
@@ -151,9 +169,58 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AnApprovedJobReopenedByAMessageKeepsItsWorktreeWhenItsApprovedRetentionComesDueAsync()
+    public async Task AnApprovedJobWhoseWorktreeWasFreedContinuesInItsRebuiltWorktreeAsync()
     {
-        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepApprovedHours": 1 } }""")], []);
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeUndeliveredHours": 0 } }""")], []);
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        Assert.Equal(WorktreeMoment.Undelivered, (await run.FreedAsync()).Moment);
+        Assert.False(Directory.Exists(worktree));
+
+        Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "One more thing.", Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.AwaitingReview);
+
+        Assert.True(Directory.Exists(worktree));
+        Assert.False(Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAtAsync(worktree, Cancellation)).Shelved);
+    }
+
+    [Fact]
+    public async Task AnApprovedJobWhoseWorkWasMergedIsFreedAtOnceAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [], [(".avala/jobs.json", """{ "approval": "merge" }""")]);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, JobStatus.Approved, WorktreeMoment.Delivered), (freed.Job, freed.Status, freed.Moment));
+    }
+
+    [Fact]
+    public async Task ArchivingAnApprovedJobFreesItsWorktreeAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        var progressed = run.Watch<JobProgressed>();
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(run.Job, Cancellation));
+        _ = await progressed.UntilAsync(update => update.Job == run.Job && update.Status == JobStatus.Approved);
+        await run.DeliveredAsync();
+        Assert.True(Directory.Exists(worktree));
+
+        _ = Outcomes.Succeeds(await run.Get<IProjects>().ArchiveAsync([run.Job], Cancellation));
+        var freed = await run.FreedAsync();
+
+        Assert.Equal((run.Job, WorktreeMoment.Archived), (freed.Job, freed.Moment));
+        Assert.False(Directory.Exists(worktree));
+    }
+
+    [Fact]
+    public async Task AnApprovedJobReopenedByAMessageKeepsItsWorktreeWhenItIsDueToBeFreedAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeUndeliveredHours": 1 } }""")], []);
         var progressed = run.Watch<JobProgressed>();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var worktree = run.Worktree;
@@ -175,7 +242,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
     [Fact]
     public async Task ARetentionPendingWhenTheApplicationStopsReclaimsTheWorktreeAndReleasesTheConversationOnceItsDeadlinePassesAfterARestartAsync()
     {
-        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepDiscardedHours": 1 } }""")], []);
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "freeDiscardedHours": null, "deleteDiscardedHours": 1 } }""")], []);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var worktree = run.Worktree;
         Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));

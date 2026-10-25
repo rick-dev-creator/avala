@@ -20,30 +20,78 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
     private const string Repository = "/repositories/shop";
 
     [Fact]
-    public Task TheRepositoriesAreListedBesideTheirRulesWithTheShownOneSelectedAsync() =>
+    public Task TheNavigationListsThisComputersSectionsThenTheRepositoriesAndShowsOneSectionAtATimeAsync() =>
         ui.RunAsync(() =>
         {
             var view = Wide(new DesignSettingsViewModel());
 
-            Assert.Equal(4, view.Find<ItemsControl>("Repositories").ItemCount);
-            Assert.Contains("ledger-api", view.VisibleTexts);
-            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "RepositorySettingsView");
-            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "MachineSettingsView");
-            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "AppearanceView");
+            Assert.Equal((8, 4), (view.Find<ItemsControl>("Sections").ItemCount, view.Find<ItemsControl>("Repositories").ItemCount));
+            Assert.Equal(("Accounts", "The agents and source control this computer signs in with."), (view.TextOf("SectionTitle"), view.TextOf("SectionNote")));
+            Assert.Equal(
+                (true, false, false, false, false, false, false),
+                (view.Shows("MachineAccounts"), view.Shows("DefaultConnection"), view.Shows("Machine"), view.Shows("Notifications"), view.Shows("Appearance"), view.Shows("About"), view.Shows("Repository")));
             Assert.False(view.Shows("NoRepositories"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AccountsComeFirstAboveTheRepositoryRulesAsync() =>
+    public Task ChoosingASectionShowsItAloneUnderItsHeadingAndMarksItInTheNavigationAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Wide(new DesignSettingsViewModel());
-            var accounts = view.Find("MachineAccounts").TranslatePoint(default, view.Window);
-            var repository = view.Find("Repository").TranslatePoint(default, view.Window);
+            var settings = new SettingsViewModel(new DesignRepositorySettingsViewModel(), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel(), new DesignAboutViewModel());
+            var view = Wide(settings);
 
-            Assert.True(view.Shows("MachineAccounts"));
-            Assert.True(accounts?.Y < repository?.Y, $"Accounts at {accounts}, the repository's rules at {repository}.");
-            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "MachineAccountsView");
+            view.Click(Entry(view, "Appearance"));
+            view.Settle();
+
+            Assert.Equal(("Appearance", true, false), (view.TextOf("SectionTitle"), view.Shows("Appearance"), view.Shows("MachineAccounts")));
+            Assert.Equal(["Appearance"], settings.Entries.Where(entry => entry.IsSelected).Select(entry => entry.Title));
+            Assert.Contains("selected", Entry(view, "Appearance").Classes);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheFleetSectionShowsWhatTheFleetModuleContributesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignSettingsViewModel { Section = SettingsSection.Fleet, Machine = new DesignMachineSettingsViewModel { Fleet = [new DesignAboutViewModel()] } });
+
+            Assert.Equal(("Fleet", true, 1, false), (view.TextOf("SectionTitle"), view.Shows("FleetScroller"), view.Find<ItemsControl>("FleetSections").ItemCount, view.Shows("NoFleet")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ChoosingARepositoryShowsItsRulesWithoutTheSectionHeadingAndMarksTheRepositoryAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var settings = new SettingsViewModel(Repositories(new FakeOpener()), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel(), new DesignAboutViewModel());
+            var view = Wide(settings);
+
+            await settings.OpenRepositoryCommand.ExecuteAsync(Repository);
+            view.Settle();
+
+            Assert.Equal((SettingsSection.Repository, Repository), (settings.Section, settings.ShownRepository));
+            Assert.Equal((true, false, "shop"), (view.Shows("Rules"), view.Shows("Heading"), view.TextOf("RepositoryName")));
+            Assert.DoesNotContain(settings.Entries, entry => entry.IsSelected);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ANarrowWindowTradesTheNavigationPaneForATabStripAndARepositoryChooserAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignSettingsViewModel { Section = SettingsSection.Repository });
+            view.Window.Width = 640;
+            view.Window.Height = 900;
+            view.Settle();
+
+            Assert.Equal((false, true, true), (view.Shows("Navigation"), view.Shows("TopNavigation"), view.Shows("RepositoryChooser")));
+            Assert.Equal(8, view.Find<ItemsControl>("SectionTabs").ItemCount);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AWideWindowKeepsTheNavigationPaneAndHidesTheTabStripAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignSettingsViewModel { Section = SettingsSection.Repository });
+
+            Assert.Equal((true, false, false), (view.Shows("Navigation"), view.Shows("TopNavigation"), view.Shows("RepositoryChooser")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -76,6 +124,9 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles(), SiteJobs.Focus())));
     }
 
+    private static Button Entry(ViewScript view, string title) =>
+        view.All<Button>().First(button => Avalonia.Automation.AutomationProperties.GetName(button) == title && button.IsEffectivelyVisible);
+
     private static ViewScript Wide(object viewModel)
     {
         var view = Screen.Show(viewModel);
@@ -107,7 +158,34 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
             Assert.Equal((4, 6, 1, 4), (view.Find<ItemsControl>("Files").ItemCount, view.Find<ItemsControl>("RuleList").ItemCount, view.Find<ItemsControl>("Caps").ItemCount, view.Find<ItemsControl>("Checks").ItemCount));
             Assert.Equal(("ledger-api", "Autonomous", "Recommended options"), (view.TextOf("RepositoryName"), view.TextOf("Autonomy"), view.TextOf("FormStrategy")));
             Assert.Equal(["Deny", "Ask", "Allow", "Deny", "Allow", "Allow"], rules.Select(rule => rule.Classes.Contains("deny") ? "Deny" : rule.Classes.Contains("ask") ? "Ask" : "Allow"));
-            Assert.Equal((false, false, false), (view.Shows("JobsFile"), view.Shows("Error"), view.Shows("NothingRead")));
+            Assert.Equal((false, false), (view.Shows("Error"), view.Shows("NothingRead")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheChecksTabSaysWhenNoCheckIsDeclaredYetAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Tab = RepositoryTab.Checks, Checks = [] });
+
+            Assert.Equal((true, false, false), (view.Shows("NoChecks"), view.Shows("Checks"), view.Shows("PermissionsPanel")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheDeliveryTabShowsTheJobFileSectionBySectionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Tab = RepositoryTab.Delivery, JobSections = [new DesignJobSectionViewModel()] });
+
+            Assert.Equal((true, false, 1), (view.Shows("JobsFile"), view.Shows("NoJobSections"), view.Find<ItemsControl>("JobSections").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheDeliveryTabSaysAvalasDefaultsApplyWithoutAJobFileAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Tab = RepositoryTab.Delivery });
+
+            Assert.Equal((false, true), (view.Shows("JobsFile"), view.Shows("NoJobSections")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -123,6 +201,8 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 
             view.Click("EditAutonomy");
             await (settings.EditCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Click("BudgetTab");
+            view.Settle();
             view.Click("EditBudget");
             await (settings.EditCommand.ExecutionTask ?? Task.CompletedTask);
 
@@ -141,6 +221,8 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
             view.Window.Height = 1400;
             view.Settle();
             var before = view.Shows("Editor");
+            view.Click("BudgetTab");
+            view.Settle();
 
             view.Click("EditBudgetHere");
             await (settings.EditHereCommand.ExecutionTask ?? Task.CompletedTask);
@@ -166,11 +248,15 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheMachineShowsTheSectionsHarnessesContributeOnlyWhenThereAreSomeAsync() =>
+    public Task TheConnectionsSectionShowsWhatHarnessesContributeOnlyWhenThereIsSomeAsync() =>
         ui.RunAsync(() =>
         {
-            var none = Screen.Show(new DesignMachineSettingsViewModel()).Shows("Harnesses");
-            var view = Screen.Show(new DesignMachineSettingsViewModel { Harnesses = [new Avala.Workbench.Settings.DesignNotificationsViewModel()] });
+            var none = Screen.Show(new DesignSettingsViewModel { Section = SettingsSection.Connections }, Avalonia.Styling.ThemeVariant.Dark, 1280, 1000).Shows("Harnesses");
+            var view = Screen.Show(
+                new DesignSettingsViewModel { Section = SettingsSection.Connections, Machine = new DesignMachineSettingsViewModel { Harnesses = [new Avala.Workbench.Settings.DesignNotificationsViewModel()] } },
+                Avalonia.Styling.ThemeVariant.Dark,
+                1280,
+                1000);
 
             Assert.False(none);
             Assert.Equal(1, view.Find<ItemsControl>("Harnesses").ItemCount);
@@ -244,13 +330,13 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var machine = Machine(new FakeConnections(), new FakeSupervision());
-            var view = Page(machine);
+            var view = Page(machine, SettingsSection.Supervision);
 
             view.Find<TextBox>("SilenceDraft").Text = "later";
             await machine.SaveSilenceCommand.ExecuteAsync(null);
             view.Settle();
 
-            Assert.Equal((true, "Enter the window in seconds."), (view.Shows("Error"), view.TextOf("ErrorText")));
+            Assert.Equal((true, "Enter the window in seconds."), (view.Shows("MachineError"), view.TextOf("MachineErrorText")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -260,14 +346,20 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
             var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
-            var view = Page(machine);
+            var view = Page(machine, SettingsSection.Connections);
+            var accounts = Page(machine, SettingsSection.Accounts);
 
             Assert.Equal((DefaultPhrases.Auto, true, false), (view.Find<ComboBox>("Choices").SelectedItem, view.Shows("Recommended"), view.Shows("Save")));
-            Assert.Equal([false, false], view.Find<ItemsControl>("Connections").Items.Cast<IMachineConnectionViewModel>().Select(connection => connection.IsDefault));
+            Assert.Equal([false, false], accounts.Find<ItemsControl>("Connections").Items.Cast<IMachineConnectionViewModel>().Select(connection => connection.IsDefault));
         }, TestContext.Current.CancellationToken);
 
-    private static ViewScript Page(MachineSettingsViewModel machine) =>
-        Screen.Show(new SettingsViewModel(new DesignRepositorySettingsViewModel(), machine, new DesignAppearanceViewModel(), new DesignAboutViewModel()), Avalonia.Styling.ThemeVariant.Dark, 1280, 1400);
+    private static ViewScript Page(MachineSettingsViewModel machine, SettingsSection section)
+    {
+        var settings = new SettingsViewModel(new DesignRepositorySettingsViewModel(), machine, new DesignAppearanceViewModel(), new DesignAboutViewModel());
+        settings.Show(section);
+
+        return Screen.Show(settings, Avalonia.Styling.ThemeVariant.Dark, 1280, 1400);
+    }
 
     internal static MachineSettingsViewModel Machine(FakeConnections connections, FakeSupervision supervision)
     {
@@ -276,7 +368,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         return new(
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
     }
 
 }
@@ -510,6 +602,18 @@ public sealed class CapsViewScripts(HeadlessUi ui)
 
             Assert.Equal(("Every connection", 3), (view.TextOf("Scope"), view.Find<ItemsControl>("Lines").ItemCount));
             Assert.Contains("Hold when a usage window reaches", view.VisibleTexts);
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class SettingsEntryViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AnEntryShowsItsIconAndTitleAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignSettingsEntryViewModel { Title = "Supervision", Icon = "IconEye" });
+
+            Assert.Equal((true, "Supervision"), (view.Shows("EntryIcon"), view.TextOf("EntryTitle")));
         }, TestContext.Current.CancellationToken);
 }
 

@@ -110,6 +110,50 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
                 .MapAsync(_ => location),
             cancellationToken);
 
+    public Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
+        RunAsync(["-C", location.Path, "status", "--porcelain"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
+            .MapAsync(status => status.Trim().Length > 0);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(
+        WorkspaceLocation location,
+        BranchName branch,
+        WorkspaceId workspace,
+        CancellationToken cancellationToken) =>
+        administration.RunAsync(
+            token => AdministrationAsync(["-C", location.Repository, "update-ref", "-m", "avala: shelved", GitRefs.ShelvedOf(workspace), $"{GitRefs.Heads}{branch.Value}"], token)
+                .BindAsync(_ => Directory.Exists(location.Path)
+                    ? AdministrationAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], token)
+                    : AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token))
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "branch", "-D", branch.Value], token))
+                .MapAsync(_ => location),
+            cancellationToken);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(
+        WorkspaceLocation location,
+        BranchName branch,
+        WorkspaceId workspace,
+        CancellationToken cancellationToken) =>
+        administration.RunAsync(
+            token => AdministrationAsync(["-C", location.Repository, "worktree", "prune"], token)
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, GitRefs.ShelvedOf(workspace)], token))
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.ShelvedOf(workspace)], token))
+                .MapAsync(_ => location),
+            cancellationToken);
+
+    public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(
+        WorkspaceLocation location,
+        WorkspaceId workspace,
+        CancellationToken cancellationToken) =>
+        administration.RunAsync(
+            token => AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.ShelvedOf(workspace)], token)
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "update-ref", "-d", GitRefs.MergedOf(workspace)], token))
+                .MapAsync(_ => location),
+            cancellationToken);
+
+    public async Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken) =>
+        (await processes.RunAsync(new ProcessRequest("git", ["-C", repository, "merge-base", "--is-ancestor", commit.Value, reference]), cancellationToken))
+            .Match(outcome => outcome.Succeeded, _ => false);
+
     public Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken) =>
         administration.RunAsync(token => AdministrationAsync(["-C", repository, "worktree", "prune"], token), cancellationToken);
 

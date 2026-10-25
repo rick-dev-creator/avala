@@ -633,6 +633,16 @@ internal sealed class RecordingConnections(params ConnectionCardViewModel[] card
 
     public string Caption => string.Empty;
 
+    public FleetScope Scope => FleetScope.InProgress;
+
+    public string InProgressLabel => "In progress";
+
+    public string ForReviewLabel => "Ready for review";
+
+    public string AllLabel => "All";
+
+    public IRelayCommand<FleetScope> ScopeCommand { get; } = new RelayCommand<FleetScope>(_ => { });
+
     public IRelayCommand<JobId> OpenCommand => new RelayCommand<JobId>(Opened.Add);
 
     public long Revision => 0;

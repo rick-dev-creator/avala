@@ -114,7 +114,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         [
             $"usage: {usage["Fact"].Text} · {usage["Spent"].Text}",
             $"audit: {audit["Fact"].Text} · {audit["Summary"].Text}",
-            .. audit["Decisions"].Value<IReadOnlyList<string>>().Select(decision => $"decision: {decision}"),
+            .. audit["Decisions"].Items.Select(decision => $"decision: {decision["Target"].Text} · {decision["Caption"].Text}"),
             $"autonomy: {autonomy["Fact"].Text} · {autonomy["Autonomy"].Text}",
         ]);
     }
@@ -130,7 +130,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         await run.StartedAsync();
 
         Assert.Contains(before, line => line.StartsWith("audit: 1 denied · ", StringComparison.Ordinal) && line.EndsWith("1 assumption", StringComparison.Ordinal));
-        Assert.Contains("decision: Denied: run dotnet ef database update · rule no-migrations", before);
+        Assert.Contains("decision: dotnet ef database update · Run · denied by rule no-migrations", before);
         Assert.Contains("assumption: Which database should the service use?: PostgreSQL", before);
         Assert.Contains("autonomy: Autonomous · Autonomous, as the repository declares", before);
         Assert.Contains(before, line => line.StartsWith("exception: Denied: run dotnet ef database update", StringComparison.Ordinal));
@@ -221,7 +221,6 @@ public sealed class RestartTests(PublishedPlugins plugins)
 
         Assert.Contains(before, line => line.StartsWith("root: ", StringComparison.Ordinal) && line.Contains("Simulated Claude Code · simulator · Budget 1 USD", StringComparison.Ordinal));
         Assert.Equal(2, before.Count(line => line.StartsWith("child: ", StringComparison.Ordinal) && line.Contains("integrated into its parent · Simulated Claude Code", StringComparison.Ordinal)));
-        Assert.Equal(2, before.Count(line => line.StartsWith("inspected: ", StringComparison.Ordinal) && line.EndsWith("approved · simulator · integrated into its parent", StringComparison.Ordinal)));
         Assert.Equal(before, await DelegationAsync(run, orchestrator));
     }
 
@@ -235,7 +234,6 @@ public sealed class RestartTests(PublishedPlugins plugins)
             () => string.Join(", ", TreeBranches.Children(delegation["Trees"].Items[0]).Select(child => child["Activity"].Text)));
         var workbench = await run.WorkbenchAsync();
         await workbench.ShowsInGroupAsync(orchestrator, "ReadyForReview");
-        var section = Assert.Single(await workbench.InspectAsync(orchestrator, "DelegationSectionViewModel"));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
         {
@@ -248,8 +246,6 @@ public sealed class RestartTests(PublishedPlugins plugins)
                     .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spend"].Text}")
                     .Order(StringComparer.Ordinal),
                 $"refused: {delegation["Trees"].Items[0]["Refused"].Items.Count}",
-                $"inspector: {section["Fact"].Text}",
-                .. section["Children"].Value<IReadOnlyList<string>>().Select(child => $"inspected: {child}").Order(StringComparer.Ordinal),
             ];
         });
     }
@@ -304,8 +300,8 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Equal((true, 0), await run.Ui.ReadAsync(() => (decisions["IsEmpty"].Value<bool>(), decisions["Items"].Items.Count)));
         var audit = Assert.Single(await after.InspectAsync(run.Job, "AuditSectionViewModel"));
         Assert.Contains(
-            "Asked you: run dotnet ef database update · unanswered, its session ended",
-            await run.Ui.ReadAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>()));
+            ("dotnet ef database update", "Run · unanswered, its session ended"),
+            await run.Ui.ReadAsync(() => audit["Decisions"].Items.Select(decision => (decision["Target"].Text, decision["Caption"].Text)).ToList()));
     }
 
     [Fact]
@@ -467,8 +463,8 @@ public sealed class RestartTests(PublishedPlugins plugins)
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
         [
             $"audit: {audit["Fact"].Text} · {audit["Summary"].Text}",
-            .. audit["Decisions"].Value<IReadOnlyList<string>>().Select(decision => $"decision: {decision}"),
-            .. audit["Assumptions"].Value<IReadOnlyList<string>>().Select(assumption => $"assumption: {assumption}"),
+            .. audit["Decisions"].Items.Select(decision => $"decision: {decision["Target"].Text} · {decision["Caption"].Text}"),
+            .. audit["Assumptions"].Items.Select(assumption => $"assumption: {assumption["Question"].Text}: {assumption["Chosen"].Text}"),
             $"autonomy: {autonomy["Fact"].Text} · {autonomy["Autonomy"].Text}",
             .. review["Exceptions"].Items.Select(exception => $"exception: {exception["Title"].Text} | {exception["Fact"].Text}"),
         ]);

@@ -16,7 +16,7 @@ internal sealed class PermissionResponder(IAgents agents, RequestPlaces places, 
         IReadOnlyList<PolicyRule> jobRules,
         CancellationToken cancellationToken)
     {
-        var request = await places.FactsAsync(session, requested, cancellationToken);
+        var request = await places.FactsAsync(session, requested, jobRules, cancellationToken);
         var verdict = session.Policy.Decide(request, jobRules);
         var delivery = verdict.Answer switch
         {

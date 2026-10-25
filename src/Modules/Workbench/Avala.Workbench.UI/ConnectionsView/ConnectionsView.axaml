@@ -2,13 +2,43 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.ConnectionsView"
              x:ClassModifier="internal"
              x:DataType="overview:IConnectionsViewModel">
   <Design.DataContext>
     <overview:DesignConnectionsViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Filters">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+  </UserControl.Styles>
   <DockPanel>
+    <Border x:Name="Filters" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="24,12">
+      <Border Classes="segments" HorizontalAlignment="Left" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="ShowInProgress"
+                  Classes="segment"
+                  Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='InProgress'}"
+                  Content="{Binding InProgressLabel}"
+                  Command="{Binding ScopeCommand}"
+                  CommandParameter="{x:Static overview:FleetScope.InProgress}" />
+          <Button x:Name="ShowForReview"
+                  Classes="segment"
+                  Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='ForReview'}"
+                  Content="{Binding ForReviewLabel}"
+                  Command="{Binding ScopeCommand}"
+                  CommandParameter="{x:Static overview:FleetScope.ForReview}" />
+          <Button x:Name="ShowAll"
+                  Classes="segment"
+                  Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='All'}"
+                  Content="{Binding AllLabel}"
+                  Command="{Binding ScopeCommand}"
+                  CommandParameter="{x:Static overview:FleetScope.All}" />
+        </StackPanel>
+      </Border>
+    </Border>
     <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="24,16,24,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
     <Border x:Name="FileNoteBanner"
             DockPanel.Dock="Top"

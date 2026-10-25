@@ -307,7 +307,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() => Row(workbench, run.Job) is { } row && !row["HasPendingDecisions"].Value<bool>());
         var audit = Assert.Single(await workbench.InspectAsync(run.Job, "AuditSectionViewModel"));
-        await workbench.ShowsAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>().Contains($"Asked you: run {Orders} · withdrawn by the harness"));
+        await workbench.ShowsAsync(() => audit["Decisions"].Items.Any(decision => decision["Target"].Text == Orders && decision["Caption"].Text == "Run · withdrawn by the harness"));
         Assert.Equal(1, run.Get<IPermissionAudit>().OfJob(run.Job).Count(decision => decision.Target == Orders));
     }
 

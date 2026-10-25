@@ -29,6 +29,51 @@ public sealed class SettingsViewModelScripts
             .Then(page => Assert.Equal<(object, object, object)>((repository, machine, appearance), (page.Repository, page.Machine, page.Appearance)));
     }
 
+    [Fact]
+    public void ThePageOpensOnAccountsAndListsThisComputersSectionsInOrder()
+    {
+        var page = Page();
+
+        Assert.Equal(("Accounts,Connections,Supervision,Worktrees,Notifications,Fleet,Appearance,About", "Accounts", true), (string.Join(",", page.Entries.Select(entry => entry.Title)), page.Heading.Title, page.Entries[0].IsSelected));
+    }
+
+    [Fact]
+    public void ChoosingASectionShowsOnlyItAndMarksOnlyItsEntry()
+    {
+        var page = Page();
+
+        page.ShowCommand.Execute(SettingsSection.Supervision);
+
+        Assert.Equal(("Supervision", "Supervision", false, true), (page.Heading.Title, string.Join(",", page.Entries.Where(entry => entry.IsSelected).Select(entry => entry.Title)), page.ShowsAccounts, page.ShowsSupervision));
+    }
+
+    [Fact]
+    public async Task OpeningARepositoryShowsItsRulesAndNamesItAsTheShownRepositoryAsync()
+    {
+        var page = Page();
+
+        await page.OpenRepositoryCommand.ExecuteAsync("~/code/ledger-api");
+
+        Assert.Equal((true, "~/code/ledger-api", false), (page.ShowsRepository, page.ShownRepository, page.Entries.Any(entry => entry.IsSelected)));
+    }
+
+    [Fact]
+    public void NoRepositoryIsMarkedWhileASectionOfThisComputerIsShown() =>
+        Assert.Equal(string.Empty, Page().ShownRepository);
+
+    [Fact]
+    public async Task ReadingAnotherRepositoryShowsTheRepositorySectionAsync()
+    {
+        var page = Page();
+
+        await page.ReadRepositoryCommand.ExecuteAsync(null);
+
+        Assert.Equal(SettingsSection.Repository, page.Section);
+    }
+
+    private static SettingsViewModel Page() =>
+        new(new DesignRepositorySettingsViewModel(), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel(), new DesignAboutViewModel());
+
     private sealed class AppearanceLoading(List<string> calls) : IAppearanceViewModel
     {
         private readonly DesignAppearanceViewModel appearance = new();
@@ -86,9 +131,13 @@ public sealed class SettingsViewModelScripts
 
         public INotificationsViewModel Notifications => machine.Notifications;
 
+        public IWorktreeSettingsViewModel Worktrees => machine.Worktrees;
+
         public IMachineAccountsViewModel Accounts => machine.Accounts;
 
         public IReadOnlyList<object> Harnesses => machine.Harnesses;
+
+        public IReadOnlyList<object> Fleet => machine.Fleet;
 
         public IRuleFileEditorViewModel Editor => repository.Editor;
 
@@ -129,6 +178,26 @@ public sealed class SettingsViewModelScripts
         public IRuleFileViewModel? PermissionsFile => repository.PermissionsFile;
 
         public IRuleFileViewModel? BudgetFile => repository.BudgetFile;
+
+        public IRuleFileViewModel? ChecksFile => repository.ChecksFile;
+
+        public IRuleFileViewModel? JobsFile => repository.JobsFile;
+
+        public RepositoryTab Tab => repository.Tab;
+
+        public bool ShowsPermissions => repository.ShowsPermissions;
+
+        public bool ShowsChecks => repository.ShowsChecks;
+
+        public bool ShowsBudget => repository.ShowsBudget;
+
+        public bool ShowsDelivery => repository.ShowsDelivery;
+
+        public bool ShowsDocs => repository.ShowsDocs;
+
+        public bool ShowsFiles => repository.ShowsFiles;
+
+        public CommunityToolkit.Mvvm.Input.IRelayCommand<RepositoryTab> ShowTabCommand => repository.ShowTabCommand;
 
         public IDocsSettingViewModel Docs => repository.Docs;
 

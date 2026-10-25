@@ -10,6 +10,9 @@ Run a fleet server of your own, so every Avala instance on your team sends it wh
   - **`compose.yaml`:** PostgreSQL 18.3 on a volume, the server, and Caddy, which gets and renews an HTTPS certificate for your domain. Only Caddy is reachable from outside.
   - **`.env.example`:** the five values you fill in.
   - **`fleet`:** a small command to register and revoke instances, and to back up and restore the database.
+- **Two kinds of key, neither handed out by anyone else:**
+  - **The administrator key** is one you make yourself when you install the server and keep in its `.env`. It only registers and revokes computers, and never leaves the server.
+  - **An instance key**, `avk_` and 43 more characters, is made by your server for each computer you register. Avala keeps it in that computer's keychain, never in a file, and sends it only to your server.
 - **HTTPS only.** Avala sends its key only over `https`, so the server is always behind Caddy. On a network without a public domain, Caddy signs with its own certificate authority, and each computer trusts it once.
 - **Proven before each release.** `scripts/fleet-deploy-check.cs` runs this compose and checks, end to end:
   - a real Avala connecting over HTTPS;
@@ -30,7 +33,7 @@ Run a fleet server of your own, so every Avala instance on your team sends it wh
 
    Fill in the version, your domain, an e-mail for the certificate, an administrator key (`openssl rand -base64 48`) and a database password (`openssl rand -hex 24`).
 3. **Start it:** `docker compose up -d`. After a minute, `https://<your domain>/health` answers `Healthy`.
-4. **Register a computer:** `./fleet register "Rick's laptop"`. It prints the instance's key once; copy it.
+4. **Register a computer:** `./fleet register "Rick's laptop"`. It prints the instance's key once; copy it and give it to that computer's person privately, as you would a password.
 5. **Connect Avala** on that computer: open **Settings**, **Fleet**, write `https://<your domain>` and the key, and choose **Connect**. Settings shows **Connected as** the name you registered.
 6. **Open the Fleet page** in the sidebar once a job has run.
 
@@ -89,6 +92,7 @@ AVALA_DATABASE_PASSWORD=a-long-random-password
   - Instances cannot be listed; keep the ids `./fleet register` prints.
   - There is no web interface: the Fleet page in Avala is how you read the fleet.
   - Only one server may run against a database, since it migrates at start.
+- **A lost instance key cannot be shown again:** the server keeps only a hash of it. Revoke it with `./fleet revoke <id>` and register the computer again. Revoke a computer the same way when someone leaves or loses it; its key stops working at once.
 - **Avala says the certificate is not trusted:** on a public domain, check that the domain points to the server and that ports 80 and 443 are open, so Caddy can get its certificate. In the internal mode, trust `fleet-root.crt` on that computer.
 - **`docker compose pull` says `unauthorized`:** the image package on GHCR is not public yet.
 

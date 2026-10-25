@@ -155,6 +155,8 @@ internal sealed class Budgeted
         public IReadOnlyList<PortConflict> Conflicts() => [];
 
         public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     internal sealed class HeldTallies : IUsageTally

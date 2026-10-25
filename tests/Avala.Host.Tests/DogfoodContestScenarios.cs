@@ -63,8 +63,8 @@ internal static class DogfoodContestScenarios
             foreach (var other in contest.Candidates.Select(candidate => candidate.Job).Where(job => job != lead))
             {
                 await scene.StatusAsync(other, "a losing candidate to be discarded", mark, JobStatus.Discarded);
-                var reclaimed = await scene.UntilAsync<WorktreeReclaimed>(found => found.Reclaimed.Job == other, "a losing candidate's worktree to be reclaimed", mark);
-                scene.Evidence.Note($"reclaimed:{other}", $"{reclaimed.Reclaimed.Path}\t{(Directory.Exists(reclaimed.Reclaimed.Path) ? "still on disk" : "gone")}");
+                var freed = await scene.UntilAsync<WorktreeFreed>(found => found.Freed.Job == other, "a losing candidate's worktree to be freed", mark);
+                scene.Evidence.Note($"freed:{other}", $"{freed.Freed.Path}\t{(Directory.Exists(freed.Freed.Path) ? "still on disk" : "gone")}");
             }
 
             await scene.GitAsync("worktrees", scene.Place.Repository, "worktree", "list");

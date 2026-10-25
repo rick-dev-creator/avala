@@ -35,6 +35,28 @@ public sealed class DeniedCardViewModelScripts
     }
 
     [Fact]
+    public void AnEditOutsideTheWorktreeDeniedOnItsOwnOffersToAllowItsRepositoryForTheJob() =>
+        ViewModelScript.Given(new DeniedCardViewModel(
+                Assert.Single(denying.Transcript(denying.OutsideEdit("/home/me/Projects/contracts/src/Client.cs", "/home/me/Projects/contracts")).Entries.OfType<Avala.Workbench.Timeline.DeniedEntry>()),
+                Replies()))
+            .Then(card => Assert.Equal(
+                ("/home/me/Projects/contracts/src/Client.cs is outside the job's worktree, and writing there needs you. Allowing lets the job edit /home/me/Projects/contracts for the rest of this job.", true),
+                (card.Why, card.CanAllow)));
+
+    [Fact]
+    public async Task AllowingTheRepositoryOfADeniedEditTellsTheAgentItMayEditThereForTheRestOfTheJob()
+    {
+        denials.Rule = Asking.Grant(FolderAccess.Edit);
+        var card = new DeniedCardViewModel(
+            Assert.Single(denying.Transcript(denying.OutsideEdit("/home/me/Projects/contracts/src/Client.cs", Asking.Contracts)).Entries.OfType<Avala.Workbench.Timeline.DeniedEntry>()),
+            Replies());
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal("steer Avala now allows reading and editing files in /home/me/Projects/contracts in this job. You may retry it.", Assert.Single(jobs.Calls));
+    }
+
+    [Fact]
     public void ADenialAGuardKeepsForAPersonSaysSoAndOffersNoAllow() =>
         ViewModelScript.Given(new DeniedCardViewModel(denying.Entry(allowable: false), Replies()))
             .Then(card => Assert.Equal(

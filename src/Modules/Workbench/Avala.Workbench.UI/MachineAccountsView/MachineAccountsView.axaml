@@ -32,12 +32,11 @@
             IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <TextBlock x:Name="NoticeText" Classes="caption" privacy:PersonalDetails.Scrubbed="{Binding Notice}" TextWrapping="Wrap" />
     </Border>
-    <DockPanel>
-      <ContentControl x:Name="PersonalDetails" DockPanel.Dock="Right" VerticalAlignment="Center" Content="{Binding PersonalDetails}" />
-      <TextBlock Classes="title" Text="Accounts" />
-    </DockPanel>
     <StackPanel Spacing="8">
-      <TextBlock Classes="section" Margin="4,0" Text="Agents" />
+      <DockPanel>
+        <ContentControl x:Name="PersonalDetails" DockPanel.Dock="Right" VerticalAlignment="Center" Content="{Binding PersonalDetails}" />
+        <TextBlock Classes="section" Margin="4,0" Text="Agents" VerticalAlignment="Center" />
+      </DockPanel>
       <Border Classes="grouped">
         <StackPanel>
           <ItemsControl x:Name="Connections" Margin="16,0" ItemsSource="{Binding Connections}" />

@@ -3,28 +3,80 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              x:Class="Avala.Workbench.UI.SettingsView"
              x:ClassModifier="internal"
              x:DataType="settings:ISettingsViewModel">
   <Design.DataContext>
     <settings:DesignSettingsViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.row.entry">
+      <Setter Property="Padding" Value="10,7" />
+    </Style>
+    <Style Selector="Button.row.entry Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.row.entry TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.row.entry.selected Path.icon, Button.row.entry:pointerover Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.row.entry.selected TextBlock, Button.row.entry:pointerover TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="StackPanel.column">
+      <Setter Property="MaxWidth" Value="720" />
+      <Setter Property="Margin" Value="40,0" />
+    </Style>
+    <Style Selector="Border#TopNavigation, Border#RepositoryChooser">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <ContainerQuery Name="SettingsPage" Query="max-width:820">
+      <Style Selector="Border#Navigation">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+      <Style Selector="Border#TopNavigation">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="Border#RepositoryChooser">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="StackPanel.column">
+        <Setter Property="Margin" Value="20,0" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
   <Panel>
-    <Grid ColumnDefinitions="Auto,*">
-      <Border Classes="panel" Width="{DynamicResource ListPaneWidth}" BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,1,0" Padding="{DynamicResource ChromeClearance}">
+    <Grid x:Name="Page" ColumnDefinitions="Auto,*" Container.Name="SettingsPage" Container.Sizing="Width">
+      <Border x:Name="Navigation" Classes="panel" Width="{DynamicResource ListPaneWidth}" BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,1,0" Padding="{DynamicResource ChromeClearance}">
         <DockPanel Margin="10,16">
           <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
             <TextBlock Classes="section" Margin="10,0" Text="Another repository" />
             <ContentControl x:Name="AnotherRepository" Classes="stacked" Content="{Binding Repository.RepositoryField}">
               <ContentControl.KeyBindings>
-                <KeyBinding Gesture="Enter" Command="{Binding Repository.ReadCommand}" />
+                <KeyBinding Gesture="Enter" Command="{Binding ReadRepositoryCommand}" />
               </ContentControl.KeyBindings>
             </ContentControl>
-            <Button x:Name="Read" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Read its rules" Command="{Binding Repository.ReadCommand}" />
+            <Button x:Name="Read" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Read its rules" Command="{Binding ReadRepositoryCommand}" />
           </StackPanel>
           <ScrollViewer>
             <StackPanel Spacing="1">
-              <TextBlock Classes="section" Margin="10,4" Text="Repositories" />
+              <TextBlock Classes="section" Margin="10,4" Text="This computer" />
+              <ItemsControl x:Name="Sections" ItemsSource="{Binding Entries}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="settings:ISettingsEntryViewModel">
+                    <Button Classes="row entry"
+                            Classes.selected="{Binding IsSelected}"
+                            AutomationProperties.Name="{Binding Title}"
+                            Command="{Binding $parent[UserControl].((settings:ISettingsViewModel)DataContext).ShowCommand}"
+                            CommandParameter="{Binding Section}"
+                            Content="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Classes="section" Margin="10,20,10,4" Text="Repositories" />
               <TextBlock x:Name="NoRepositories"
                          Classes="caption"
                          Margin="10,4"
@@ -34,38 +86,21 @@
               <ItemsControl x:Name="Repositories" ItemsSource="{Binding Repository.Repositories}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="x:String">
-                    <Button Classes="row"
-                            Padding="0"
+                    <Button Classes="row entry"
                             AutomationProperties.Name="{Binding}"
                             ToolTip.Tip="{Binding}"
-                            Command="{Binding $parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.OpenCommand}"
+                            Command="{Binding $parent[UserControl].((settings:ISettingsViewModel)DataContext).OpenRepositoryCommand}"
                             CommandParameter="{Binding}">
-                      <Panel>
-                        <Border Background="{DynamicResource FillSelectedBrush}" CornerRadius="{DynamicResource RadiusButton}">
-                          <Border.IsVisible>
-                            <MultiBinding Converter="{x:Static states:Texts.Same}">
-                              <Binding />
-                              <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
-                            </MultiBinding>
-                          </Border.IsVisible>
-                        </Border>
-                        <TextBlock Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
-                          <TextBlock.IsVisible>
-                            <MultiBinding Converter="{x:Static states:Texts.Same}">
-                              <Binding />
-                              <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
-                            </MultiBinding>
-                          </TextBlock.IsVisible>
-                        </TextBlock>
-                        <TextBlock Classes="secondary" Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
-                          <TextBlock.IsVisible>
-                            <MultiBinding Converter="{x:Static states:Texts.Differ}">
-                              <Binding />
-                              <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
-                            </MultiBinding>
-                          </TextBlock.IsVisible>
-                        </TextBlock>
-                      </Panel>
+                      <Classes.selected>
+                        <MultiBinding Converter="{x:Static states:Texts.Same}">
+                          <Binding />
+                          <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).ShownRepository" />
+                        </MultiBinding>
+                      </Classes.selected>
+                      <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Path Classes="icon" Data="{StaticResource IconRepository}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </StackPanel>
                     </Button>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -74,16 +109,138 @@
           </ScrollViewer>
         </DockPanel>
       </Border>
-      <ScrollViewer Grid.Column="1">
-        <StackPanel Margin="24,32,24,48" Spacing="30" MaxWidth="680">
-          <ContentControl x:Name="MachineAccounts" Content="{Binding Machine.Accounts}" />
-          <Border Classes="separator" />
-          <ContentControl x:Name="Repository" Content="{Binding Repository}" />
-          <ContentControl x:Name="Machine" Content="{Binding Machine}" />
-          <ContentControl x:Name="Appearance" Content="{Binding Appearance}" />
-          <ContentControl x:Name="About" Content="{Binding About}" />
-        </StackPanel>
-      </ScrollViewer>
+      <DockPanel Grid.Column="1">
+        <Border x:Name="TopNavigation" DockPanel.Dock="Top" BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="{DynamicResource ChromeClearance}">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Horizontal" Spacing="2" Margin="12,8">
+              <ItemsControl x:Name="SectionTabs" ItemsSource="{Binding Entries}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="2" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="settings:ISettingsEntryViewModel">
+                    <Button Classes="row entry"
+                            Classes.selected="{Binding IsSelected}"
+                            AutomationProperties.Name="{Binding Title}"
+                            Command="{Binding $parent[UserControl].((settings:ISettingsViewModel)DataContext).ShowCommand}"
+                            CommandParameter="{Binding Section}"
+                            Content="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button x:Name="RepositoriesTab"
+                      Classes="row entry"
+                      Classes.selected="{Binding ShowsRepository}"
+                      AutomationProperties.Name="Repositories"
+                      Command="{Binding ShowCommand}"
+                      CommandParameter="{x:Static settings:SettingsSection.Repository}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Path Classes="icon" Data="{StaticResource IconRepository}" VerticalAlignment="Center" />
+                  <TextBlock Text="Repositories" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+        <Border x:Name="Heading" DockPanel.Dock="Top" Padding="0,32,0,8" IsVisible="{Binding !ShowsRepository}">
+          <StackPanel Classes="column" Spacing="4">
+            <TextBlock x:Name="SectionTitle" Classes="title" Text="{Binding Heading.Title}" />
+            <TextBlock x:Name="SectionNote" Classes="caption" TextWrapping="Wrap" Text="{Binding Heading.Note}" />
+            <Border x:Name="MachineError" Classes="quiet" Padding="12,8" Margin="0,12,0,0">
+              <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="ShowsSupervision" />
+                  <Binding Path="!!Machine.Accounts.Error.Length" />
+                </MultiBinding>
+              </Border.IsVisible>
+              <TextBlock x:Name="MachineErrorText" Classes="caption failure" privacy:PersonalDetails.Scrubbed="{Binding Machine.Accounts.Error}" TextWrapping="Wrap" />
+            </Border>
+            <Border x:Name="MachineNotice" Classes="quiet" Padding="12,8" Margin="0,12,0,0">
+              <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="ShowsSupervision" />
+                  <Binding Path="!!Machine.Accounts.Notice.Length" />
+                </MultiBinding>
+              </Border.IsVisible>
+              <TextBlock x:Name="MachineNoticeText" Classes="caption" privacy:PersonalDetails.Scrubbed="{Binding Machine.Accounts.Notice}" TextWrapping="Wrap" />
+            </Border>
+          </StackPanel>
+        </Border>
+        <Panel>
+          <ScrollViewer x:Name="AccountsScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsAccounts}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="MachineAccounts" Content="{Binding Machine.Accounts}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="ConnectionsScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsConnections}">
+            <StackPanel Classes="column" Spacing="30">
+              <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Classes="section" Text="Default connection" VerticalAlignment="Bottom" />
+                  <TextBlock Classes="hint" Text="for jobs that name none, in repositories that name none" VerticalAlignment="Bottom" />
+                </StackPanel>
+                <ContentControl x:Name="DefaultConnection" Content="{Binding Machine.DefaultConnection}" />
+              </StackPanel>
+              <ItemsControl x:Name="Harnesses" ItemsSource="{Binding Machine.Harnesses}" IsVisible="{Binding !!Machine.Harnesses.Count}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="30" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="SupervisionScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsSupervision}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="Machine" Content="{Binding Machine}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="WorktreesScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsWorktrees}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="Worktrees" Content="{Binding Machine.Worktrees}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="NotificationsScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsNotifications}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="Notifications" Content="{Binding Machine.Notifications}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="FleetScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsFleet}">
+            <StackPanel Classes="column">
+              <ItemsControl x:Name="FleetSections" ItemsSource="{Binding Machine.Fleet}" />
+              <TextBlock x:Name="NoFleet" Classes="caption" Text="This build has no Fleet module." IsVisible="{Binding !Machine.Fleet.Count}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="AppearanceScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsAppearance}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="Appearance" Content="{Binding Appearance}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="AboutScroller" Padding="0,20,0,48" IsVisible="{Binding ShowsAbout}">
+            <StackPanel Classes="column">
+              <ContentControl x:Name="About" Content="{Binding About}" />
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="RepositoryScroller" Padding="0,32,0,48" IsVisible="{Binding ShowsRepository}">
+            <StackPanel Classes="column" Spacing="24">
+              <Border x:Name="RepositoryChooser">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="section" Text="Repository" />
+                  <ContentControl x:Name="ChooseRepository" Content="{Binding Repository.RepositoryField}">
+                    <ContentControl.KeyBindings>
+                      <KeyBinding Gesture="Enter" Command="{Binding ReadRepositoryCommand}" />
+                    </ContentControl.KeyBindings>
+                  </ContentControl>
+                  <Button x:Name="ReadHere" HorizontalAlignment="Right" Content="Read its rules" Command="{Binding ReadRepositoryCommand}" />
+                </StackPanel>
+              </Border>
+              <ContentControl x:Name="Repository" Content="{Binding Repository}" />
+            </StackPanel>
+          </ScrollViewer>
+        </Panel>
+      </DockPanel>
     </Grid>
     <Panel x:Name="ConnectSheet" IsVisible="{Binding Machine.Accounts.SourceControl.Sheet.IsOpen}">
       <Border Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" />

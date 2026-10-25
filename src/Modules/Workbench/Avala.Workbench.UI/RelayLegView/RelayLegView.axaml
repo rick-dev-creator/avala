@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.RelayLegView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IRelayLegViewModel">
+  <Design.DataContext>
+    <overview:DesignRelayLegViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Rectangle#Rail">
+      <Setter Property="Fill" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Stop">
+      <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Stop.current">
+      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Stop.waiting">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="22,*,Auto" MinHeight="48">
+    <Rectangle x:Name="Rail" Width="1.5" HorizontalAlignment="Center" />
+    <Ellipse x:Name="Stop" Classes.current="{Binding IsCurrent}" Classes.waiting="{Binding IsWaiting}" Width="10" Height="10" Margin="0,5,0,0" VerticalAlignment="Top" />
+    <StackPanel Grid.Column="1" Margin="8,0,0,12" Spacing="2">
+      <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Detail" Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+    </StackPanel>
+    <TextBlock x:Name="When" Grid.Column="2" Classes="caption" Margin="8,1,2,0" Text="{Binding When}" />
+  </Grid>
+</UserControl>

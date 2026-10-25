@@ -69,7 +69,7 @@ internal sealed class DeniedRetries(IDeniedRequests denials, JobSteering steerin
     {
         var subject = answer.Rule.Bind(rule => rule.Target).Match(target => target, () => answer.Target);
 
-        return answer.Kind switch
+        return answer.Rule.Match(rule => rule.Scope == RuleScope.Granted, () => false) ? $"reading and editing files in {subject}" : answer.Kind switch
         {
             ItemKind.Command => $"running `{subject}`",
             ItemKind.Web => $"web requests to {subject}",

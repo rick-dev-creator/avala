@@ -43,7 +43,9 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         WorkspaceId workspace,
         CancellationToken cancellationToken) =>
         await LoadAsync(workspace, cancellationToken)
-            .BindAsync(found => git.RemoveWorktreeAsync(found.Location, found.Branch, found.Id, cancellationToken)
+            .BindAsync(found => (found.IsShelved
+                    ? git.RemoveShelvedAsync(found.Location, found.Id, cancellationToken)
+                    : git.RemoveWorktreeAsync(found.Location, found.Branch, found.Id, cancellationToken))
                 .BindAsync(_ => Valid(found.Remove())))
             .BindAsync(async removed =>
             {

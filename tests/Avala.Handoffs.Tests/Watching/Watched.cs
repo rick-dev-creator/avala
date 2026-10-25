@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -32,15 +33,17 @@ internal sealed class Watched : IAsyncDisposable
         Book = new HandoffBook(Store, new JobSpending(Usage, Usage), Connections, Bus);
         Briefs = new BriefGatherer(Worktrees, Audit, Audit, new JobNotes(Audit));
         Situations = new Situations(new JobPlaces(Catalog, Worktrees, Rules, []), new ConnectionReadings(Connections, Usage), Clock);
+        Compaction = new Compaction(Agents, Connections, Clock);
+        Agents.Answer = (session, turn) => Compaction.HandleAsync(new TurnFinished(session, turn, TurnOutcome.Finished), Cancellation).AsTask();
         Watch = new LimitWatch(
             Situations,
-            new LimitActions(Jobs, Briefs, Book, Bus),
+            new LimitActions(Jobs, Briefs, Book, Compaction),
             Store,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<LimitWatch>.Instance);
         Status(JobStatus.NeedsHelp);
     }
 
-    public FakeTimeProvider Clock { get; } = new(Start);
+    public NoticingClock Clock { get; } = new(Start);
 
     public RecordingBus Bus { get; } = new();
 
@@ -62,6 +65,12 @@ internal sealed class Watched : IAsyncDisposable
 
     public HandoffBook Book { get; }
 
+    public CompactingAgents Agents { get; } = new();
+
+    public Compaction Compaction { get; }
+
+    public SessionId Session { get; } = SessionId.New();
+
     public BriefGatherer Briefs { get; }
 
     public LimitWatch Watch { get; }
@@ -82,7 +91,7 @@ internal sealed class Watched : IAsyncDisposable
     public void Status(JobStatus status) =>
         Catalog.Histories[Job] = new JobHistory(
             new JobSummary(Job, "/repos/shop", Instruction, Start, status, Running, Option<Autonomy>.None, WorkspaceId.New()) { Companion = Companion },
-            [],
+            [new SessionRecord(Session, [1])],
             []);
 
     public async Task HeldAsync(HoldReason reason) => await HeldAsync(reason, Option<UsageLimit>.None);

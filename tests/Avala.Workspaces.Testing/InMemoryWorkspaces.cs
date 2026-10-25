@@ -4,9 +4,11 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workspaces.Testing;
 
-internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorkspaces, IWorkspaceCheckpoints, IBaseFiles
+internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorkspaces, IWorkspaceCheckpoints, IWorkspaceShelf, IBaseFiles
 {
     private const string GitEntry = ".git";
+
+    private const string KeptLabel = "Kept when its worktree was freed";
 
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken)
     {
@@ -34,8 +36,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
         var id = WorkspaceId.New();
         var path = Path.Combine(InMemoryGit.Canonical(root), $"{id.Value:N}");
-        await commit.Files.WriteToAsync(path, cancellationToken);
-        await File.WriteAllTextAsync(Path.Combine(path, GitEntry), $"gitdir: {Path.Combine(repository, GitEntry, "worktrees", $"{id.Value:N}")}\n", cancellationToken);
+        await CheckOutAsync(commit, path, repository, id, cancellationToken);
         var info = new WorkspaceInfo(id, path, $"avala/{id.Value:N}", commit.Id)
         {
             BaseBranch = request.BaseRef == "HEAD" && nested.IsSome ? nested.Map(parent => parent.Info.Branch)
@@ -76,7 +77,7 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
 
         return ValueTask.FromResult(new WorktreeReconciliation(
             [.. folders.Where(found => known.All(workspace => workspace.Info.Path != found)).Order(StringComparer.Ordinal)],
-            [.. known.Where(workspace => !Directory.Exists(workspace.Info.Path)).Select(workspace => workspace.Info)]));
+            [.. known.Where(workspace => !workspace.Info.Shelved && !Directory.Exists(workspace.Info.Path)).Select(workspace => workspace.Info)]));
     }
 
     public async ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken)
@@ -88,6 +89,78 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         missing.ForEach(gone => git.Forget(gone.Id));
 
         return new WorktreeReconciliation(strays, missing);
+    }
+
+    public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> ShelveAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (git.Workspace(workspace).Match<HeldWorkspace?>(held => held, () => null) is not { } found)
+        {
+            return WorkspaceFailure.UnknownWorkspace;
+        }
+
+        if (found.Info.Shelved)
+        {
+            return found.Info;
+        }
+
+        if (Directory.Exists(found.Info.Path))
+        {
+            var files = await FolderSnapshot.ReadAsync(found.Info.Path, Commit(found.Head).Files, cancellationToken);
+
+            if (!Commit(found.Head).Files.SameAs(files))
+            {
+                _ = await CheckpointAsync(found, KeptLabel, cancellationToken);
+            }
+
+            Delete(found.Info.Path);
+        }
+
+        var current = git.Workspace(workspace).Match(held => held, () => found);
+
+        return git.Hold(current with { Info = current.Info with { Shelved = true } }).Info;
+    }
+
+    public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (git.Workspace(workspace).Match<HeldWorkspace?>(held => held, () => null) is not { } found)
+        {
+            return WorkspaceFailure.UnknownWorkspace;
+        }
+
+        if (!found.Info.Shelved)
+        {
+            return found.Info;
+        }
+
+        if (Directory.Exists(found.Info.Path))
+        {
+            return WorkspaceFailure.GitFailed;
+        }
+
+        await CheckOutAsync(Commit(found.Head), found.Info.Path, found.Repository, workspace, cancellationToken);
+
+        return git.Hold(found with { Info = found.Info with { Shelved = false } }).Info;
+    }
+
+    public async ValueTask<Result<bool, WorkspaceFailure>> DeliveredAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (git.Workspace(workspace).Match<HeldWorkspace?>(held => held, () => null) is not { } found)
+        {
+            return WorkspaceFailure.UnknownWorkspace;
+        }
+
+        if (found.LastMerged == Option<string>.Some(found.Head))
+        {
+            return true;
+        }
+
+        var target = await found.Info.BaseBranch.Match(
+            async branch => branch == InMemoryGit.MainBranch
+                ? Option<string>.Some((await git.HeadOfAsync(found.Repository, cancellationToken)).Id)
+                : git.OnBranch(found.Repository, branch).Map(parent => parent.Head),
+            () => Task.FromResult(Option<string>.None));
+
+        return target.Match(tip => Reaches(tip, found.Head), () => false);
     }
 
     public ValueTask<Result<IReadOnlyList<CheckpointChanges>, WorkspaceFailure>> ListAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
@@ -169,6 +242,29 @@ internal sealed class InMemoryWorkspaces(InMemoryGit git, string root) : IWorksp
         var current = await FolderSnapshot.ReadEntryAsync(folder, path, cancellationToken);
 
         return new BaseFile(path, new FileOrigin(commit.Id, !FolderSnapshot.Same(committed, current)), committed.Map(Encoding.UTF8.GetString));
+    }
+
+    private bool Reaches(string from, string commit)
+    {
+        var current = Option<string>.Some(from);
+
+        while (current.Match<string?>(found => found, () => null) is { } id)
+        {
+            if (id == commit)
+            {
+                return true;
+            }
+
+            current = git.Find(id).Bind(found => found.Parent);
+        }
+
+        return false;
+    }
+
+    private static async Task CheckOutAsync(GitCommit commit, string path, string repository, WorkspaceId id, CancellationToken cancellationToken)
+    {
+        await commit.Files.WriteToAsync(path, cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(path, GitEntry), $"gitdir: {Path.Combine(repository, GitEntry, "worktrees", $"{id.Value:N}")}\n", cancellationToken);
     }
 
     private static void Delete(string folder)

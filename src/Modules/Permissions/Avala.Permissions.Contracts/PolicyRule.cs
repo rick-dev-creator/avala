@@ -25,6 +25,7 @@ public enum RuleScope
     OutsideWorkspace,
     ReadOnly,
     Readable,
+    Granted,
 }
 
 public enum FormStrategy

@@ -4,6 +4,7 @@ using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Cards;
+using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Cards;
 
@@ -20,6 +21,65 @@ public sealed class PermissionCardViewModelScripts
                 Assert.Equal(("Run the CheckoutForm tests", ItemKind.Command, "npm test -- CheckoutForm.test.tsx --runInBand"), (card.Title, card.Kind, card.Target));
                 Assert.Equal(("Waiting for you", true, true), (card.Verdict, card.AwaitsYou, card.IsShown));
             });
+
+    [Fact]
+    public void AFolderRequestShowsTheFolderAndWhyAndOffersReadOnlyBesideReadAndEdit() =>
+        ViewModelScript.Given(new PermissionCardViewModel(asking.FolderCard(FolderAccess.Edit), Replying.With(permissions)))
+            .Then(card =>
+            {
+                Assert.Equal(
+                    ("Wants to read and edit a folder outside its worktree", "Bump the shared contracts package", Asking.Contracts),
+                    (card.Headline, card.Title, card.Target));
+                Assert.Equal((true, true, "Read and edit", "Waiting for you"), (card.IsFolder, card.OffersReadOnly, card.AllowLabel, card.Verdict));
+            });
+
+    [Fact]
+    public void AFolderRequestToReadOffersOnlyReading() =>
+        ViewModelScript.Given(new PermissionCardViewModel(asking.FolderCard(FolderAccess.Read), Replying.With(permissions)))
+            .Then(card => Assert.Equal(("Wants to read a folder outside its worktree", false, "Allow reading"), (card.Headline, card.OffersReadOnly, card.AllowLabel)));
+
+    [Fact]
+    public async Task ReadAndEditAndReadOnlyGrantTheFolderForTheRestOfTheJob()
+    {
+        var card = new PermissionCardViewModel(asking.FolderCard(FolderAccess.Edit), Replying.With(permissions));
+
+        await card.AllowCommand.ExecuteAsync(null);
+        await card.ReadOnlyCommand.ExecuteAsync(null);
+        await card.DenyCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            [(PermissionAnswer.Allow, Remember.EditsInThisFolder), (PermissionAnswer.Allow, Remember.ReadsInThisFolder), (PermissionAnswer.Deny, Remember.Once)],
+            permissions.Replies.Select(replied => (replied.Reply.Answer, replied.Reply.Remember)));
+    }
+
+    [Theory]
+    [InlineData(FolderAccess.Edit, "Granted read and edit")]
+    [InlineData(FolderAccess.Read, "Granted read only")]
+    public void AnAnsweredFolderRequestSaysWhatWasGrantedAndForHowLong(FolderAccess access, string verdict)
+    {
+        var granted = Assert.Single(asking.Folder(FolderAccess.Edit)
+            .Apply(new HumanAnswer(asking.Session, Option<Jobs.Contracts.JobId>.None, new ItemId("folder"), ItemKind.Other, Asking.Contracts, PermissionAnswer.Allow, Option<string>.None, Asking.Grant(access), DateTimeOffset.UnixEpoch))
+            .Entries.OfType<PermissionEntry>());
+
+        ViewModelScript.Given(new PermissionCardViewModel(granted, Replying.With(permissions)))
+            .Then(card =>
+            {
+                Assert.Equal((verdict, false), (card.Verdict, card.AwaitsYou));
+                Assert.StartsWith($"For the rest of this job, reads {(access == FolderAccess.Edit ? "and edits " : string.Empty)}in {Asking.Contracts} no longer ask.", card.Notice, StringComparison.Ordinal);
+            });
+    }
+
+    [Fact]
+    public async Task AnEditOutsideTheWorktreeOffersItsRepositoryForTheRestOfTheJob()
+    {
+        var card = new PermissionCardViewModel(asking.OutsideEdit(), Replying.With(permissions));
+        card.Scope.ChooseCommand.Execute(AnswerScope.Always);
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(("Always in contracts for this job", string.Empty, false), (card.Scope.AlwaysLabel, card.Scope.AlwaysUnavailable, card.IsFolder));
+        Assert.Equal(Remember.EditsInThisFolder, Assert.Single(permissions.Replies).Reply.Remember);
+    }
 
     [Theory]
     [InlineData("waiting", "Waiting for its parent", true)]

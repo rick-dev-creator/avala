@@ -119,8 +119,7 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
         await checkout.Match(folder => git.AdvanceCheckoutAsync(folder, from, to, cancellationToken), () => Task.FromResult(true));
 
     private async Task<Result<CommitSha, WorkspaceFailure>> HeadOfAsync(Workspace workspace, CancellationToken cancellationToken) =>
-        await git.TipOfAsync(workspace.Location.Repository, workspace.Branch, cancellationToken)
-            .BindAsync(tip => tip.ToResult(WorkspaceFailure.GitFailed));
+        await git.WorkOfAsync(workspace, cancellationToken);
 
     private async Task<Result<Workspace, WorkspaceFailure>> LoadAsync(WorkspaceId id, CancellationToken cancellationToken) =>
         (await store.FindAsync(id, cancellationToken)).ToResult(WorkspaceFailure.UnknownWorkspace);

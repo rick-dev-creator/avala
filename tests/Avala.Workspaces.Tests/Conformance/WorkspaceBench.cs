@@ -26,6 +26,7 @@ internal sealed class WorkspaceBench : IAsyncDisposable
             composition.Get<IWorkspaces>(),
             composition.Get<IWorkspaceChanges>(),
             composition.Get<IWorkspaceCheckpoints>(),
+            composition.Get<IWorkspaceShelf>(),
             composition.Get<IBaseFiles>(),
             composition.Get<IWorkingFiles>(),
             composition.Get<IWorkingCommits>()),

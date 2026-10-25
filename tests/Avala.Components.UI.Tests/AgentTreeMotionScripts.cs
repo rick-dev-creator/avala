@@ -28,13 +28,13 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
 
             tree.Children.Add(Card(1));
             view.Settle();
-            var leaving = Seen(tree, 0);
+            var leaving = Seen(tree, 1);
             view.Elapse(Glide / 2);
-            var halfway = Seen(tree, 0);
+            var halfway = Seen(tree, 1);
             view.Elapse(Glide);
 
-            Assert.Equal((162d, 243d), (leaving.X, Seen(tree, 0).X));
-            Assert.InRange(halfway.X, 200, 242);
+            Assert.Equal((163d, 82d), (leaving.X, Seen(tree, 1).X));
+            Assert.InRange(halfway.X, 83, 162);
         }, Cancellation);
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
             view.Elapse(Grow);
 
             Assert.Empty(sprouting);
-            Assert.Equal([new GraphPoint(561, 134), new GraphPoint(561, 148)], Drop(tree, 4));
+            Assert.Equal([new GraphPoint(643, 134), new GraphPoint(643, 148)], Drop(tree, 4));
         }, Cancellation);
 
     [Fact]
@@ -79,8 +79,8 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
             tree.Children.Add(card);
             view.Settle();
 
-            Assert.Equal((1d, new Point(486, 148), new Point(243, 0)), (card.Opacity, Seen(tree, 4), Seen(tree, 0)));
-            Assert.Equal([new GraphPoint(561, 134), new GraphPoint(561, 148)], Drop(tree, 4));
+            Assert.Equal((1d, new Point(568, 148), new Point(325, 0)), (card.Opacity, Seen(tree, 4), Seen(tree, 0)));
+            Assert.Equal([new GraphPoint(643, 134), new GraphPoint(643, 148)], Drop(tree, 4));
         }, Cancellation);
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class AgentTreeMotionScripts(HeadlessUi ui)
             var shrinking = tree.Drawn.Leaving.Single();
             view.Elapse(Collapse);
 
-            Assert.Equal(new GraphRect(324, 148, 150, 108), folding);
+            Assert.Equal(new GraphRect(487, 148, 150, 108), folding);
             Assert.True(shrinking.Width < folding.Width && shrinking.Center.X < folding.Center.X && shrinking.Center.Y < folding.Center.Y, $"the folding card stands at {shrinking}");
             Assert.Empty(tree.Drawn.Leaving);
         }, Cancellation);

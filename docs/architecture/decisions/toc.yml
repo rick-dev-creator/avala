@@ -1,2 +1,6 @@
 - name: Architecture decisions
   href: index.md
+- name: ADR-0001 Fleet servers and opt-in anonymous telemetry
+  href: 0001-fleet-servers-and-opt-in-anonymous-telemetry.md
+- name: ADR-0002 Lean worktrees
+  href: 0002-lean-worktrees.md

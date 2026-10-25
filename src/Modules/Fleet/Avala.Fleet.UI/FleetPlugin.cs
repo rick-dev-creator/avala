@@ -58,7 +58,7 @@ public sealed class FleetPlugin : IPlugin, IViewContributor
                 provider.GetRequiredService<FleetKeys>().Keychain))
             .AddSingleton<IFleetActivity, FleetActivityReader>()
             .AddSingleton<FleetSettingsViewModel>();
-        registrar.AddToRegion<FleetSettingsViewModel>(WorkbenchRegions.Settings, 10);
+        registrar.AddToRegion<FleetSettingsViewModel>(WorkbenchRegions.Fleet, 0);
     }
 
     public void RegisterViews(IViewRegistrar views)

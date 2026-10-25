@@ -59,6 +59,24 @@ public static class AgentTreeLayout
             : Drawn(AgentTreeShape.Rail, Rail(nodes, levels, rooted, spacing), parents, spacing);
     }
 
+    public static AgentTreeGraphLayout Centered(AgentTreeGraphLayout layout, double width)
+    {
+        var shift = layout.Shape == AgentTreeShape.Rail || !double.IsFinite(width) ? 0 : (width - layout.Size.Width) / 2;
+
+        if (shift <= 0)
+        {
+            return layout;
+        }
+
+        return layout with
+        {
+            Nodes = [.. layout.Nodes.Select(node => node with { X = node.X + shift })],
+            Edges = [.. layout.Edges.Select(edge => edge with { Points = [.. edge.Points.Select(point => point with { X = point.X + shift })] })],
+            Joints = [.. layout.Joints.Select(joint => joint with { X = joint.X + shift })],
+            Size = layout.Size with { Width = width },
+        };
+    }
+
     public static int[] Parents(IReadOnlyList<TreeNodeSpec> nodes)
     {
         var depths = nodes.Select((node, index) => index == 0 && node.Depth <= 0 ? 0 : Math.Max(1, node.Depth)).ToArray();

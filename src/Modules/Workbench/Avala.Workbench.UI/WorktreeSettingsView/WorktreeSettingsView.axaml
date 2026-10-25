@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.WorktreeSettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IWorktreeSettingsViewModel">
+  <Design.DataContext>
+    <settings:DesignWorktreeSettingsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="30">
+    <StackPanel Spacing="8">
+      <DockPanel>
+        <TextBlock x:Name="File" DockPanel.Dock="Right" Classes="hint" Text="{Binding File}" VerticalAlignment="Bottom" />
+        <TextBlock Classes="section" Text="Free a worktree" VerticalAlignment="Bottom" />
+      </DockPanel>
+      <Border Classes="grouped">
+        <ItemsControl x:Name="Moments" ItemsSource="{Binding Moments}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Border>
+      <TextBlock Classes="caption" Margin="4,0" Text="{x:Static settings:WorktreePhrases.Note}" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Classes="section" Text="Delete freed work" />
+      <Border Classes="grouped">
+        <ItemsControl x:Name="Deletions" ItemsSource="{Binding Deletions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Border>
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <DockPanel Margin="4,0">
+        <Button x:Name="Save"
+                DockPanel.Dock="Right"
+                Classes="primary"
+                Content="Save"
+                IsVisible="{Binding IsChanged}"
+                Command="{Binding SaveCommand}" />
+        <TextBlock Classes="caption" Text="Changes apply to worktrees already waiting too." TextWrapping="Wrap" VerticalAlignment="Center" />
+      </DockPanel>
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 Margin="4,0"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -6,7 +6,7 @@ Run one request as several candidate jobs, and keep the best by its evidence.
 
 - **Each candidate is an ordinary job**, in its own worktree with its own session, retries and checks, and an even share of a job's budget.
 - **The verdict comes from evidence, never from an agent's word.** Once every candidate has settled, a candidate must pass its checks and must not have edited a rule file. The rest are ranked by fewest exceptions, fewest attempts, smallest diff, lowest cost and earliest finish.
-- **Approving any candidate keeps it** and discards the others, whose worktrees are reclaimed.
+- **Approving any candidate keeps it** and discards the others, whose worktrees are freed like any discarded job's.
 - **An answer given "in this contest"** to one candidate's permission request goes to every candidate.
 
 ## How to use it

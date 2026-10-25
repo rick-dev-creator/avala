@@ -62,6 +62,16 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
         machine.TryFire(WorkspaceTrigger.Fail, WorkspaceError.CannotFail)
             .Map(_ => new WorkspaceFailed(Id));
 
+    public bool IsShelved => State == WorkspaceState.Shelved;
+
+    public Result<WorkspaceShelved, WorkspaceError> Shelve() =>
+        machine.TryFire(WorkspaceTrigger.Shelve, WorkspaceError.CannotShelve)
+            .Map(_ => new WorkspaceShelved(Id));
+
+    public Result<WorkspaceRebuilt, WorkspaceError> Rebuild() =>
+        machine.TryFire(WorkspaceTrigger.Rebuild, WorkspaceError.CannotRebuild)
+            .Map(_ => new WorkspaceRebuilt(Id, Location, Branch));
+
     public Result<WorkspaceRemoved, WorkspaceError> Remove() =>
         machine.TryFire(WorkspaceTrigger.Remove, WorkspaceError.CannotRemove)
             .Map(_ => new WorkspaceRemoved(Id));

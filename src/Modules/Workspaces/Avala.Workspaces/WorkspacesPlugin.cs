@@ -25,6 +25,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddForwarded<IStartupTask, SqliteWorkspaceStore>()
             .AddSingleton<WorktreeReconciler>()
             .AddSingleton<IWorkspaces, WorkspaceService>()
+            .AddSingleton<IWorkspaceShelf, WorkspaceShelf>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
             .AddSingleton<IWorkingFiles, WorkingFileStore>()
             .AddSingleton<IWorkingCommits, WorkingCommitter>()

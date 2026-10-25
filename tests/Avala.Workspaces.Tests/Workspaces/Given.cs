@@ -22,6 +22,7 @@ internal static class Given
         {
             WorkspaceState.Ready => Outcomes.ErrorOf(workspace.MarkReady()),
             WorkspaceState.Failed => Outcomes.ErrorOf(workspace.Fail()),
+            WorkspaceState.Shelved => Outcomes.ErrorOf(workspace.MarkReady()) ?? Outcomes.ErrorOf(workspace.Shelve()),
             WorkspaceState.Removed => Outcomes.ErrorOf(workspace.Remove()),
             _ => null,
         };

@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.LimitConnectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:ILimitConnectionViewModel">
+  <Design.DataContext>
+    <settings:DesignLimitConnectionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Button x:Name="MoveUp"
+            DockPanel.Dock="Right"
+            Classes="glyph"
+            IsVisible="{Binding CanMoveUp}"
+            Command="{Binding MoveUpCommand}"
+            ToolTip.Tip="Move up"
+            AutomationProperties.Name="Move up">
+      <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconArrowUp}" />
+    </Button>
+    <TextBlock x:Name="Position" Classes="caption tertiary" Width="22" VerticalAlignment="Center" Text="{Binding Position}" />
+    <CheckBox x:Name="Included" IsChecked="{Binding IsIncluded}" Content="{Binding Name}" AutomationProperties.Name="{Binding Name}" />
+  </DockPanel>
+</UserControl>

@@ -14,6 +14,9 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public TurnCompleted Ended(TurnOutcome outcome) => new(Session, Turn, outcome);
 
+    public IEnumerable<IAgentEvent> Compacted =>
+        [Started, new ContextReported(Session, Turn, ScenarioCatalog.ContextWindow / 20, ScenarioCatalog.ContextWindow) { Compacted = true }, Ended(TurnOutcome.Finished)];
+
     public ResumeTokenIssued Resumable(ResumeToken token) => new(Session, Turn, token);
 
     public ModelReported Ran(string model, Option<string> effort) => new(Session, Turn, model) { Effort = effort };

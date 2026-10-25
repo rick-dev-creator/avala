@@ -1,5 +1,7 @@
 using Avala.Agents.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
@@ -54,7 +56,11 @@ public sealed class ResourcesPluginTests
 
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new ResourcesPlugin(), new AvalaPaths(data.Path), services => services
-            .AddSingleton<IWorkspaces>(new FakeWorkspaces())
+            .AddSingleton<FakeWorkspaces>()
+            .AddSingleton<IWorkspaces>(provider => provider.GetRequiredService<FakeWorkspaces>())
+            .AddSingleton<IWorkspaceShelf>(provider => provider.GetRequiredService<FakeWorkspaces>())
+            .AddSingleton<IProjects>(new FakeProjects())
+            .AddSingleton<IPullRequests>(new FakePullRequests())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IEndedJobs>(new FakeEndedJobs())
             .AddSingleton<IProcessTrees>(new FakeTrees())

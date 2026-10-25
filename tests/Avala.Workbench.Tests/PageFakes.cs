@@ -350,7 +350,7 @@ internal sealed class FakeResources : IResources
         TimeSpan.FromSeconds(60),
         OrphanPolicy.Report,
         new PortRange(24000, 24999, 10),
-        new WorktreeRetention(TimeSpan.Zero, Option<TimeSpan>.None, Option<TimeSpan>.None),
+        new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30) },
         ReconcilePolicy.Report);
 
     public List<PortLease> Leased { get; } = [];
@@ -370,6 +370,23 @@ internal sealed class FakeResources : IResources
     public IReadOnlyList<PortConflict> Conflicts() => [];
 
     public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Settings);
+
+    public List<WorktreePolicy> Policies { get; } = [];
+
+    public ResourceError? Refusal { get; set; }
+
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, CancellationToken cancellationToken)
+    {
+        if (Refusal is { } refusal)
+        {
+            return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Failure(refusal));
+        }
+
+        Policies.Add(policy);
+        Settings = Settings with { Worktrees = policy, File = ResourceFileStatus.Applied };
+
+        return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Success(Settings));
+    }
 }
 
 internal sealed class FakeOrphans : IOrphans
@@ -398,6 +415,8 @@ internal sealed class FakeHousekeeping : IWorktreeHousekeeping
     public List<string> Calls { get; } = [];
 
     public IReadOnlyList<ReclaimedWorktree> Reclaimed() => [];
+
+    public IReadOnlyList<FreedWorktree> Freed() => [];
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {

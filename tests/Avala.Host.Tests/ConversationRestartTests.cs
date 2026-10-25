@@ -47,9 +47,9 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ADiscardedJobsConversationIsReleasedWithItsWorktreeSoAfterARestartItShowsOnlyItsPromptAsync()
+    public async Task ADiscardedJobsConversationIsReleasedWithItsWorkSoAfterARestartItShowsOnlyItsPromptAsync()
     {
-        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "deleteDiscardedHours": 0 } }""")], []);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var before = await ConversationAsync(run, entries => entries.Any(entry => Is(entry, "TurnEndViewModel")));
         Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));

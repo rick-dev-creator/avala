@@ -74,7 +74,18 @@ public enum ScopeRefusal
     StillAsked,
 }
 
-public sealed record JobScope(Option<PolicyRule> Rule, Option<ScopeRefusal> Refusal, bool Raisable);
+public sealed record JobScope(Option<PolicyRule> Rule, Option<ScopeRefusal> Refusal, bool Raisable)
+{
+    public Option<string> Folder { get; init; }
+}
+
+public enum FolderAccess
+{
+    Read,
+    Edit,
+}
+
+public sealed record FolderRequest(string Folder, FolderAccess Access, string Reason);
 
 public sealed record PolicyDecision(
     SessionId Session,
@@ -97,6 +108,8 @@ public sealed record PolicyDecision(
     public bool Contested { get; init; }
 
     public Option<JobScope> Scope { get; init; }
+
+    public Option<FolderRequest> Folder { get; init; }
 }
 
 public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused)
@@ -139,6 +152,8 @@ public enum Remember
     ForThisContest,
     EverythingInThisJob,
     EverythingInThisContest,
+    ReadsInThisFolder,
+    EditsInThisFolder,
 }
 
 public sealed record PermissionReply(ItemId Item, PermissionAnswer Answer)

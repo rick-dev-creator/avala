@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.SettingsEntryView"
+             x:ClassModifier="internal"
+             x:DataType="settings:ISettingsEntryViewModel">
+  <Design.DataContext>
+    <settings:DesignSettingsEntryViewModel />
+  </Design.DataContext>
+  <StackPanel Orientation="Horizontal" Spacing="10">
+    <Path x:Name="EntryIcon" Classes="icon" Data="{Binding Icon, Converter={x:Static states:ThemeIcon.Named}}" VerticalAlignment="Center" />
+    <TextBlock x:Name="EntryTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+  </StackPanel>
+</UserControl>

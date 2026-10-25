@@ -80,8 +80,22 @@ public sealed class AuditSectionViewScripts(HeadlessUi ui)
 
             Assert.Equal((((object?)"Decisions", (string?)"1 assumption", false), false), folded);
             Assert.Equal((3, 1), (view.Find<ItemsControl>("Decisions").ItemCount, view.Find<ItemsControl>("Assumptions").ItemCount));
-            Assert.Contains("How many failed logins before the limit?: 5 attempts per minute", view.VisibleTexts);
+            Assert.Contains("5 attempts per minute", view.VisibleTexts);
+            Assert.Contains("×4", view.VisibleTexts);
             Assert.False(view.HasClass("Section", "attention"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ADeniedDecisionIsMarkedWithARedCrossAndNoCheckAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new ReadOnlyReviewer()));
+
+            Assert.Equal((true, false, "REVIEW.md"), (view.Shows("Denied"), view.Shows("Allowed"), view.TextOf("Target")));
+            Assert.False(view.Shows("ShowAll"));
+            var mark = view.Find<Avalonia.Controls.Shapes.Path>("Denied");
+            Assert.True(mark.TryFindResource("FailureBrush", mark.ActualThemeVariant, out var failure));
+            Assert.Same(failure, mark.Stroke);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -89,7 +103,7 @@ public sealed class AuditSectionViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Sections.Open(Screen.Show(new ReadOnlyReviewer(), Avalonia.Styling.ThemeVariant.Dark, 300, 600));
-            var denied = view.All<TextBlock>().Single(text => text.Text?.StartsWith("Denied", StringComparison.Ordinal) == true);
+            var denied = view.All<TextBlock>().Single(text => text.Name == "Caption");
             var ends = denied.TextLayout.TextLines.SkipLast(1).Select(line => denied.Text![line.FirstTextSourceIndex..Math.Min(denied.Text!.Length, line.FirstTextSourceIndex + line.Length)].Trim()).ToList();
 
             Assert.NotEmpty(ends);
@@ -106,9 +120,13 @@ public sealed class AuditSectionViewScripts(HeadlessUi ui)
 
         public string Summary => "1 denied";
 
-        public IReadOnlyList<string> Decisions { get; } = ["Denied: edit REVIEW.md · rule read-only-denies-edits"];
+        public IReadOnlyList<DecisionRow> Decisions { get; } = [new(DecisionVerdict.Denied, "Edit", "REVIEW.md", "denied by rule read-only-denies-edits-of-the-reviewed-work")];
 
-        public IReadOnlyList<string> Assumptions { get; } = [];
+        public string More => string.Empty;
+
+        public CommunityToolkit.Mvvm.Input.IRelayCommand ShowAllCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+
+        public IReadOnlyList<AssumptionRow> Assumptions { get; } = [];
     }
 }
 
@@ -434,6 +452,26 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task TheCopyButtonBesideThePathCopiesItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var copied = 0;
+            var view = Sections.Open(Screen.Show(new DesignWorktreeSectionViewModel
+            {
+                CopyPathCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() =>
+                {
+                    copied++;
+
+                    return Task.CompletedTask;
+                }),
+            }));
+
+            view.Click("CopyPath");
+
+            Assert.Equal((1, true), (copied, view.Shows("CopyBranch")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AScratchJobsSectionShowsTheScratchTagItsFolderAndAnOpenFolderButtonThatOpensItAsync() =>
         ui.RunAsync(() =>
         {
@@ -525,21 +563,16 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
 
         public string RetryRefusal => string.Empty;
 
+        public bool IsBranchCopied => false;
+
+        public bool IsPathCopied => false;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand CopyBranchCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand CopyPathCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand RetryCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand OpenFolderCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
     }
-}
-
-public sealed class DelegationSectionViewScripts(HeadlessUi ui)
-{
-    [Fact]
-    public Task TheDelegationSectionIsOpenAndShowsTheParentAndNoEmptyNoteAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignDelegationSectionViewModel());
-
-            Assert.Equal(((object?)"Delegation", (string?)"a sub-agent", true), Sections.Row(view));
-            Assert.Equal(("Delegated by Harden the auth endpoints", false), (view.TextOf("DelegatedBy"), view.Shows("NoDelegation")));
-        }, TestContext.Current.CancellationToken);
 }

@@ -57,6 +57,26 @@ internal interface IRepositorySettingsViewModel
 
     IDocsSettingViewModel Docs { get; }
 
+    RepositoryTab Tab { get; }
+
+    bool ShowsPermissions { get; }
+
+    bool ShowsChecks { get; }
+
+    bool ShowsBudget { get; }
+
+    bool ShowsDelivery { get; }
+
+    bool ShowsDocs { get; }
+
+    bool ShowsFiles { get; }
+
+    IRuleFileViewModel? ChecksFile { get; }
+
+    IRuleFileViewModel? JobsFile { get; }
+
+    IRelayCommand<RepositoryTab> ShowTabCommand { get; }
+
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
@@ -133,6 +153,25 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
     public partial string Autonomy { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsPermissions), nameof(ShowsChecks), nameof(ShowsBudget), nameof(ShowsDelivery), nameof(ShowsDocs), nameof(ShowsFiles))]
+    public partial RepositoryTab Tab { get; private set; } = RepositoryTab.Permissions;
+
+    public bool ShowsPermissions => Tab == RepositoryTab.Permissions;
+
+    public bool ShowsChecks => Tab == RepositoryTab.Checks;
+
+    public bool ShowsBudget => Tab == RepositoryTab.Budget;
+
+    public bool ShowsDelivery => Tab == RepositoryTab.Delivery;
+
+    public bool ShowsDocs => Tab == RepositoryTab.Docs;
+
+    public bool ShowsFiles => Tab == RepositoryTab.Files;
+
+    [RelayCommand]
+    public void ShowTab(RepositoryTab tab) => Tab = tab;
+
+    [ObservableProperty]
     public partial string FormStrategy { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -152,6 +191,12 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
 
     [ObservableProperty]
     public partial IRuleFileViewModel? BudgetFile { get; private set; }
+
+    [ObservableProperty]
+    public partial IRuleFileViewModel? ChecksFile { get; private set; }
+
+    [ObservableProperty]
+    public partial IRuleFileViewModel? JobsFile { get; private set; }
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
@@ -245,6 +290,8 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
         rules.ShowOnly(read.Policy.Rules.Select((rule, index) => new RuleViewModel(rule, index + 1)));
         PermissionsFile = declared[0];
         BudgetFile = declared[1];
+        ChecksFile = declared[2];
+        JobsFile = declared[3];
         caps.ShowOnly(capped);
         checks.ShowOnly(read.Checks.Checks.Select(check => new CheckViewModel(check)));
         jobSections.ShowOnly(read.Jobs.Sections.Select(section => new JobSectionViewModel(section.Name, section.Value)));

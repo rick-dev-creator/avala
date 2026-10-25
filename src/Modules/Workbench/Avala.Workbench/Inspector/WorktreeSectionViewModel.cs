@@ -5,6 +5,7 @@ using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Submitting;
+using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -36,6 +37,14 @@ internal interface IWorktreeSectionViewModel
 
     string RetryRefusal { get; }
 
+    bool IsBranchCopied { get; }
+
+    bool IsPathCopied { get; }
+
+    IAsyncRelayCommand CopyBranchCommand { get; }
+
+    IAsyncRelayCommand CopyPathCommand { get; }
+
     IAsyncRelayCommand OpenFolderCommand { get; }
 
     IAsyncRelayCommand RetryCommand { get; }
@@ -47,13 +56,15 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     private readonly InspectedJob inspected;
     private readonly ScratchFolders scratch;
     private readonly IJobLaunches launches;
+    private readonly IClipboard clipboard;
     private Option<JobId> shown;
 
-    public WorktreeSectionViewModel(InspectedJob inspected, ScratchFolders scratch, IJobLaunches launches)
+    public WorktreeSectionViewModel(InspectedJob inspected, ScratchFolders scratch, IJobLaunches launches, IClipboard clipboard)
     {
         this.inspected = inspected;
         this.scratch = scratch;
         this.launches = launches;
+        this.clipboard = clipboard;
         inspected.Showing(Show, InspectorDepth.Complete);
     }
 
@@ -74,13 +85,22 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     public partial string Fact { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyBranchCommand))]
     public partial string Branch { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyBranchCommand))]
     public partial string Base { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyPathCommand))]
     public partial Personal Path { get; private set; } = Personal.None;
+
+    [ObservableProperty]
+    public partial bool IsBranchCopied { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsPathCopied { get; private set; }
 
     [ObservableProperty]
     public partial string Ports { get; private set; } = string.Empty;
@@ -115,6 +135,24 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
 
     private static string Short(string commit) => commit[..Math.Min(7, commit.Length)];
 
+    private bool HasBranch => Base.Length > 0;
+
+    private bool HasPath => Path.Value.Length > 0;
+
+    [RelayCommand(CanExecute = nameof(HasBranch))]
+    private async Task CopyBranchAsync(CancellationToken cancellationToken)
+    {
+        IsBranchCopied = false;
+        IsBranchCopied = await clipboard.CopyAsync(Branch, cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(HasPath))]
+    private async Task CopyPathAsync(CancellationToken cancellationToken)
+    {
+        IsPathCopied = false;
+        IsPathCopied = await clipboard.CopyAsync(Path.Value, cancellationToken);
+    }
+
     [RelayCommand(CanExecute = nameof(IsScratch))]
     private async Task OpenFolderAsync(CancellationToken cancellationToken) =>
         FolderProblem = await scratch.OpenAsync(Repository, cancellationToken) ? string.Empty : InspectorPhrases.FolderUnopened(Repository);
@@ -133,6 +171,8 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
         Repository = facts.Match(found => found.Record.History.Summary.Repository, () => string.Empty);
         IsScratch = scratch.Holds(Repository);
         FolderProblem = string.Empty;
+        IsBranchCopied = false;
+        IsPathCopied = false;
         ShowWorktree(facts);
         Ports = facts.Bind(found => found.Record.Ports).Match(
             lease => lease.First == lease.Last ? $"Port {lease.First}" : $"Ports {lease.First}–{lease.Last}",
@@ -150,7 +190,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     private void ShowWorktree(Option<InspectorFacts> facts)
     {
         var workspace = facts.Bind(found => found.Record.Workspace);
-        var fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
+        var fact = facts.IsNone ? string.Empty : workspace.Match(found => Freed(found, InspectorPhrases.Worktree(found.Branch, found.BaseBranch)), () => "none");
         Fact = CouldNotStart ? InspectorPhrases.CouldNotStart : IsScratch ? InspectorPhrases.Scratch(fact) : fact;
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
         ShowWhere(facts);
@@ -162,6 +202,8 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),
             () => string.Empty);
-        Path = workspace.Match(found => Personal.Path(found.Path), () => Personal.None);
+        Path = workspace.Match(found => found.Shelved ? Personal.None : Personal.Path(found.Path), () => Personal.None);
     }
+
+    private static string Freed(WorkspaceInfo workspace, string fact) => workspace.Shelved ? InspectorPhrases.Freed(fact) : fact;
 }

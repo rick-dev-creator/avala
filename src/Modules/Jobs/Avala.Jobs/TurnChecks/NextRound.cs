@@ -51,6 +51,30 @@ internal sealed class NextRound(IEnumerable<IRoundRouter> routers, JobLauncher l
         }
     }
 
+    public async Task RelayAsync(Job job, Feedback feedback, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
+    {
+        var route = await RouteAsync(job, feedback, cancellationToken);
+
+        var moved = route.Action == RoundAction.HandOff && await route.Handoff.Match(
+            async handoff => (await launcher.HandOffAfterTurnAsync(job, handoff, relays: true, cancellationToken)).IsSuccess,
+            () => Task.FromResult(false));
+
+        if (moved)
+        {
+            return;
+        }
+
+        if (route.Action == RoundAction.GoOn)
+        {
+            await retry(job, feedback, cancellationToken);
+        }
+
+        if (job.State == JobState.Checking)
+        {
+            await HoldAsync(job, HoldReason.LimitNearlyReached, cancellationToken);
+        }
+    }
+
     private Task<RoundRoute> RouteAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         job.Connection.Match(
             connection => AskAsync(new RoundQuestion(job.Id, connection, feedback.Text), cancellationToken),

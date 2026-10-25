@@ -43,6 +43,8 @@ internal sealed record AgentBranch(string Key, BranchKind Kind, SubagentState St
 
     public bool IsSettled => State is SubagentState.Completed or SubagentState.Stopped && Children.All(child => child.IsSettled);
 
+    public bool HasEnded => State is not (SubagentState.Working or SubagentState.Waiting) && Children.All(child => child.HasEnded);
+
     public int Urgency => Children.Select(child => child.Urgency).Append(AgentBranches.Rank(State)).Min();
 
     public IEnumerable<AgentBranch> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));

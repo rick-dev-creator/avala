@@ -26,6 +26,16 @@ internal interface IGit
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
 
+    Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> ShelveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken);
+
     Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(string repository, CommitSha commit, string path, CancellationToken cancellationToken);
 
     Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken);

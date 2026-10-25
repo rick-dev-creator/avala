@@ -11,7 +11,7 @@ Every setting Avala reads, where and with which default. Avala reads three kinds
 - **Machine settings**: small JSON files in the data folder, for this computer. Most are written by Settings; you can also edit them.
 - **Repository rules**: JSON files in a repository's `.avala` folder, committed with the code. A job reads them from the commit it started from, so an agent's edit to them never applies to its own job.
 
-A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repository rules shows the rules of every repository a job ran in, as read from each job's base commit.
+A missing file means its defaults. A file that is malformed, too large or holds an unknown or duplicate key is rejected, and its defaults apply instead, unless its row says otherwise. Settings, Repositories shows the rules of every repository a job ran in, one tab per kind of rule, as read from each job's base commit.
 
 ## Environment variables
 
@@ -88,11 +88,11 @@ Your own harness connections, beside the ones found on their own: `~/.claude`, e
 | `readable.json` | `folders`: absolute or `~/` paths every job may read outside its worktree. Without the file, the projects folder; `[]` makes nothing readable; a malformed file makes nothing readable. |
 | `forges.json` | `pollSeconds`: 15 to 3600, 60 by default. `forges[]`: `name`, `forge` (`github`, `gitea` or `forgejo`), `url` and `credential`, whose `source` is `cli` or `env` with a variable's name as `reference`. |
 | `budgets.json` | `runningJobs`: how many jobs run at once, unlimited by default. `spendPerDay`: an amount per currency. `connections`: the same per connection. |
-| `limits.json` | The `limits` section below, for every repository. |
+| `limits.json` | The `limits` section below, for every repository that declares none; Settings, Connections, Usage limits edits it. |
 | `autopilot.json` | The loop limits of the `autopilot` section below, for every repository; a repository can only tighten them. |
 | `supervision.json` | `silenceSeconds`: how long a silent job runs before it is held, above 0 and at most a day; 900 by default. |
 | `verification.json` | `discoverChecks`: `false` stops Avala from finding the checks of a repository that declares none; on by default. |
-| `resources.json` | `sampleSeconds`: 5 by default. `diskSeconds`: 60 by default. `orphans`: `kill` (default) or `report`, for processes a session leaves behind. `ports`: `first` 24000, `last` 24999 and `perWorktree` 10 by default. `worktrees`: `keepDiscardedHours` 0, `keepFailedHours` 168 and `keepApprovedHours` kept by default, `null` keeps, and `reconcile`: `report` (default) or `clean`. |
+| `resources.json` | `sampleSeconds`: 5 by default. `diskSeconds`: 60 by default. `orphans`: `kill` (default) or `report`, for processes a session leaves behind. `ports`: `first` 24000, `last` 24999 and `perWorktree` 10 by default. `worktrees`, in hours, `0` at once and `null` to keep or never delete: `freeArchivedHours` 0, `freeDeliveredHours` 0, `freePullRequestHours` 0, `freeUndeliveredHours` 24, `freeDiscardedHours` 0, `freeFailedHours` 0, `deleteDiscardedHours` 168 and `deleteFailedHours` 720 by default, and `reconcile`: `report` (default) or `clean`. Settings, Worktrees writes these; the earlier `keepDiscardedHours`, `keepFailedHours` and `keepApprovedHours` still read as `deleteDiscardedHours`, `deleteFailedHours` and `freeUndeliveredHours`. See [Worktrees and disk space](../guide/worktrees-and-disk-space.md). |
 | `notifications.json` | `enabled`. `channel`: `ntfy` (default) or `webhook`. `ntfy`: `server` (`https://ntfy.sh` by default), `topic` (a private random topic by default) and `tokenEnv`. `webhook`: `url` and `secretEnv`. `events`: `decision`, `held`, `budget`, `failed`, `loopEnded` on and `review` off by default. `detail`: `minimal` (default) or `detailed`. `quietHours`: `from`, `to` and `days`, every day by default. |
 | `triggers.json` | `repositories` and `triggers`; see [Autopilot and triggers](../guide/autopilot-and-triggers.md#settings-and-files). A trigger's `autonomy` is `supervised`, `attempts` 3 (1 to 10) and `concurrency` 1 (1 to 16) by default. |
 | `claude-code.json` | `startJobsOnPhone`: `false` by default. |
@@ -126,9 +126,13 @@ One JSON object; each module reads its own section, and Jobs rejects a field the
 | `delegation.role`, `delegation.roles` | The default role, and per role (`worker`, `reviewer`, `research`) its `model`, `effort` and `compactAt` (20000 to 1000000). | None. |
 | `delegation.escalation`, `delegation.parentWindowSeconds` | Retired: a child's question always goes to its parent and its permission to you. An older section that still sets them stays valid, and they are ignored. | None. |
 | `limits.onLimit` | `hold`, `handoff-same-harness` or `handoff-any-harness`. | `hold`. |
-| `limits.threshold` | The share of a usage window at which a job moves. | 0.9. |
+| `limits.threshold` | The share of a usage window at which a job prepares to hold or move. | 0.9. |
 | `limits.connections` | The connections a job may move to. | None. |
 | `limits.resumeAtReset` | `ask` or `auto`. | `ask`. |
+| `limits.hardCap` | The share of a usage window a job about to relay is stopped at, from `threshold` to 1. | 0.98, or `threshold` when higher. |
+| `limits.strategy` | `most-headroom`, `in-order`, `soonest-reset` or `round-robin`. | `most-headroom`. |
+| `limits.windDown` | Asks the agent to wind down before a handoff. | `true`. |
+| `limits.compactOnResume` | Compacts the conversation before a job continues on the connection it waited for. | `true`. |
 | `pullRequest.forge` | A forge connection in `forges.json`; required. | None. |
 | `pullRequest.remote` | The remote pushed to. | `origin`. |
 | `pullRequest.onPullRequest` | `watch-only`, `wake-on-ci` or `wake-on-ci-and-reviews`. | `watch-only`. |

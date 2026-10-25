@@ -15,6 +15,7 @@ public sealed class InMemoryWorkspacesPlugin(InMemoryGit git) : IPlugin
             .AddSingleton(provider => new InMemoryWorkspaces(git, provider.GetRequiredService<AvalaPaths>().Folder("worktrees")))
             .AddForwarded<IWorkspaces, InMemoryWorkspaces>()
             .AddForwarded<IWorkspaceCheckpoints, InMemoryWorkspaces>()
+            .AddForwarded<IWorkspaceShelf, InMemoryWorkspaces>()
             .AddForwarded<IBaseFiles, InMemoryWorkspaces>()
             .AddSingleton<IWorkspaceChanges>(provider => new InMemoryChanges(git, provider.GetRequiredService<InMemoryWorkspaces>()))
             .AddSingleton(provider => new InMemoryRepositories(git, provider.GetRequiredService<AvalaPaths>().Folder("scratch"), provider.GetRequiredService<TimeProvider>()))

@@ -89,7 +89,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         await run.Ui.InvokeAsync(() => review.Execute("OpenSettingsCommand"), Cancellation);
 
-        Assert.Equal("Settings", await run.Ui.ReadAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title));
+        Assert.Equal(("Settings", true), await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, run.Page("Settings")["ShowsAccounts"].Value<bool>())));
     }
 
     [Fact]
@@ -219,12 +219,12 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
             usage["Spent"].Text,
             evidence["Summary"].Text,
             evidence["Attempts"].Value<IReadOnlyList<string>>(),
-            audit["Decisions"].Value<IReadOnlyList<string>>()));
+            audit["Decisions"].Items.Select(decision => decision["Caption"].Text).ToList()));
         Assert.EndsWith("tokens", spent, StringComparison.Ordinal);
         Assert.Equal("Verified on attempt 2 of 2", summary);
         Assert.Equal(2, attempts.Count);
         Assert.StartsWith("Attempt 1: failed", attempts[0], StringComparison.Ordinal);
-        Assert.Contains(decisions, decision => decision.EndsWith("· rule tests", StringComparison.Ordinal));
+        Assert.Contains(decisions, decision => decision.EndsWith("by rule tests", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -306,10 +306,12 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         await run.Ui.RunAsync(() => evidence.ExecuteAsync("DeclareChecksCommand"));
 
-        var settings = run.Page("Settings")["Repository"];
+        var page = run.Page("Settings");
+        var settings = page["Repository"];
         Assert.Equal(
             ("Settings", run.Repository.Path, true, ".avala/checks.json"),
             await run.Ui.ReadAsync(() => (run.Get<Avala.Shell.ShellViewModel>().SelectedPage?.Title, settings["Shown"].Text, settings["Editor"]["IsOpen"].Value<bool>(), settings["Editor"]["Path"].Text)));
+        Assert.Equal((true, true), await run.Ui.ReadAsync(() => (page["ShowsRepository"].Value<bool>(), settings["ShowsChecks"].Value<bool>())));
     }
 
     private static Task<(OpenWorkbench Workbench, Bound Review)> ReviewAsync(SimulatedRun run) => ReviewAsync(run, run.Job);

@@ -19,9 +19,13 @@ internal interface IMachineSettingsViewModel
 
     INotificationsViewModel Notifications { get; }
 
+    IWorktreeSettingsViewModel Worktrees { get; }
+
     IMachineAccountsViewModel Accounts { get; }
 
     IReadOnlyList<object> Harnesses { get; }
+
+    IReadOnlyList<object> Fleet { get; }
 
     string Silence { get; }
 
@@ -43,6 +47,8 @@ internal interface IMachineSettingsViewModel
 internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl, IPersonalDetailsViewModel PersonalDetails)
 {
     public IReadOnlyList<object> Harnesses { get; init; } = [];
+
+    public IReadOnlyList<object> Fleet { get; init; } = [];
 }
 
 internal static class SilenceDial
@@ -71,12 +77,14 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private readonly MachineSettings settings;
     private readonly MachineAccountsViewModel accounts;
 
-    public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor)
+    public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor, IWorktreeSettingsViewModel worktrees)
     {
         this.settings = settings;
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
+        Worktrees = worktrees;
         Harnesses = sections.Harnesses;
+        Fleet = sections.Fleet;
         accounts = new MachineAccountsViewModel(editor, sections.SourceControl, sections.PersonalDetails, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
@@ -91,9 +99,13 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
 
     public INotificationsViewModel Notifications { get; }
 
+    public IWorktreeSettingsViewModel Worktrees { get; }
+
     public IMachineAccountsViewModel Accounts => accounts;
 
     public IReadOnlyList<object> Harnesses { get; }
+
+    public IReadOnlyList<object> Fleet { get; }
 
     public IConnectionEditorViewModel Editor => accounts.Editing;
 
@@ -152,9 +164,10 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     {
         Show(await settings.ReadAsync(cancellationToken));
         await Notifications.LoadAsync(cancellationToken);
+        await Worktrees.LoadAsync(cancellationToken);
         await SourceControl.LoadAsync(cancellationToken);
 
-        foreach (var harness in Harnesses.OfType<IActivatable>())
+        foreach (var harness in Harnesses.Concat(Fleet).OfType<IActivatable>())
         {
             harness.Activate();
         }

@@ -11,6 +11,15 @@ internal static class Remembering
 
     public const string InThisRepository = "always in this repository";
 
+    public const string ReadsInFolder = "reads in this folder for this job";
+
+    public const string EditsInFolder = "edits in this folder for this job";
+
+    public static PolicyRule Granted(string folder, FolderAccess access) =>
+        access == FolderAccess.Edit
+            ? new(RuleOrigin.Job, EditsInFolder, ItemKind.FileEdit, folder, RuleScope.Granted, PolicyAnswer.Allow)
+            : new(RuleOrigin.Job, ReadsInFolder, Option<ItemKind>.None, folder, RuleScope.Granted, PolicyAnswer.Allow);
+
     public static PolicyRule ForJob(ItemKind kind, string target, PolicyAnswer answer) =>
         new(RuleOrigin.Job, ForThisJob, kind, target, RuleScope.Anywhere, answer);
 
@@ -26,6 +35,9 @@ internal static class Remembering
     extension(PermissionPolicy policy)
     {
         public JobScope InJob(PermissionRequest request, IReadOnlyList<PolicyRule> kept) =>
+            policy.Scoped(request, kept) with { Folder = Folder(policy, request, kept) };
+
+        private JobScope Scoped(PermissionRequest request, IReadOnlyList<PolicyRule> kept) =>
             Refusal(request).Match(
                 refusal => new JobScope(Option<PolicyRule>.None, refusal, policy.Raisable),
                 () => Needed(policy, request, kept, Candidates(request)) is { Count: > 0 } needed
@@ -41,6 +53,12 @@ internal static class Remembering
                 return verdict.Answer == PolicyAnswer.Allow && verdict.Rule == Option<PolicyRule>.Some(rule) ? rule : Option<PolicyRule>.None;
             });
     }
+
+    private static Option<string> Folder(PermissionPolicy policy, PermissionRequest request, IReadOnlyList<PolicyRule> kept) =>
+        request is { Kind: ItemKind.FileEdit, InsideWorkspace: false, Granted.IsNone: true }
+            ? request.Grantable.Bind(folder =>
+                policy.Decide(request with { Granted = folder }, [.. kept, Granted(folder, FolderAccess.Edit)]).Answer == PolicyAnswer.Allow ? folder : Option<string>.None)
+            : Option<string>.None;
 
     private static List<string> Needed(PermissionPolicy policy, PermissionRequest request, IReadOnlyList<PolicyRule> kept, IReadOnlyList<string> subjects)
     {

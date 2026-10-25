@@ -36,6 +36,26 @@ namespace Avala.Handoffs.Storage.Migrations
                     b.ToTable("Handoffs", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Handoffs.Storage.StoredMark", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("Job")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mark")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Job");
+
+                    b.ToTable("Marks", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Handoffs.Storage.StoredWait", b =>
                 {
                     b.Property<Guid>("Job")

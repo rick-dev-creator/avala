@@ -1,0 +1,163 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.UsageLimitsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IUsageLimitsViewModel">
+  <Design.DataContext>
+    <settings:DesignUsageLimitsViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox">
+      <Setter Property="MinWidth" Value="240" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="8">
+    <DockPanel>
+      <TextBlock x:Name="File" DockPanel.Dock="Right" Classes="hint" Text="{Binding File}" VerticalAlignment="Bottom" />
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Classes="section" Text="Usage limits" VerticalAlignment="Bottom" />
+        <TextBlock Classes="hint" Text="Elastic Harness Chaining, for every repository that sets none" VerticalAlignment="Bottom" />
+      </StackPanel>
+    </DockPanel>
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <ComboBox x:Name="Actions"
+                    DockPanel.Dock="Right"
+                    VerticalAlignment="Center"
+                    ItemsSource="{Binding Actions}"
+                    SelectedItem="{Binding Action, Converter={x:Static states:Kept.Selection}}"
+                    AutomationProperties.Name="What a job does near its limit" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Near a connection's limit" />
+            <TextBlock Classes="caption" Text="Hold the job until the reset, or relay it to another connection." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Margin="16,12" Spacing="6">
+          <DockPanel>
+            <TextBlock x:Name="ThresholdLabel" DockPanel.Dock="Right" Text="{Binding ThresholdLabel}" />
+            <TextBlock Text="Prepare at" />
+          </DockPanel>
+          <Slider x:Name="Threshold"
+                  Minimum="50"
+                  Maximum="99"
+                  SmallChange="1"
+                  LargeChange="5"
+                  AutomationProperties.Name="Prepare at this share of the window"
+                  Value="{Binding Threshold}" />
+          <TextBlock Classes="caption" Text="Past this share of a usage window, a job holds or relays rather than start another turn." TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="ResumesByItself"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding ResumesByItself}"
+                        AutomationProperties.Name="Continue by itself at the reset" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Continue by itself at the reset" />
+            <TextBlock Classes="caption" Text="When off, a job that waited asks you before it continues." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="CompactsOnResume"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding CompactsOnResume}"
+                        AutomationProperties.Name="Compact before continuing" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Compact before continuing" />
+            <TextBlock Classes="caption" Text="The conversation is summarized first, so the fresh window starts light." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <StackPanel x:Name="Relaying" IsVisible="{Binding HandsOff}">
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="WindsDown"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding WindsDown}"
+                        AutomationProperties.Name="Wind down before the limit" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Wind down first" />
+            <TextBlock Classes="caption" Text="The agent leaves its work in a valid state and stops its sub-agents before the baton passes." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <StackPanel Margin="16,12" Spacing="6">
+            <DockPanel>
+              <TextBlock x:Name="HardCapLabel" DockPanel.Dock="Right" Text="{Binding HardCapLabel}" />
+              <TextBlock Text="Hard cap" />
+            </DockPanel>
+            <Slider x:Name="HardCap"
+                    Minimum="50"
+                    Maximum="100"
+                    SmallChange="1"
+                    LargeChange="5"
+                    AutomationProperties.Name="Never pass this share of the window"
+                    Value="{Binding HardCap}" />
+            <TextBlock Classes="caption" Text="A job about to relay that still reaches this share is stopped there, whatever it is doing, and the baton passes." TextWrapping="Wrap" />
+          </StackPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <DockPanel Margin="16,12">
+            <ComboBox x:Name="Strategies"
+                      DockPanel.Dock="Right"
+                      VerticalAlignment="Center"
+                      ItemsSource="{Binding Strategies}"
+                      SelectedItem="{Binding Strategy, Converter={x:Static states:Kept.Selection}}"
+                      AutomationProperties.Name="Which connection takes the baton" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Next connection" />
+              <TextBlock x:Name="StrategyExplanation" Classes="caption" Text="{Binding StrategyExplanation}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <StackPanel Margin="16,12" Spacing="8">
+            <StackPanel Spacing="2">
+              <TextBlock Text="Connections in the relay" />
+              <TextBlock x:Name="ConnectionsHint" Classes="caption" Text="{Binding ConnectionsHint}" TextWrapping="Wrap" />
+            </StackPanel>
+            <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <DockPanel Margin="4,0">
+      <Button x:Name="Save"
+              DockPanel.Dock="Right"
+              Classes="primary"
+              Margin="8,0,0,0"
+              Content="Save"
+              IsVisible="{Binding IsChanged}"
+              Command="{Binding SaveCommand}" />
+      <TextBlock x:Name="Summary" Classes="caption" Text="{Binding Summary}" TextWrapping="Wrap" VerticalAlignment="Center" />
+    </DockPanel>
+    <TextBlock x:Name="Error"
+               Classes="caption failure"
+               Margin="4,0"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBlock x:Name="Override" Classes="hint" Margin="4,0" Text="{x:Static settings:LimitPhrases.Override}" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

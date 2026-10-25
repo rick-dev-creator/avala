@@ -170,7 +170,7 @@ public sealed class MachineSettingsViewModelScripts
             {
                 Harnesses = [harness],
             },
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
 
         await machine.LoadAsync(TestContext.Current.CancellationToken);
 
@@ -189,7 +189,7 @@ public sealed class MachineSettingsViewModelScripts
         return new(
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
     }
 }
 
@@ -215,7 +215,7 @@ public sealed class MachineAccountsViewModelScripts
         var machine = new MachineSettingsViewModel(
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
-            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
 
         await machine.OpenConnectionsCommand.ExecuteAsync(null);
 
@@ -352,7 +352,7 @@ public sealed class ConnectionEditorViewModelScripts
         var machine = new MachineSettingsViewModel(
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
-            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))), new DesignWorktreeSettingsViewModel());
         await machine.LoadAsync(Cancellation);
 
         return machine;
