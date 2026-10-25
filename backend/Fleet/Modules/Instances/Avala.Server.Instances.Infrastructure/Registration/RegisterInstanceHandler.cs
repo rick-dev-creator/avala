@@ -1,0 +1,20 @@
+using Ardalis.Result;
+using Avala.Server.Instances.Contracts.Registration;
+using Avala.Server.Instances.Domain;
+using Avala.Server.Instances.Infrastructure.Storage;
+using Mediator;
+
+namespace Avala.Server.Instances.Infrastructure.Registration;
+
+internal sealed class RegisterInstanceHandler(InstancesDbContext database, TimeProvider clock)
+    : ICommandHandler<RegisterInstance, Result<RegisteredInstance>>
+{
+    public async ValueTask<Result<RegisteredInstance>> Handle(RegisterInstance command, CancellationToken cancellationToken)
+    {
+        var instance = Instance.Register(command.Name, clock.GetUtcNow());
+        await database.Instances.AddAsync(instance, cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+
+        return Result<RegisteredInstance>.Created(new RegisteredInstance(instance.Id.Value, instance.Name, instance.RegisteredAt));
+    }
+}

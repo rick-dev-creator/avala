@@ -11,7 +11,8 @@ How Avala is built: its parts, how they fit together and the rules every change 
 5. [The Workbench](#the-workbench): [regions and view models](#regions-and-view-models), [the welcome and the harness chip](#the-welcome-and-the-harness-chip), [the welcome tour](#the-welcome-tour), [the sidebar](#the-sidebar), [the conversation](#the-conversation), [canvases](#canvases), [the delegation pane](#the-delegation-pane), [previews](#previews), [motion and layout](#motion-and-layout), [personal details](#personal-details)
 6. [Performance practices](#performance-practices), with the [platform workarounds](#platform-workarounds)
 7. [Testing and quality](#testing-and-quality): [the simulator and recordings](#the-simulator-and-recordings), [tests](#tests), [quality gates](#quality-gates), [quality metrics](#quality-metrics), [technical debt grade](#technical-debt-grade)
-8. [Analyzer exceptions](#analyzer-exceptions)
+8. [The fleet server](#the-fleet-server)
+9. [Analyzer exceptions](#analyzer-exceptions)
 
 ## Overview
 
@@ -376,6 +377,55 @@ On every push to `main` and every pull request, CI also measures coverage, code 
 
 On a push to `main`, the badges in the README are drawn by the same script and published on the `badges` branch.
 
+## The fleet server
+
+`Avala.Server` is the self-hosted fleet server of [ADR-0001](architecture/decisions/): an ASP.NET API that Avala reads, with no web interface of its own. It lives in `backend/`, apart from the desktop in `src/`, and `Avala.slnx` groups the two under the solution folders Frontend and Backend.
+
+```
+backend/
+  Fleet/
+    Avala.Server/                       the host: FastEndpoints, Scalar, Mediator's source generator
+    Avala.Server.AppHost/               Aspire: PostgreSQL and the server, for running it locally
+    Avala.Server.CrossCuttingConcerns/  IModuleInstaller and the validation behavior
+    Avala.Server.ServiceDefaults/       OpenTelemetry, health checks and service discovery
+    Modules/<Module>/
+      Avala.Server.<Module>.Domain
+      Avala.Server.<Module>.Contracts
+      Avala.Server.<Module>.Application
+      Avala.Server.<Module>.Infrastructure
+      Avala.Server.<Module>.EndPoints
+      Avala.Server.<Module>.Module
+  tests/
+    Avala.Server.ArchitectureTests/
+    Fixtures/Violating/                 a module that breaks every rule on purpose
+```
+
+`dotnet run --project backend/Fleet/Avala.Server.AppHost` starts PostgreSQL in a container and the server against it, with the Aspire dashboard. The server reads its settings from `appsettings.json` and the environment through configuration, never from `Environment` directly: `BannedSymbols.Backend.txt` fails the build on such a read. Aspire hands it the connection string `fleet`.
+
+### A module's layers
+
+A module follows the [modular monolith template](https://github.com/rick-dev-creator/modularmonolith) with the domain as the source of truth. Every type of a module is `internal`; its one public type is its `ModuleInstaller`, which the host finds with Scrutor.
+
+| Project | Holds | May reference |
+| --- | --- | --- |
+| `Domain` | Entities and value objects, plain C# | Nothing but the runtime |
+| `Contracts` | Commands and queries, each answering with an `Ardalis.Result`, and what they return | Mediator and Ardalis.Result |
+| `Application` | Validators of commands and queries | Its `Contracts` and `Domain`, FluentValidation |
+| `Infrastructure` | The module's one `DbContext`, its entity configurations and the handlers | Its `Contracts` and `Domain`, EF Core and Npgsql |
+| `EndPoints` | One folder per endpoint: the endpoint, its request, its response and its mapper | Its `Contracts`, FastEndpoints and ASP.NET |
+| `Module` | The `ModuleInstaller` | Its own projects and `CrossCuttingConcerns` |
+
+- **CQRS through Mediator.** A handler is a `ICommandHandler` or `IQueryHandler` in `Infrastructure` and works on the module's `DbContext` itself: no repository, no unit of work and no abstraction of the context, since EF Core already is both. A handler may also take `TimeProvider`, a logger and options.
+- **The domain is what is persisted.** The `DbContext` maps the domain's entities through configurations in `Infrastructure`, in the module's own schema, the module's name in lowercase, with no persistence model beside them.
+- **REPR endpoints.** An endpoint takes and returns its own request and response, which carry only runtime types and their own; its mapper alone builds the command or query and reads its result. No endpoint is anonymous.
+- **Validation** runs before every handler: `ValidationBehavior` in `CrossCuttingConcerns` asks the module's validators and answers `Result.Invalid` without calling the handler.
+
+Mediator generates its code in the host, so a module's `Contracts` and `Infrastructure` show their internals to `Avala.Server`, and FastEndpoints scans only the `EndPoints` assembly each `ModuleInstaller` names. Its source generator is not used, because the types it generates are public.
+
+### Rules the tests enforce
+
+`Avala.Server.ArchitectureTests` proves every rule twice: on the production modules, where it finds nothing, and on the violating fixture, where it finds exactly what was planted. The rules are: projects are one of the six layers and every module has all six; types live in their project's namespace and every class is sealed or static; each layer references only what the table allows; only the `ModuleInstaller` is public and internals are visible only along the layers; the domain depends on nothing but plain C#; messages are commands or queries in `Contracts` answering with a `Result`; handlers are command or query handlers in `Infrastructure` that take only their `DbContext`, `TimeProvider`, a logger or options; no type is a repository or a unit of work; each module has at most one `DbContext`, in `Infrastructure`, in its own schema, mapping only its domain; endpoints live in `EndPoints`, are named after their feature, one per folder, exchange only their own request and response, have a mapper and leave building commands to it, and none is anonymous; the host references only modules' `Module` projects, and every module's.
+
 ## Analyzer exceptions
 
 Comments are banned, so every exception to an analyzer is recorded here. The architecture tests read the `RS0030` rows that name a file.
@@ -399,6 +449,8 @@ Comments are banned, so every exception to an analyzer is recorded here. The arc
 | `S1215` | `tests/Avala.Testing.UI/Leaks.cs` | A leak test compares managed memory after a full, finalized collection, so it collects on purpose. |
 | `S3011` | `tests/Avala.Testing.UI/AnimationClock.cs` | Avalonia keeps its animation clock private, so the headless test application stops it by reflection. |
 | All analyzers | `Avala.ArchitectureTests.Fixtures` and `Avala.ArchitectureTests.Fixtures.UI` | The fixtures break rules on purpose. |
+| All analyzers | `backend/tests/Fixtures/Violating` | The fleet server's violating fixture breaks its rules on purpose. |
+| `ASPIRE010` | `Avala.Server.AppHost` | It asks for the Aspire CLI bundle, which would make every machine and CI runner install the Aspire CLI to build the solution. The AppHost runs on the dashboard and orchestration packages instead. |
 
 ## Learn more
 

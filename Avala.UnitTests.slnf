@@ -108,7 +108,22 @@
       "src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj",
       "src/Modules/ClaudeCode/Avala.ClaudeCode.UI/Avala.ClaudeCode.UI.csproj",
       "tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj",
-      "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj"
+      "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj",
+      "backend/Fleet/Avala.Server.CrossCuttingConcerns/Avala.Server.CrossCuttingConcerns.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Application/Avala.Server.Instances.Application.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Domain/Avala.Server.Instances.Domain.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.EndPoints/Avala.Server.Instances.EndPoints.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Module/Avala.Server.Instances.Module.csproj",
+      "backend/tests/Avala.Server.ArchitectureTests/Avala.Server.ArchitectureTests.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Partial.Domain/Avala.Server.Partial.Domain.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Application/Avala.Server.Violating.Application.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Contracts/Avala.Server.Violating.Contracts.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Domain/Avala.Server.Violating.Domain.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.EndPoints/Avala.Server.Violating.EndPoints.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Infrastructure/Avala.Server.Violating.Infrastructure.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Module/Avala.Server.Violating.Module.csproj"
     ]
   }
 }

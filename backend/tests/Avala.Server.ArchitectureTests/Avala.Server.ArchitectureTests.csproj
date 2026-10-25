@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Ardalis.Result" />
+    <PackageReference Include="FastEndpoints" />
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="TngTech.ArchUnitNET" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Fleet\Modules\Instances\Avala.Server.Instances.Module\Avala.Server.Instances.Module.csproj" />
+    <ProjectReference Include="..\Fixtures\Violating\Avala.Server.Partial.Domain\Avala.Server.Partial.Domain.csproj" />
+    <ProjectReference Include="..\Fixtures\Violating\Avala.Server.Violating.Module\Avala.Server.Violating.Module.csproj" />
+  </ItemGroup>
+</Project>

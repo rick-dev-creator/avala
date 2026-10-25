@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="FastEndpoints" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Fleet\Avala.Server.CrossCuttingConcerns\Avala.Server.CrossCuttingConcerns.csproj" />
+    <ProjectReference Include="..\Avala.Server.Violating.Application\Avala.Server.Violating.Application.csproj" />
+    <ProjectReference Include="..\Avala.Server.Violating.EndPoints\Avala.Server.Violating.EndPoints.csproj" />
+    <ProjectReference Include="..\Avala.Server.Violating.Infrastructure\Avala.Server.Violating.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

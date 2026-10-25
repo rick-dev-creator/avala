@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Server.Violating.Contracts\Avala.Server.Violating.Contracts.csproj" />
+    <ProjectReference Include="..\Avala.Server.Violating.Domain\Avala.Server.Violating.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Violating.Application" />
+    <InternalsVisibleTo Include="Avala.Server.Violating.Module" />
+  </ItemGroup>
+</Project>

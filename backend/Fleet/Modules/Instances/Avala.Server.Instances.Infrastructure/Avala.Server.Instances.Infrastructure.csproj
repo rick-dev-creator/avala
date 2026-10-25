@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Server.Instances.Contracts\Avala.Server.Instances.Contracts.csproj" />
+    <ProjectReference Include="..\Avala.Server.Instances.Domain\Avala.Server.Instances.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Instances.Module" />
+    <InternalsVisibleTo Include="Avala.Server" />
+    <InternalsVisibleTo Include="Avala.Server.Instances.Tests" />
+  </ItemGroup>
+</Project>

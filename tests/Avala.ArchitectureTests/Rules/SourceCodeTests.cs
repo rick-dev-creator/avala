@@ -14,6 +14,7 @@ public sealed class SourceCodeTests
         .. SolutionLayout.FilesUnder(SolutionLayout.SourceDirectory, "*.cs"),
         .. SolutionLayout.FilesUnder(SolutionLayout.TestsDirectory, "*.cs"),
         .. SolutionLayout.FilesUnder(Path.Combine(SolutionLayout.Root.FullName, "scripts"), "*.cs"),
+        .. SolutionLayout.FilesUnder(Path.Combine(SolutionLayout.Root.FullName, "backend"), "*.cs"),
     ];
 
     [Fact]

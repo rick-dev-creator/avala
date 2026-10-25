@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Avala.Server.CrossCuttingConcerns\Avala.Server.CrossCuttingConcerns.csproj" />
+    <ProjectReference Include="..\Avala.Server.Instances.Application\Avala.Server.Instances.Application.csproj" />
+    <ProjectReference Include="..\Avala.Server.Instances.EndPoints\Avala.Server.Instances.EndPoints.csproj" />
+    <ProjectReference Include="..\Avala.Server.Instances.Infrastructure\Avala.Server.Instances.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Instances.Tests" />
+  </ItemGroup>
+</Project>

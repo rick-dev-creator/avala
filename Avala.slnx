@@ -11,6 +11,8 @@
     <File Path="Directory.Build.rsp" />
     <File Path="Directory.Build.targets" />
     <File Path="Directory.Packages.props" />
+    <File Path="backend/Directory.Build.props" />
+    <File Path="backend/BannedSymbols.Backend.txt" />
     <File Path="global.json" />
     <File Path="Avala.UnitTests.slnf" />
     <File Path="Avala.SystemTests.slnf" />
@@ -25,140 +27,141 @@
     <File Path="scripts/publish-summary.cs" />
     <File Path="scripts/session-cost.cs" />
   </Folder>
-  <Folder Name="/src/">
+  <Folder Name="/Frontend/" />
+  <Folder Name="/Frontend/src/">
     <Project Path="src/Avala.Host/Avala.Host.csproj" />
     <Project Path="src/Avala.Runtime/Avala.Runtime.csproj" />
     <Project Path="src/Avala.Sdk/Avala.Sdk.csproj" />
     <Project Path="src/Avala.Sdk.UI/Avala.Sdk.UI.csproj" />
     <Project Path="src/Avala.Shell/Avala.Shell.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/" />
-  <Folder Name="/src/Modules/Agents/">
+  <Folder Name="/Frontend/src/Modules/" />
+  <Folder Name="/Frontend/src/Modules/Agents/">
     <Project Path="src/Modules/Agents/Avala.Agents.Contracts/Avala.Agents.Contracts.csproj" />
     <Project Path="src/Modules/Agents/Avala.Agents/Avala.Agents.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Workspaces/">
+  <Folder Name="/Frontend/src/Modules/Workspaces/">
     <Project Path="src/Modules/Workspaces/Avala.Workspaces.Contracts/Avala.Workspaces.Contracts.csproj" />
     <Project Path="src/Modules/Workspaces/Avala.Workspaces/Avala.Workspaces.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Jobs/">
+  <Folder Name="/Frontend/src/Modules/Jobs/">
     <Project Path="src/Modules/Jobs/Avala.Jobs/Avala.Jobs.csproj" />
     <Project Path="src/Modules/Jobs/Avala.Jobs.Contracts/Avala.Jobs.Contracts.csproj" />
     <Project Path="src/Modules/Jobs/Avala.Jobs.UI/Avala.Jobs.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Canvas/">
+  <Folder Name="/Frontend/src/Modules/Canvas/">
     <Project Path="src/Modules/Canvas/Avala.Canvas.Contracts/Avala.Canvas.Contracts.csproj" />
     <Project Path="src/Modules/Canvas/Avala.Canvas/Avala.Canvas.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Observability/">
+  <Folder Name="/Frontend/src/Modules/Observability/">
     <Project Path="src/Modules/Observability/Avala.Observability.Contracts/Avala.Observability.Contracts.csproj" />
     <Project Path="src/Modules/Observability/Avala.Observability/Avala.Observability.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Verification/">
+  <Folder Name="/Frontend/src/Modules/Verification/">
     <Project Path="src/Modules/Verification/Avala.Verification.Contracts/Avala.Verification.Contracts.csproj" />
     <Project Path="src/Modules/Verification/Avala.Verification/Avala.Verification.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Permissions/">
+  <Folder Name="/Frontend/src/Modules/Permissions/">
     <Project Path="src/Modules/Permissions/Avala.Permissions.Contracts/Avala.Permissions.Contracts.csproj" />
     <Project Path="src/Modules/Permissions/Avala.Permissions/Avala.Permissions.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Supervision/">
+  <Folder Name="/Frontend/src/Modules/Supervision/">
     <Project Path="src/Modules/Supervision/Avala.Supervision.Contracts/Avala.Supervision.Contracts.csproj" />
     <Project Path="src/Modules/Supervision/Avala.Supervision/Avala.Supervision.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Budgets/">
+  <Folder Name="/Frontend/src/Modules/Budgets/">
     <Project Path="src/Modules/Budgets/Avala.Budgets.Contracts/Avala.Budgets.Contracts.csproj" />
     <Project Path="src/Modules/Budgets/Avala.Budgets/Avala.Budgets.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Rendering/">
+  <Folder Name="/Frontend/src/Modules/Rendering/">
     <Project Path="src/Modules/Rendering/Avala.Rendering/Avala.Rendering.csproj" />
     <Project Path="src/Modules/Rendering/Avala.Rendering.UI/Avala.Rendering.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Mermaid/">
+  <Folder Name="/Frontend/src/Modules/Mermaid/">
     <Project Path="src/Modules/Mermaid/Avala.Mermaid/Avala.Mermaid.csproj" />
     <Project Path="src/Modules/Mermaid/Avala.Mermaid.UI/Avala.Mermaid.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Preview/">
+  <Folder Name="/Frontend/src/Modules/Preview/">
     <Project Path="src/Modules/Preview/Avala.Preview.Contracts/Avala.Preview.Contracts.csproj" />
     <Project Path="src/Modules/Preview/Avala.Preview/Avala.Preview.csproj" />
     <Project Path="src/Modules/Preview/Avala.Preview.UI/Avala.Preview.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Recording/">
+  <Folder Name="/Frontend/src/Modules/Recording/">
     <Project Path="src/Modules/Recording/Avala.Recording/Avala.Recording.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Resources/">
+  <Folder Name="/Frontend/src/Modules/Resources/">
     <Project Path="src/Modules/Resources/Avala.Resources.Contracts/Avala.Resources.Contracts.csproj" />
     <Project Path="src/Modules/Resources/Avala.Resources/Avala.Resources.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Autopilot/">
+  <Folder Name="/Frontend/src/Modules/Autopilot/">
     <Project Path="src/Modules/Autopilot/Avala.Autopilot.Contracts/Avala.Autopilot.Contracts.csproj" />
     <Project Path="src/Modules/Autopilot/Avala.Autopilot/Avala.Autopilot.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Delegation/">
+  <Folder Name="/Frontend/src/Modules/Delegation/">
     <Project Path="src/Modules/Delegation/Avala.Delegation.Contracts/Avala.Delegation.Contracts.csproj" />
     <Project Path="src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Handoffs/">
+  <Folder Name="/Frontend/src/Modules/Handoffs/">
     <Project Path="src/Modules/Handoffs/Avala.Handoffs.Contracts/Avala.Handoffs.Contracts.csproj" />
     <Project Path="src/Modules/Handoffs/Avala.Handoffs/Avala.Handoffs.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Triggers/">
+  <Folder Name="/Frontend/src/Modules/Triggers/">
     <Project Path="src/Modules/Triggers/Avala.Triggers.Contracts/Avala.Triggers.Contracts.csproj" />
     <Project Path="src/Modules/Triggers/Avala.Triggers/Avala.Triggers.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Forges/">
+  <Folder Name="/Frontend/src/Modules/Forges/">
     <Project Path="src/Modules/Forges/Avala.Forges.Contracts/Avala.Forges.Contracts.csproj" />
     <Project Path="src/Modules/Forges/Avala.Forges/Avala.Forges.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/GitHub/">
+  <Folder Name="/Frontend/src/Modules/GitHub/">
     <Project Path="src/Modules/GitHub/Avala.GitHub/Avala.GitHub.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Gitea/">
+  <Folder Name="/Frontend/src/Modules/Gitea/">
     <Project Path="src/Modules/Gitea/Avala.Gitea/Avala.Gitea.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/ForgeSimulator/">
+  <Folder Name="/Frontend/src/Modules/ForgeSimulator/">
     <Project Path="src/Modules/ForgeSimulator/Avala.ForgeSimulator/Avala.ForgeSimulator.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Notifications/">
+  <Folder Name="/Frontend/src/Modules/Notifications/">
     <Project Path="src/Modules/Notifications/Avala.Notifications.Contracts/Avala.Notifications.Contracts.csproj" />
     <Project Path="src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Contests/">
+  <Folder Name="/Frontend/src/Modules/Contests/">
     <Project Path="src/Modules/Contests/Avala.Contests.Contracts/Avala.Contests.Contracts.csproj" />
     <Project Path="src/Modules/Contests/Avala.Contests/Avala.Contests.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Documentation/">
+  <Folder Name="/Frontend/src/Modules/Documentation/">
     <Project Path="src/Modules/Documentation/Avala.Documentation.Contracts/Avala.Documentation.Contracts.csproj" />
     <Project Path="src/Modules/Documentation/Avala.Documentation/Avala.Documentation.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Projects/">
+  <Folder Name="/Frontend/src/Modules/Projects/">
     <Project Path="src/Modules/Projects/Avala.Projects.Contracts/Avala.Projects.Contracts.csproj" />
     <Project Path="src/Modules/Projects/Avala.Projects/Avala.Projects.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Transcripts/">
+  <Folder Name="/Frontend/src/Modules/Transcripts/">
     <Project Path="src/Modules/Transcripts/Avala.Transcripts.Contracts/Avala.Transcripts.Contracts.csproj" />
     <Project Path="src/Modules/Transcripts/Avala.Transcripts/Avala.Transcripts.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Workbench/">
+  <Folder Name="/Frontend/src/Modules/Workbench/">
     <Project Path="src/Modules/Workbench/Avala.Workbench.Contracts/Avala.Workbench.Contracts.csproj" />
     <Project Path="src/Modules/Workbench/Avala.Workbench/Avala.Workbench.csproj" />
     <Project Path="src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Simulator/">
+  <Folder Name="/Frontend/src/Modules/Simulator/">
     <Project Path="src/Modules/Simulator/Avala.Simulator.Workload/Avala.Simulator.Workload.csproj" />
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/ClaudeCode/">
+  <Folder Name="/Frontend/src/Modules/ClaudeCode/">
     <Project Path="src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj" />
     <Project Path="src/Modules/ClaudeCode/Avala.ClaudeCode.UI/Avala.ClaudeCode.UI.csproj" />
   </Folder>
-  <Folder Name="/src/Shared/">
+  <Folder Name="/Frontend/src/Shared/">
     <Project Path="src/Shared/Avala.Components.UI/Avala.Components.UI.csproj" />
     <Project Path="src/Shared/Avala.Components/Avala.Components.csproj" />
     <Project Path="src/Shared/Avala.CommandLines/Avala.CommandLines.csproj" />
     <Project Path="src/Shared/Avala.Storage/Avala.Storage.csproj" />
   </Folder>
-  <Folder Name="/tests/">
+  <Folder Name="/Frontend/tests/">
     <File Path="tests/Directory.Build.props" />
     <Project Path="tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj" />
     <Project Path="tests/Avala.ArchitectureTests/Avala.ArchitectureTests.csproj" />
@@ -208,5 +211,34 @@
     <Project Path="tests/Avala.ForgeSimulator.Tests/Avala.ForgeSimulator.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj" />
+  </Folder>
+  <Folder Name="/Backend/" />
+  <Folder Name="/Backend/Fleet/">
+    <Project Path="backend/Fleet/Avala.Server/Avala.Server.csproj" />
+    <Project Path="backend/Fleet/Avala.Server.AppHost/Avala.Server.AppHost.csproj" />
+    <Project Path="backend/Fleet/Avala.Server.CrossCuttingConcerns/Avala.Server.CrossCuttingConcerns.csproj" />
+    <Project Path="backend/Fleet/Avala.Server.ServiceDefaults/Avala.Server.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/Backend/Fleet/Modules/" />
+  <Folder Name="/Backend/Fleet/Modules/Instances/">
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Application/Avala.Server.Instances.Application.csproj" />
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj" />
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Domain/Avala.Server.Instances.Domain.csproj" />
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.EndPoints/Avala.Server.Instances.EndPoints.csproj" />
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj" />
+    <Project Path="backend/Fleet/Modules/Instances/Avala.Server.Instances.Module/Avala.Server.Instances.Module.csproj" />
+  </Folder>
+  <Folder Name="/Backend/tests/">
+    <Project Path="backend/tests/Avala.Server.ArchitectureTests/Avala.Server.ArchitectureTests.csproj" />
+  </Folder>
+  <Folder Name="/Backend/tests/Fixtures/">
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Partial.Domain/Avala.Server.Partial.Domain.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Application/Avala.Server.Violating.Application.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Contracts/Avala.Server.Violating.Contracts.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Domain/Avala.Server.Violating.Domain.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.EndPoints/Avala.Server.Violating.EndPoints.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Helpers/Avala.Server.Violating.Helpers.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Infrastructure/Avala.Server.Violating.Infrastructure.csproj" />
+    <Project Path="backend/tests/Fixtures/Violating/Avala.Server.Violating.Module/Avala.Server.Violating.Module.csproj" />
   </Folder>
 </Solution>
