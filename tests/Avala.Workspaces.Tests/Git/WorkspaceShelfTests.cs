@@ -53,7 +53,7 @@ public sealed class WorkspaceShelfTests
     }
 
     [Fact]
-    public async Task AWorktreeWhoseHeadLeftItsBranchIsNotShelvedAndKeepsEverythingAsync()
+    public async Task AWorktreeOnADetachedHeadIsNotShelvedAndKeepsEverythingAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
         var (service, shelf) = Services(repository);
@@ -61,9 +61,42 @@ public sealed class WorkspaceShelfTests
         _ = await repository.GitInAsync(workspace.Path, Cancellation, "checkout", "--detach");
         await File.WriteAllTextAsync(Path.Combine(workspace.Path, "login.cs"), "class Login;\n", Cancellation);
 
-        Assert.Equal(WorkspaceFailure.InvalidState, Outcomes.FailsWith(await shelf.ShelveAsync(workspace.Id, Cancellation)));
+        Assert.Equal(WorkspaceFailure.CheckoutLeftItsBranch, Outcomes.FailsWith(await shelf.ShelveAsync(workspace.Id, Cancellation)));
         Assert.Equal("class Login;\n", await File.ReadAllTextAsync(Path.Combine(workspace.Path, "login.cs"), Cancellation));
         Assert.False(Outcomes.Succeeds(await service.FindAsync(workspace.Id, Cancellation)).Shelved);
+    }
+
+    [Fact]
+    public async Task AWorktreeMovedToAnotherBranchWithChangesNoCommitHoldsIsNotShelvedAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var (service, shelf) = Services(repository);
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        _ = await repository.GitInAsync(workspace.Path, Cancellation, "checkout", "-b", "fix/login");
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "login.cs"), "class Login;\n", Cancellation);
+
+        Assert.Equal(WorkspaceFailure.CheckoutLeftItsBranch, Outcomes.FailsWith(await shelf.ShelveAsync(workspace.Id, Cancellation)));
+        Assert.Equal("class Login;\n", await File.ReadAllTextAsync(Path.Combine(workspace.Path, "login.cs"), Cancellation));
+        Assert.Equal("fix/login", await repository.GitInAsync(workspace.Path, Cancellation, "branch", "--show-current"));
+    }
+
+    [Fact]
+    public async Task AWorktreeMovedToAnotherBranchWithEverythingCommittedIsShelvedAndThatBranchKeptAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var (service, shelf) = Services(repository);
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        _ = await repository.GitInAsync(workspace.Path, Cancellation, "checkout", "-b", "fix/login");
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "login.cs"), "class Login;\n", Cancellation);
+        _ = await repository.GitInAsync(workspace.Path, Cancellation, "add", "login.cs");
+        _ = await repository.GitInAsync(workspace.Path, Cancellation, "-c", "user.name=Test", "-c", "user.email=test@localhost", "-c", "commit.gpgsign=false", "commit", "-m", "Add login");
+
+        var shelved = Outcomes.Succeeds(await shelf.ShelveAsync(workspace.Id, Cancellation));
+
+        Assert.True(shelved.Shelved);
+        Assert.False(Directory.Exists(workspace.Path));
+        Assert.Equal("class Login;", await repository.GitAsync(Cancellation, "show", "fix/login:login.cs"));
+        Assert.True(Directory.Exists(Outcomes.Succeeds(await shelf.RebuildAsync(workspace.Id, Cancellation)).Path));
     }
 
     [Fact]

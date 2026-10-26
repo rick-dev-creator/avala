@@ -47,4 +47,5 @@ public enum WorkspaceFailure
     PushRejected,
     RelativeFolder,
     UnknownCheckpoint,
+    CheckoutLeftItsBranch,
 }

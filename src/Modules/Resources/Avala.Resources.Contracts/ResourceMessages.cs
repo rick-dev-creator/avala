@@ -172,7 +172,10 @@ public sealed record OrphanReport(ProcessTreeId Tree, IReadOnlyList<ProcessUsage
 
 public sealed record ReclaimedWorktree(JobId Job, string Path, JobStatus Status, DateTimeOffset At);
 
-public sealed record WorktreeDue(JobId Job, string Path, WorktreeMoment Moment, DateTimeOffset Due);
+public sealed record WorktreeDue(JobId Job, string Path, WorktreeMoment Moment, DateTimeOffset Due)
+{
+    public bool LeftItsBranch { get; init; }
+}
 
 public sealed record WorktreeEvent(JobId Job, string Path, JobStatus Status, Option<WorktreeMoment> Moment, long Bytes, DateTimeOffset At)
 {

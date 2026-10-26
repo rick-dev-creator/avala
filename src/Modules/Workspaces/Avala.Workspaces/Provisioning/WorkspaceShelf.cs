@@ -30,9 +30,9 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
 
         var present = Directory.Exists(found.Location.Path);
 
-        if (present && !(await git.OnBranchAsync(found.Location, found.Branch, cancellationToken)).Match(on => on, _ => false))
+        if (present && !(await CheckoutFreeableAsync(found, cancellationToken)).TryGetValue(out _, out failure))
         {
-            return WorkspaceFailure.InvalidState;
+            return failure;
         }
 
         if (!(await KeepChangesAsync(found, present, cancellationToken)).TryGetValue(out _, out failure)
@@ -94,6 +94,27 @@ internal sealed class WorkspaceShelf(IGit git, IGitChanges changes, IWorkspaceSt
 
     private async Task<Result<WorkspaceInfo, WorkspaceFailure>> ReleaseAsync(Workspace workspace, CancellationToken cancellationToken) =>
         await git.ReleaseWorktreeAsync(workspace.Location, workspace.Branch, cancellationToken).MapAsync(_ => workspace.Describe());
+
+    private async Task<Result<bool, WorkspaceFailure>> CheckoutFreeableAsync(Workspace workspace, CancellationToken cancellationToken)
+    {
+        if (!(await git.HeadBranchAsync(workspace.Location, cancellationToken)).TryGetValue(out var head, out var failure))
+        {
+            return failure;
+        }
+
+        if (head == Option<BranchName>.Some(workspace.Branch))
+        {
+            return true;
+        }
+
+        if (head.IsNone)
+        {
+            return WorkspaceFailure.CheckoutLeftItsBranch;
+        }
+
+        return await git.HasChangesAsync(workspace.Location, cancellationToken)
+            .BindAsync(changed => changed ? Result<bool, WorkspaceFailure>.Failure(WorkspaceFailure.CheckoutLeftItsBranch) : Result<bool, WorkspaceFailure>.Success(true));
+    }
 
     private async Task<Result<bool, WorkspaceFailure>> KeepChangesAsync(Workspace workspace, bool present, CancellationToken cancellationToken)
     {

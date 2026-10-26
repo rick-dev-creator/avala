@@ -6,6 +6,8 @@ namespace Avala.Workbench.Upkeep;
 
 internal sealed record WorktreeFolder(FolderUsage Folder, Option<BoardJob> Job);
 
+internal sealed record WorktreesFreed(IReadOnlyList<FreedWorktree> Freed, int LeftTheirBranch);
+
 internal sealed record UpcomingWorktree(WorktreeDue Due, Option<BoardJob> Job);
 
 internal sealed record WorktreeState(
@@ -44,5 +46,6 @@ internal sealed class WorktreeReader(IResources resources, IWorktreeHousekeeping
         };
     }
 
-    public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => housekeeping.FreeNowAsync(cancellationToken);
+    public async ValueTask<WorktreesFreed> FreeNowAsync(CancellationToken cancellationToken) =>
+        new(await housekeeping.FreeNowAsync(cancellationToken), housekeeping.Upcoming().Count(due => due.LeftItsBranch));
 }

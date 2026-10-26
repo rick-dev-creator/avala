@@ -112,8 +112,23 @@ internal static class WorktreePagePhrases
     public static string Day(WorktreeDay day) =>
         string.Create(CultureInfo.InvariantCulture, $"{day.Created} created · {day.Freed} freed · {Bytes(day.Recovered)} recovered");
 
-    public static string Freed(int count, long bytes) =>
-        count == 0 ? "Nothing could be freed: every worktree belongs to a job that is working." : $"Freed {Count(count)}, {Bytes(bytes)}.";
+    public const string Kept = "kept";
+
+    public static string LeftItsBranch(WorktreeMoment moment) => $"{Moment(moment)} · its checkout left its branch";
+
+    public static string Freed(int count, long bytes, int leftTheirBranch)
+    {
+        var freed = count == 0
+            ? leftTheirBranch == 0 ? "Nothing could be freed: every worktree left belongs to a job that is working." : "Nothing could be freed."
+            : $"Freed {Count(count)}, {Bytes(bytes)}.";
+
+        return leftTheirBranch switch
+        {
+            0 => freed,
+            1 => $"{freed} 1 worktree is kept because its checkout left its branch.",
+            _ => string.Create(CultureInfo.InvariantCulture, $"{freed} {leftTheirBranch} worktrees are kept because their checkout left its branch."),
+        };
+    }
 
     private static string FirstLine(string text)
     {
