@@ -20,7 +20,7 @@ internal sealed record GovernedSession(
     {
     }
 
-    public Option<string> Scratch { get; init; }
+    public IReadOnlyList<string> Writable { get; init; } = [];
 
     public IReadOnlyList<string> Own { get; init; } = [];
 

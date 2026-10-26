@@ -116,7 +116,7 @@ public sealed class GovernanceHistoryTests
         var store = new InMemoryGovernance();
         var book = new GovernanceBook(store);
         var bus = new RecordingBus();
-        var governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new Avala.Permissions.Answering.PermissionResponder(new AnsweringAgents(), new Avala.Permissions.Answering.RequestPlaces(new Avala.Permissions.Links.SymbolicLinks(), new FixedReadableFolders([])), TimeProvider.System, []), bus);
+        var governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new Avala.Permissions.Links.SymbolicLinks()), new Avala.Permissions.Answering.PermissionResponder(new AnsweringAgents(), new Avala.Permissions.Answering.RequestPlaces(new Avala.Permissions.Links.SymbolicLinks(), new FixedReadableFolders([])), TimeProvider.System, []), bus);
         var (running, ended) = (JobId.New(), JobId.New());
         store.Earlier = GovernanceHistory.Empty with
         {

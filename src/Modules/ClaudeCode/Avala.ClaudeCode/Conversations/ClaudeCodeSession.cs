@@ -31,15 +31,17 @@ internal sealed class ClaudeCodeSession : IAgentSession
 
     public IReadOnlyList<string> OwnFolders { get; private init; } = [];
 
+    public IReadOnlyList<string> WritableFolders { get; private init; } = [];
+
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
     public static Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account) =>
-        OpenAsync(cli, conversation, account, []);
+        OpenAsync(cli, conversation, account, [], []);
 
-    public static async Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account, IReadOnlyList<string> ownFolders)
+    public static async Task<ClaudeCodeSession> OpenAsync(ICliProcess cli, Func<SessionId, Conversation> conversation, Option<AgentAccount> account, IReadOnlyList<string> ownFolders, IReadOnlyList<string> writableFolders)
     {
         var id = SessionId.New();
-        var session = new ClaudeCodeSession(cli, conversation(id), id, account) { OwnFolders = ownFolders };
+        var session = new ClaudeCodeSession(cli, conversation(id), id, account) { OwnFolders = ownFolders, WritableFolders = writableFolders };
         await session.stage.RunAsync(_ => session.ApplyAsync(Reaction.Send(Messages.Initialize())), CancellationToken.None);
         session.pump = Task.Run(session.PumpAsync, CancellationToken.None);
 

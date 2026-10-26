@@ -47,6 +47,11 @@ public static class WorkspaceFidelity
             [nameof(RestoringACheckpointRemovesTheFolderItEmptiedAsync)] = RestoringACheckpointRemovesTheFolderItEmptiedAsync,
         };
 
+    public static IReadOnlyDictionary<string, string> UnnamableOnWindows { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["ATrailingBackslashMatchesNothingAsync"] = "The case writes a file whose name ends in a space, and Windows drops a trailing space from a file name.",
+    };
+
     public static IReadOnlyDictionary<string, string> Approximated { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [nameof(PlacesAndCountsAnAmbiguousChangeWhereGitDoesAsync)] =

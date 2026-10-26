@@ -59,7 +59,8 @@ public sealed class CommandLineTests
         { "ls )", ["ls"], [], true },
         { "echo x > $OUT", ["echo x"], [], true },
         { "echo x >", ["echo x"], [], true },
-        { "cd /tmp && echo x > notes.txt", ["cd /tmp", "echo x"], ["notes.txt"], true },
+        { "cd /tmp && echo x > notes.txt", ["cd /tmp", "echo x"], ["notes.txt"], false },
+        { "cd $DIR && echo x > notes.txt", ["cd $DIR", "echo x"], ["notes.txt"], true },
         { "cd /tmp && echo x > /tmp/notes.txt", ["cd /tmp", "echo x"], ["/tmp/notes.txt"], false },
         { "> empty.txt", [], ["empty.txt"], false },
         { "", [], [], true },
@@ -75,6 +76,44 @@ public sealed class CommandLineTests
         Assert.Equal(commands, line.Commands.Select(command => command.Text));
         Assert.Equal(writes, line.Writes);
         Assert.Equal(opaque, line.Opaque);
+    }
+
+    public static TheoryData<string, string[], string[]> Landings => new()
+    {
+        { "echo x > a.txt", ["a.txt"], [] },
+        { "cd src && echo x > a.txt", ["a.txt", "src/a.txt"], [] },
+        { "cd /work/src && cat > Pid.cs <<'EOF'\nclass Pid;\nEOF", ["Pid.cs", "/work/src/Pid.cs"], [] },
+        { "echo x > a.txt; cd /tmp", ["a.txt"], [] },
+        { "cd src; cd ../docs && echo x > a.txt", ["a.txt", "src/a.txt", "../docs/a.txt", "src/../docs/a.txt"], [] },
+        { "(cd /tmp && echo x > a.txt)", ["a.txt", "/tmp/a.txt"], [] },
+        { "cd src && echo x > /tmp/a.txt", ["/tmp/a.txt"], [] },
+        { "cd src && bash -c 'echo x > a.txt'", ["a.txt", "src/a.txt"], [] },
+        { "bash -c 'cd /tmp' && echo x > a.txt", [], ["a.txt"] },
+        { "cd $DIR && echo x > a.txt", [], ["a.txt"] },
+        { "cd && echo x > a.txt", [], ["a.txt"] },
+        { "cd - && echo x > a.txt", [], ["a.txt"] },
+        { "pushd src && echo x > a.txt", [], ["a.txt"] },
+        { "env -C src echo x > a.txt", ["a.txt"], [] },
+        { "env -C src true && echo x > a.txt", [], ["a.txt"] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Landings))]
+    public void AWriteLandsInEveryFolderACdBeforeItMayHaveReachedAndIsAdriftWhereTheFolderIsUnknown(string text, string[] landings, string[] adrift)
+    {
+        var line = CommandLine.Parse(text);
+
+        Assert.Equal(landings, line.Landings);
+        Assert.Equal(adrift, line.Adrift);
+    }
+
+    [Fact]
+    public void ALineThatChangesDirectoryInManyWaysLeavesItsWritesAdrift()
+    {
+        var line = CommandLine.Parse(string.Concat(Enumerable.Range(0, 5).Select(step => $"cd d{step}; ")) + "echo x > a.txt");
+
+        Assert.Empty(line.Landings);
+        Assert.Equal(["a.txt"], line.Adrift);
     }
 
     [Fact]
