@@ -50,7 +50,7 @@ Run a fleet server of your own, so every Avala instance on your team sends it wh
 **`.env`**, beside `compose.yaml`:
 
 ```sh
-AVALA_SERVER_VERSION=0.1.0
+AVALA_SERVER_VERSION=0.2.0-preview.3
 AVALA_FLEET_DOMAIN=fleet.example.com
 AVALA_FLEET_TLS=you@example.com
 AVALA_ADMINISTRATOR_KEY=at-least-32-characters
