@@ -28,7 +28,7 @@ public sealed class PermissionResponderTests
     private readonly SessionGovernor governor;
 
     public PermissionResponderTests() =>
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -76,7 +76,7 @@ public sealed class PermissionResponderTests
         using var temporary = new TemporaryFolder();
         using var memory = new TemporaryFolder();
         using var elsewhere = new TemporaryFolder();
-        var opened = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], Option<AvalaPaths>.None, [temporary.Path]), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        var opened = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks(), new WritablePlaces(Option<AvalaPaths>.None, [temporary.Path])), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         await opened.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), worktree.Path, new ConnectionName("agent")) { WritableFolders = [memory.Path] }, Cancellation);
 
         foreach (var target in new[] { Path.Combine(temporary.Path, "notes.txt"), Path.Combine(memory.Path, "MEMORY.md"), Path.Combine(elsewhere.Path, "x.txt") })

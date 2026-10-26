@@ -32,7 +32,7 @@ public sealed class HumanAnswersTests
     public HumanAnswersTests()
     {
         var clock = new FakeTimeProvider(Now);
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         answers = new HumanAnswers(book, agents, repository, new AnswerLedger(book, bus, clock, new RecordedRounds()));
         book.Keep(book.Of(session).WorkingOn(job));
     }

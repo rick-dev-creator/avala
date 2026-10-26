@@ -34,7 +34,7 @@ public sealed class ParentAnswersTests
     {
         var clock = new FakeTimeProvider(Now);
         var ledger = new AnswerLedger(book, bus, clock, new RecordedRounds());
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [new FixedTerms(new JobTerms(ReadOnly: false, parentJob))]), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [new FixedTerms(new JobTerms(ReadOnly: false, parentJob))], new SymbolicLinks()), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         answers = new ParentAnswers(book, agents, ledger);
         people = new HumanAnswers(book, agents, new RepositoryFiles(), ledger);
     }

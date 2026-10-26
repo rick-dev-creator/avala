@@ -29,7 +29,7 @@ public sealed class DeniedRequestsTests
     public DeniedRequestsTests()
     {
         var clock = new FakeTimeProvider(Now);
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(new AnsweringAgents(), new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(new AnsweringAgents(), new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         denied = new DeniedRequests(book, new AnswerLedger(book, bus, clock, new RecordedRounds()));
         var autonomous = PermissionPolicy.With([]) with { Declared = Autonomy.Autonomous };
         book.Keep(book.Of(session).OpenedIn(Path.GetTempPath(), autonomous, new SessionPolicy(session, PolicyFileStatus.Applied, Option<PolicyError>.None, [], CommittedFiles.Origin())).WorkingOn(job));

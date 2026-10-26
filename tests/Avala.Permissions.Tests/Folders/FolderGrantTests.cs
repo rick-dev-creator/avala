@@ -37,7 +37,7 @@ public sealed class FolderGrantTests : IDisposable
     {
         var links = new SymbolicLinks();
         var readable = new FixedReadableFolders([projects.Path]);
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(links, readable), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(agents, new RequestPlaces(links, readable), clock, []), bus);
         desk = new FolderDesk(agents, new FolderCoverage(book, links, readable, clock), new FolderAsking(book, clock, bus));
         answers = new HumanAnswers(book, agents, new RepositoryFiles(), new AnswerLedger(book, bus, clock, new RecordedRounds()));
         Directory.CreateDirectory(Path.Combine(other.Path, ".git"));
