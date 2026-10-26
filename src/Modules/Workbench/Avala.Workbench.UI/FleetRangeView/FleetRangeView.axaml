@@ -14,20 +14,20 @@
         <ItemsControl x:Name="RangeOptions" ItemsSource="{Binding Options}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" />
+              <WrapPanel />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
       </Border>
       <TextBlock x:Name="CaptionText" Classes="caption" Text="{Binding Caption}" VerticalAlignment="Center" />
     </WrapPanel>
-    <StackPanel x:Name="CustomPanel" Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsCustomOpen}">
+    <WrapPanel x:Name="CustomPanel" ItemSpacing="8" LineSpacing="8" IsVisible="{Binding IsCustomOpen}">
       <TextBlock Classes="caption" Text="From" VerticalAlignment="Center" />
       <TextBox x:Name="CustomFromBox" Width="120" PlaceholderText="2026-10-01" Text="{Binding CustomFrom}" />
       <TextBlock Classes="caption" Text="to" VerticalAlignment="Center" />
       <TextBox x:Name="CustomToBox" Width="120" PlaceholderText="2026-10-25" Text="{Binding CustomTo}" />
       <Button x:Name="ApplyCustomButton" Classes="primary" Content="Show" Command="{Binding ApplyCustomCommand}" />
-    </StackPanel>
+    </WrapPanel>
     <TextBlock x:Name="RefusalText" Classes="caption failure" Text="{Binding Refusal}" IsVisible="{Binding HasRefusal}" />
   </StackPanel>
 </UserControl>

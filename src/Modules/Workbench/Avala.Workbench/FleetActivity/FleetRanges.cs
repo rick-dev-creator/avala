@@ -50,6 +50,20 @@ internal static class FleetRanges
         };
     }
 
+    public static FleetRange Before(FleetRange range)
+    {
+        var from = range.Step == FleetStep.Month ? range.From.AddMonths(-Months(range)) : range.From.AddDays(-Days(range));
+
+        return range with { From = from, To = range.From };
+    }
+
+    public static string Previous(FleetRange range) => range.Step switch
+    {
+        FleetStep.Month => Previous(Months(range), "month"),
+        FleetStep.Week => Previous(Days(range) / 7, "week"),
+        _ => Previous(Days(range), "day"),
+    };
+
     public static string Said(FleetRangeRefusal refusal) => refusal switch
     {
         FleetRangeRefusal.EndBeforeStart => "The end comes before the start",
@@ -82,4 +96,11 @@ internal static class FleetRanges
     }
 
     public static DateOnly Monday(DateOnly day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
+
+    private static int Days(FleetRange range) => range.To.DayNumber - range.From.DayNumber;
+
+    private static int Months(FleetRange range) => ((range.To.Year - range.From.Year) * 12) + range.To.Month - range.From.Month;
+
+    private static string Previous(int count, string unit) =>
+        count == 1 ? $"the previous {unit}" : string.Create(CultureInfo.CurrentCulture, $"the previous {count} {unit}s");
 }

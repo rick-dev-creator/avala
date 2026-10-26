@@ -9,57 +9,49 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.FleetActivity;
 
-internal interface IFleetTileViewModel
-{
-    string Label { get; }
-
-    string Value { get; }
-
-    string Caption { get; }
-}
-
-internal sealed record FleetTileViewModel(string Label, string Value, string Caption) : IFleetTileViewModel
-{
-    public static IReadOnlyList<FleetTileViewModel> Of(FleetUsage usage)
-    {
-        var totals = usage.Totals;
-        var repositories = usage.Repositories.Count(share => share.Kind == FleetShareKind.Repository);
-
-        return
-        [
-            usage.Reference.Match(
-                reference => new FleetTileViewModel(
-                    "Spend",
-                    FleetFigures.Money(FleetFigures.Spent(totals.Costs, reference), reference.Currency),
-                    string.Join(
-                        " · ",
-                        [
-                            FleetFigures.Basis(reference.Basis),
-                            .. totals.Costs
-                                .Where(cost => cost.Currency != reference.Currency || cost.Basis != reference.Basis)
-                                .Select(cost => $"also {FleetFigures.Money(cost.Amount, cost.Currency)} {FleetFigures.Basis(cost.Basis)}"),
-                        ])),
-                () => new FleetTileViewModel("Spend", "—", "no cost reported")),
-            new(
-                "Tokens",
-                FleetFigures.Tokens(FleetFigures.Total(totals.Tokens)),
-                $"{FleetFigures.Tokens(totals.Tokens.Input)} in · {FleetFigures.Tokens(totals.Tokens.Output)} out · {FleetFigures.Tokens(totals.Tokens.CacheRead)} cache read"),
-            new("Jobs", totals.Jobs.ToString("N0", CultureInfo.CurrentCulture), $"in {FleetFigures.Counted(repositories, "repository", "repositories")}"),
-            new("Instances", totals.Instances.ToString("N0", CultureInfo.CurrentCulture), "that sent usage"),
-        ];
-    }
-}
-
 internal interface IFleetColumnViewModel
 {
     double Share { get; }
+
+    double Previous { get; }
+
+    bool HasPrevious { get; }
+
+    bool IsStacked { get; }
+
+    double InputReach { get; }
+
+    double OutputReach { get; }
+
+    double ReasoningReach { get; }
+
+    double CacheWriteReach { get; }
 
     string Tick { get; }
 
     string Tip { get; }
 }
 
-internal sealed record FleetColumnViewModel(double Share, string Tick, string Tip) : IFleetColumnViewModel;
+internal sealed record FleetColumnViewModel(FleetColumn Column, bool IsStacked) : IFleetColumnViewModel
+{
+    public double Share => Column.Share;
+
+    public double Previous => Column.Previous.Match(previous => previous, () => 0);
+
+    public bool HasPrevious => Column.Previous.IsSome;
+
+    public double InputReach => Column.Stack.Input;
+
+    public double OutputReach => Column.Stack.Output;
+
+    public double ReasoningReach => Column.Stack.Reasoning;
+
+    public double CacheWriteReach => Column.Stack.CacheWrite;
+
+    public string Tick => Column.Tick;
+
+    public string Tip => Column.Tip;
+}
 
 internal interface IFleetTrendViewModel
 {
@@ -70,6 +62,10 @@ internal interface IFleetTrendViewModel
     string Axis { get; }
 
     bool IsEmpty { get; }
+
+    string Previous { get; }
+
+    bool HasPrevious { get; }
 
     IReadOnlyList<IFleetColumnViewModel> Columns { get; }
 
@@ -84,6 +80,8 @@ internal sealed partial class FleetTrendViewModel : IFleetTrendViewModel
     private readonly ObservableCollection<IFleetColumnViewModel> columns = [];
 
     private FleetUsage usage = FleetUsage.Empty;
+
+    private FleetComparison comparison = FleetComparison.None;
 
     private FleetStep step = FleetStep.Day;
 
@@ -105,12 +103,21 @@ internal sealed partial class FleetTrendViewModel : IFleetTrendViewModel
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    public void Show(FleetUsage shown, FleetStep stepped)
+    [ObservableProperty]
+    public partial string Previous { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasPrevious { get; private set; }
+
+    public void Show(FleetUsage shown, FleetComparison compared, FleetStep stepped)
     {
         usage = shown;
+        comparison = compared;
         step = stepped;
         CanShowSpend = shown.Reference.IsSome;
         ShowsSpend = CanShowSpend && !tokensChosen;
+        HasPrevious = compared.Before.IsSome;
+        Previous = HasPrevious ? compared.Previous : string.Empty;
         Draw();
     }
 
@@ -147,7 +154,7 @@ internal sealed partial class FleetTrendViewModel : IFleetTrendViewModel
         Axis = ShowsSpend
             ? usage.Reference.Match(reference => $"{FleetFigures.Money(highest, reference.Currency)} {FleetFigures.Basis(reference.Basis)}, the highest {Unit()}", () => string.Empty)
             : $"{FleetFigures.Tokens(highest)} tokens, the highest {Unit()}";
-        columns.ShowOnly(FleetColumns.Of(usage.Series, step, ShowsSpend, usage.Reference).Select(column => new FleetColumnViewModel(column.Share, column.Tick, column.Tip)));
+        columns.ShowOnly(FleetColumns.Of(usage.Series, step, ShowsSpend, usage.Reference, comparison.Series).Select(column => new FleetColumnViewModel(column, !ShowsSpend)));
     }
 
     private string Unit() => step switch
@@ -166,6 +173,8 @@ internal interface IFleetShareRowViewModel
 
     string Value { get; }
 
+    string Detail { get; }
+
     bool CanChoose { get; }
 
     bool IsChosen { get; }
@@ -173,11 +182,10 @@ internal interface IFleetShareRowViewModel
     IAsyncRelayCommand ChooseCommand { get; }
 }
 
-internal sealed record FleetShareRow(FleetShare Share, double Portion, string Value, bool Chosen);
+internal sealed record FleetShareRow(FleetShare Share, double Portion, string Value, string Detail, bool Chosen);
 
 internal sealed partial class FleetShareRowViewModel(FleetShareRow row, Func<string, Task> choose) : IFleetShareRowViewModel
 {
-
     public Personal Name { get; } = row.Share.Kind switch
     {
         FleetShareKind.Unknown => Personal.Plain("Repository not known yet"),
@@ -190,6 +198,8 @@ internal sealed partial class FleetShareRowViewModel(FleetShareRow row, Func<str
     public double Share => row.Portion;
 
     public string Value => row.Value;
+
+    public string Detail => row.Detail;
 
     public bool CanChoose => row.Share.Kind == FleetShareKind.Repository;
 
@@ -227,17 +237,27 @@ internal sealed partial class FleetShareListViewModel(string title) : IFleetShar
     [ObservableProperty]
     public partial bool HasMore { get; private set; }
 
-    public void Show(IReadOnlyList<FleetShare> shares, bool spend, Option<FleetCostKind> reference, Option<string> chosen, Func<string, Task> choose)
+    public void Show(
+        IReadOnlyList<FleetShare> shares,
+        Option<IReadOnlyList<FleetShare>> before,
+        bool spend,
+        Option<FleetCostKind> reference,
+        Option<string> chosen,
+        Func<string, Task> choose)
     {
         decimal Measure(FleetShare share) => spend ? FleetFigures.Spent(share.Costs, reference) : FleetFigures.Total(share.Tokens);
+        Option<decimal> Earlier(FleetShare share) =>
+            before.Map(earlier => earlier.Where(other => other.Kind == share.Kind && other.Key == share.Key).Sum(Measure));
 
         var ranked = shares.OrderByDescending(Measure).ToList();
         var highest = ranked.Select(Measure).DefaultIfEmpty(0).Max();
+        var total = ranked.Sum(Measure);
         rows.ShowOnly(ranked.Take(Shown).Select(share => new FleetShareRowViewModel(
             new FleetShareRow(
                 share,
                 highest == 0 ? 0 : (double)(Measure(share) / highest),
                 spend ? reference.Match(kind => FleetFigures.Money(Measure(share), kind.Currency), () => string.Empty) : FleetFigures.Tokens(Measure(share)),
+                string.Join(" · ", new[] { FleetFigures.Percent(Measure(share), total), FleetFigures.Shift(Measure(share), Earlier(share)) }.Where(part => part.Length > 0)),
                 share.Kind == FleetShareKind.Repository && chosen.Match(key => key == share.Key, () => false)),
             choose)));
         HasMore = shares.Count > Shown;

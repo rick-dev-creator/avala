@@ -60,6 +60,30 @@ internal static class FleetFigures
         _ => string.Empty,
     };
 
+    public static Option<decimal> CacheHit(FleetTokens tokens)
+    {
+        var input = tokens.Input + tokens.CacheRead + tokens.CacheWrite;
+
+        return input == 0 ? Option<decimal>.None : tokens.CacheRead / input * 100;
+    }
+
+    public static string Percent(decimal part, decimal whole) => whole == 0 || part == 0
+        ? string.Empty
+        : part / whole * 100 < 1 ? "<1%" : string.Create(CultureInfo.CurrentCulture, $"{part / whole * 100:0}%");
+
+    public static string Change(decimal now, Option<decimal> before, string previous) =>
+        before.Match(
+            earlier => earlier == 0
+                ? now == 0 ? string.Empty : $"nothing in {previous}"
+                : $"{Moved(Growth(now, earlier), "%")} vs {previous}",
+            () => string.Empty);
+
+    public static string PointChange(Option<decimal> now, Option<decimal> before, string previous) =>
+        now.Bind(current => before.Map(earlier => $"{Moved(Math.Round(current - earlier), " pts")} vs {previous}")).Match(change => change, () => string.Empty);
+
+    public static string Shift(decimal now, Option<decimal> before) =>
+        before.Match(earlier => earlier == 0 ? now == 0 ? string.Empty : "new" : Moved(Growth(now, earlier), "%"), () => string.Empty);
+
     public static string Spending(FleetTokens tokens, IReadOnlyList<FleetCost> costs) =>
         string.Join(
             " · ",
@@ -67,4 +91,13 @@ internal static class FleetFigures
                 $"{Tokens(Total(tokens))} tokens",
                 .. costs.Select(cost => $"{Money(cost.Amount, cost.Currency)} {Basis(cost.Basis)}"),
             ]);
+
+    private static decimal Growth(decimal now, decimal earlier) => Math.Round((now - earlier) / earlier * 100);
+
+    private static string Moved(decimal by, string unit) => by switch
+    {
+        > 0 => string.Create(CultureInfo.CurrentCulture, $"▲ {by:0}{unit}"),
+        < 0 => string.Create(CultureInfo.CurrentCulture, $"▼ {-by:0}{unit}"),
+        _ => "no change",
+    };
 }

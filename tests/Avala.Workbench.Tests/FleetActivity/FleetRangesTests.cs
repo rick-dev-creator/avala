@@ -29,6 +29,26 @@ public sealed class FleetRangesTests
         Assert.Equal((from, to, step), (Iso(range.From), Iso(range.To), range.Step.ToString()));
     }
 
+    public static TheoryData<string, string, string, string, string> Earlier => new()
+    {
+        { nameof(FleetRangeChoice.LastSevenDays), "2026-10-25", "2026-10-12", "2026-10-19", "the previous 7 days" },
+        { nameof(FleetRangeChoice.ThisMonth), "2026-10-25", "2026-09-06", "2026-10-01", "the previous 25 days" },
+        { nameof(FleetRangeChoice.ThisMonth), "2026-10-01", "2026-09-30", "2026-10-01", "the previous day" },
+        { nameof(FleetRangeChoice.ThreeMonths), "2026-10-25", "2026-04-27", "2026-07-27", "the previous 13 weeks" },
+        { nameof(FleetRangeChoice.TwelveMonths), "2026-10-25", "2024-11-01", "2025-11-01", "the previous 12 months" },
+    };
+
+    [Theory]
+    [MemberData(nameof(Earlier))]
+    public void EachRangeIsComparedWithTheSameLengthBeforeIt(string choice, string today, string from, string to, string named)
+    {
+        var range = FleetRanges.Of(Enum.Parse<FleetRangeChoice>(choice), DateOnly.Parse(today, System.Globalization.CultureInfo.InvariantCulture));
+
+        var before = FleetRanges.Before(range);
+
+        Assert.Equal((from, to, range.Step, named), (Iso(before.From), Iso(before.To), before.Step, FleetRanges.Previous(range)));
+    }
+
     [Fact]
     public void ACustomRangeUpToSixtyTwoDaysIsCountedByDay()
     {

@@ -26,6 +26,10 @@ internal interface IFleetActivityViewModel
 
     bool IsScoped { get; }
 
+    bool AreNamesShown { get; }
+
+    string NamesAction { get; }
+
     IReadOnlyList<IFleetTileViewModel> Tiles { get; }
 
     IFleetTrendViewModel Trend { get; }
@@ -37,6 +41,8 @@ internal interface IFleetActivityViewModel
     IAsyncRelayCommand RefreshCommand { get; }
 
     IAsyncRelayCommand ClearScopeCommand { get; }
+
+    IRelayCommand ToggleNamesCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -63,6 +69,8 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
     private readonly ObservableCollection<IFleetTileViewModel> tiles = [];
 
     private FleetUsage usage = FleetUsage.Empty;
+
+    private FleetComparison comparison = FleetComparison.None;
 
     private Option<string> scope = Option<string>.None;
 
@@ -113,6 +121,12 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
     [ObservableProperty]
     public partial bool IsScoped { get; private set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NamesAction))]
+    public partial bool AreNamesShown { get; private set; }
+
+    public string NamesAction => AreNamesShown ? "Hide names" : "Show names";
+
     public Task Loading { get; private set; } = Task.CompletedTask;
 
     public void Activate()
@@ -121,9 +135,10 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
         Loading = LoadAsync(CancellationToken.None);
     }
 
-    public void Deactivate()
-    {
-    }
+    public void Deactivate() => AreNamesShown = false;
+
+    [RelayCommand]
+    private void ToggleNames() => AreNamesShown = !AreNamesShown;
 
     [RelayCommand]
     private Task RefreshAsync(CancellationToken cancellationToken)
@@ -154,7 +169,11 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
         var zone = activity.Zone;
         var chosen = range.Current;
         var scoped = scope;
-        var view = await activity.UsageAsync(new FleetUsageQuery(chosen.From, chosen.To, chosen.Step, scoped), cancellationToken);
+        var before = FleetRanges.Before(chosen);
+        var asked = activity.UsageAsync(new FleetUsageQuery(chosen.From, chosen.To, chosen.Step, scoped), cancellationToken).AsTask();
+        var earlier = activity.UsageAsync(new FleetUsageQuery(before.From, before.To, before.Step, scoped), cancellationToken).AsTask();
+        var view = await asked;
+        var previous = await earlier;
         var repositoryJobs = await scoped.Match(
             key => activity.JobsAsync(key, cancellationToken).AsTask(),
             () => Task.FromResult(FleetJobsView.Of(FleetReadState.Read)));
@@ -173,8 +192,11 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
                 HasNotice = Notice.Length > 0;
                 HasFigures = view.State == FleetReadState.Read;
                 usage = view.Usage;
-                tiles.ShowOnly(FleetTileViewModel.Of(usage));
-                trend.Show(usage, chosen.Step);
+                comparison = new FleetComparison(
+                    previous.State == FleetReadState.Read ? previous.Usage : Option<FleetUsage>.None,
+                    FleetRanges.Previous(chosen));
+                tiles.ShowOnly(FleetTileViewModel.Of(usage, comparison));
+                trend.Show(usage, comparison, chosen.Step);
                 ShowLists();
                 IsScoped = scoped.IsSome;
                 Scope = scoped.Match(key => Personal.AccountName(FleetFigures.Repository(key)), () => Personal.None);
@@ -192,9 +214,9 @@ internal sealed partial class FleetActivityViewModel : IFleetActivityViewModel, 
 
     private void ShowLists()
     {
-        repositories.Show(usage.Repositories, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
-        instances.Show(usage.Instances, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
-        models.Show(usage.Models, trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
+        repositories.Show(usage.Repositories, comparison.Before.Map(before => before.Repositories), trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
+        instances.Show(usage.Instances, comparison.Before.Map(before => before.Instances), trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
+        models.Show(usage.Models, comparison.Before.Map(before => before.Models), trend.ShowsSpend, usage.Reference, scope, ChooseAsync);
     }
 
     private DateOnly Today()
