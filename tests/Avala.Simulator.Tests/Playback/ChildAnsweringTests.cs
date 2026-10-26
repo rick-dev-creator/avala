@@ -46,6 +46,30 @@ public sealed class ChildAnsweringTests
         Assert.Contains(events, agentEvent => agentEvent is ItemProgressed { Text: "The harness answered: Migrated." });
     }
 
+    [Fact]
+    public async Task AChildsQuestionsAreAnsweredWithTheirFirstOptionAConfirmationOrAFreeTextAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll, Delegating, Answering);
+        await stage.SendAsync(AskingChild, Cancellation);
+        var delegated = Called(await stage.ReadUntilAsync<ToolCalled>(Cancellation));
+
+        Outcomes.Succeeds(await stage.Session.SendAsync(
+            new UserTurn(string.Join(
+                '\n',
+                "Sub-agent \"Migrate\" is waiting for you: it asks: Before migrating",
+                """fields [{"id":"database","prompt":"Which database?","kind":"SingleChoice","options":["PostgreSQL","SQLite"],"acceptsText":true},{"id":"backup","prompt":"Back up first?","kind":"Confirmation","options":[],"acceptsText":false},{"id":"notes","prompt":"Anything else?","kind":"FreeText","options":[],"acceptsText":true}]""",
+                """answer_child {"child":"7","request":"r1","decision":"allow"}""")) { MidTurn = true },
+            Cancellation));
+        var answered = Called(await stage.ReadUntilAsync<ToolCalled>(Cancellation));
+        Outcomes.Succeeds(await stage.Session.ReturnAsync(new ToolResult(answered.Item, "Answered."), Cancellation));
+        Outcomes.Succeeds(await stage.Session.ReturnAsync(new ToolResult(delegated.Item, "Migrated."), Cancellation));
+        await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal(
+            """{"child":"7","request":"r1","decision":"allow","fields":[{"id":"database","chosen":["PostgreSQL"]},{"id":"backup","confirmed":true},{"id":"notes","text":"As the orchestrator sees fit."}]}""",
+            answered.Input);
+    }
+
     [Theory]
     [InlineData("Keep going")]
     [InlineData("answer_child not json")]

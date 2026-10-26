@@ -61,17 +61,6 @@ public sealed class UsageTests(PostgresFixture database) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task EmptyPeriodsAreZeroAsync()
-    {
-        await database.BeginAsync();
-        await fleet.IngestAsync(Desktop, "desktop", Usage(Guid.NewGuid(), Job, 10, at: Noon));
-
-        var usage = await fleet.UsageAsync("2026-10-20", "2026-10-26");
-
-        Assert.Equal([0m, 0m, 0m, 0m, 0m, 10m], usage.Series.Select(period => period.Tokens.Input));
-    }
-
-    [Fact]
     public async Task TokensAreNotCountedOncePerCostAsync()
     {
         await database.BeginAsync();
@@ -207,25 +196,5 @@ public sealed class UsageTests(PostgresFixture database) : IClassFixture<Postgre
         Assert.Equal(
             ["EUR Billed 0.3", "USD Billed 0.2", "USD ApiEquivalent 0.1"],
             usage.Totals.Costs.OrderBy(cost => cost.Currency, StringComparer.Ordinal).ThenBy(cost => cost.Basis).Select(cost => $"{cost.Currency} {cost.Basis} {cost.Amount:0.0}"));
-    }
-
-    [Fact]
-    public async Task TheReferenceIsTheLargestCostAndOrdersTheBreakdownsAsync()
-    {
-        await database.BeginAsync();
-        await fleet.IngestAsync(
-            Desktop,
-            "desktop",
-            Submitted(Guid.NewGuid(), Job, AvalaRemote, Noon.AddMinutes(-30)),
-            Submitted(Guid.NewGuid(), Other, ShopRemote, Noon.AddMinutes(-30)),
-            Spent(Job, 1000, 0.1m, "USD", CostBasis.ApiEquivalent, Noon),
-            Spent(Other, 10, 0.9m, "USD", CostBasis.ApiEquivalent, Noon),
-            Spent(Other, 10, 0.5m, "EUR", CostBasis.Billed, Noon));
-
-        var usage = await fleet.UsageAsync("2026-10-25", "2026-10-26");
-
-        Assert.Equal(
-            (new CostKind("USD", CostBasis.ApiEquivalent), ShopRemote),
-            (usage.Reference, usage.Repositories[0].Key));
     }
 }

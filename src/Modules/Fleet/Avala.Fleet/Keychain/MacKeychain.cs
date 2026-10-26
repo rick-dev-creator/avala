@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using Avala.Fleet.Contracts;
 using Avala.Sdk;
+using static Avala.Fleet.Keychain.MacStatus;
 
 namespace Avala.Fleet.Keychain;
 
@@ -12,16 +13,6 @@ internal sealed class MacKeychain : IKeychain
     private const string Security = "/System/Library/Frameworks/Security.framework/Security";
 
     private const string CoreFoundation = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
-
-    private const int Success = 0;
-
-    private const int NotFound = -25300;
-
-    private const int UserCanceled = -128;
-
-    private const int AuthFailed = -25293;
-
-    private const int InteractionNotAllowed = -25308;
 
     private static readonly byte[] ServiceName = Encoding.UTF8.GetBytes(PlatformKeychain.Service);
 
@@ -127,9 +118,6 @@ internal sealed class MacKeychain : IKeychain
 
         return deleted == Success ? account : Failure(deleted);
     }
-
-    private static KeychainFailure Failure(int status) =>
-        status is UserCanceled or AuthFailed or InteractionNotAllowed ? KeychainFailure.Denied : KeychainFailure.Failed;
 
     [DllImport(Security)]
     private static extern int SecKeychainAddGenericPassword(

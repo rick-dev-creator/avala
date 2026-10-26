@@ -78,7 +78,7 @@ public sealed class Graph
 
     private static void Invalidate(Control control, bool layout)
     {
-        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or TreeGraphPanel or AgentTreePanel or ShareBar or C4GraphPanel))
+        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or AgentTreePanel or ShareBar or C4GraphPanel))
         {
             if (layout)
             {
