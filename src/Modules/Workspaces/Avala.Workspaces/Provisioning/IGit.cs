@@ -28,7 +28,7 @@ internal interface IGit
 
     Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken);
 
-    Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
+    Task<Result<Option<BranchName>, WorkspaceFailure>> HeadBranchAsync(WorkspaceLocation location, CancellationToken cancellationToken);
 
     Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken);
 

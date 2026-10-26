@@ -120,8 +120,8 @@ internal sealed class FakeGit : IGit
     public Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
         Task.FromResult<Result<bool, WorkspaceFailure>>(false);
 
-    public Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken) =>
-        Task.FromResult<Result<bool, WorkspaceFailure>>(true);
+    public Task<Result<Option<BranchName>, WorkspaceFailure>> HeadBranchAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<Option<BranchName>, WorkspaceFailure>>(Option<BranchName>.None);
 
     public Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
         Task.FromResult<Result<IReadOnlyList<string>, WorkspaceFailure>>(Array.Empty<string>());

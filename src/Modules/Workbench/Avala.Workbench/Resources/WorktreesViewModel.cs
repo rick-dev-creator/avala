@@ -162,7 +162,7 @@ internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed
     private async Task FreeNowAsync(CancellationToken cancellationToken)
     {
         var freed = await reader.FreeNowAsync(cancellationToken);
-        Freed = WorktreePagePhrases.Freed(freed.Count, freed.Sum(release => release.Bytes));
+        Freed = WorktreePagePhrases.Freed(freed.Freed.Count, freed.Freed.Sum(release => release.Bytes), freed.LeftTheirBranch);
         feed.Refresh();
     }
 
@@ -203,7 +203,10 @@ internal sealed partial class WorktreesViewModel(WorktreeReader reader, LiveFeed
             .Select(folder => new WorktreeRowViewModel(WorktreePagePhrases.Title(folder.Job, folder.Folder.Path), WorktreePagePhrases.Build(folder.Folder), WorktreePagePhrases.Bytes(folder.Folder.Bytes)) { Open = Opening(folder.Job.Map(job => job.Job)) }));
         upcoming.ShowOnly(state.Upcoming
             .Take(Shown)
-            .Select(next => new WorktreeRowViewModel(WorktreePagePhrases.Title(next.Job, next.Due.Path), WorktreePagePhrases.Moment(next.Due.Moment), WorktreePagePhrases.When(next.Due.Due, state.Now)) { Open = Opening(next.Due.Job) }));
+            .Select(next => new WorktreeRowViewModel(
+                WorktreePagePhrases.Title(next.Job, next.Due.Path),
+                next.Due.LeftItsBranch ? WorktreePagePhrases.LeftItsBranch(next.Due.Moment) : WorktreePagePhrases.Moment(next.Due.Moment),
+                next.Due.LeftItsBranch ? WorktreePagePhrases.Kept : WorktreePagePhrases.When(next.Due.Due, state.Now)) { Open = Opening(next.Due.Job) }));
         history.ShowOnly(state.Report.History
             .Take(Kept)
             .Select(recorded => new WorktreeRowViewModel(HistoryTitle(state, recorded), WorktreePagePhrases.Event(recorded), Amounts.Time(recorded.At)) { Open = Opening(recorded.Job) }));

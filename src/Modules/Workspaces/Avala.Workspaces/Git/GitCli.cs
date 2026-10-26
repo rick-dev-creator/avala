@@ -114,10 +114,12 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
         RunAsync(["-C", location.Path, "status", "--porcelain"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
             .MapAsync(status => status.Trim().Length > 0);
 
-    public async Task<Result<bool, WorkspaceFailure>> OnBranchAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken) =>
+    public async Task<Result<Option<BranchName>, WorkspaceFailure>> HeadBranchAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest("git", ["-C", location.Path, "symbolic-ref", "-q", "HEAD"], location.Path), cancellationToken))
             .MapError(_ => WorkspaceFailure.GitFailed)
-            .Map(outcome => outcome.Succeeded && outcome.Output.Trim() == $"{GitRefs.Heads}{branch.Value}");
+            .Map(outcome => outcome.Succeeded && outcome.Output.Trim() is var name && name.StartsWith(GitRefs.Heads, StringComparison.Ordinal)
+                ? BranchName.Create(name[GitRefs.Heads.Length..]).Match(Option<BranchName>.Some, _ => Option<BranchName>.None)
+                : Option<BranchName>.None);
 
     public Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken) =>
         RunAsync(["-C", location.Path, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
@@ -221,7 +223,7 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
         Directory.Exists(location.Path)
         && (await processes.RunAsync(new ProcessRequest("git", ["-C", location.Path, "rev-parse", "--show-toplevel"], location.Path), cancellationToken))
             .Match(outcome => outcome.Succeeded && location.IsAt(outcome.Output.Trim()), _ => false)
-        && (await OnBranchAsync(location, branch, cancellationToken)).Match(on => on, _ => false);
+        && (await HeadBranchAsync(location, cancellationToken)).Match(head => head == Option<BranchName>.Some(branch), _ => false);
 
     private static void DeleteLeftover(string folder)
     {

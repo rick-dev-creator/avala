@@ -132,6 +132,29 @@ public sealed class WorktreesViewModelScripts : IDisposable
         Assert.Equal("Freed 1 worktree, 1 GB.", page.Freed);
     }
 
+    [Fact]
+    public async Task FreeingNowSaysWhichWorktreesAreKeptBecauseTheirCheckoutLeftItsBranchAsync()
+    {
+        housekeeping.Due.Add(new WorktreeDue(job.Job, "/worktrees/a", WorktreeMoment.Archived, Now) { LeftItsBranch = true });
+        using var page = Page();
+
+        await page.FreeNowCommand.ExecuteAsync(null);
+
+        Assert.Equal("Nothing could be freed. 1 worktree is kept because its checkout left its branch.", page.Freed);
+    }
+
+    [Fact]
+    public async Task AWorktreeWhoseCheckoutLeftItsBranchIsShownKeptRatherThanDueAsync()
+    {
+        housekeeping.Due.Add(new WorktreeDue(job.Job, "/worktrees/a", WorktreeMoment.Archived, Now) { LeftItsBranch = true });
+        using var page = Page();
+
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Upcoming.Count == 1, () => $"{page.Upcoming.Count} upcoming");
+
+        Assert.Equal(("archived · its checkout left its branch", "kept"), await ui.ReadAsync(() => (page.Upcoming[0].Detail, page.Upcoming[0].Amount)));
+    }
+
     public void Dispose() => ui.Dispose();
 
     private WorktreesViewModel Page() =>

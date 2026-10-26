@@ -294,6 +294,22 @@ public sealed class WorktreeHousekeeperTests
         Assert.Single(resources.Housekeeper.Freed());
     }
 
+    [Fact]
+    public async Task AWorktreeWhoseCheckoutLeftItsBranchIsListedAsKeptForThatReasonAsync()
+    {
+        await using var resources = new Resourced();
+        var job = JobId.New();
+        resources.Jobs.Resting.Add(job);
+        var (_, home, _) = await EndedAsync(resources, JobStatus.AwaitingReview, job);
+        resources.Workspaces.Failure = WorkspaceFailure.CheckoutLeftItsBranch;
+
+        _ = await resources.Desk.FreeNowAsync(Cancellation);
+
+        var due = Assert.Single(resources.Desk.Upcoming());
+        Assert.Equal((home, true), (due.Path, due.LeftItsBranch));
+        Assert.Empty(resources.Workspaces.Shelved);
+    }
+
     [Theory]
     [InlineData("Report", false)]
     [InlineData("Clean", true)]
