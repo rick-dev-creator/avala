@@ -21,12 +21,18 @@ internal sealed class DesignFleetActivityViewModel : IFleetActivityViewModel
 
     public bool IsScoped => Scope.Value.Length > 0;
 
+    public bool AreNamesShown { get; init; }
+
+    public string NamesAction => AreNamesShown ? "Hide names" : "Show names";
+
     public IReadOnlyList<IFleetTileViewModel> Tiles { get; init; } =
     [
-        new FleetTileViewModel("Spend", "12.40 USD", "at API prices"),
-        new FleetTileViewModel("Tokens", "18.4M", "1.2M in · 310K out · 16.9M cache read"),
-        new FleetTileViewModel("Jobs", "23", "in 3 repositories"),
-        new FleetTileViewModel("Instances", "3", "that sent usage"),
+        new FleetTileViewModel("Spend", "12.40 USD", "at API prices", "▲ 18% vs the previous 7 days", [0.2, 0.45, 0.3, 0.7, 1, 0.55, 0.65]),
+        new FleetTileViewModel("Tokens", "18.4M", "1.2M in · 310K out · 16.9M cache read", "▲ 9% vs the previous 7 days", [0.3, 0.5, 0.35, 0.8, 1, 0.5, 0.6]),
+        new FleetTileViewModel("Jobs", "23", "in 3 repositories", "▲ 4% vs the previous 7 days", []),
+        new FleetTileViewModel("Per job", "0.54 USD", "spend divided by the jobs", "▼ 6% vs the previous 7 days", []),
+        new FleetTileViewModel("Cache hit", "92%", "of input read from cache", "▲ 3 pts vs the previous 7 days", []),
+        new FleetTileViewModel("Instances", "3", "that sent usage", "no change vs the previous 7 days", []),
     ];
 
     public IFleetTrendViewModel Trend { get; init; } = new DesignFleetTrendViewModel();
@@ -38,9 +44,9 @@ internal sealed class DesignFleetActivityViewModel : IFleetActivityViewModel
             Title = "Repositories",
             Rows =
             [
-                new DesignFleetShareRowViewModel { Name = Personal.AccountName("remote:github.com/rick/avala"), Share = 1, Value = "8.10 USD", CanChoose = true },
-                new DesignFleetShareRowViewModel { Name = Personal.AccountName("remote:github.com/rick/shop"), Share = 0.4, Value = "3.20 USD", CanChoose = true },
-                new DesignFleetShareRowViewModel { Name = Personal.Plain("Outside any job"), Share = 0.14, Value = "1.10 USD" },
+                new DesignFleetShareRowViewModel { Name = Personal.AccountName("remote:github.com/rick/avala"), Share = 1, Value = "8.10 USD", Detail = "64% · ▲ 12%", CanChoose = true },
+                new DesignFleetShareRowViewModel { Name = Personal.AccountName("remote:github.com/rick/shop"), Share = 0.4, Value = "3.20 USD", Detail = "25% · ▼ 4%", CanChoose = true },
+                new DesignFleetShareRowViewModel { Name = Personal.Plain("Outside any job"), Share = 0.14, Value = "1.10 USD", Detail = "9% · new" },
             ],
         },
         new DesignFleetShareListViewModel
@@ -48,8 +54,8 @@ internal sealed class DesignFleetActivityViewModel : IFleetActivityViewModel
             Title = "Instances",
             Rows =
             [
-                new DesignFleetShareRowViewModel { Name = Personal.AccountName("laptop"), Share = 1, Value = "7.30 USD" },
-                new DesignFleetShareRowViewModel { Name = Personal.AccountName("desktop"), Share = 0.7, Value = "5.10 USD" },
+                new DesignFleetShareRowViewModel { Name = Personal.AccountName("laptop"), Share = 1, Value = "7.30 USD", Detail = "59% · ▲ 20%" },
+                new DesignFleetShareRowViewModel { Name = Personal.AccountName("desktop"), Share = 0.7, Value = "5.10 USD", Detail = "41% · ▼ 8%" },
             ],
         },
         new DesignFleetShareListViewModel
@@ -57,8 +63,8 @@ internal sealed class DesignFleetActivityViewModel : IFleetActivityViewModel
             Title = "Models",
             Rows =
             [
-                new DesignFleetShareRowViewModel { Name = Personal.Plain("opus"), Share = 1, Value = "10.90 USD" },
-                new DesignFleetShareRowViewModel { Name = Personal.Plain("sonnet"), Share = 0.14, Value = "1.50 USD" },
+                new DesignFleetShareRowViewModel { Name = Personal.Plain("opus"), Share = 1, Value = "10.90 USD", Detail = "88% · ▲ 15%" },
+                new DesignFleetShareRowViewModel { Name = Personal.Plain("sonnet"), Share = 0.14, Value = "1.50 USD", Detail = "12% · ▼ 30%" },
             ],
         },
     ];
@@ -68,6 +74,8 @@ internal sealed class DesignFleetActivityViewModel : IFleetActivityViewModel
     public IAsyncRelayCommand RefreshCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ClearScopeCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand ToggleNamesCommand { get; init; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignFleetRangeViewModel : IFleetRangeViewModel
@@ -117,12 +125,20 @@ internal sealed class DesignFleetTrendViewModel : IFleetTrendViewModel
 
     public bool IsEmpty { get; init; }
 
+    public string Previous { get; init; } = "the previous 7 days";
+
+    public bool HasPrevious => Previous.Length > 0;
+
     public IReadOnlyList<IFleetColumnViewModel> Columns { get; init; } =
     [
         .. new[] { 0.2, 0.45, 0.3, 0.7, 1, 0.55, 0.65 }.Select((share, index) => new FleetColumnViewModel(
-            share,
-            $"{19 + index} Oct",
-            $"Day {19 + index} Oct · {share * 3.4:0.00} USD at API prices")),
+            new FleetColumn(
+                share,
+                Math.Min(1, share * 0.85 + 0.05),
+                FleetStack.Flat,
+                $"{19 + index} Oct",
+                $"Day {19 + index} Oct · {share * 3.4:0.00} USD at API prices"),
+            IsStacked: false)),
     ];
 
     public IRelayCommand ShowSpendCommand { get; init; } = new RelayCommand(() => { });
@@ -148,6 +164,8 @@ internal sealed class DesignFleetShareRowViewModel : IFleetShareRowViewModel
     public double Share { get; init; } = 1;
 
     public string Value { get; init; } = "8.10 USD";
+
+    public string Detail { get; init; } = "64% · ▲ 12%";
 
     public bool CanChoose { get; init; }
 
@@ -181,11 +199,33 @@ internal sealed class DesignFleetTileViewModel : IFleetTileViewModel
     public string Value { get; init; } = "12.40 USD";
 
     public string Caption { get; init; } = "at API prices";
+
+    public string Change { get; init; } = "▲ 18% vs the previous 7 days";
+
+    public bool HasChange => Change.Length > 0;
+
+    public IReadOnlyList<double> Spark { get; init; } = [0.2, 0.45, 0.3, 0.7, 1, 0.55, 0.65];
+
+    public bool HasSpark => Spark.Count > 0;
 }
 
 internal sealed class DesignFleetColumnViewModel : IFleetColumnViewModel
 {
     public double Share { get; init; } = 0.6;
+
+    public double Previous { get; init; } = 0.5;
+
+    public bool HasPrevious { get; init; } = true;
+
+    public bool IsStacked { get; init; } = true;
+
+    public double InputReach { get; init; } = 0.05;
+
+    public double OutputReach { get; init; } = 0.08;
+
+    public double ReasoningReach { get; init; } = 0.1;
+
+    public double CacheWriteReach { get; init; } = 0.15;
 
     public string Tick { get; init; } = "19 Oct";
 

@@ -166,7 +166,7 @@ public sealed class FleetTests(PublishedPlugins plugins)
         var page = run.Page("Fleet");
 
         await page.ExecuteAsync("RefreshCommand");
-        await run.Ui.UntilAsync(() => page["Tiles"].Items.Count == 4, () => $"the page says '{page["Notice"].Text}'");
+        await run.Ui.UntilAsync(() => page["Tiles"].Items.Count == 6, () => $"the page says '{page["Notice"].Text}'");
         var asked = run.Fleet.Endpoint.Received[^1].PathAndQuery;
         var shown = await run.Ui.ReadAsync(() => (
             page["Tiles"].Items[0]["Value"].Text,

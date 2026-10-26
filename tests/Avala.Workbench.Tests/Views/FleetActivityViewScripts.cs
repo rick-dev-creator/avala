@@ -17,7 +17,7 @@ public sealed class FleetActivityViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignFleetActivityViewModel());
 
             Assert.Equal(
-                (4, true, 3, false, false),
+                (6, true, 3, false, false),
                 (view.Find<ItemsControl>("TileList").ItemCount, view.Shows("TrendContent"), view.Find<ItemsControl>("ShareLists").ItemCount, view.Shows("NoticeText"), view.Shows("ScopeChip")));
         }, Cancellation);
 
@@ -49,6 +49,27 @@ public sealed class FleetActivityViewScripts(HeadlessUi ui)
             view.Click("ClearScopeButton");
 
             Assert.Equal((true, true, 1), (view.Shows("ScopeChip"), view.Shows("JobsContent"), cleared));
+        }, Cancellation);
+
+    [Fact]
+    public Task ShowingTheNamesUnmasksThemOnThisPageAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetActivityViewModel { Scope = Personal.AccountName("github.com/rick/avala"), AreNamesShown = true });
+
+            Assert.Equal(("github.com/rick/avala", true, "Hide names"), (view.TextOf("ScopeText"), view.Shows("ToggleNamesButton"), view.Find<Button>("ToggleNamesButton").Content));
+        }, Cancellation);
+
+    [Fact]
+    public Task WhileNamesAreShownEverywhereTheButtonIsNotOfferedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetActivityViewModel());
+
+            Components.UI.Privacy.PersonalDetails.SetAreHidden(view.Window, false);
+            view.Settle();
+
+            Assert.False(view.Shows("ToggleNamesButton"));
         }, Cancellation);
 
     [Fact]
@@ -109,6 +130,24 @@ public sealed class FleetTileViewScripts(HeadlessUi ui)
 
             Assert.Equal(("Spend", "12.40 USD", "at API prices"), (view.TextOf("LabelText"), view.TextOf("ValueText"), view.TextOf("CaptionText")));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ATileShowsHowItChangedAndItsSparklineAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetTileViewModel());
+
+            Assert.Equal(("▲ 18% vs the previous 7 days", 7), (view.TextOf("ChangeText"), view.Find<ItemsControl>("SparkList").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ATileWithoutAComparisonLeavesOutItsChangeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetTileViewModel { Change = string.Empty, Spark = [] });
+
+            Assert.Equal((false, false), (view.Shows("ChangeText"), view.Shows("SparkList")));
+        }, TestContext.Current.CancellationToken);
 }
 
 public sealed class FleetTrendViewScripts(HeadlessUi ui)
@@ -144,6 +183,15 @@ public sealed class FleetTrendViewScripts(HeadlessUi ui)
 
             Assert.Equal(1, tokens);
         }, Cancellation);
+
+    [Fact]
+    public Task ByTokensTheLegendNamesEachTypeAndThePreviousRangeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetTrendViewModel { ShowsSpend = false });
+
+            Assert.Equal((true, "the previous 7 days"), (view.Shows("Legend"), view.TextOf("PreviousText")));
+        }, Cancellation);
 }
 
 public sealed class FleetColumnViewScripts(HeadlessUi ui)
@@ -156,7 +204,18 @@ public sealed class FleetColumnViewScripts(HeadlessUi ui)
 
             Assert.Equal(
                 ("19 Oct", 0.6, "Mon 19 Oct · 2.1M tokens · 2.04 USD at API prices"),
-                (view.TextOf("TickText"), view.Find<ProgressBar>("ColumnBar").Value, ToolTip.GetTip((Control)view.Find<ProgressBar>("ColumnBar").Parent!)));
+                (view.TextOf("TickText"), view.Find<ProgressBar>("ColumnBar").Value, ToolTip.GetTip(view.Find<Grid>("ColumnCell"))));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AColumnStacksItsTokensAndMarksThePreviousPeriodAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetColumnViewModel());
+
+            Assert.Equal(
+                (true, 0.05, true, 0.5),
+                (view.Shows("InputLayer"), view.Find<ProgressBar>("InputLayer").Value, view.Shows("PreviousMark"), view.Find<ProgressBar>("PreviousMark").Value));
         }, TestContext.Current.CancellationToken);
 }
 
@@ -187,6 +246,15 @@ public sealed class FleetShareRowViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal((false, "remote:github.com/rick/avala"), (hidden == "remote:github.com/rick/avala", view.TextOf("NameText")));
+        }, Cancellation);
+
+    [Fact]
+    public Task ARowSaysItsPartAndHowItChangedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFleetShareRowViewModel());
+
+            Assert.Equal("64% · ▲ 12%", view.TextOf("DetailText"));
         }, Cancellation);
 
     [Fact]

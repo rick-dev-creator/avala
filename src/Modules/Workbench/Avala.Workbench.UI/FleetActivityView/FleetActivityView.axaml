@@ -9,22 +9,52 @@
     <fleet:DesignFleetActivityViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <ContainerQuery Name="FleetPage" Query="max-width:760">
-      <Style Selector="UniformGrid.tiles">
-        <Setter Property="Columns" Value="2" />
-      </Style>
+    <Style Selector="StackPanel#Actions">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <ContainerQuery Name="FleetPage" Query="max-width:900">
       <Style Selector="UniformGrid.lists">
         <Setter Property="Columns" Value="1" />
       </Style>
     </ContainerQuery>
+    <ContainerQuery Name="FleetPage" Query="max-width:760">
+      <Style Selector="UniformGrid.tiles">
+        <Setter Property="Columns" Value="2" />
+      </Style>
+    </ContainerQuery>
+    <ContainerQuery Name="FleetPage" Query="max-width:520">
+      <Style Selector="StackPanel#Actions">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="Margin" Value="0,10,0,0" />
+      </Style>
+    </ContainerQuery>
+    <ContainerQuery Name="FleetPage" Query="max-width:400">
+      <Style Selector="UniformGrid.tiles">
+        <Setter Property="Columns" Value="1" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
-  <ScrollViewer>
+  <ScrollViewer x:Name="FleetScroller">
+    <privacy:PersonalDetails.AreHidden>
+      <MultiBinding Converter="{x:Static BoolConverters.And}">
+        <Binding Path="$parent[TopLevel].(privacy:PersonalDetails.AreHidden)" FallbackValue="True" />
+        <Binding Path="!AreNamesShown" />
+      </MultiBinding>
+    </privacy:PersonalDetails.AreHidden>
     <StackPanel Margin="24" Spacing="16" Container.Name="FleetPage" Container.Sizing="Width">
       <DockPanel>
-        <Button x:Name="RefreshButton" DockPanel.Dock="Right" VerticalAlignment="Top" Content="Refresh" Command="{Binding RefreshCommand}" />
+        <StackPanel x:Name="Actions" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Button x:Name="ToggleNamesButton"
+                  Content="{Binding NamesAction}"
+                  Command="{Binding ToggleNamesCommand}"
+                  IsVisible="{Binding $parent[TopLevel].(privacy:PersonalDetails.AreHidden), FallbackValue=False}"
+                  ToolTip.Tip="Show repository and instance names on this page until you leave it" />
+          <Button x:Name="RefreshButton" Content="Refresh" Command="{Binding RefreshCommand}" />
+        </StackPanel>
         <StackPanel Spacing="2">
           <TextBlock Classes="title" Text="Fleet" />
-          <TextBlock Classes="caption" Text="Spend and tokens across your instances, from your fleet server" />
+          <TextBlock Classes="caption" Text="Spend and tokens across your instances, from your fleet server" TextWrapping="Wrap" />
         </StackPanel>
       </DockPanel>
       <ContentControl x:Name="RangeContent" Content="{Binding Range}" />
@@ -41,7 +71,7 @@
         <ItemsControl x:Name="TileList" ItemsSource="{Binding Tiles}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <UniformGrid Classes="tiles" Columns="4" />
+              <UniformGrid Classes="tiles" Columns="3" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>

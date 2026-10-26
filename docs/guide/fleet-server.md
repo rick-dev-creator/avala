@@ -5,7 +5,7 @@ Run a fleet server of your own, so every Avala instance on your team sends it wh
 ## What it does
 
 - **One server for the whole fleet.** Each computer running Avala is an instance with its own key. Once connected, it sends the server each job's repository, statuses, model, token usage, cost and verification, and never a path, a title, an instruction, a prompt or a file name.
-- **The Fleet page** in Avala reads it back: spend and tokens over a range, and how they split across repositories, instances and models. Choose a repository to see only its figures and its jobs.
+- **The Fleet page** in Avala reads it back: spend and tokens over a range, and how they split across repositories, instances and models. Every figure says how it changed since the previous range of the same length, tokens are stacked by type, and every list row says its part of the total. Choose a repository to see only its figures and its jobs. When personal details are hidden, **Show names** reveals them on this page until you leave it.
 - **Ready to run with Docker.** `deploy/fleet/` in the repository holds three files that work together:
   - **`compose.yaml`:** PostgreSQL 18.3 on a volume, the server, and Caddy, which gets and renews an HTTPS certificate for your domain. Only Caddy is reachable from outside.
   - **`.env.example`:** the five values you fill in.

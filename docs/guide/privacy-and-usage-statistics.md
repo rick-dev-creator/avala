@@ -16,7 +16,7 @@ What leaves your computer, how to turn it off, and how to hide personal details 
 
 1. **On a first run**, the welcome tour's **Your privacy** step has both switches: Hide personal details and Share anonymous usage statistics.
 2. **Later**, open **Settings**, **About**, **Usage statistics**: clear **Send usage statistics** to stop, see **Exactly what is sent, to Aptabase**, or **Reset ID** for a new install ID.
-3. **Hide or show personal details** in **Settings**, **Appearance**, **Hide personal details**, or with the eye in the Accounts header.
+3. **Hide or show personal details** in **Settings**, **Appearance**, **Hide personal details**, or with the eye in the Accounts header. On the Fleet page, **Show names** reveals repository and instance names there alone, and they are hidden again when you leave it.
 4. **Check for updates** with **Check now** in Settings, About, Updates.
 5. **Connect a fleet server** in **Settings**, **Fleet** with its address and the instance key its administrator gave you. **Pause** stops sending, and what happens while paused is never sent; **Disconnect** removes the key from the keychain and deletes what was waiting to be sent. The section shows the facts waiting, the last delivery, since when the server has not answered, if it stopped, and anything it refused.
 

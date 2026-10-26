@@ -26,6 +26,12 @@ internal sealed class FakeFleetActivity : IFleetActivity
 
     public Queue<TaskCompletionSource<FleetUsageView>> Held { get; } = [];
 
+    public Func<FleetUsageQuery, FleetUsageView>? Answer { get; set; }
+
+    public FleetUsageQuery Shown => Asked[^2];
+
+    public FleetUsageQuery Compared => Asked[^1];
+
     public static FleetUsage Fleet(int repositories = 2, bool costed = true) =>
         new(
             costed ? Usd : Option<FleetCostKind>.None,
@@ -43,7 +49,7 @@ internal sealed class FakeFleetActivity : IFleetActivity
     {
         Asked.Add(query);
 
-        return Held.TryDequeue(out var held) ? new ValueTask<FleetUsageView>(held.Task) : ValueTask.FromResult(Usage);
+        return Held.TryDequeue(out var held) ? new ValueTask<FleetUsageView>(held.Task) : ValueTask.FromResult(Answer?.Invoke(query) ?? Usage);
     }
 
     public ValueTask<FleetJobsView> JobsAsync(string repository, CancellationToken cancellationToken)
@@ -98,7 +104,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
         page.Range.Options[option].ChooseCommand.Execute(null);
         await page.Loading;
 
-        Assert.Equal((from, to, step), (Iso(activity.Asked[^1].From), Iso(activity.Asked[^1].To), activity.Asked[^1].Step.ToString()));
+        Assert.Equal((from, to, step), (Iso(activity.Shown.From), Iso(activity.Shown.To), activity.Shown.Step.ToString()));
     }
 
     [Fact]
@@ -111,7 +117,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
 
         page.Range.ApplyCustomCommand.Execute(null);
 
-        Assert.Equal((1, "Choose at most a year"), (activity.Asked.Count, page.Range.Refusal));
+        Assert.Equal((2, "Choose at most a year"), (activity.Asked.Count, page.Range.Refusal));
     }
 
     [Fact]
@@ -125,7 +131,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
         page.Range.ApplyCustomCommand.Execute(null);
         await page.Loading;
 
-        Assert.Equal(("2026-10-01", "2026-10-11"), (Iso(activity.Asked[^1].From), Iso(activity.Asked[^1].To)));
+        Assert.Equal(("2026-10-01", "2026-10-11"), (Iso(activity.Shown.From), Iso(activity.Shown.To)));
     }
 
     [Fact]
@@ -137,7 +143,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
 
         Assert.Equal(
             ("remote:github.com/rick/repo0", "remote:github.com/rick/repo0", true, "laptop"),
-            (activity.Asked[^1].Repository.Match(key => key, () => string.Empty), activity.AskedJobs[^1], await ui.ReadAsync(() => page.IsScoped), await ui.ReadAsync(() => page.Jobs.Jobs[0].Instance.Value)));
+            (activity.Shown.Repository.Match(key => key, () => string.Empty), activity.AskedJobs[^1], await ui.ReadAsync(() => page.IsScoped), await ui.ReadAsync(() => page.Jobs.Jobs[0].Instance.Value)));
     }
 
     [Fact]
@@ -148,7 +154,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
 
         await rows[^1].ChooseCommand.ExecuteAsync(null);
 
-        Assert.Equal(("True,True,False,False", 1), (string.Join(",", rows.Select(row => row.CanChoose)), activity.Asked.Count));
+        Assert.Equal(("True,True,False,False", 2), (string.Join(",", rows.Select(row => row.CanChoose)), activity.Asked.Count));
     }
 
     [Fact]
@@ -159,7 +165,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
 
         await page.ClearScopeCommand.ExecuteAsync(null);
 
-        Assert.Equal((true, false), (activity.Asked[^1].Repository.IsNone, await ui.ReadAsync(() => page.IsScoped)));
+        Assert.Equal((true, false), (activity.Shown.Repository.IsNone, await ui.ReadAsync(() => page.IsScoped)));
     }
 
     [Theory]
@@ -180,7 +186,7 @@ public sealed class FleetActivityViewModelScripts : IDisposable
         var page = await OpenedAsync();
 
         Assert.Equal(
-            "Spend 1.25 USD|Tokens 24.4K|Jobs 3|Instances 2",
+            $"Spend 1.25 USD|Tokens 24.4K|Jobs 3|Per job {FleetFigures.Money(1.25m / 3, "USD")}|Cache hit 83%|Instances 2",
             await ui.ReadAsync(() => string.Join("|", page.Tiles.Select(tile => $"{tile.Label} {tile.Value}"))));
     }
 
@@ -271,6 +277,48 @@ public sealed class FleetActivityViewModelScripts : IDisposable
         await ui.InvokeAsync(() => page.Trend.ShowTokensCommand.Execute(null), TestContext.Current.CancellationToken);
 
         Assert.Equal("1K", await ui.ReadAsync(() => page.Lists[0].Rows[0].Value));
+    }
+
+    [Fact]
+    public async Task EveryRangeIsComparedWithTheSameLengthBeforeIt()
+    {
+        await OpenedAsync();
+
+        Assert.Equal(("2026-10-12", "2026-10-19", FleetStep.Day), (Iso(activity.Compared.From), Iso(activity.Compared.To), activity.Compared.Step));
+    }
+
+    [Fact]
+    public async Task AScopedPageIsComparedWithTheSameRepository()
+    {
+        var page = await OpenedAsync();
+
+        await (await ui.ReadAsync(() => page.Lists[0].Rows[0])).ChooseCommand.ExecuteAsync(null);
+
+        Assert.Equal("remote:github.com/rick/repo0", activity.Compared.Repository.Match(key => key, () => string.Empty));
+    }
+
+    [Fact]
+    public async Task WithoutTheEarlierRangeNothingIsCompared()
+    {
+        activity.Answer = query => query.To == new DateOnly(2026, 10, 19) ? FleetUsageView.Of(FleetReadState.Unreachable) : activity.Usage;
+
+        var page = await OpenedAsync();
+
+        Assert.Equal(
+            (false, false),
+            (await ui.ReadAsync(() => page.Tiles.Any(tile => tile.HasChange)), await ui.ReadAsync(() => page.Trend.HasPrevious)));
+    }
+
+    [Fact]
+    public async Task ShownNamesAreHiddenAgainWhenThePageIsLeft()
+    {
+        var page = await OpenedAsync();
+        page.ToggleNamesCommand.Execute(null);
+        var shown = (page.AreNamesShown, page.NamesAction);
+
+        page.Deactivate();
+
+        Assert.Equal(((true, "Hide names"), false, "Show names"), (shown, page.AreNamesShown, page.NamesAction));
     }
 
     public void Dispose() => ui.Dispose();
