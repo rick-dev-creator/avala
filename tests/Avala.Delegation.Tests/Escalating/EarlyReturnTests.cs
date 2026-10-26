@@ -84,6 +84,7 @@ public sealed class EarlyReturnTests
         await using var desk = await StartedAsync();
         var child = await desk.DelegateAsync("notes");
         desk.Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        desk.Jobs.HeldFor(child, HoldReason.LimitNearlyReached);
 
         await desk.ProgressAsync(child, JobStatus.NeedsHelp);
         await desk.HeldAsync(child, HoldReason.LimitNearlyReached);
