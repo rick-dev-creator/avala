@@ -8,6 +8,8 @@ public enum AgentTreeShape
     Rail,
 }
 
+public sealed record TreeNodeSpec(int Depth, GraphSize Size);
+
 public sealed record AgentTreeSpacing(double Gap = 12, double Indent = 24, double Drop = 28);
 
 public sealed record AgentTreeEdge(int Node, IReadOnlyList<GraphPoint> Points)

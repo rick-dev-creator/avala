@@ -3,10 +3,12 @@ using Avala.Server.Activity.Contracts;
 using Avala.Server.Activity.Contracts.Ingestion;
 using Avala.Server.Activity.Contracts.Repositories;
 using Avala.Server.Activity.Contracts.RepositoryJobs;
+using Avala.Server.Activity.Contracts.Usage;
 using Avala.Server.Activity.EndPoints;
 using Avala.Server.Activity.EndPoints.Ingestion;
 using Avala.Server.Activity.EndPoints.Repositories;
 using Avala.Server.Activity.EndPoints.RepositoryJobs;
+using Avala.Server.Activity.EndPoints.Usage;
 using Avala.Server.Testing;
 using FastEndpoints;
 using static Avala.Server.Activity.Tests.Endpoints.Batches;
@@ -24,6 +26,7 @@ public sealed class EndpointTests
         { nameof(IngestEventsEndpoint), [ActivityRoles.Instance] },
         { nameof(ListRepositoriesEndpoint), [ActivityRoles.Instance, ActivityRoles.Administrator] },
         { nameof(ListRepositoryJobsEndpoint), [ActivityRoles.Instance, ActivityRoles.Administrator] },
+        { nameof(ListUsageEndpoint), [ActivityRoles.Instance, ActivityRoles.Administrator] },
     };
 
     [Fact]
@@ -90,6 +93,31 @@ public sealed class EndpointTests
             (endpoint.HttpContext.Response.StatusCode, Assert.Single(endpoint.ValidationFailures).ErrorMessage));
     }
 
+    [Fact]
+    public async Task ListingUsageAnswersTheReportAsync()
+    {
+        var day = new DateOnly(2026, 10, 19);
+        var report = new UsageReport(
+            day,
+            day.AddDays(1),
+            "Europe/Madrid",
+            "day",
+            new CostKind("USD", CostBasis.ApiEquivalent),
+            new UsageTotals(Tokens, [new CostSum("USD", CostBasis.ApiEquivalent, 1.5m)], 1, 1),
+            [new UsagePeriodSum(day, Tokens, [])],
+            [new UsageShare(UsageShareKind.OutsideAnyJob, string.Empty, string.Empty, Tokens, [], 0)],
+            [new UsageShare(UsageShareKind.Instance, Instance.ToString(), "desktop", Tokens, [], 1)],
+            [new UsageShare(UsageShareKind.Model, "opus", "opus", Tokens, [], 0)]);
+        var endpoint = Factory.Create<ListUsageEndpoint>(new FakeSender(_ => Result<UsageReport>.Success(report)));
+
+        await endpoint.HandleAsync(new ListUsageRequest { From = "2026-10-19", To = "2026-10-20", Zone = "Europe/Madrid", Step = "day" }, Cancellation);
+
+        var usage = endpoint.Response;
+        Assert.Equal(
+            ("2026-10-20", "apiEquivalent", "2026-10-19", "outsideAnyJob", "desktop", "opus"),
+            (usage.To, usage.Reference?.Basis, Assert.Single(usage.Series).Start, Assert.Single(usage.Repositories).Kind, Assert.Single(usage.Instances).Name, Assert.Single(usage.Models).Model));
+    }
+
     [Theory]
     [MemberData(nameof(Roles))]
     public void EachActivityEndpointDeclaresItsRoles(string endpoint, string[] roles) =>
@@ -100,6 +128,7 @@ public sealed class EndpointTests
         nameof(IngestEventsEndpoint) => Factory.Create<IngestEventsEndpoint>(Answering()),
         nameof(ListRepositoriesEndpoint) => Factory.Create<ListRepositoriesEndpoint>(Answering()),
         nameof(ListRepositoryJobsEndpoint) => Factory.Create<ListRepositoryJobsEndpoint>(Answering()),
+        nameof(ListUsageEndpoint) => Factory.Create<ListUsageEndpoint>(Answering()),
         _ => throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint, "No such endpoint."),
     };
 

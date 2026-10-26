@@ -75,6 +75,32 @@ public sealed class HttpFleetServerTests
     }
 
     [Fact]
+    public async Task AnInstanceIsIdentifiedByItsKey()
+    {
+        var answering = new AnsweringHandler(await WireJsonTests.GoldenAsync("responses/identity.json"));
+        using var http = new FleetHttp(answering, owned: true);
+
+        var identified = await new HttpFleetServer(http).IdentifyAsync(Fleets.Server, Fleets.Key, Cancellation);
+
+        Assert.Equal(
+            (ServerAnswer.Answered, "desktop", "https://fleet.example/instances/me", $"Bearer {Fleets.Key}"),
+            (identified.Answer, identified.Identity.Match(identity => identity.Name, () => string.Empty), answering.Asked?.ToString(), answering.Authorization));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "KeyRefused")]
+    [InlineData(HttpStatusCode.OK, "Unreachable")]
+    public async Task AnInstanceThatCannotBeIdentifiedSaysWhy(HttpStatusCode status, string expected)
+    {
+        using var endpoint = new FakeNotifierEndpoint().Replying(status);
+        using var http = new FleetHttp(endpoint, owned: false);
+
+        var identified = await new HttpFleetServer(http).IdentifyAsync(Fleets.Server, Fleets.Key, Cancellation);
+
+        Assert.Equal((Enum.Parse<ServerAnswer>(expected), true), (identified.Answer, identified.Identity.IsNone));
+    }
+
+    [Fact]
     public async Task ARepositorysJobsAreAskedWithItsKeyEscaped()
     {
         using var endpoint = new FakeNotifierEndpoint().Replying(HttpStatusCode.Unauthorized);
@@ -85,6 +111,21 @@ public sealed class HttpFleetServerTests
         Assert.Equal(
             (FleetReadState.KeyRefused, "/activity/v1/repositories/jobs?key=remote%3Agithub.com%2Frick%2Favala"),
             (view.State, Assert.Single(endpoint.Received).Address.PathAndQuery));
+    }
+}
+
+internal sealed class AnsweringHandler(string body) : HttpMessageHandler
+{
+    public Uri? Asked { get; private set; }
+
+    public string? Authorization { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Asked = request.RequestUri;
+        Authorization = request.Headers.Authorization?.ToString();
+
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) });
     }
 }
 

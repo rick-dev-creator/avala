@@ -62,6 +62,24 @@ public sealed class FleetSettingsViewModelScripts : IAsyncDisposable
         Assert.Equal("The key is only sent over https, or over http to this computer", await ui.ReadAsync(() => section.Problem));
     }
 
+    [Theory]
+    [InlineData("address", "Type the server's address, such as https://fleet.example")]
+    [InlineData("key", "That is not an instance key: it starts with avk_ and has 47 characters")]
+    [InlineData("keychain", "This system has no keychain Avala can use, so the key cannot be kept")]
+    [InlineData("server", "The server did not answer")]
+    public async Task AConnectionThatFailsSaysWhy(string failing, string explanation)
+    {
+        keychain.Available = failing != "keychain";
+        server.Identifies = failing == "server" ? Avala.Fleet.Delivering.ServerAnswer.Unreachable : Avala.Fleet.Delivering.ServerAnswer.Answered;
+        var section = await SectionAsync();
+        section.Server = failing == "address" ? "fleet.example" : Fleets.Server;
+        section.KeyBox = failing == "key" ? "avk_short" : Fleets.Key;
+
+        await section.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal(explanation, await ui.ReadAsync(() => section.Problem));
+    }
+
     [Fact]
     public async Task TheStatusFollowsADelivery()
     {

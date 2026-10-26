@@ -388,7 +388,7 @@ The rules are code, and a failing rule explains itself.
 
 On every push to `main` and every pull request, CI also measures coverage, code metrics, technical debt and lines of code with open-source tools and no external service, and shows them in the run summary.
 
-- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on Linux.
+- **Coverage** comes from the unit tests, listed in `Avala.UnitTests.slnf`, collected on Linux. It counts only production code: the test projects and the test support they share, the `*.Testing` projects and `Avala.ClaudeCode.Replay`, are left out.
 - **Code metrics** are the maintainability index, cyclomatic complexity, class coupling and lines of every production assembly, type and member, computed by `scripts/code-metrics.cs`.
 - **Lines of code** are physical lines of C# outside tests and generated code. They are compared with [T3 Code](https://github.com/pingdotgg/t3code), about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, as a fixed yardstick: Avala aims for a better product in no more than 15% of that.
 

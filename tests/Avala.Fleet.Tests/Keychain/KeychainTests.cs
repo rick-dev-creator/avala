@@ -53,6 +53,14 @@ public sealed class KeychainTests
     public void OnlyACancelledCallIsADismissedPrompt(string domain, int code, KeychainFailure expected) =>
         Assert.Equal(expected, LinuxKeychain.Failure(new LinuxKeychain.SecretError(domain, code, "the prompt was dismissed")).Match(failure => failure, () => KeychainFailure.Unavailable));
 
+    [Theory]
+    [InlineData(-128, KeychainFailure.Denied)]
+    [InlineData(-25293, KeychainFailure.Denied)]
+    [InlineData(-25308, KeychainFailure.Denied)]
+    [InlineData(-25299, KeychainFailure.Failed)]
+    public void OnMacOnlyACancelledRefusedOrForbiddenPromptIsDenied(int status, KeychainFailure expected) =>
+        Assert.Equal(expected, MacStatus.Failure(status));
+
     [Fact]
     public void AProbeWithoutAnErrorMeansAvailable() =>
         Assert.True(LinuxKeychain.IsAvailable(new LinuxKeychain.Lookup(Option<string>.None, Option<LinuxKeychain.SecretError>.None)));

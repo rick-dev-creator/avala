@@ -130,31 +130,39 @@ internal sealed partial class AuditSectionViewModel : IAuditSectionViewModel, IR
         More = trimmed ? string.Create(CultureInfo.InvariantCulture, $"Show {all.Count - Few} more") : string.Empty;
     }
 
-    private void Show(Option<InspectorFacts> facts)
-    {
-        IsLoaded = facts.IsSome;
-        var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
-        var assumptions = audit.Forms.SelectMany(form => form.Assumptions).ToList();
-        var denied = audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny);
-        var byYou = audit.Answers.Count(answer => answer.Parent.IsNone);
-        Fact = facts.IsNone ? string.Empty : InspectorPhrases.Decided(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), byYou, denied, assumptions.Count);
-        IsAttention = denied > 0;
-        var summary = facts.IsNone
-            ? string.Empty
-            : InspectorPhrases.Audit(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), byYou, denied, assumptions.Count)
-                + InspectorPhrases.ByParent(audit.Answers.Count - byYou, audit.Given.Count);
-        Summary = summary == Fact ? string.Empty : summary;
-        var latest = facts.Bind(found => found.Record.History.Sessions.Count > 0 ? found.Record.History.Sessions[^1].Session : Option<SessionId>.None);
-        var job = facts.Map(found => found.Record.History.Summary.Job);
-        expanded = expanded && job == shown;
-        shown = job;
-        all = InspectorPhrases.Grouped(
+    private static Option<SessionId> Latest(InspectorFacts facts) =>
+        facts.Record.History.Sessions.Count > 0 ? facts.Record.History.Sessions[^1].Session : Option<SessionId>.None;
+
+    private static IReadOnlyList<DecisionRow> Rows(AuditFacts audit, Option<SessionId> latest) =>
+        InspectorPhrases.Grouped(
         [
             .. audit.Answers.Select(InspectorPhrases.Answer),
             .. audit.Given.Select(InspectorPhrases.Given),
             .. audit.Decisions.SelectMany(decision => InspectorPhrases.Decision(decision, audit.Answers, latest).Match<DecisionRow[]>(row => [row], () => [])),
         ]);
+
+    private void Show(Option<InspectorFacts> facts)
+    {
+        IsLoaded = facts.IsSome;
+        var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
+        var assumptions = audit.Forms.SelectMany(form => form.Assumptions).ToList();
+        Tell(facts.IsSome, audit, assumptions.Count);
+        var job = facts.Map(found => found.Record.History.Summary.Job);
+        expanded = expanded && job == shown;
+        shown = job;
+        all = Rows(audit, facts.Bind(Latest));
         ShowRows();
         Assumptions = [.. assumptions.Select(InspectorPhrases.Assumption)];
+    }
+
+    private void Tell(bool loaded, AuditFacts audit, int assumptions)
+    {
+        var allowed = audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow);
+        var denied = audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny);
+        var byYou = audit.Answers.Count(answer => answer.Parent.IsNone);
+        Fact = loaded ? InspectorPhrases.Decided(allowed, byYou, denied, assumptions) : string.Empty;
+        IsAttention = denied > 0;
+        var summary = loaded ? InspectorPhrases.Audit(allowed, byYou, denied, assumptions) + InspectorPhrases.ByParent(audit.Answers.Count - byYou, audit.Given.Count) : string.Empty;
+        Summary = summary == Fact ? string.Empty : summary;
     }
 }
