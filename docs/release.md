@@ -4,7 +4,7 @@ How a version of Avala reaches people: the packages, how a release is cut, its u
 
 ## Versions
 
-A version is a tag `v<major>.<minor>.<patch>`, with an optional prerelease such as `v0.1.0-beta.1`. The tag is the only source of a release's version: the packaging script passes it to every project as `-p:Version`, so the informational version, which About shows and the update check compares, reads `0.1.0-beta.1+<commit>`. A build from a checkout without a tag is `0.1.0-dev`, from `VersionPrefix` and `VersionSuffix` in `Directory.Build.props`; raise the prefix after a release.
+A version is a tag `v<major>.<minor>.<patch>`, with an optional prerelease such as `v0.1.0-beta.1`. The tag is the only source of a release's version: the packaging script passes it to every project as `-p:Version`, so the informational version, which About shows and the update check compares, reads `0.1.0-beta.1+<commit>`. A build from a checkout without a tag is `0.2.0-dev`, from `VersionPrefix` and `VersionSuffix` in `Directory.Build.props`; raise the prefix after a release.
 
 A tag with a hyphen is drafted as a prerelease. A stable build of Avala is only ever offered stable releases, and a prerelease build is offered prereleases too.
 
@@ -143,7 +143,7 @@ The release workflow does not build it: CI steps run only `dotnet`, and the runn
 dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 ```
 
-`--rid` is one of `win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`, and any of them can be built from any system, but signing needs its own. `--version 0.1.0-beta.1` sets the version; without it the script takes the tag the workflow was started by, then the tag on `HEAD`, then `0.1.0-dev`. `--output <folder>` chooses where the archives go, `artifacts/packages` by default, and the work folder is `artifacts/package/<rid>`. `--smoke` runs the packaged `--version` and `--smoke` when the platform is the one running the script. `--sign` signs, see below.
+`--rid` is one of `win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`, and any of them can be built from any system, but signing needs its own. `--version 0.1.0-beta.1` sets the version; without it the script takes the tag the workflow was started by, then the tag on `HEAD`, then `0.2.0-dev`. `--output <folder>` chooses where the archives go, `artifacts/packages` by default, and the work folder is `artifacts/package/<rid>`. `--smoke` runs the packaged `--version` and `--smoke` when the platform is the one running the script. `--sign` signs, see below.
 
 Then the installers, from that archive:
 
