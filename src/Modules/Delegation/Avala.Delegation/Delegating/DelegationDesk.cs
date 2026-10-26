@@ -78,9 +78,9 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             return;
         }
 
-        if (integrationEvent.Status == JobStatus.NeedsHelp && await WasHeldAsync(integrationEvent.Job, cancellationToken))
+        if (integrationEvent.Status == JobStatus.NeedsHelp)
         {
-            awaitingHold.Add(integrationEvent.Job);
+            await NeedsHelpAsync(integrationEvent, cancellationToken);
         }
         else if (Settled.Contains(integrationEvent.Status))
         {
@@ -132,6 +132,25 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             replies.TryAdd(integrationEvent.Child, (new ItemId(string.Empty), summary));
         }
         await SettleIfSettledAsync(integrationEvent.Child, cancellationToken);
+    }
+
+    private async Task NeedsHelpAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
+    {
+        var history = await catalog.HistoryAsync(integrationEvent.Job, cancellationToken);
+
+        if (history.Match(MovedOn, () => false))
+        {
+            return;
+        }
+
+        if (history.Match(Interrupted, () => false))
+        {
+            awaitingHold.Add(integrationEvent.Job);
+        }
+        else
+        {
+            Settle(integrationEvent.Job, new Settlement(JobStatus.NeedsHelp, Option<HoldReason>.None) { Failure = integrationEvent.Failure }, cancellationToken);
+        }
     }
 
     private async Task SettleIfSettledAsync(JobId child, CancellationToken cancellationToken)
@@ -246,12 +265,11 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
     private bool IsChild(SessionId session, out JobId child) =>
         jobs.TryGetValue(session, out child) && pending.ContainsKey(child);
 
-    private async Task<bool> WasHeldAsync(JobId child, CancellationToken cancellationToken) =>
-        (await catalog.HistoryAsync(child, cancellationToken)).Match(Interrupted, () => false);
-
     private static bool Ended(JobStatus status) => status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
 
     private static bool StillOpen(DelegationRecord record) => record.Report.Match(report => !Ended(report.Status), () => true);
 
     private static bool Interrupted(JobHistory history) => history.Attempts is [.., { Outcome: AttemptOutcome.Interrupted }];
+
+    private static bool MovedOn(JobHistory history) => history.Summary.Status != JobStatus.NeedsHelp;
 }
