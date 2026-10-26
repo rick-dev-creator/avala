@@ -440,6 +440,21 @@ public sealed class ChecksScoutTests
     }
 
     [Fact]
+    public async Task AfterARestartAProposalIsAnnouncedAgainAsync()
+    {
+        var scouted = Scouted.Fresh();
+        scouted.Policies.Autonomy = Autonomy.Supervised;
+        var job = await scouted.RunningAsync();
+        await scouted.ProposesAsync(scouted.LastScout, Proposal);
+        await scouted.MoveAsync(scouted.LastScout, JobStatus.AwaitingReview);
+        var before = scouted.Bus.Published.Count;
+
+        await using var restarted = await scouted.RestartedAsync();
+
+        Assert.Contains(restarted.Bus.Published.Skip(before).OfType<ChecksDiscoveryChanged>(), changed => changed.Discovery.Job == job && changed.Discovery.State == DiscoveryState.Proposed);
+    }
+
+    [Fact]
     public async Task AfterARestartTheScoutOfAJobThatEndedIsStoppedAsync()
     {
         var scouted = Scouted.Fresh();

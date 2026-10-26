@@ -31,6 +31,7 @@ internal sealed class ChecksScout(DiscoveryBook book, DiscoveryDesk desk, Discov
                 continue;
             }
 
+            await book.AnnounceAsync(discovery.Job, cancellationToken);
             await ResumeAsync(discovery, cancellationToken);
         }
     }
