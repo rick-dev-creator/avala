@@ -11,9 +11,9 @@ internal sealed class RequestPlaces(IRealPaths paths, IReadableFolders readable)
     {
         var granted = Grants(jobRules, Option<ItemKind>.None);
         var folders = requested.Reads.IsSome || requested.Kind == ItemKind.Command ? [.. await readable.FoldersAsync(cancellationToken), .. granted] : granted;
-        var read = requested.Reads.IsSome ? [.. folders, .. session.Own, .. session.Scratch.Match<string[]>(scratch => [scratch], () => [])] : folders;
+        var read = requested.Reads.IsSome ? [.. folders, .. session.Own, .. session.Writable] : folders;
 
-        return requested.Facts(session.WorkingDirectory, session.Scratch, read, Grants(jobRules, ItemKind.FileEdit), paths);
+        return requested.Facts(session.WorkingDirectory, session.Writable, read, Grants(jobRules, ItemKind.FileEdit), paths);
     }
 
     public static string[] Grants(IReadOnlyList<PolicyRule> jobRules, Option<ItemKind> kind) =>

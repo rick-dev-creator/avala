@@ -31,6 +31,8 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
     public static IReadOnlyList<PolicyRule> Unattended { get; } =
     [
         new(RuleOrigin.BuiltIn, "autonomous-commands-in-the-worktree", ItemKind.Command, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Allow),
+        new(RuleOrigin.BuiltIn, "autonomous-subagents", ItemKind.Subagent, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Allow),
+        new(RuleOrigin.BuiltIn, "autonomous-web", ItemKind.Web, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Allow),
         new(RuleOrigin.BuiltIn, "autonomous-denies-the-rest", Option<ItemKind>.None, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Deny),
     ];
 

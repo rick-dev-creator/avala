@@ -29,7 +29,7 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree, Capabilities = started.Capabilities, OwnFolders = session.OwnFolders },
+            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree, Capabilities = started.Capabilities, OwnFolders = session.OwnFolders, WritableFolders = session.WritableFolders },
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Capabilities, PumpAsync));
 

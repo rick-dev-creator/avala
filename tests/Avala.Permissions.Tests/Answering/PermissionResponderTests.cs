@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -66,6 +67,26 @@ public sealed class PermissionResponderTests
         await RequestAsync(ItemKind.Command, "dotnet ef database update");
 
         Assert.Equal(DecisionDelivery.Undelivered, Decided().Delivery);
+    }
+
+    [Fact]
+    public async Task AnEditInTheSystemsTemporaryFolderOrTheMemoryTheHarnessDeclaresIsAllowedLikeOneInTheWorktreeAsync()
+    {
+        using var worktree = new TemporaryFolder();
+        using var temporary = new TemporaryFolder();
+        using var memory = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        var opened = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], Option<AvalaPaths>.None, [temporary.Path]), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        await opened.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), worktree.Path, new ConnectionName("agent")) { WritableFolders = [memory.Path] }, Cancellation);
+
+        foreach (var target in new[] { Path.Combine(temporary.Path, "notes.txt"), Path.Combine(memory.Path, "MEMORY.md"), Path.Combine(elsewhere.Path, "x.txt") })
+        {
+            await opened.HandleAsync(Requested(session, ItemKind.FileEdit, target), Cancellation);
+        }
+
+        Assert.Equal(
+            [PolicyAnswer.Allow, PolicyAnswer.Allow, PolicyAnswer.Ask],
+            bus.Published.OfType<PermissionDecided>().Select(decided => decided.Decision.Answer));
     }
 
     [Fact]

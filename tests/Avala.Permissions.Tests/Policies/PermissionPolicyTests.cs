@@ -145,9 +145,10 @@ public sealed class PermissionPolicyTests
     [InlineData(ItemKind.FileEdit, "src/app.cs", true, PolicyAnswer.Allow, "edits-inside-the-workspace")]
     [InlineData(ItemKind.FileEdit, "/etc/hosts", false, PolicyAnswer.Deny, "edits-outside-the-workspace-go-to-a-human")]
     [InlineData(ItemKind.FileEdit, ".avala/permissions.json", true, PolicyAnswer.Deny, "policy-file-goes-to-a-human")]
-    [InlineData(ItemKind.Web, "https://example.com", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
+    [InlineData(ItemKind.Web, "https://example.com", false, PolicyAnswer.Allow, "autonomous-web")]
+    [InlineData(ItemKind.Subagent, "Explore the parser", false, PolicyAnswer.Allow, "autonomous-subagents")]
     [InlineData(ItemKind.Mcp, "deploy", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
-    public void AnAutonomousPolicyAllowsWhatStaysInTheWorktreeAndDeniesWhatItWouldAsk(
+    public void AnAutonomousPolicyAllowsWhatStaysInTheWorktreeSubagentsAndTheWebAndDeniesWhatItWouldAsk(
         ItemKind kind,
         string target,
         bool inside,
@@ -219,7 +220,7 @@ public sealed class PermissionPolicyTests
 
     [Theory]
     [InlineData(Autonomy.Autonomous, ItemKind.Command, "rm -rf build", false, PolicyAnswer.Allow, "autonomous-commands-in-the-worktree")]
-    [InlineData(Autonomy.Autonomous, ItemKind.Web, "https://example.com", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
+    [InlineData(Autonomy.Autonomous, ItemKind.Mcp, "deploy", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
     [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, ".avala/permissions.json", true, PolicyAnswer.Deny, "policy-file-goes-to-a-human")]
     [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, "/etc/hosts", false, PolicyAnswer.Deny, "edits-outside-the-workspace-go-to-a-human")]
     [InlineData(Autonomy.Supervised, ItemKind.Command, "rm -rf build", false, PolicyAnswer.Ask, null)]

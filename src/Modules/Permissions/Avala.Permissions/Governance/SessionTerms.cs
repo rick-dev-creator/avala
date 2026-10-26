@@ -5,21 +5,32 @@ using Avala.Sdk.Processes;
 
 namespace Avala.Permissions.Governance;
 
-internal sealed class SessionTerms(IPolicyFiles files, IEnumerable<IJobTerms> plugins, Option<AvalaPaths> paths)
+internal sealed class SessionTerms(IPolicyFiles files, IEnumerable<IJobTerms> plugins, Option<AvalaPaths> paths, IReadOnlyList<string> temporary)
 {
     public SessionTerms(IPolicyFiles files, IEnumerable<IJobTerms> plugins)
-        : this(files, plugins, Option<AvalaPaths>.None)
+        : this(files, plugins, Option<AvalaPaths>.None, [])
     {
     }
 
     public SessionTerms(IPolicyFiles files, IEnumerable<IJobTerms> plugins, AvalaPaths paths)
-        : this(files, plugins, Option<AvalaPaths>.Some(paths))
+        : this(files, plugins, Option<AvalaPaths>.Some(paths), SystemTemporaryFolders.All)
     {
     }
 
     public IPolicyFiles Files => files;
 
-    public Option<string> ScratchOf(string workingDirectory) => paths.Map(known => ScratchFolders.Of(known, workingDirectory));
+    public IReadOnlyList<string> WritableOf(string workingDirectory) =>
+        [
+            .. paths.Match<string[]>(known => [ScratchFolders.Of(known, workingDirectory)], () => []),
+            .. temporary.Where(folder => !Holds(folder, workingDirectory) && paths.Match(known => !Holds(folder, known.Data), () => true)),
+        ];
+
+    private static bool Holds(string folder, string path)
+    {
+        var relative = Path.GetRelativePath(Path.GetFullPath(folder), Path.GetFullPath(path));
+
+        return relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !Path.IsPathRooted(relative);
+    }
 
     public async Task<JobTerms> OfAsync(JobId job, CancellationToken cancellationToken)
     {

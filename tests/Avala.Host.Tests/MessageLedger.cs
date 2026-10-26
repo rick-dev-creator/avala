@@ -149,6 +149,8 @@ internal sealed class MessageLedger : IPlugin, IAgentProviderDecorator
 
         public IReadOnlyList<string> OwnFolders => inner.OwnFolders;
 
+        public IReadOnlyList<string> WritableFolders => inner.WritableFolders;
+
         public IAsyncEnumerable<IAgentEvent> Events => inner.Events;
 
         public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken)

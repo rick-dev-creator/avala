@@ -532,7 +532,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, .. RetryScenarios.All, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All, .. LongScenarios.All, .. ChecksScenarios.All,
+        LargeContext, .. RetryScenarios.All, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. ToolScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All, .. LongScenarios.All, .. ChecksScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

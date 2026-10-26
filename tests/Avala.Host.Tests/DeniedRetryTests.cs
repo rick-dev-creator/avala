@@ -13,7 +13,7 @@ public sealed class DeniedRetryTests(PublishedPlugins plugins)
     [Fact]
     public async Task AllowingADenialFromItsCardLetsTheAutonomousAgentRetryItAsync()
     {
-        await using var run = await SimulatedRun.StartAsync(plugins, "tools", (".avala/permissions.json", Autonomous));
+        await using var run = await SimulatedRun.StartAsync(plugins, "denied-tool", (".avala/permissions.json", Autonomous));
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
@@ -26,15 +26,15 @@ public sealed class DeniedRetryTests(PublishedPlugins plugins)
         await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
 
         var (denied, retried) = await run.DecisionsAsync(2) is [var first, var second] ? (first, second) : default;
-        Assert.Equal(("https://example.com/style", PolicyAnswer.Deny), (denied.Target, denied.Answer));
-        Assert.Equal(("https://example.com/style", PolicyAnswer.Allow, "always example.com in this job"), (retried.Target, retried.Answer, Outcomes.Present(retried.Rule).Name));
-        Assert.Equal(["always example.com in this job"], run.Get<IPermissionAudit>().JobRulesOf(run.Job).Select(rule => rule.Name));
+        Assert.Equal(("create_issue", PolicyAnswer.Deny), (denied.Target, denied.Answer));
+        Assert.Equal(("create_issue", PolicyAnswer.Allow, "always create_issue in this job"), (retried.Target, retried.Answer, Outcomes.Present(retried.Rule).Name));
+        Assert.Equal(["always create_issue in this job"], run.Get<IPermissionAudit>().JobRulesOf(run.Job).Select(rule => rule.Name));
     }
 
     [Fact]
     public async Task AvalasNoticeThatSendsADocumentedJobBackAfterADenialIsAllowedIsNoChangeRequestOfThePersonAsync()
     {
-        await using var run = await SimulatedRun.StartAsync(plugins, "tools", (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
+        await using var run = await SimulatedRun.StartAsync(plugins, "denied-tool", (".avala/permissions.json", Autonomous), (".avala/jobs.json", """{ "docs": { "enabled": true } }"""));
         var progress = run.Watch<JobProgressed>();
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
