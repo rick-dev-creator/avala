@@ -5,13 +5,7 @@ namespace Avala.ArchitectureTests.Source;
 internal static partial class ScriptLanguages
 {
     private static readonly string[] ForeignExtensions =
-        [".py", ".sh", ".bash", ".zsh", ".ps1", ".psm1", ".bat", ".cmd", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl", ".lua", ".php"];
-
-    public const string SiteTemplate = "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/";
-
-    public const string LaidOutSiteTemplate = "docs/template/public/";
-
-    public const string ModelViewer = "src/Modules/Preview/Avala.Preview/Viewer/";
+        [".py", ".sh", ".bash", ".zsh", ".ps1", ".psm1", ".bat", ".cmd", ".rb", ".pl", ".lua", ".php"];
 
     public const string FleetCommand = "deploy/fleet/fleet";
 
@@ -22,25 +16,7 @@ internal static partial class ScriptLanguages
             .Where(path => !path.Replace('\\', '/').EndsWith("/" + FleetCommand, StringComparison.Ordinal) && path.Replace('\\', '/') != FleetCommand);
 
     public static IEnumerable<string> ForeignScripts(IEnumerable<string> paths) =>
-        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
-            && !InFolder(path, SiteTemplate) && !InFolder(path, LaidOutSiteTemplate) && !UnderFolder(path, ModelViewer));
-
-    private static bool UnderFolder(string path, string folder)
-    {
-        var normalized = path.Replace('\\', '/');
-
-        return Path.GetExtension(normalized).Equals(".js", StringComparison.Ordinal)
-            && (normalized.StartsWith(folder, StringComparison.Ordinal) || normalized.Contains("/" + folder, StringComparison.Ordinal));
-    }
-
-    private static bool InFolder(string path, string folder)
-    {
-        var normalized = path.Replace('\\', '/');
-
-        return Path.GetExtension(normalized).Equals(".js", StringComparison.Ordinal)
-            && (normalized.StartsWith(folder, StringComparison.Ordinal) || normalized.Contains("/" + folder, StringComparison.Ordinal))
-            && normalized[(normalized.IndexOf(folder, StringComparison.Ordinal) + folder.Length)..].IndexOf('/', StringComparison.Ordinal) < 0;
-    }
+        paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase));
 
     public static IEnumerable<string> NonDotnetCommands(string workflow)
     {

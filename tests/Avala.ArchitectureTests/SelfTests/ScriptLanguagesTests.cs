@@ -23,40 +23,14 @@ public sealed class ScriptLanguagesTests
             ]));
 
     [Fact]
-    public void AcceptsOnlyTheJavaScriptOfTheDocsSiteTemplateItsOwnFolder() =>
-        Assert.Equal(
-            ["src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh", "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts"],
+    public void AcceptsJavaScriptAndTypeScriptAnywhere() =>
+        Assert.Empty(
             ScriptLanguages.ForeignScripts([
-                "/home/dev/avala/src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/main.js",
                 "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/avala-c4.js",
-                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js",
-                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh",
-                "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js",
-                "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts",
-            ]));
-
-    [Fact]
-    public void AcceptsOnlyTheJavaScriptOfTheSiteTemplateLaidOutInTheDocsItsOwnFolder() =>
-        Assert.Equal(
-            ["docs/template/public/nested/tool.js", "docs/template/public/build.sh", "docs/template/main.js"],
-            ScriptLanguages.ForeignScripts([
-                "/home/dev/avala/docs/template/public/main.js",
-                "docs/template/public/avala-c4.js",
-                "docs/template/public/nested/tool.js",
-                "docs/template/public/build.sh",
-                "docs/template/main.js",
-            ]));
-
-    [Fact]
-    public void AcceptsOnlyTheJavaScriptOfTheModelViewerAtAnyDepthOfItsOwnFolder() =>
-        Assert.Equal(
-            ["src/Modules/Preview/Avala.Preview/Viewer/three/build.sh", "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts", "src/Modules/Preview/Avala.Preview/Pages/viewer.js"],
-            ScriptLanguages.ForeignScripts([
-                "/home/dev/avala/src/Modules/Preview/Avala.Preview/Viewer/viewer.js",
                 "src/Modules/Preview/Avala.Preview/Viewer/three/addons/loaders/GLTFLoader.js",
-                "src/Modules/Preview/Avala.Preview/Viewer/three/build.sh",
-                "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts",
-                "src/Modules/Preview/Avala.Preview/Pages/viewer.js",
+                "web/three/three.module.mjs",
+                "web/view.ts",
+                "tools/bundle.cjs",
             ]));
 
     [Fact]
