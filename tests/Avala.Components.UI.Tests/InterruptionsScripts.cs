@@ -2,6 +2,8 @@ using Avala.Components.UI.Theme;
 using Avala.Testing.UI;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Components.UI.Tests;
@@ -23,32 +25,58 @@ public sealed class InterruptionsScripts(HeadlessUi ui)
         return (view, scroller, () => runs);
     }
 
+    private static Point Over(ViewScript view, Control control) =>
+        control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), view.Window) ?? default;
+
     [Fact]
     public Task TypingInterruptsAsync() =>
         ui.RunAsync(() =>
         {
             var (view, _, runs) = Interrupted();
-            var before = runs();
 
             view.Type("Draft", "x");
 
-            Assert.Equal(1, runs() - before);
+            Assert.Equal(1, runs());
         }, Cancellation);
 
     [Fact]
-    public Task ScrollingBackInterruptsAndScrollingOnDoesNotAsync() =>
+    public Task WheelingBackInterruptsAndWheelingOnDoesNotAsync() =>
         ui.RunAsync(() =>
         {
             var (view, scroller, runs) = Interrupted();
-            var before = runs();
 
-            scroller.Offset = new Vector(0, 1200);
+            view.Window.MouseWheel(Over(view, scroller), new Vector(0, -1));
             view.Settle();
-            var onward = runs() - before;
-            scroller.Offset = new Vector(0, 600);
+            var onward = runs();
+            view.Window.MouseWheel(Over(view, scroller), new Vector(0, 1));
             view.Settle();
 
-            Assert.Equal(0, onward);
-            Assert.Equal(1, runs() - before);
+            Assert.Equal((0, 1), (onward, runs()));
+        }, Cancellation);
+
+    [Fact]
+    public Task PageUpInterruptsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _, runs) = Interrupted();
+            view.Find("Draft").Focus();
+
+            view.Press(Key.PageUp);
+
+            Assert.Equal(1, runs());
+        }, Cancellation);
+
+    [Fact]
+    public Task TheContentMovingTheScrollBackByItselfIsNoInterruptionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, scroller, runs) = Interrupted();
+
+            scroller.Offset = new Vector(0, 400);
+            view.Settle();
+            ((Border)scroller.Content!).Height = 300;
+            view.Settle();
+
+            Assert.Equal(0, runs());
         }, Cancellation);
 }

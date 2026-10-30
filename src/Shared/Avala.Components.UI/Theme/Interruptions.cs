@@ -11,6 +11,8 @@ public sealed class Interruptions
     public static readonly AttachedProperty<ICommand> CommandProperty =
         AvaloniaProperty.RegisterAttached<Interruptions, Control, ICommand>("Command");
 
+    private static readonly Key[] Back = [Key.PageUp, Key.Home, Key.Up];
+
     static Interruptions() => CommandProperty.Changed.AddClassHandler<Control>((control, _) => Watch(control));
 
     private Interruptions()
@@ -24,16 +26,26 @@ public sealed class Interruptions
     private static void Watch(Control control)
     {
         control.RemoveHandler(InputElement.TextInputEvent, Typed);
-        control.RemoveHandler(ScrollViewer.ScrollChangedEvent, Scrolled);
+        control.RemoveHandler(InputElement.PointerWheelChangedEvent, Wheeled);
+        control.RemoveHandler(InputElement.KeyDownEvent, Pressed);
         control.AddHandler(InputElement.TextInputEvent, Typed, RoutingStrategies.Tunnel, handledEventsToo: true);
-        control.AddHandler(ScrollViewer.ScrollChangedEvent, Scrolled, RoutingStrategies.Bubble, handledEventsToo: true);
+        control.AddHandler(InputElement.PointerWheelChangedEvent, Wheeled, RoutingStrategies.Tunnel, handledEventsToo: true);
+        control.AddHandler(InputElement.KeyDownEvent, Pressed, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     private static void Typed(object? sender, TextInputEventArgs e) => Interrupt(sender);
 
-    private static void Scrolled(object? sender, ScrollChangedEventArgs e)
+    private static void Wheeled(object? sender, PointerWheelEventArgs e)
     {
-        if (e.OffsetDelta.Y < 0)
+        if (e.Delta.Y > 0)
+        {
+            Interrupt(sender);
+        }
+    }
+
+    private static void Pressed(object? sender, KeyEventArgs e)
+    {
+        if (Back.Contains(e.Key))
         {
             Interrupt(sender);
         }

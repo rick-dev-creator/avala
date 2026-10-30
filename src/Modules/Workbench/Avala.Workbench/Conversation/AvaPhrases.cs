@@ -4,6 +4,8 @@ namespace Avala.Workbench.Conversation;
 
 internal static class AvaPhrases
 {
+    public static string Toggle(bool open) => open ? "Fold Ava" : "Open Ava";
+
     public static string Kanji(Mood mood) => mood switch
     {
         Mood.Asking => "質問",

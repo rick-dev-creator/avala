@@ -1,11 +1,18 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Status;
 using Avala.Components.UI.Theme;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Testing.UI;
+using Avala.Testing;
+using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
-using Avalonia;
+using Avala.Workbench.Steering;
+using Avala.Workbench.Timeline;
 using Avalonia.Controls;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using Avalonia;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -139,16 +146,36 @@ public sealed class AvaViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task StandingAvaNeverFoldsByHerselfAndLetsThePointerThroughAsync() =>
+    public Task StandingAvaStaysInSightWhileHerMomentPassesSoTheBarNeverReopensItAsync() =>
         ui.RunAsync(() =>
         {
             var ava = Moved(StatusKind.Failed);
             var view = Shown(ava, 1440);
 
             view.Elapse(TimeSpan.FromSeconds(8));
+            var standing = view.Shows("AvaStanding");
+            view.Window.Width = 900;
+            view.Settle();
+            view.Elapse(TimeSpan.FromSeconds(1));
 
-            Assert.True(ava.IsOpen);
+            Assert.True(standing);
+            Assert.False(ava.IsOpen);
+            Assert.InRange(Bar(view).Bounds.Height, 40, 70);
             Assert.False(view.Find("AvaStanding").GetVisualDescendants().OfType<StackPanel>().First(panel => panel.Name == "Standing").IsHitTestVisible);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheToggleSaysWhetherItFoldsOrOpensAvaAsync() =>
+        ui.RunAsync(() =>
+        {
+            var ava = Moved(StatusKind.NeedsYou);
+            var view = Shown(ava, 900);
+            var toggle = view.Find("AvaBar").GetVisualDescendants().OfType<Button>().First(button => button.Name == "Toggle");
+            var open = Avalonia.Automation.AutomationProperties.GetName(toggle);
+
+            view.Click(toggle);
+
+            Assert.Equal(("Fold Ava", "Open Ava"), (open, Avalonia.Automation.AutomationProperties.GetName(toggle)));
         }, Cancellation);
 
     [Fact]
@@ -158,5 +185,66 @@ public sealed class AvaViewScripts(HeadlessUi ui)
             var view = Shown(AvaViewModel.Of(StatusKind.Working), 1440);
 
             Assert.Equal((MotionEntrance.Rise, MotionEntrance.None), (view.EntranceOf("AvaStanding"), view.EntranceOf("AvaBar")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AJobReachingReviewWhileYouReadTheLatestKeepsAvaOpenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.Running).Summary;
+            var conversation = new Conversations(Composing.Of(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs(), Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
+            var transcript = Transcript.Empty.WithPrompts(
+                summary.Instruction,
+                [.. Enumerable.Range(1, 20).Select(number => new AttemptRecord(number, number == 1 ? AttemptOrigin.Initial : AttemptOrigin.Hint, AttemptOutcome.Passed, "Keep going with the next currency", Option<SessionId>.None))]);
+            conversation.Show(new BoardJob(summary, transcript));
+            var view = Screen.Show(conversation);
+            view.Window.Width = 900;
+            view.Settle();
+            var scroller = view.Find<ScrollViewer>("Scroller");
+            var atEdge = scroller.Offset.Y > 0 && Math.Abs(scroller.Extent.Height - scroller.Viewport.Height - scroller.Offset.Y) < 1;
+
+            conversation.Show(new BoardJob(summary with { Status = JobStatus.AwaitingReview }, transcript));
+            var openedBeforeLayout = conversation.Ava.IsOpen;
+            view.Settle();
+
+            Assert.True(atEdge);
+            Assert.True(openedBeforeLayout);
+            Assert.Equal((StatusKind.ReadyForReview, true), (conversation.Pill.Kind, conversation.Ava.IsOpen));
+        }, Cancellation);
+
+    [Fact]
+    public Task AWindowGrowingTallerIsNotYouScrollingBackAsync() =>
+        ui.RunAsync(() =>
+        {
+            var ava = new AvaViewModel();
+            ava.Show(StatusKind.Working);
+            ava.Show(StatusKind.Failed);
+            var view = Screen.Show(new DesignConversationViewModel { Ava = ava }, ThemeVariant.Dark, 900, 700);
+            var scroller = view.Find<ScrollViewer>("Scroller");
+            scroller.Offset = new Avalonia.Vector(0, scroller.Extent.Height);
+            view.Settle();
+            var opened = ava.IsOpen;
+
+            view.Window.Height = 900;
+            view.Settle();
+
+            Assert.True(opened);
+            Assert.True(ava.IsOpen);
+        }, Cancellation);
+
+    [Fact]
+    public Task ANewMomentWhileAnotherLingersGetsItsOwnSixSecondsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var ava = new AvaViewModel();
+            ava.Show(StatusKind.Working);
+            ava.Show(StatusKind.ReadyForReview);
+            var view = Screen.Show(new DesignConversationViewModel { Ava = ava }, ThemeVariant.Dark, 900, 900);
+            view.Elapse(TimeSpan.FromSeconds(5));
+
+            ava.Show(StatusKind.Done);
+            view.Elapse(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(("done", true), (ava.Moment, ava.IsOpen));
         }, Cancellation);
 }

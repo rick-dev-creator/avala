@@ -545,6 +545,8 @@ internal sealed class DesignAvaViewModel : IAvaViewModel
 
     public bool IsLingering { get; init; }
 
+    public string ToggleLabel => AvaPhrases.Toggle(IsOpen);
+
     public IRelayCommand FoldCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });

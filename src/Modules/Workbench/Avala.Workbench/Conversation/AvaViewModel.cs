@@ -20,6 +20,8 @@ internal interface IAvaViewModel
 
     bool IsLingering { get; }
 
+    string ToggleLabel { get; }
+
     IRelayCommand FoldCommand { get; }
 
     IRelayCommand ToggleCommand { get; }
@@ -50,6 +52,7 @@ internal sealed partial class AvaViewModel : IAvaViewModel
     public partial string Line { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToggleLabel))]
     public partial bool IsOpen { get; private set; }
 
     [ObservableProperty]
@@ -57,6 +60,8 @@ internal sealed partial class AvaViewModel : IAvaViewModel
 
     [ObservableProperty]
     public partial bool IsLingering { get; private set; }
+
+    public string ToggleLabel => AvaPhrases.Toggle(IsOpen);
 
     public static AvaViewModel Of(StatusKind status)
     {
@@ -80,6 +85,7 @@ internal sealed partial class AvaViewModel : IAvaViewModel
         Moment = AvaPhrases.Moment(status);
         Line = AvaPhrases.Line(status);
         IsWaiting = status is StatusKind.NeedsYou or StatusKind.Held;
+        IsLingering = false;
         IsLingering = !first && status is StatusKind.Failed or StatusKind.ReadyForReview or StatusKind.Done;
         IsOpen = IsWaiting || IsLingering;
     }

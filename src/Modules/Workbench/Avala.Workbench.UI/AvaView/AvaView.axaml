@@ -162,6 +162,10 @@
   </UserControl.Styles>
   <Panel>
     <StackPanel x:Name="Standing" Width="180" Spacing="10" IsHitTestVisible="False">
+      <Border x:Name="StandingLinger"
+              Height="0"
+              theme:Countdown.Running="{Binding IsLingering}"
+              theme:Countdown.Command="{Binding FoldCommand}" />
       <Border x:Name="Say">
         <StackPanel Spacing="6">
           <Border x:Name="SayRule" Margin="-12,-10,-12,4" />
@@ -197,8 +201,8 @@
                   Classes="glyph"
                   VerticalAlignment="Top"
                   Command="{Binding ToggleCommand}"
-                  ToolTip.Tip="Fold or open Ava"
-                  AutomationProperties.Name="Fold or open Ava">
+                  ToolTip.Tip="{Binding ToggleLabel}"
+                  AutomationProperties.Name="{Binding ToggleLabel}">
             <Path x:Name="Chevron" Classes="icon" Width="12" Height="12" Data="{StaticResource IconChevronDown}" />
           </Button>
         </Grid>
