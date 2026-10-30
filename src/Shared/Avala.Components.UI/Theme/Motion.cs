@@ -121,6 +121,18 @@ public sealed class Motion
         }
     }
 
+    internal static void Withhold(Visual container) => container.SetValue(SettlesProperty, true);
+
+    internal static void Release(Visual container)
+    {
+        container.ClearValue(SettlesProperty);
+
+        foreach (var watched in container.GetSelfAndVisualDescendants().Where(visual => visual.GetValue(IsWatchedProperty)))
+        {
+            Refresh(watched);
+        }
+    }
+
     internal static bool IsSettling(Visual visual)
     {
         for (var current = visual; current is not null; current = current.GetVisualParent())

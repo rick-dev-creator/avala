@@ -18,8 +18,11 @@ public sealed class Cursor
     private static readonly AttachedProperty<Border?> MarkProperty =
         AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, Border?>("Mark");
 
-    private static readonly AttachedProperty<int> PlacedProperty =
-        AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, int>("Placed", -1);
+    private static readonly AttachedProperty<object?> PlacedProperty =
+        AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, object?>("Placed");
+
+    private static readonly AttachedProperty<double> TargetProperty =
+        AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, double>("Target");
 
     private static readonly SplineEasing Spring = new(0.34, 1.4, 0.64, 1);
 
@@ -73,19 +76,26 @@ public sealed class Cursor
         if (!list.IsEffectivelyVisible || list.ContainerFromIndex(list.SelectedIndex) is not { } chosen || chosen.TranslatePoint(default, list) is not { } at)
         {
             mark.IsVisible = false;
-            list.SetValue(PlacedProperty, -1);
+            list.ClearValue(PlacedProperty);
             return;
         }
 
         var moving = (TranslateTransform)mark.RenderTransform!;
-        var chose = list.GetValue(PlacedProperty) != list.SelectedIndex;
-        list.SetValue(PlacedProperty, list.SelectedIndex);
+        var chose = !Equals(list.GetValue(PlacedProperty), list.SelectedItem);
+        var moved = Math.Abs(list.GetValue(TargetProperty) - at.Y) > 0.5;
+        list.SetValue(PlacedProperty, list.SelectedItem);
+        list.SetValue(TargetProperty, at.Y);
+
+        if (!chose && !moved && mark.IsVisible)
+        {
+            return;
+        }
 
         if (chose && mark.IsVisible && !Motion.GetIsReduced(list))
         {
             moving.Transitions ??= [new DoubleTransition { Property = TranslateTransform.YProperty, Duration = Glide, Easing = Spring }];
         }
-        else if (!chose && Math.Abs(moving.Y - at.Y) > 0.5)
+        else
         {
             moving.Transitions = null;
         }

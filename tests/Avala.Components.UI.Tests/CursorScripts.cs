@@ -67,6 +67,24 @@ public sealed class CursorScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ALayoutElsewhereInTheWindowDoesNotCutTheGlideShortAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, list) = Listed(reduced: false);
+            var elsewhere = new TextBlock { Text = "before" };
+            view.Window.Content = new StackPanel { Children = { elsewhere, Detached(list) } };
+            view.Settle();
+
+            list.SelectedIndex = 3;
+            view.Settle();
+            view.Elapse(TimeSpan.FromMilliseconds(60));
+            elsewhere.Text = "a longer line that lays the window out again";
+            view.Settle();
+
+            Assert.InRange(Y(list), Top(list, 0), Top(list, 3) - 1);
+        }, Cancellation);
+
+    [Fact]
     public Task AHiddenListHidesItsCursorAsync() =>
         ui.RunAsync(() =>
         {
@@ -77,6 +95,13 @@ public sealed class CursorScripts(HeadlessUi ui)
 
             Assert.False(Mark(list).IsVisible);
         }, Cancellation);
+
+    private static ListBox Detached(ListBox list)
+    {
+        ((ContentControl)list.Parent!).Content = null;
+
+        return list;
+    }
 
     private static double Y(ListBox list) => ((TranslateTransform)Mark(list).RenderTransform!).Y;
 
