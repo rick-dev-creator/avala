@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Components.Status;
 using Avala.Testing;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Timeline;
@@ -15,6 +16,15 @@ public sealed class TurnEndViewModelScripts
     public void TheEndOfATurnSaysHowItEndedAndHowLongItTook(string outcome, int seconds, string summary) =>
         ViewModelScript.Given(new TurnEndViewModel(new TurnEndEntry("turn", Enum.Parse<TurnOutcome>(outcome), TimeSpan.FromSeconds(seconds), default, [])))
             .Then(turn => Assert.Equal((summary, 0L, string.Empty), (turn.Summary, turn.Tokens, turn.Cost)));
+
+    [Theory]
+    [InlineData(TurnOutcome.Finished, Mood.Pleased)]
+    [InlineData(TurnOutcome.Interrupted, Mood.Asking)]
+    [InlineData(TurnOutcome.Failed, Mood.Worried)]
+    [InlineData(TurnOutcome.LimitReached, Mood.Worried)]
+    public void AvasMoodAtTheEndOfATurnFollowsHowItEnded(TurnOutcome outcome, Mood mood) =>
+        ViewModelScript.Given(new TurnEndViewModel(new TurnEndEntry("turn", outcome, TimeSpan.FromSeconds(3), default, [])))
+            .Then(turn => Assert.Equal(mood, turn.Mood));
 
     [Fact]
     public void TheEndOfATurnSumsItsTokensAndListsEachCurrencySayingWhatIsAtApiPrices() =>

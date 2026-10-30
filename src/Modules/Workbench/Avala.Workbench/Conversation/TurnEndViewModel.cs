@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Timeline;
@@ -10,6 +11,8 @@ namespace Avala.Workbench.Conversation;
 internal interface ITurnEndViewModel
 {
     TurnOutcome Outcome { get; }
+
+    Mood Mood { get; }
 
     TimeSpan Duration { get; }
 
@@ -50,6 +53,13 @@ internal sealed partial class TurnEndViewModel(TurnEndEntry entry) : ITurnEndVie
     private static readonly IAsyncRelayCommand<int> Unbound = new AsyncRelayCommand<int>(_ => Task.CompletedTask, _ => false);
 
     public TurnOutcome Outcome { get; } = entry.Outcome;
+
+    public Mood Mood { get; } = entry.Outcome switch
+    {
+        TurnOutcome.Finished => Mood.Pleased,
+        TurnOutcome.Interrupted => Mood.Asking,
+        _ => Mood.Worried,
+    };
 
     public TimeSpan Duration { get; } = entry.Duration;
 

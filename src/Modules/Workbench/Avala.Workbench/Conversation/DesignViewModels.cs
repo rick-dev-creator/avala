@@ -450,6 +450,8 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
 {
     public TurnOutcome Outcome => TurnOutcome.Finished;
 
+    public Mood Mood => Mood.Pleased;
+
     public TimeSpan Duration => TimeSpan.FromSeconds(154);
 
     public string Summary => "Worked for 2m 34s";

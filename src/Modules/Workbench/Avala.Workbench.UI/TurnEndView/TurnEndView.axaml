@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.TurnEndView"
              x:ClassModifier="internal"
              x:DataType="conversation:ITurnEndViewModel"
@@ -11,7 +12,9 @@
   <Design.DataContext>
     <conversation:DesignTurnEndViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="6">
+  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+  <ui:Portrait x:Name="Ava" Mood="{Binding Mood}" VerticalAlignment="Top" ToolTip.Tip="Ava" />
+  <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
     <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
       <Border Classes="separator" VerticalAlignment="Center" />
       <StackPanel x:Name="Line"
@@ -76,4 +79,5 @@
       </StackPanel>
     </StackPanel>
   </StackPanel>
+  </Grid>
 </UserControl>
