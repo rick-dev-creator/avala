@@ -52,6 +52,7 @@ public sealed class Brackets
                 Children = { Corner(TopLeft, HorizontalAlignment.Left, VerticalAlignment.Top), Corner(BottomRight, HorizontalAlignment.Right, VerticalAlignment.Bottom) },
             };
             Motion.SetEnter(corners, MotionEntrance.Close);
+            AdornerLayer.SetIsClipEnabled(corners, false);
             AdornerLayer.SetAdorner(control, corners);
         }
     }

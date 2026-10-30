@@ -121,7 +121,7 @@ public sealed class Motion
         }
     }
 
-    private static bool IsSettling(Visual visual)
+    internal static bool IsSettling(Visual visual)
     {
         for (var current = visual; current is not null; current = current.GetVisualParent())
         {

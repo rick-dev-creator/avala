@@ -20,6 +20,8 @@ public sealed class VoiceText : TextBlock
 
     private static readonly IImmutableBrush Hidden = new ImmutableSolidColorBrush(Colors.Transparent);
 
+    private string spoken = string.Empty;
+
     static VoiceText() => AffectsRender<VoiceText>(RevealedProperty);
 
     public double Revealed
@@ -28,7 +30,7 @@ public sealed class VoiceText : TextBlock
         set => SetValue(RevealedProperty, value);
     }
 
-    public static int Words(string text) => text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+    public static int Words(string text) => Enumerable.Range(0, text.Length).Count(index => !char.IsWhiteSpace(text[index]) && (index == 0 || char.IsWhiteSpace(text[index - 1])));
 
     public static int Cut(string text, double revealed)
     {
@@ -45,7 +47,7 @@ public sealed class VoiceText : TextBlock
 
         for (var index = 0; index < text.Length; index++)
         {
-            var space = text[index] == ' ';
+            var space = char.IsWhiteSpace(text[index]);
 
             if (!space && !inWord && seen++ == shown)
             {
@@ -71,6 +73,11 @@ public sealed class VoiceText : TextBlock
         else if (change.Property == RevealedProperty)
         {
             InvalidateTextLayout();
+        }
+        else if (change.Property == Motion.IsReducedProperty && Motion.GetIsReduced(this))
+        {
+            Transitions = null;
+            Revealed = 1;
         }
     }
 
@@ -109,12 +116,14 @@ public sealed class VoiceText : TextBlock
     {
         Transitions = null;
 
-        if (Motion.GetIsReduced(this) || Text is not { Length: > 0 } text)
+        if (Motion.GetIsReduced(this) || Motion.IsSettling(this) || Text is not { Length: > 0 } text || text == spoken)
         {
+            spoken = Text ?? string.Empty;
             Revealed = 1;
             return;
         }
 
+        spoken = text;
         Revealed = 0;
         Transitions = [new DoubleTransition { Property = RevealedProperty, Duration = Duration(text), Easing = new LinearEasing() }];
         Revealed = 1;

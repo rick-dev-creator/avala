@@ -51,17 +51,44 @@ public sealed class CursorScripts(HeadlessUi ui)
             Assert.False(Mark(list).IsVisible);
         }, Cancellation);
 
+    [Fact]
+    public Task WhenTheChosenItemMovesWithoutANewChoiceTheCursorFollowsAtOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var pages = new System.Collections.ObjectModel.ObservableCollection<string>(["Jobs", "Overview", "Usage"]);
+            var (view, list) = Listed(reduced: false, pages);
+            list.SelectedIndex = 1;
+            view.Elapse(Cursor.Glide + TimeSpan.FromMilliseconds(50));
+
+            pages.Insert(0, "Inbox");
+            view.Settle();
+
+            Assert.Equal(Top(list, 2), Y(list), 1);
+        }, Cancellation);
+
+    [Fact]
+    public Task AHiddenListHidesItsCursorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, list) = Listed(reduced: false);
+
+            list.IsVisible = false;
+            view.Settle();
+
+            Assert.False(Mark(list).IsVisible);
+        }, Cancellation);
+
     private static double Y(ListBox list) => ((TranslateTransform)Mark(list).RenderTransform!).Y;
 
     private static Border Mark(ListBox list) => Cursor.MarkOf(list).Match(mark => mark, () => throw new InvalidOperationException("The list has no cursor."));
 
     private static double Top(ListBox list, int index) => list.ContainerFromIndex(index)!.TranslatePoint(default, list)!.Value.Y;
 
-    private static (ViewScript View, ListBox List) Listed(bool reduced)
+    private static (ViewScript View, ListBox List) Listed(bool reduced, IEnumerable<string>? pages = null)
     {
         var view = ViewScript.Show(new Border(), new object());
         Motion.SetIsReduced(view.Window, reduced);
-        var list = new ListBox { ItemsSource = new[] { "Jobs", "Overview", "Usage", "Fleet" }, SelectedIndex = 0 };
+        var list = new ListBox { ItemsSource = pages ?? ["Jobs", "Overview", "Usage", "Fleet"], SelectedIndex = 0 };
         Cursor.SetSlides(list, true);
         view.Window.Content = list;
 

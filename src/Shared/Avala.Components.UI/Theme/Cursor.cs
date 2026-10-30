@@ -18,6 +18,9 @@ public sealed class Cursor
     private static readonly AttachedProperty<Border?> MarkProperty =
         AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, Border?>("Mark");
 
+    private static readonly AttachedProperty<int> PlacedProperty =
+        AvaloniaProperty.RegisterAttached<Cursor, SelectingItemsControl, int>("Placed", -1);
+
     private static readonly SplineEasing Spring = new(0.34, 1.4, 0.64, 1);
 
     static Cursor() => SlidesProperty.Changed.AddClassHandler<SelectingItemsControl>((list, _) => Watch(list));
@@ -67,21 +70,24 @@ public sealed class Cursor
 
     private static void Place(SelectingItemsControl list, Border mark)
     {
-        if (list.ContainerFromIndex(list.SelectedIndex) is not { } chosen || chosen.TranslatePoint(default, list) is not { } at)
+        if (!list.IsEffectivelyVisible || list.ContainerFromIndex(list.SelectedIndex) is not { } chosen || chosen.TranslatePoint(default, list) is not { } at)
         {
             mark.IsVisible = false;
+            list.SetValue(PlacedProperty, -1);
             return;
         }
 
         var moving = (TranslateTransform)mark.RenderTransform!;
+        var chose = list.GetValue(PlacedProperty) != list.SelectedIndex;
+        list.SetValue(PlacedProperty, list.SelectedIndex);
 
-        if (!mark.IsVisible || Motion.GetIsReduced(list))
+        if (chose && mark.IsVisible && !Motion.GetIsReduced(list))
+        {
+            moving.Transitions ??= [new DoubleTransition { Property = TranslateTransform.YProperty, Duration = Glide, Easing = Spring }];
+        }
+        else if (!chose && Math.Abs(moving.Y - at.Y) > 0.5)
         {
             moving.Transitions = null;
-        }
-        else if (moving.Transitions is null)
-        {
-            moving.Transitions = [new DoubleTransition { Property = TranslateTransform.YProperty, Duration = Glide, Easing = Spring }];
         }
 
         mark.Width = chosen.Bounds.Width;

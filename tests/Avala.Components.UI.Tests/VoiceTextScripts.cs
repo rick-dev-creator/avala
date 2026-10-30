@@ -20,6 +20,10 @@ public sealed class VoiceTextScripts(HeadlessUi ui)
         Assert.Equal(cut, VoiceText.Cut(Line, revealed));
 
     [Fact]
+    public void LineBreaksAndTabsSeparateWordsLikeSpaces() =>
+        Assert.Equal((5, 11), (VoiceText.Words("first line\nsecond\tthird line"), VoiceText.Cut("first line\nsecond\tthird line", 0.4)));
+
+    [Fact]
     public void ALineTakesFortyFiveMillisecondsAWordAndNeverMoreThanTwoAndAHalfSeconds() =>
         Assert.Equal((TimeSpan.FromMilliseconds(360), VoiceText.Longest), (VoiceText.Duration(Line), VoiceText.Duration(string.Join(' ', Enumerable.Repeat("word", 100)))));
 
@@ -59,6 +63,34 @@ public sealed class VoiceTextScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal(0, voice.Revealed);
+        }, Cancellation);
+
+    [Fact]
+    public Task ALineAlreadySaidIsNotSaidAgainWhenItsViewComesBackAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, voice) = Spoken(reduced: false);
+            view.Elapse(TimeSpan.FromMilliseconds(600));
+
+            view.Window.Content = null;
+            view.Settle();
+            view.Window.Content = voice;
+            view.Settle();
+
+            Assert.Equal(1, voice.Revealed);
+        }, Cancellation);
+
+    [Fact]
+    public Task ReducingMotionMidLineShowsTheWholeLineAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, voice) = Spoken(reduced: false);
+            view.Elapse(TimeSpan.FromMilliseconds(100));
+
+            Motion.SetIsReduced(view.Window, true);
+            view.Settle();
+
+            Assert.Equal(1, voice.Revealed);
         }, Cancellation);
 
     private static (ViewScript View, VoiceText Voice) Spoken(bool reduced)
