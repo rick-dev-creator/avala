@@ -1,0 +1,213 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:ui="using:Avala.Components.UI"
+             xmlns:voice="using:Avala.Components.UI.Voice"
+             xmlns:states="using:Avala.Components.UI.States"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.AvaView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IAvaViewModel"
+             Classes.open="{Binding IsOpen}"
+             Classes.asking="{Binding Mood, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Asking}"
+             Classes.worried="{Binding Mood, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Worried}"
+             Classes.pleased="{Binding Mood, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Pleased}">
+  <Design.DataContext>
+    <conversation:DesignAvaViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector=":is(UserControl)">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).asking">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).worried">
+      <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).pleased">
+      <Setter Property="Foreground" Value="{DynamicResource VerifiedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.hud.name">
+      <Setter Property="LetterSpacing" Value="2.4" />
+      <Setter Property="Foreground" Value="{Binding $parent[UserControl].Foreground}" />
+    </Style>
+    <Style Selector="TextBlock.label.moment">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeTag}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.more">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeTag}" />
+      <Setter Property="Foreground" Value="{Binding $parent[UserControl].Foreground}" />
+    </Style>
+    <Style Selector="voice|VoiceText.voice.line">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="StackPanel#Standing">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector=":is(UserControl).standing StackPanel#Standing">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector=":is(UserControl).standing Border#Bar">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Border#Say">
+      <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="12,10,12,8" />
+      <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferControl}" />
+    </Style>
+    <Style Selector="Border#SayRule">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="Background" Value="{Binding $parent[UserControl].Foreground}" />
+    </Style>
+    <Style Selector="voice|VoiceText#StandingLine">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+      <Setter Property="LineHeight" Value="22" />
+    </Style>
+
+    <Style Selector="Border#Bar">
+      <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+      <Setter Property="BorderBrush" Value="{Binding $parent[UserControl].Foreground}" />
+      <Setter Property="BorderThickness" Value="2,0,0,0" />
+      <Setter Property="Padding" Value="8,6,6,6" />
+      <Setter Property="Height" Value="50" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferControl}" />
+    </Style>
+    <Style Selector=":is(UserControl).open Border#Bar">
+      <Setter Property="Height" Value="118" />
+    </Style>
+    <Style Selector=":is(UserControl)[(theme|Motion.IsReduced)=False] Border#Bar">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Height" Duration="0:0:0.38" Easing="0.22,1,0.36,1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="ui|Portrait#BarPortrait">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="37" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector=":is(UserControl).open ui|Portrait#BarPortrait">
+      <Setter Property="Width" Value="84" />
+      <Setter Property="Height" Value="104" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector=":is(UserControl)[(theme|Motion.IsReduced)=False] ui|Portrait#BarPortrait">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Width" Duration="0:0:0.38" Easing="0.22,1,0.36,1" />
+          <DoubleTransition Property="Height" Duration="0:0:0.38" Easing="0.22,1,0.36,1" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.3" Easing="0.22,1,0.36,1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="StackPanel#BarName">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector=":is(UserControl).open StackPanel#BarName">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="voice|VoiceText#BarLine">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="MaxLines" Value="1" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector=":is(UserControl).open voice|VoiceText#BarLine">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+      <Setter Property="LineHeight" Value="22" />
+      <Setter Property="MaxLines" Value="3" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="TextBlock#BarMark">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector=":is(UserControl).open TextBlock#BarMark">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="TextBlock#BarMore">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector=":is(UserControl).open TextBlock#BarMore">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="Path#Chevron">
+      <Setter Property="RenderTransform" Value="rotate(180deg)" />
+    </Style>
+    <Style Selector=":is(UserControl).open Path#Chevron">
+      <Setter Property="RenderTransform" Value="none" />
+    </Style>
+    <Style Selector="Button#Toggle Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Border#Linger">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="Background" Value="{Binding $parent[UserControl].Foreground}" />
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Border#Linger.counting">
+      <Setter Property="Opacity" Value="0.8" />
+    </Style>
+    <Style Selector=":is(UserControl)[(theme|Motion.IsReduced)=True] Border#Linger">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <StackPanel x:Name="Standing" Width="180" Spacing="10" IsHitTestVisible="False">
+      <Border x:Name="Say">
+        <StackPanel Spacing="6">
+          <Border x:Name="SayRule" Margin="-12,-10,-12,4" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="hud name" Text="AVA" VerticalAlignment="Center" />
+            <TextBlock Classes="jp" Text="{Binding Kanji}" VerticalAlignment="Center" />
+            <TextBlock x:Name="StandingMoment" Classes="label moment" Text="{Binding Moment}" VerticalAlignment="Center" />
+          </StackPanel>
+          <voice:VoiceText x:Name="StandingLine" Classes="voice line" Text="{Binding Line}" />
+          <TextBlock Classes="more" Text="▼" HorizontalAlignment="Right" theme:Motion.Loop="Caret" />
+        </StackPanel>
+      </Border>
+      <ui:Portrait x:Name="StandingPortrait" Width="180" Height="222" Mood="{Binding Mood}" />
+    </StackPanel>
+    <Border x:Name="Bar">
+      <Panel>
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+          <ui:Portrait x:Name="BarPortrait" Mood="{Binding Mood}" />
+          <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Stretch">
+            <StackPanel x:Name="BarName" Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+              <TextBlock Classes="hud name" Text="AVA" VerticalAlignment="Center" />
+              <TextBlock Classes="jp" Text="{Binding Kanji}" VerticalAlignment="Center" />
+              <TextBlock Classes="label moment" Text="{Binding Moment}" VerticalAlignment="Center" />
+            </StackPanel>
+            <DockPanel>
+              <TextBlock x:Name="BarMark" DockPanel.Dock="Left" Classes="hud name" Text="AVA" Margin="0,0,10,0" VerticalAlignment="Center" />
+              <voice:VoiceText x:Name="BarLine" Classes="voice line" Text="{Binding Line}" />
+            </DockPanel>
+            <TextBlock x:Name="BarMore" Classes="more" Text="▼" HorizontalAlignment="Right" theme:Motion.Loop="Caret" />
+          </StackPanel>
+          <Button x:Name="Toggle"
+                  Grid.Column="2"
+                  Classes="glyph"
+                  VerticalAlignment="Top"
+                  Command="{Binding ToggleCommand}"
+                  ToolTip.Tip="Fold or open Ava"
+                  AutomationProperties.Name="Fold or open Ava">
+            <Path x:Name="Chevron" Classes="icon" Width="12" Height="12" Data="{StaticResource IconChevronDown}" />
+          </Button>
+        </Grid>
+        <Border x:Name="Linger"
+                VerticalAlignment="Bottom"
+                Margin="-8,0,-6,-6"
+                theme:Countdown.Running="{Binding IsLingering}"
+                theme:Countdown.Command="{Binding FoldCommand}" />
+      </Panel>
+    </Border>
+  </Panel>
+</UserControl>

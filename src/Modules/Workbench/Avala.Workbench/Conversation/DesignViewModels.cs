@@ -450,8 +450,6 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
 {
     public TurnOutcome Outcome => TurnOutcome.Finished;
 
-    public Mood Mood => Mood.Pleased;
-
     public TimeSpan Duration => TimeSpan.FromSeconds(154);
 
     public string Summary => "Worked for 2m 34s";
@@ -531,9 +529,32 @@ internal sealed class DesignRestartViewModel : IRestartViewModel
     public bool HasLost => Lost.Length > 0;
 }
 
+internal sealed class DesignAvaViewModel : IAvaViewModel
+{
+    public Mood Mood { get; init; } = Mood.Asking;
+
+    public string Kanji => AvaPhrases.Kanji(Mood);
+
+    public string Moment { get; init; } = "needs you";
+
+    public string Line { get; init; } = "I need your yes for dotnet build. Just this once, or should I keep it?";
+
+    public bool IsOpen { get; init; } = true;
+
+    public bool IsWaiting { get; init; } = true;
+
+    public bool IsLingering { get; init; }
+
+    public IRelayCommand FoldCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+}
+
 internal sealed record DesignConversationViewModel(string Title, string Place, IStatusPillViewModel Pill, IComposerViewModel Composer, IReadOnlyList<object> Entries) : IConversationViewModel
 {
     public IConversationSearchViewModel Search { get; init; } = new DesignConversationSearchViewModel();
+
+    public IAvaViewModel Ava { get; init; } = AvaViewModel.Of(Pill.Kind);
 
     public IReadOnlyList<int> TurnStarts => [.. Enumerable.Range(0, Entries.Count).Where(index => Entries[index] is IPromptViewModel)];
 

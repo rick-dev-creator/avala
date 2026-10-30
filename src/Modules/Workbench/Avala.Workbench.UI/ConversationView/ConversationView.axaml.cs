@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Reactive;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
@@ -11,6 +13,16 @@ internal sealed partial class ConversationView : UserControl
 
     private const double End = 1;
 
+    private const string ReadingWidth = "ReadingWidth";
+
+    private const double Narrowest = 720;
+
+    private const double Standing = 180;
+
+    private const double Clearance = 16;
+
+    private const double Floor = 20;
+
     public ConversationView()
     {
         InitializeComponent();
@@ -18,6 +30,8 @@ internal sealed partial class ConversationView : UserControl
         Scroller.AddHandler(RequestBringIntoViewEvent, OnBringIntoView, RoutingStrategies.Bubble, handledEventsToo: true);
         JumpToLatest.Click += OnJumpToLatest;
         Entries.ItemsView.CollectionChanged += OnEntriesChanged;
+        Stage.SizeChanged += (_, e) => Fit(e.NewSize.Width);
+        _ = this.GetResourceObservable(ReadingWidth).Subscribe(new AnonymousObserver<object?>(_ => Fit(Stage.Bounds.Width)));
     }
 
     public bool FollowsLiveEdge { get; private set; } = true;
@@ -32,6 +46,20 @@ internal sealed partial class ConversationView : UserControl
         NewBelow.IsVisible = NewBelow.IsVisible || (!FollowsLiveEdge && e.Action == NotifyCollectionChangedAction.Add);
 
     private void OnJumpToLatest(object? sender, RoutedEventArgs e) => Follow();
+
+    private void Fit(double width)
+    {
+        var reading = this.TryFindResource(ReadingWidth, out var found) && found is double measured ? measured : Narrowest;
+        var gutter = (width - reading) / 2;
+        var stands = gutter >= Standing + (Clearance * 2);
+        AvaStanding.IsVisible = stands;
+        AvaBar.IsVisible = !stands;
+
+        if (stands)
+        {
+            AvaStanding.Margin = new Thickness(gutter - Standing - Clearance, 0, 0, Floor);
+        }
+    }
 
     private void OnBringIntoView(object? sender, RequestBringIntoViewEventArgs e)
     {

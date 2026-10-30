@@ -93,7 +93,7 @@
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     <Setter Property="LetterSpacing" Value="1" />
   </Style>
-  <Style Selector="TextBlock.voice">
+  <Style Selector=":is(TextBlock).voice">
     <Setter Property="FontFamily" Value="{DynamicResource VoiceFont}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeVoice}" />
     <Setter Property="FontWeight" Value="Bold" />

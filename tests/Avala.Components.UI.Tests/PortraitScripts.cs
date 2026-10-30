@@ -35,6 +35,7 @@ public sealed class PortraitScripts(HeadlessUi ui)
 
             portrait.Mood = Mood.Asking;
             view.Settle();
+            view.Elapse(TimeSpan.FromSeconds(1));
 
             Assert.NotEqual(focused, ((ISolidColorBrush)frame.BorderBrush).Color);
             Assert.Equal((false, true), (portrait.Classes.Contains(":focused"), portrait.Classes.Contains(":asking")));
