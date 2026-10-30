@@ -53,7 +53,7 @@ A blank WebKitGTK window under Wayland comes from its DMA-BUF renderer. Avala se
 
 ## Settings and files
 
-- **Logs**: the `logs` folder of the data folder, as `avala-YYYYMMDD-NNN.log`, each up to 4 MB, the newest ten kept.
+- **Logs**: the `logs` folder of the data folder, as `avala-YYYYMMDD-NNN.log`, each up to 4 MB, the newest ten kept. Every minute Avala logs its vital signs: memory, threads and how long its interface has kept it waiting. Every run ends with a line saying how it stopped: in order, on a signal such as `SIGTERM`, or on an unhandled exception. A log that ends in vital signs with no such line means the process was killed, at about the time of the last vital signs.
 - **Data folder**: `AVALA_DATA_PATH`, or `Avala` in your local application data folder; see [where files live](../README.md#where-files-live).
 - **Environment variables**: `AVALA_X11=1` forces X11, `AVALA_DATA_PATH` moves the data folder, and `WEBKIT_DISABLE_DMABUF_RENDERER` is described above.
 
