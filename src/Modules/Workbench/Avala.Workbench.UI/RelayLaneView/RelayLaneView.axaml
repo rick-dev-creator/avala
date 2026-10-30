@@ -13,14 +13,15 @@
     </Style>
     <Style Selector="Border#Lane.current">
       <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="Border#Lane.current TextBlock#Connection">
       <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     </Style>
   </UserControl.Styles>
-  <Border x:Name="Lane" Classes.current="{Binding IsCurrent}" Height="64" Margin="4,0,0,0" Padding="8,0,10,0">
+  <Border x:Name="Lane" Classes.current="{Binding IsCurrent}" BorderThickness="2,0,0,0" Height="64" Margin="4,0,0,0" Padding="8,0,10,0">
     <StackPanel VerticalAlignment="Center" Spacing="3">
-      <TextBlock x:Name="Connection" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Harness}" />
+      <TextBlock x:Name="Connection" Classes="label" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Harness}" />
       <ContentControl x:Name="Meter" Content="{Binding Meter}" />
     </StackPanel>
   </Border>
