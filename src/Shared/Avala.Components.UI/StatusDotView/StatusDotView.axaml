@@ -20,41 +20,41 @@
     <status:DesignStatusDotViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="Ellipse#Core">
+    <Style Selector="Rectangle#Core">
       <Setter Property="Fill" Value="{DynamicResource TextPrimaryBrush}" />
       <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
-    <Style Selector=".needsYou Ellipse#Core">
+    <Style Selector=".needsYou Rectangle#Core">
       <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
     </Style>
-    <Style Selector=".held Ellipse#Core">
+    <Style Selector=".held Rectangle#Core">
       <Setter Property="Fill" Value="Transparent" />
       <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
     </Style>
-    <Style Selector=".review Ellipse#Core">
+    <Style Selector=".review Rectangle#Core">
       <Setter Property="Fill" Value="Transparent" />
       <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
-    <Style Selector=".done Ellipse#Core">
+    <Style Selector=".done Rectangle#Core">
       <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
     </Style>
-    <Style Selector=".selected .done Ellipse#Core">
+    <Style Selector=".selected .done Rectangle#Core">
       <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
-    <Style Selector=".failed Ellipse#Core">
+    <Style Selector=".failed Rectangle#Core">
       <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
     </Style>
-    <Style Selector=".checking Ellipse#Core">
+    <Style Selector=".checking Rectangle#Core">
       <Setter Property="IsVisible" Value="False" />
     </Style>
   </UserControl.Styles>
-  <Panel>
-    <Ellipse x:Name="Pulse"
+  <Panel RenderTransform="rotate(45deg)">
+    <Rectangle x:Name="Pulse"
              Fill="{DynamicResource TextPrimaryBrush}"
              IsVisible="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}"
              theme:Motion.Loop="Pulse"
              theme:Motion.When="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}" />
-    <Ellipse x:Name="Core" />
+    <Rectangle x:Name="Core" />
     <Arc x:Name="Spinner"
          StartAngle="0"
          SweepAngle="270"

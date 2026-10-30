@@ -76,6 +76,23 @@
     <Setter Property="LetterSpacing" Value="1.6" />
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
   </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontFamily" Value="{DynamicResource HudFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="0.8" />
+  </Style>
+  <Style Selector="TextBlock.hud.brand">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="LetterSpacing" Value="0.4" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.jp">
+    <Setter Property="FontFamily" Value="{DynamicResource VoiceFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeTag}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="LetterSpacing" Value="1" />
+  </Style>
   <Style Selector="TextBlock.voice">
     <Setter Property="FontFamily" Value="{DynamicResource VoiceFont}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeVoice}" />

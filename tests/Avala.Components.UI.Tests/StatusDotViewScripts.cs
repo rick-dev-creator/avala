@@ -54,7 +54,7 @@ public sealed class StatusDotViewScripts(HeadlessUi ui)
             dot.Kind = StatusKind.Held;
             view.Settle();
 
-            var core = view.Find<Ellipse>("Core");
+            var core = view.Find<Rectangle>("Core");
             Assert.False(view.Shows("Pulse"));
             Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(core.Fill).Color);
             Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(core.Stroke).Color);
@@ -70,6 +70,6 @@ public sealed class StatusDotViewScripts(HeadlessUi ui)
         {
             var view = ViewScript.Show(new StatusDotViewModel(Enum.Parse<StatusKind>(state)));
 
-            Assert.Equal(Color.Parse(color), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Ellipse>("Core").Fill).Color);
+            Assert.Equal(Color.Parse(color), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Rectangle>("Core").Fill).Color);
         }, Cancellation);
 }
