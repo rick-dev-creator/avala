@@ -82,12 +82,12 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     public partial bool IsSidebarCollapsed { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen))]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen), nameof(IsContentCovered))]
     [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsNarrow { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsInspectorDocked))]
+    [NotifyPropertyChangedFor(nameof(IsInspectorDocked), nameof(IsContentCovered))]
     [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsInspectorFloating { get; private set; }
 
@@ -98,12 +98,12 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     public partial double SidebarMaxWidth { get; private set; } = double.PositiveInfinity;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen))]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen), nameof(IsContentCovered))]
     [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsSidebarPeeking { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsInspectorShown), nameof(IsInspectorDocked), nameof(IsDrawerOpen))]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsInspectorShown), nameof(IsInspectorDocked), nameof(IsDrawerOpen), nameof(IsContentCovered))]
     [NotifyCanExecuteChangedFor(nameof(LeaveFocusCommand), nameof(EscapeCommand))]
     public partial bool IsFocused { get; private set; }
 
@@ -113,6 +113,8 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     public bool IsSidebarShown => HasSidebar && !IsFocused && (IsNarrow ? IsSidebarPeeking : !IsSidebarCollapsed);
 
     public bool IsDrawerOpen => IsNarrow && IsSidebarShown;
+
+    public bool IsContentCovered => IsDrawerOpen || (IsInspectorFloating && IsInspectorShown);
 
     public bool CanEscape => IsFocused || IsDrawerOpen || (IsInspectorFloating && IsInspectorShown);
 
@@ -276,6 +278,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         {
             OnPropertyChanged(nameof(IsInspectorShown));
             OnPropertyChanged(nameof(IsInspectorDocked));
+            OnPropertyChanged(nameof(IsContentCovered));
             EscapeCommand.NotifyCanExecuteChanged();
         }
 

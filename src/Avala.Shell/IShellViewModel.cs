@@ -44,6 +44,8 @@ internal interface IShellViewModel
 
     IRelayCommand EscapeCommand { get; }
 
+    bool IsContentCovered { get; }
+
     double WindowWidth { get; }
 
     double SidebarMaxWidth { get; }

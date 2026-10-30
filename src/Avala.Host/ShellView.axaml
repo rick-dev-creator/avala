@@ -88,7 +88,7 @@
     <Style Selector="Panel#InspectorPane.shown.floating" x:DataType="shell:IShellViewModel">
       <Setter Property="Width" Value="{Binding WindowWidth}" />
     </Style>
-    <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False]:not(.resizing), Panel#InspectorPane[(theme|Motion.IsReduced)=False], Border#InspectorSpace[(theme|Motion.IsReduced)=False]">
+    <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False]:not(.resizing), Panel#InspectorPane[(theme|Motion.IsReduced)=False]:not(.floating), Border#InspectorSpace[(theme|Motion.IsReduced)=False]">
       <Setter Property="Transitions">
         <Transitions>
           <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="0.22,1,0.36,1" />
@@ -164,7 +164,7 @@
              states:Resizer.Command="{Binding ResizeSidebarCommand}"
              states:Resizer.Committed="{Binding RememberSidebarCommand}"
              states:Resizer.Reset="{Binding ResetSidebarWidthCommand}">
-        <Panel Width="{Binding SidebarWidth}" HorizontalAlignment="Right">
+        <Panel x:Name="SidebarBody" Width="{Binding SidebarWidth}" HorizontalAlignment="Right" Background="Transparent">
           <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
           <DockPanel>
             <Grid x:Name="Titlebar"
@@ -251,6 +251,7 @@
       <Border x:Name="ContentPane"
               Grid.Column="1"
               Classes="window"
+              IsEnabled="{Binding !IsContentCovered}"
               theme:Reading.Follows="True"
               theme:Chrome.IsBare="{Binding !IsSidebarShown}"
               theme:Chrome.IsFocusMode="{Binding IsFocused}">

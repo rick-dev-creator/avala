@@ -219,6 +219,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             var sheet = (view.Find("InspectorPane").Bounds.Width, view.Shows("CloseInspector"), view.Find("ContentPane").Bounds.Width);
 
             Assert.Equal((400d, true, 400d), sheet);
+            Assert.False(view.Find("ContentPane").IsEnabled);
             Assert.True(shell.EscapeCommand.CanExecute(null));
         }, Cancellation);
 
@@ -251,9 +252,14 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             shell.ToggleSidebarCommand.Execute(null);
             view.Settle();
             var open = (view.Shows("SidebarPane"), view.Shows("DrawerScrim"), view.Find("ContentPane").Bounds.Width);
+            var covered = view.Find("ContentPane").IsEnabled;
+            var inside = view.Window.InputHitTest(new Avalonia.Point(view.Find("SidebarPane").Bounds.Width / 2, view.Window.Height / 2));
             view.Click("DrawerScrim");
 
             Assert.Equal((true, true, view.Window.Width), open);
+            Assert.True(view.Find("ContentPane").IsEnabled);
+            Assert.False(covered);
+            Assert.NotEqual("DrawerScrim", (inside as Avalonia.StyledElement)?.Name);
             Assert.Equal((false, false), (view.Shows("SidebarPane"), view.Shows("DrawerScrim")));
         }, Cancellation);
 

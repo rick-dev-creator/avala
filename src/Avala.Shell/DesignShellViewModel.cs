@@ -67,6 +67,8 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public double WindowWidth => 1440;
 
+    public bool IsContentCovered => false;
+
     public double SidebarMaxWidth => double.PositiveInfinity;
 
     public bool IsFocused => false;
