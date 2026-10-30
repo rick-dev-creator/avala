@@ -57,14 +57,14 @@ public sealed class StatusDotViewScripts(HeadlessUi ui)
             var core = view.Find<Ellipse>("Core");
             Assert.False(view.Shows("Pulse"));
             Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(core.Fill).Color);
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(core.Stroke).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(core.Stroke).Color);
         }, Cancellation);
 
     [Theory]
-    [InlineData("NeedsYou", "#E5A13A")]
-    [InlineData("Done", "#45454D")]
-    [InlineData("Failed", "#EF6461")]
-    [InlineData("Working", "#EDEDEF")]
+    [InlineData("NeedsYou", "#FFB547")]
+    [InlineData("Done", "#3A4148")]
+    [InlineData("Failed", "#FF5468")]
+    [InlineData("Working", "#E9E6DF")]
     public Task EveryFilledStateHasItsColorAsync(string state, string color) =>
         ui.RunAsync(() =>
         {

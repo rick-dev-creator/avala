@@ -38,6 +38,14 @@ internal static partial class ThemeVariants
             {
                 yield return $"{path}:{line} defines {key} for Light only; add its Dark value";
             }
+
+            foreach (var (named, keys) in variants.Where(variant => !Required.Contains(variant.Key)))
+            {
+                foreach (var key in keys.Except(dark).Except(light).Order(StringComparer.Ordinal))
+                {
+                    yield return $"{path}:{line} defines {key} for {named} only; every key of a named theme overrides one of Dark and Light";
+                }
+            }
         }
     }
 

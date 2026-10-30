@@ -108,8 +108,22 @@ public sealed class AppearanceTests(HeadlessUi ui, PublishedPlugins plugins)
     [InlineData(ThemeChoice.System, "Default")]
     [InlineData(ThemeChoice.Light, "Light")]
     [InlineData(ThemeChoice.Dark, "Dark")]
+    [InlineData(ThemeChoice.Tide, "Tide")]
+    [InlineData(ThemeChoice.Unit, "Unit")]
+    [InlineData(ThemeChoice.Ash, "Ash")]
+    [InlineData(ThemeChoice.Bloom, "Bloom")]
+    [InlineData(ThemeChoice.Signal, "Signal")]
     public void EachThemeChoiceRequestsItsVariant(ThemeChoice theme, string variant) =>
         Assert.Equal(variant, AppearanceApplier.Variant(theme).Key.ToString());
+
+    [Theory]
+    [InlineData(ThemeChoice.Tide, "Dark")]
+    [InlineData(ThemeChoice.Unit, "Dark")]
+    [InlineData(ThemeChoice.Ash, "Dark")]
+    [InlineData(ThemeChoice.Bloom, "Light")]
+    [InlineData(ThemeChoice.Signal, "Dark")]
+    public void ANamedThemeFallsBackToItsDarkOrLightBase(ThemeChoice theme, string basis) =>
+        Assert.Equal(basis, AppearanceApplier.Variant(theme).InheritVariant?.Key.ToString());
 
     [Fact]
     public Task AReducedMotionPreferenceReachesTheWindowAttachedLaterAsync() =>

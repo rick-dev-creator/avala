@@ -3,6 +3,8 @@
              xmlns:settings="using:Avala.Workbench.Settings"
              xmlns:appearance="using:Avala.Sdk.Appearance"
              xmlns:copying="using:Avala.Components.UI.Copying"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:styling="using:Avalonia.Styling"
              x:Class="Avala.Workbench.UI.AppearanceView"
              x:ClassModifier="internal"
              x:DataType="settings:IAppearanceViewModel">
@@ -22,34 +24,206 @@
     </Border>
     <Border Classes="grouped">
       <StackPanel>
-        <DockPanel Margin="16,12">
-          <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
-            <StackPanel Orientation="Horizontal">
+        <StackPanel Margin="16,12" Spacing="12">
+          <DockPanel>
+            <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
               <Button x:Name="FollowSystem"
                       Classes="segment"
                       Classes.selected="{Binding FollowsSystem}"
                       Content="System"
                       Command="{Binding ChooseThemeCommand}"
                       CommandParameter="{x:Static appearance:ThemeChoice.System}" />
-              <Button x:Name="ChooseLight"
-                      Classes="segment"
-                      Classes.selected="{Binding IsLight}"
-                      Content="Light"
-                      Command="{Binding ChooseThemeCommand}"
-                      CommandParameter="{x:Static appearance:ThemeChoice.Light}" />
-              <Button x:Name="ChooseDark"
-                      Classes="segment"
-                      Classes.selected="{Binding IsDark}"
-                      Content="Dark"
-                      Command="{Binding ChooseThemeCommand}"
-                      CommandParameter="{x:Static appearance:ThemeChoice.Dark}" />
+            </Border>
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Theme" />
+              <TextBlock Classes="caption" Text="System picks Night or Day from the operating system's dark or light mode." TextWrapping="Wrap" />
             </StackPanel>
-          </Border>
-          <StackPanel Spacing="2" VerticalAlignment="Center">
-            <TextBlock Text="Theme" />
-            <TextBlock Classes="caption" Text="System follows the operating system's light or dark mode." TextWrapping="Wrap" />
-          </StackPanel>
-        </DockPanel>
+          </DockPanel>
+          <WrapPanel x:Name="Themes" ItemSpacing="10" LineSpacing="10">
+            <Button x:Name="ChooseDark"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsDark}"
+                    AutomationProperties.Name="Night theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Dark}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static styling:ThemeVariant.Dark}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Night" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseLight"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsLight}"
+                    AutomationProperties.Name="Day theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Light}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static styling:ThemeVariant.Light}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Day" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseTide"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsTide}"
+                    AutomationProperties.Name="Tide theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Tide}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static theme:Themes.Tide}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Tide" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseUnit"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsUnit}"
+                    AutomationProperties.Name="Unit theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Unit}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static theme:Themes.Unit}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Unit" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseAsh"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsAsh}"
+                    AutomationProperties.Name="Ash theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Ash}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static theme:Themes.Ash}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Ash" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseBloom"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsBloom}"
+                    AutomationProperties.Name="Bloom theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Bloom}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static theme:Themes.Bloom}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Bloom" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ChooseSignal"
+                    Classes="swatch"
+                    Classes.selected="{Binding IsSignal}"
+                    AutomationProperties.Name="Signal theme"
+                    Command="{Binding ChooseThemeCommand}"
+                    CommandParameter="{x:Static appearance:ThemeChoice.Signal}">
+              <StackPanel Spacing="6">
+                <ThemeVariantScope RequestedThemeVariant="{x:Static theme:Themes.Signal}">
+                  <Border Classes="swatch-face">
+                    <Grid ColumnDefinitions="22,*" RowDefinitions="*,Auto">
+                      <Border Grid.RowSpan="2" Background="{DynamicResource SurfacePanelBrush}" />
+                      <StackPanel Grid.Column="1" Margin="8,8,8,0" Spacing="4">
+                        <Border Classes="swatch-line" Background="{DynamicResource TextPrimaryBrush}" Width="34" />
+                        <Border Classes="swatch-line" Background="{DynamicResource TextTertiaryBrush}" Width="24" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8" Spacing="4">
+                        <Border Classes="swatch-dot" Background="{DynamicResource AccentBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource SystemBrush}" />
+                        <Border Classes="swatch-dot" Background="{DynamicResource VerifiedBrush}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </ThemeVariantScope>
+                <TextBlock Classes="caption" Text="Signal" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </WrapPanel>
+        </StackPanel>
         <Border Classes="separator" Margin="16,0" />
         <DockPanel Margin="16,12">
           <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">

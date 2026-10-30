@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Xml.Linq;
 using Avala.Components.UI.Copying;
+using Avala.Components.UI.Theme;
 using Avala.Host.Composition;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
@@ -67,12 +68,17 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
     private static string BrandIcon => Path.Combine(Repository.Root.FullName, "docs", "assets", "brand", "avala.ico");
 
     [Theory]
-    [InlineData("Dark")]
-    [InlineData("Light")]
-    public Task TheShellDrawsEachThemeVariantWithLegibleTextAsync(string name) =>
+    [InlineData(ThemeChoice.Dark)]
+    [InlineData(ThemeChoice.Light)]
+    [InlineData(ThemeChoice.Tide)]
+    [InlineData(ThemeChoice.Unit)]
+    [InlineData(ThemeChoice.Ash)]
+    [InlineData(ThemeChoice.Bloom)]
+    [InlineData(ThemeChoice.Signal)]
+    public Task TheShellDrawsEachThemeVariantWithLegibleTextAsync(ThemeChoice theme) =>
         ui.RunAsync(() =>
         {
-            var variant = name == "Light" ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark;
+            var variant = Themes.Of(theme);
             var view = ViewScript.Present(new ShellView { RequestedThemeVariant = variant }, new DesignShellViewModel());
             var surface = Legibility.Resource("SurfaceWindowBrush", variant);
 

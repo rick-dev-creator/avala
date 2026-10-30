@@ -3,6 +3,8 @@
   <Styles.Resources>
     <FontFamily x:Key="InterfaceFont">fonts:Inter#Inter</FontFamily>
     <FontFamily x:Key="MonoFont">avares://Avala.Components.UI/Fonts#JetBrains Mono</FontFamily>
+    <FontFamily x:Key="HudFont">avares://Avala.Components.UI/Fonts#Chakra Petch</FontFamily>
+    <FontFamily x:Key="VoiceFont">avares://Avala.Components.UI/Fonts#Zen Old Mincho</FontFamily>
     <FontFamily x:Key="ContentControlThemeFontFamily">fonts:Inter#Inter</FontFamily>
   </Styles.Resources>
 
@@ -55,16 +57,31 @@
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
   </Style>
   <Style Selector="TextBlock.section">
+    <Setter Property="FontFamily" Value="{DynamicResource HudFont}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
     <Setter Property="LineHeight" Value="14" />
-    <Setter Property="FontWeight" Value="Medium" />
-    <Setter Property="LetterSpacing" Value="0.22" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.4" />
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
   </Style>
   <Style Selector="TextBlock.mono, SelectableTextBlock.mono">
     <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
     <Setter Property="LineHeight" Value="19" />
+  </Style>
+  <Style Selector="TextBlock.hud">
+    <Setter Property="FontFamily" Value="{DynamicResource HudFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.6" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.voice">
+    <Setter Property="FontFamily" Value="{DynamicResource VoiceFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeVoice}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="LineHeight" Value="26" />
+    <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
   <Style Selector="TextBlock.medium">
     <Setter Property="FontWeight" Value="Medium" />

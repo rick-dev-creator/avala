@@ -19,8 +19,8 @@ public sealed class MeterViewScripts(HeadlessUi ui)
             Assert.Equal("claude-work · 5h", view.TextOf("Label"));
             Assert.Equal("88% · resets 16:20", view.TextOf("Reading"));
             Assert.True(view.Shows("Tick"));
-            Assert.Equal(Color.Parse("#E5A13A"), Brush(view.Find<TextBlock>("Reading").Foreground));
-            Assert.Equal(Color.Parse("#E5A13A"), Brush(view.Find<ProgressBar>("Fill").Foreground));
+            Assert.Equal(Color.Parse("#FFB547"), Brush(view.Find<TextBlock>("Reading").Foreground));
+            Assert.Equal(Color.Parse("#FFB547"), Brush(view.Find<ProgressBar>("Fill").Foreground));
         }, Cancellation);
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class MeterViewScripts(HeadlessUi ui)
             var view = ViewScript.Show(meter);
 
             Assert.Equal("31%", view.TextOf("Reading"));
-            Assert.Equal(Color.Parse("#A3A3AD"), Brush(view.Find<ProgressBar>("Fill").Foreground));
+            Assert.Equal(Color.Parse("#9BA3AA"), Brush(view.Find<ProgressBar>("Fill").Foreground));
             Assert.Equal(0.31, view.Find<ProgressBar>("Fill").Value);
         }, Cancellation);
 
@@ -56,7 +56,7 @@ public sealed class MeterViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal("92% · resets 16:20", view.TextOf("Reading"));
-            Assert.Equal(Color.Parse("#E5A13A"), Brush(view.Find<TextBlock>("Reading").Foreground));
+            Assert.Equal(Color.Parse("#FFB547"), Brush(view.Find<TextBlock>("Reading").Foreground));
         }, Cancellation);
 
     private static Color Brush(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;

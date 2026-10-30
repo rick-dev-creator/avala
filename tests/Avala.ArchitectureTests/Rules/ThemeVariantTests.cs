@@ -60,4 +60,29 @@ public sealed class ThemeVariantTests
 
         Assert.Equal(["Theme.axaml:2 declares no Light variant; every theme dictionary has both Dark and Light"], ThemeVariants.Findings("Theme.axaml", document));
     }
+
+    [Fact]
+    public void ANamedThemeDefiningAKeyItsBasesLackIsFound()
+    {
+        var document = XDocument.Parse(
+            """
+            <ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+              <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                  <SolidColorBrush x:Key="SurfaceBrush" Color="#101114" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                  <SolidColorBrush x:Key="SurfaceBrush" Color="#FBFBFC" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="{x:Static theme:Themes.Tide}">
+                  <SolidColorBrush x:Key="SurfaceBrush" Color="#07141A" />
+                  <SolidColorBrush x:Key="TideOnlyBrush" Color="#3FF5E0" />
+                </ResourceDictionary>
+              </ResourceDictionary.ThemeDictionaries>
+            </ResourceDictionary>
+            """,
+            LoadOptions.SetLineInfo);
+
+        Assert.Equal(["Theme.axaml:2 defines TideOnlyBrush for {x:Static theme:Themes.Tide} only; every key of a named theme overrides one of Dark and Light"], ThemeVariants.Findings("Theme.axaml", document));
+    }
 }

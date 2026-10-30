@@ -9,6 +9,8 @@ namespace Avala.Workbench.Tests.Views;
 
 public sealed class AppearanceViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] ThemeButtons = ["FollowSystem", "ChooseDark", "ChooseLight", "ChooseTide", "ChooseUnit", "ChooseAsh", "ChooseBloom", "ChooseSignal"];
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     private static AppearanceViewModel Settings(FakeAppearance store) => new(store, new PersonalDetailsViewModel(store, InlineUiDispatcher.Instance));
@@ -40,6 +42,29 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
 
             Assert.Equal([new AppearancePreference(ThemeChoice.Light, MotionChoice.System), new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced)], store.Changes);
             Assert.Equal((false, true, true, false), (view.HasClass("FollowSystem", "selected"), view.HasClass("ChooseLight", "selected"), view.HasClass("ReduceMotion", "selected"), view.HasClass("MotionFollowSystem", "selected")));
+        }, Cancellation);
+
+    [Theory]
+    [InlineData("ChooseTide", ThemeChoice.Tide)]
+    [InlineData("ChooseUnit", ThemeChoice.Unit)]
+    [InlineData("ChooseAsh", ThemeChoice.Ash)]
+    [InlineData("ChooseBloom", ThemeChoice.Bloom)]
+    [InlineData("ChooseSignal", ThemeChoice.Signal)]
+    public Task ClickingANamedThemeChoosesItAndMarksOnlyItsSwatchAsync(string swatch, ThemeChoice theme) =>
+        ui.RunAsync(async () =>
+        {
+            var store = new FakeAppearance();
+            var appearance = Settings(store);
+            await appearance.LoadAsync(Cancellation);
+            var view = Screen.Show(appearance);
+
+            view.Click(swatch);
+            view.Settle();
+
+            Assert.Equal([new AppearancePreference(theme, MotionChoice.System)], store.Changes);
+            Assert.Equal(
+                [swatch],
+                ThemeButtons.Where(name => view.HasClass(name, "selected")));
         }, Cancellation);
 
     [Fact]

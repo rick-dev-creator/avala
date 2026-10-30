@@ -212,7 +212,7 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignConnectionCardViewModel());
 
             Assert.Equal(("claude-work", "Claude Code", "5h · 88%"), (view.TextOf("ConnectionName"), view.TextOf("Provider"), view.TextOf("Use")));
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);
             Assert.Equal(0.88 * 360, view.Find<Arc>("Ring").SweepAngle, 3);
             Assert.Equal(128, view.Find<Panel>("Hub").Bounds.Width, 1);
         }, TestContext.Current.CancellationToken);
@@ -277,7 +277,7 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignConnectionCardViewModel("pi-local", "Pi", Personal.Plain("local"), false, "no cost", [], [new DesignAgentViewModel()]));
 
             Assert.Equal(("no limit", 92d, 0d), (view.TextOf("Use"), view.Find<Panel>("Hub").Bounds.Width, view.Find<Arc>("Ring").SweepAngle));
-            Assert.Equal(Color.Parse("#A3A3AD"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);
+            Assert.Equal(Color.Parse("#9BA3AA"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);
         }, TestContext.Current.CancellationToken);
 }
 
@@ -504,7 +504,7 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignSubagentTreeViewModel().Branches[1]);
 
             Assert.Equal(("Codex", "waiting"), (view.TextOf("Harness"), view.TextOf("StateText")));
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("StateText").Foreground).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("StateText").Foreground).Color);
             Assert.True(view.HasClass("Card", "attention"));
         }, TestContext.Current.CancellationToken);
 

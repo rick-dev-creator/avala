@@ -16,6 +16,16 @@ internal interface IAppearanceViewModel
 
     bool IsDark { get; }
 
+    bool IsTide { get; }
+
+    bool IsUnit { get; }
+
+    bool IsAsh { get; }
+
+    bool IsBloom { get; }
+
+    bool IsSignal { get; }
+
     bool MotionFollowsSystem { get; }
 
     bool IsMotionReduced { get; }
@@ -47,7 +57,7 @@ internal interface IAppearanceViewModel
 internal sealed partial class AppearanceViewModel(IAppearance appearance, IPersonalDetailsViewModel personalDetails) : IAppearanceViewModel
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide), nameof(SendsWithCommandEnter))]
+    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(IsTide), nameof(IsUnit), nameof(IsAsh), nameof(IsBloom), nameof(IsSignal), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide), nameof(SendsWithCommandEnter))]
     public partial AppearancePreference Preference { get; private set; } = AppearancePreference.Default;
 
     [ObservableProperty]
@@ -61,6 +71,16 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance, IPerso
     public bool IsLight => Preference.Theme == ThemeChoice.Light;
 
     public bool IsDark => Preference.Theme == ThemeChoice.Dark;
+
+    public bool IsTide => Preference.Theme == ThemeChoice.Tide;
+
+    public bool IsUnit => Preference.Theme == ThemeChoice.Unit;
+
+    public bool IsAsh => Preference.Theme == ThemeChoice.Ash;
+
+    public bool IsBloom => Preference.Theme == ThemeChoice.Bloom;
+
+    public bool IsSignal => Preference.Theme == ThemeChoice.Signal;
 
     public bool MotionFollowsSystem => Preference.Motion == MotionChoice.System;
 

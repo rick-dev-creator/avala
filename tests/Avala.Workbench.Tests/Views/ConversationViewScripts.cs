@@ -494,7 +494,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal("The job is not running.", view.TextOf("Error"));
-            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
+            Assert.Equal(Color.Parse("#FF5468"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
         }, Cancellation);
 
     [Fact]
@@ -822,7 +822,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
             var view = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.Command, "npm test", "FAIL", ItemOutcome.Failed)));
 
             Assert.Equal("failed", view.TextOf("Outcome"));
-            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Outcome").Foreground).Color);
+            Assert.Equal(Color.Parse("#FF5468"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Outcome").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -1026,7 +1026,7 @@ public sealed class TurnEndViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new TurnEndViewModel(new TurnEndEntry("t", TurnOutcome.Failed, TimeSpan.FromSeconds(9), default, [])));
 
-            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Summary").Foreground).Color);
+            Assert.Equal(Color.Parse("#FF5468"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Summary").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 }
 

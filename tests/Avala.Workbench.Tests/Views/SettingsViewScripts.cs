@@ -528,7 +528,7 @@ public sealed class RuleFileViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignRuleFileViewModel(".avala/checks.json", "Rejected: Malformed", "70d2e11", false, "no checks"));
 
-            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Status").Foreground).Color);
+            Assert.Equal(Color.Parse("#FF5468"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Status").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
     [Theory]
@@ -565,7 +565,7 @@ public sealed class RuleFileEditorViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignRuleFileEditorViewModel { Error = "Not saved: jobs would reject .avala/budget.json (InvalidThreshold). Fix it and save again." });
 
             Assert.True(view.Shows("Error"));
-            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
+            Assert.Equal(Color.Parse("#FF5468"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 }
 
@@ -588,7 +588,7 @@ public sealed class RuleViewScripts(HeadlessUi ui)
             var denied = Assert.IsAssignableFrom<ISolidColorBrush>(deny.Find<TextBlock>("Answer").Foreground).Color;
             var ask = Screen.Show(new DesignRuleViewModel(2, "migrations", "Repository", "FileEdit", "migrations/**", PolicyAnswer.Ask));
 
-            Assert.Equal((Color.Parse("#EF6461"), Color.Parse("#E5A13A")), (denied, Assert.IsAssignableFrom<ISolidColorBrush>(ask.Find<TextBlock>("Answer").Foreground).Color));
+            Assert.Equal((Color.Parse("#FF5468"), Color.Parse("#FFB547")), (denied, Assert.IsAssignableFrom<ISolidColorBrush>(ask.Find<TextBlock>("Answer").Foreground).Color));
         }, TestContext.Current.CancellationToken);
 }
 

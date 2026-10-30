@@ -1,3 +1,5 @@
+using Avala.Components.UI.Theme;
+using Avala.Sdk.Appearance;
 using Avala.Testing.UI;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -8,11 +10,11 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
 {
     private static readonly string[] Surfaces = ["SurfaceWindowBrush", "SurfacePanelBrush", "SurfaceFloatBrush", "SurfaceCanvasBrush"];
 
-    private static ThemeVariant Variant(string name) => name == "Light" ? ThemeVariant.Light : ThemeVariant.Dark;
+    private static ThemeVariant Variant(string name) => Themes.Of(Enum.Parse<ThemeChoice>(name));
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public static TheoryData<string> Variants => ["Dark", "Light"];
+    public static TheoryData<string> Variants => ["Dark", "Light", "Tide", "Unit", "Ash", "Bloom", "Signal"];
 
     [Fact]
     public void ContrastMatchesTheWcagReferenceValues()
@@ -29,7 +31,7 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
     public Task EveryTextLevelIsLegibleOnEverySurfaceAsync(string name) =>
         ui.RunAsync(() =>
         {
-            var variant = name == "Light" ? ThemeVariant.Light : ThemeVariant.Dark;
+            var variant = Variant(name);
 
             foreach (var surface in Surfaces.Select(key => Legibility.Resource(key, variant)))
             {

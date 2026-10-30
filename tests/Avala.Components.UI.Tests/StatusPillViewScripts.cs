@@ -20,11 +20,11 @@ public sealed class StatusPillViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Theory]
-    [InlineData("NeedsYou", "#E5A13A")]
-    [InlineData("Held", "#E5A13A")]
-    [InlineData("Failed", "#EF6461")]
-    [InlineData("Working", "#A3A3AD")]
-    [InlineData("ReadyForReview", "#A3A3AD")]
+    [InlineData("NeedsYou", "#FFB547")]
+    [InlineData("Held", "#FFB547")]
+    [InlineData("Failed", "#FF5468")]
+    [InlineData("Working", "#9BA3AA")]
+    [InlineData("ReadyForReview", "#9BA3AA")]
     public Task OnlyAttentionAndFailureTintThePillAsync(string state, string color) =>
         ui.RunAsync(() =>
         {
@@ -47,6 +47,6 @@ public sealed class StatusPillViewScripts(HeadlessUi ui)
 
             Assert.Equal("Held · stalled", view.TextOf("Label"));
             Assert.False(view.Shows("Pulse"));
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Label").Foreground).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Label").Foreground).Color);
         }, Cancellation);
 }

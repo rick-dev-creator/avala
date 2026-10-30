@@ -625,7 +625,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.CheckoutSplit, "Paginate audit log export", JobStatus.Approved, "merged", Components.Status.StatusKind.Done, 0));
 
             Assert.False(view.Shows("Fact"));
-            Assert.Equal(Avalonia.Media.Color.Parse("#80808A"), Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(view.Find<TextBlock>("Title").Foreground).Color);
+            Assert.Equal(Avalonia.Media.Color.Parse("#7A838B"), Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(view.Find<TextBlock>("Title").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

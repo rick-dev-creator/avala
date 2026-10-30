@@ -38,6 +38,24 @@ public sealed class AppearanceFileTests
         Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"readingWidth\": \"comfortable\",\n  \"send\": \"commandEnter\",\n  \"hidePersonalDetails\": false\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
+    [Theory]
+    [InlineData(ThemeChoice.Tide, "tide")]
+    [InlineData(ThemeChoice.Unit, "unit")]
+    [InlineData(ThemeChoice.Ash, "ash")]
+    [InlineData(ThemeChoice.Bloom, "bloom")]
+    [InlineData(ThemeChoice.Signal, "signal")]
+    public async Task ANamedThemeIsWrittenByItsNameAndReadBackAsync(ThemeChoice theme, string name)
+    {
+        await using var data = new TemporaryFolder();
+        await using var file = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
+
+        await file.ChangeAsync(new AppearancePreference(theme, MotionChoice.System), Cancellation);
+        await using var restarted = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
+
+        Assert.Contains($"\"theme\": \"{name}\"", await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation), StringComparison.Ordinal);
+        Assert.Equal(theme, (await restarted.ReadAsync(Cancellation)).Preference.Theme);
+    }
+
     [Fact]
     public async Task StartingPublishesTheAppearanceReadFromTheFileAsync()
     {

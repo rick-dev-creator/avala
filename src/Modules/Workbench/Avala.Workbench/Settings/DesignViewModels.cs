@@ -454,6 +454,16 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
 
     public bool IsDark => false;
 
+    public bool IsTide => false;
+
+    public bool IsUnit => false;
+
+    public bool IsAsh => false;
+
+    public bool IsBloom => false;
+
+    public bool IsSignal => false;
+
     public bool MotionFollowsSystem => true;
 
     public bool IsMotionReduced => false;

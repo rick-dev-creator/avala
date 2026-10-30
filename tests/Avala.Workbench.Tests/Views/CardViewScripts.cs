@@ -23,7 +23,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignPermissionCardViewModel());
 
             Assert.Equal(("Wants to run a command", "pnpm add -D @testing-library/user-event@14.5.2"), (view.TextOf("Headline"), view.Find<SelectableTextBlock>("Target").Text));
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Headline").Foreground).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Headline").Foreground).Color);
             Assert.Equal("JetBrains Mono", view.Find<SelectableTextBlock>("Target").FontFamily.FamilyNames[0]);
             Assert.True(view.Shows("Allow") && view.Shows("Deny") && view.Shows("Once") && view.Shows("Always") && view.Shows("Everything"));
             Assert.Equal((false, false), (view.Shows("Resolved"), view.Shows("Error")));
@@ -287,7 +287,7 @@ public sealed class FormChoiceViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignFormChoiceViewModel());
 
             Assert.Equal(("Render on each request", true, true), (view.TextOf("Label"), view.Shows("Recommended"), view.Find<ToggleButton>("Choice").IsChecked == true));
-            Assert.Equal(Color.Parse("#8DA2FB"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Avalonia.Controls.Shapes.Ellipse>("Radio").Stroke).Color);
+            Assert.Equal(Color.Parse("#FF3B55"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Avalonia.Controls.Shapes.Ellipse>("Radio").Stroke).Color);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
