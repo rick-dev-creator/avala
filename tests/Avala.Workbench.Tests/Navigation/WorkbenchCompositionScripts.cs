@@ -47,6 +47,20 @@ public sealed class WorkbenchCompositionScripts : IDisposable
     }
 
     [Fact]
+    public async Task AnInspectorDismissedFromTheWindowClosesTheJobsInspector()
+    {
+        var job = InspectedJobs.Reviewed(bench);
+        bench.Publish(Bench.OnBoard(job));
+        await ActivateAsync();
+        await bench.Ui.InvokeAsync(() => page.ToggleInspectorCommand.Execute(null), Cancellation);
+        var open = await bench.Ui.ReadAsync(() => page.IsInspectorOpen);
+
+        await bench.Ui.InvokeAsync(() => ((CommunityToolkit.Mvvm.Messaging.IRecipient<Avala.Sdk.Presentation.RegionDismissed>)page).Receive(new Avala.Sdk.Presentation.RegionDismissed(Avala.Sdk.Regions.ShellRegions.Inspector)), Cancellation);
+
+        Assert.Equal((true, false), (open, await bench.Ui.ReadAsync(() => page.IsInspectorOpen)));
+    }
+
+    [Fact]
     public async Task UsageRecordedForTheInspectedJobShowsInTheInspectorWhileTheSidebarKeepsItsRow()
     {
         var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);

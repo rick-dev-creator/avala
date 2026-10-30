@@ -77,17 +77,17 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task BesideAnOpenInspectorAtTheNarrowestWindowTheHeaderKeepsTheJobsStatusInSightAsync()
+    public async Task AtTheNarrowestWindowTheHeaderKeepsTheJobsStatusInSightAsync()
     {
-        var (status, header, title, _) = await NarrowestHeaderAsync("98-header-status-720-inspector");
+        var (status, header, title, _) = await NarrowestHeaderAsync("98-header-status-360");
 
         Assert.True(status.Width > 0 && status.Right <= header.Width && status.Bottom <= header.Height && !status.Intersects(title), $"the status is drawn at {status} beside a title at {title} in a header {header}");
     }
 
     [Fact]
-    public async Task BesideAnOpenInspectorAtTheNarrowestWindowALongTitleTakesASecondLineAndOffersItselfWholeAsync()
+    public async Task AtTheNarrowestWindowALongTitleTakesASecondLineAndOffersItselfWholeAsync()
     {
-        var (_, _, _, title) = await NarrowestHeaderAsync("98-header-title-720-inspector");
+        var (_, _, _, title) = await NarrowestHeaderAsync("98-header-title-360");
 
         Assert.Equal((2, true), (title.Lines, title.Tip is string tip && tip == title.Text && Title.StartsWith(tip.TrimEnd('…'), StringComparison.Ordinal)));
     }
@@ -104,7 +104,7 @@ public sealed class JobHeaderTests(HeadlessUi ui, PublishedPlugins plugins)
 
         await FeatureCamera.InWindowAsync(ui, run, ThemeVariant.Dark, async (window, drain) =>
         {
-            window.Width = 720;
+            window.Width = 360;
             window.Height = 480;
             await FeatureCamera.SettleAsync(window, drain);
             var header = window.GetVisualDescendants().OfType<Border>().First(border => border.Name == "Header" && border.GetVisualAncestors().Any(parent => parent.GetType().Name == "WorkbenchView"));

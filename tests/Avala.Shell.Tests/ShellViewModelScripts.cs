@@ -206,6 +206,19 @@ public sealed class ShellViewModelScripts
     }
 
     [Fact]
+    public void ClosingTheFloatingInspectorTellsWhoeverOwnsItOverTheMessenger()
+    {
+        var services = new ServiceCollection().AddShell().AddSingleton<IWindowLayout>(new RememberedLayout()).BuildServiceProvider();
+        var shell = services.GetRequiredService<ShellViewModel>();
+        var dismissed = new List<RegionDismissed>();
+        services.GetRequiredService<IMessenger>().Register<List<RegionDismissed>, RegionDismissed>(dismissed, (list, message) => list.Add(message));
+
+        shell.DismissInspectorCommand.Execute(null);
+
+        Assert.Equal([new RegionDismissed(ShellRegions.Inspector)], dismissed);
+    }
+
+    [Fact]
     public void AHiddenPageStaysOutOfTheNavigationButCanStillBeShown()
     {
         var jobs = new HiddenPage("Jobs");
@@ -312,6 +325,17 @@ public sealed class ShellViewModelScripts
             .Then(narrow => Assert.False(narrow.IsSidebarShown))
             .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth)
             .Then(wide => Assert.True(wide.IsSidebarShown));
+
+    [Fact]
+    public void BelowTheWideWidthTheInspectorFloatsAndANarrowWindowOpensTheSidebarAsADrawer() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.WideWidth)
+            .Then(wide => Assert.Equal((false, false), (wide.IsInspectorFloating, wide.IsDrawerOpen)))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.WideWidth - 1)
+            .Then(medium => Assert.Equal((true, false), (medium.IsInspectorFloating, medium.IsDrawerOpen)))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 1)
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Then(narrow => Assert.Equal((true, true), (narrow.IsInspectorFloating, narrow.IsDrawerOpen)));
 
     [Fact]
     public void AWiderWindowKeepsTheSidebarThePersonCollapsedHidden() =>

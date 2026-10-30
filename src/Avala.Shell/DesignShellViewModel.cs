@@ -53,6 +53,16 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public bool IsSidebarShown => true;
 
+    public bool IsNarrow => false;
+
+    public bool IsDrawerOpen => false;
+
+    public bool IsInspectorFloating => false;
+
+    public bool IsInspectorDocked => IsInspectorShown;
+
+    public IRelayCommand DismissInspectorCommand { get; } = new RelayCommand(() => { });
+
     public bool IsFocused => false;
 
     public double SidebarWidth => WindowLayout.DefaultSidebarWidth;

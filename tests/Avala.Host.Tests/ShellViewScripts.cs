@@ -193,6 +193,65 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
+    public Task AWideWindowKeepsTheInspectorBesideTheConversationAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+
+            view.Window.Width = ShellViewModel.WideWidth + 160;
+            view.Settle();
+
+            Assert.Equal(view.Window.Width, view.Find("InspectorPane").Bounds.Right, 1);
+            Assert.Equal(view.Window.Width - view.Find("SidebarPane").Bounds.Width - view.Find("InspectorPane").Bounds.Width, view.Find("ContentPane").Bounds.Width, 1);
+            Assert.False(view.Shows("CloseInspector"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AMediumWindowFloatsTheInspectorOverTheConversationAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+
+            view.Window.Width = ShellViewModel.WideWidth - 180;
+            view.Settle();
+
+            Assert.Equal((true, true), (view.Shows("InspectorPane"), view.Shows("CloseInspector")));
+            Assert.Equal(view.Window.Width - view.Find("SidebarPane").Bounds.Width, view.Find("ContentPane").Bounds.Width, 1);
+            Assert.Equal(view.Window.Width, view.Find("InspectorPane").Bounds.Right, 1);
+        }, Cancellation);
+
+    [Fact]
+    public Task ANarrowWindowOpensTheSidebarAsADrawerOverTheConversationThatItsScrimClosesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, shell) = Composed();
+            view.Window.Width = ShellViewModel.NarrowWidth - 200;
+            view.Settle();
+
+            shell.ToggleSidebarCommand.Execute(null);
+            view.Settle();
+            var open = (view.Shows("SidebarPane"), view.Shows("DrawerScrim"), view.Find("ContentPane").Bounds.Width);
+            view.Click("DrawerScrim");
+
+            Assert.Equal((true, true, view.Window.Width), open);
+            Assert.Equal((false, false), (view.Shows("SidebarPane"), view.Shows("DrawerScrim")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheWindowNarrowsToAPhonesWidthAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+
+            view.Window.Width = 360;
+            view.Settle();
+
+            Assert.Equal((360d, 360d), (view.Window.MinWidth, view.Find("ContentPane").Bounds.Width));
+        }, Cancellation);
+
+    [Fact]
     public Task FocusModeLeavesOnlyTheContentWithAHintUntilCommandShiftFIsPressedAgainAsync() =>
         ui.RunAsync(async () =>
         {

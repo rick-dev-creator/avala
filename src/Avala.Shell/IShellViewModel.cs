@@ -32,6 +32,16 @@ internal interface IShellViewModel
 
     bool IsSidebarShown { get; }
 
+    bool IsNarrow { get; }
+
+    bool IsDrawerOpen { get; }
+
+    bool IsInspectorFloating { get; }
+
+    bool IsInspectorDocked { get; }
+
+    IRelayCommand DismissInspectorCommand { get; }
+
     bool IsFocused { get; }
 
     double SidebarWidth { get; }

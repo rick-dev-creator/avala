@@ -26,7 +26,9 @@ public static class ShellServices
     private static ShellViewModel Listening(IServiceProvider provider)
     {
         var shell = ActivatorUtilities.CreateInstance<ShellViewModel>(provider);
-        provider.GetRequiredService<IMessenger>().Register<PageRequested>(shell);
+        var messenger = provider.GetRequiredService<IMessenger>();
+        messenger.Register<PageRequested>(shell);
+        shell.InspectorDismissed += (_, dismissed) => messenger.Send(dismissed);
 
         return shell;
     }

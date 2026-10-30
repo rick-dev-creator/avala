@@ -13,7 +13,7 @@
         Icon="avares://Avala.Host/Assets/avala.ico"
         Width="1440"
         Height="900"
-        MinWidth="720"
+        MinWidth="360"
         MinHeight="480"
         Background="Transparent"
         TransparencyLevelHint="Mica, AcrylicBlur, None">
@@ -52,6 +52,17 @@
       <Setter Property="IsHitTestVisible" Value="True" />
       <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue" />
     </Style>
+    <Style Selector="Panel#SidebarPane.drawer">
+      <Setter Property="Grid.ColumnSpan" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="ZIndex" Value="2" />
+    </Style>
+    <Style Selector="Border#InspectorSpace">
+      <Setter Property="Width" Value="0" />
+    </Style>
+    <Style Selector="Border#InspectorSpace.docked">
+      <Setter Property="Width" Value="{DynamicResource InspectorWidth}" />
+    </Style>
     <Style Selector="Panel#InspectorPane">
       <Setter Property="Width" Value="0" />
       <Setter Property="IsHitTestVisible" Value="False" />
@@ -62,7 +73,7 @@
       <Setter Property="IsHitTestVisible" Value="True" />
       <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue" />
     </Style>
-    <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False]:not(.resizing), Panel#InspectorPane[(theme|Motion.IsReduced)=False]">
+    <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False]:not(.resizing), Panel#InspectorPane[(theme|Motion.IsReduced)=False], Border#InspectorSpace[(theme|Motion.IsReduced)=False]">
       <Setter Property="Transitions">
         <Transitions>
           <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="0.22,1,0.36,1" />
@@ -122,9 +133,17 @@
   </Window.Styles>
   <Panel states:Widths.Report="{Binding FitCommand}">
     <Grid ColumnDefinitions="Auto,*,Auto">
+      <Button x:Name="DrawerScrim"
+              Grid.ColumnSpan="3"
+              Classes="scrim"
+              ZIndex="1"
+              IsVisible="{Binding IsDrawerOpen}"
+              Command="{Binding ToggleSidebarCommand}"
+              AutomationProperties.Name="Close the sidebar" />
       <Panel x:Name="SidebarPane"
              ClipToBounds="True"
              Classes.shown="{Binding IsSidebarShown}"
+             Classes.drawer="{Binding IsNarrow}"
              IsVisible="{Binding HasSidebar}"
              states:Resizer.Command="{Binding ResizeSidebarCommand}"
              states:Resizer.Committed="{Binding RememberSidebarCommand}"
@@ -235,28 +254,40 @@
         </Panel>
       </Border>
 
-      <Panel x:Name="InspectorPane"
-             Grid.Column="2"
-             ClipToBounds="True"
-             Classes.shown="{Binding IsInspectorShown}">
-        <Panel Width="{DynamicResource InspectorWidth}" HorizontalAlignment="Left">
-          <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
-          <Border Classes="edge" HorizontalAlignment="Left" />
-          <ScrollViewer>
-            <StackPanel Margin="14,16" Spacing="6">
-              <TextBlock Classes="section" Margin="10,2,10,8" Text="Inspector" />
-              <ItemsControl x:Name="InspectorRegion" ItemsSource="{Binding Inspector.Items}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <StackPanel Spacing="6" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-              </ItemsControl>
-            </StackPanel>
-          </ScrollViewer>
-        </Panel>
-      </Panel>
+      <Border x:Name="InspectorSpace" Grid.Column="2" Classes.docked="{Binding IsInspectorDocked}" />
     </Grid>
+    <Panel x:Name="InspectorPane"
+           HorizontalAlignment="Right"
+           ClipToBounds="True"
+           Classes.shown="{Binding IsInspectorShown}"
+           Classes.floating="{Binding IsInspectorFloating}">
+      <Panel Width="{DynamicResource InspectorWidth}" HorizontalAlignment="Left">
+        <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
+        <Border Classes="edge" HorizontalAlignment="Left" />
+        <ScrollViewer>
+          <StackPanel Margin="14,16" Spacing="6">
+            <DockPanel Margin="10,2,4,8">
+              <Button x:Name="CloseInspector"
+                      DockPanel.Dock="Right"
+                      Classes="glyph"
+                      IsVisible="{Binding IsInspectorFloating}"
+                      Command="{Binding DismissInspectorCommand}"
+                      AutomationProperties.Name="Close the inspector">
+                <Path Classes="icon" Data="{StaticResource IconCross}" />
+              </Button>
+              <TextBlock Classes="section" Text="Inspector" VerticalAlignment="Center" />
+            </DockPanel>
+            <ItemsControl x:Name="InspectorRegion" ItemsSource="{Binding Inspector.Items}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Panel>
+    </Panel>
     <StackPanel x:Name="WindowControls"
                 IsVisible="{Binding !IsFocused}"
                 Orientation="Horizontal"
