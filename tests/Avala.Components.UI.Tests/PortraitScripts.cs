@@ -21,7 +21,7 @@ public sealed class PortraitScripts(HeadlessUi ui)
             Assert.Equal(
                 (false, false, true, false),
                 (portrait.Classes.Contains(":focused"), portrait.Classes.Contains(":asking"), portrait.Classes.Contains(":worried"), portrait.Classes.Contains(":pleased")));
-            Assert.True(view.Shows("Silhouette"));
+            Assert.True(view.Shows("Face"));
         }, Cancellation);
 
     [Fact]
@@ -51,19 +51,22 @@ public sealed class PortraitScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task EachMoodHasItsOwnFaceAsync() =>
+    public Task EachMoodShowsItsOwnPictureAsync() =>
         ui.RunAsync(() =>
         {
             var portrait = new Portrait();
             var view = ViewScript.Show(portrait, new object());
-            var faces = Enum.GetValues<Mood>().Select(mood =>
+            var shown = Enum.GetValues<Mood>().Select(mood =>
             {
                 portrait.Mood = mood;
                 view.Settle();
-                return (view.Find<Avalonia.Controls.Shapes.Path>("Eyes").Data!.Bounds, view.Find<Avalonia.Controls.Shapes.Path>("Mouth").Data!.Bounds);
+                return (Mood: mood, Shown: view.Find<Image>("Face").Source, Picture: portrait.Picture);
             }).ToList();
 
-            Assert.Equal(faces.Count, faces.Distinct().Count());
+            Assert.All(shown, face => Assert.Same(face.Picture, face.Shown));
+            Assert.Equal(shown.Count, shown.Select(face => face.Shown).Distinct().Count());
+            Assert.All(Enum.GetValues<Mood>(), mood => Assert.True(Avalonia.Platform.AssetLoader.Exists(Portrait.PictureOf(mood)), $"{mood} has no picture"));
+            Assert.Equal(["asking.png", "focused.png", "pleased.png", "worried.png"], Enum.GetValues<Mood>().Select(mood => Portrait.PictureOf(mood).Segments[^1]).Order());
         }, Cancellation);
 
     [Fact]
