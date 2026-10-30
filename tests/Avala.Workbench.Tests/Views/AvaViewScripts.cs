@@ -3,16 +3,18 @@ using Avala.Components.Status;
 using Avala.Components.UI.Theme;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
-using Avala.Testing.UI;
 using Avala.Testing;
+using Avala.Testing.UI;
 using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
-using Avalonia;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -246,5 +248,49 @@ public sealed class AvaViewScripts(HeadlessUi ui)
             view.Elapse(TimeSpan.FromSeconds(2));
 
             Assert.Equal(("done", true), (ava.Moment, ava.IsOpen));
+        }, Cancellation);
+
+    private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript, ViewScript View) AtTheLiveEdge()
+    {
+        var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.Running).Summary;
+        var conversation = new Conversations(Composing.Of(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs(), Avala.Workbench.Tests.Composing.Drafts(), new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger())), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
+        var transcript = Transcript.Empty.WithPrompts(
+            summary.Instruction,
+            [.. Enumerable.Range(1, 20).Select(number => new AttemptRecord(number, number == 1 ? AttemptOrigin.Initial : AttemptOrigin.Hint, AttemptOutcome.Passed, "Keep going with the next currency", Option<SessionId>.None))]);
+        conversation.Show(new BoardJob(summary, transcript));
+        var view = Screen.Show(conversation);
+        view.Window.Width = 900;
+        view.Settle();
+
+        return (conversation, summary, transcript, view);
+    }
+
+    private static Point Over(ViewScript view, Control control) =>
+        control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), view.Window) ?? default;
+
+    [Fact]
+    public Task ClickingIntoTheComposerAsTheTurnEndsKeepsAvaOpenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript, view) = AtTheLiveEdge();
+
+            view.Click(view.Find<TextBox>("Draft"));
+            conversation.Show(new BoardJob(summary with { Status = JobStatus.AwaitingReview }, transcript));
+            view.Settle();
+
+            Assert.Equal((StatusKind.ReadyForReview, true), (conversation.Pill.Kind, conversation.Ava.IsOpen));
+        }, Cancellation);
+
+    [Fact]
+    public Task WheelingOnAsTheTurnEndsKeepsAvaOpenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript, view) = AtTheLiveEdge();
+
+            view.Window.MouseWheel(Over(view, view.Find("Scroller")), new Vector(0, -1));
+            conversation.Show(new BoardJob(summary with { Status = JobStatus.AwaitingReview }, transcript));
+            view.Settle();
+
+            Assert.Equal((StatusKind.ReadyForReview, true), (conversation.Pill.Kind, conversation.Ava.IsOpen));
         }, Cancellation);
 }

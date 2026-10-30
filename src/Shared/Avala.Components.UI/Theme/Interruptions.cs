@@ -1,8 +1,10 @@
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 namespace Avala.Components.UI.Theme;
 
@@ -38,32 +40,57 @@ public sealed class Interruptions
     private static void Watch(Control control)
     {
         control.RemoveHandler(InputElement.TextInputEvent, Typed);
-        control.RemoveHandler(InputElement.PointerWheelChangedEvent, Reached);
-        control.RemoveHandler(InputElement.PointerPressedEvent, Reached);
+        control.RemoveHandler(InputElement.PointerWheelChangedEvent, Wheeled);
+        control.RemoveHandler(InputElement.PointerPressedEvent, Grabbed);
         control.RemoveHandler(InputElement.PointerMovedEvent, Dragged);
         control.RemoveHandler(InputElement.KeyDownEvent, Pressed);
-        control.RemoveHandler(InputElement.ScrollGestureEvent, Reached);
+        control.RemoveHandler(InputElement.ScrollGestureEvent, Swiped);
         control.RemoveHandler(ScrollViewer.ScrollChangedEvent, Scrolled);
         control.AddHandler(InputElement.TextInputEvent, Typed, RoutingStrategies.Tunnel, handledEventsToo: true);
-        control.AddHandler(InputElement.PointerWheelChangedEvent, Reached, RoutingStrategies.Tunnel, handledEventsToo: true);
-        control.AddHandler(InputElement.PointerPressedEvent, Reached, RoutingStrategies.Tunnel, handledEventsToo: true);
+        control.AddHandler(InputElement.PointerWheelChangedEvent, Wheeled, RoutingStrategies.Tunnel, handledEventsToo: true);
+        control.AddHandler(InputElement.PointerPressedEvent, Grabbed, RoutingStrategies.Tunnel, handledEventsToo: true);
         control.AddHandler(InputElement.PointerMovedEvent, Dragged, RoutingStrategies.Tunnel, handledEventsToo: true);
         control.AddHandler(InputElement.KeyDownEvent, Pressed, RoutingStrategies.Tunnel, handledEventsToo: true);
-        control.AddHandler(InputElement.ScrollGestureEvent, Reached, RoutingStrategies.Bubble, handledEventsToo: true);
+        control.AddHandler(InputElement.ScrollGestureEvent, Swiped, RoutingStrategies.Bubble, handledEventsToo: true);
         control.AddHandler(ScrollViewer.ScrollChangedEvent, Scrolled, RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     private static void Typed(object? sender, TextInputEventArgs e) => Interrupt(sender);
 
-    private static void Reached(object? sender, RoutedEventArgs e) => Arm(sender);
-
-    private static void Dragged(object? sender, PointerEventArgs e)
+    private static void Wheeled(object? sender, PointerWheelEventArgs e)
     {
-        if (sender is Visual visual && e.GetCurrentPoint(visual).Properties.IsLeftButtonPressed)
+        if (e.Delta.Y > 0)
         {
             Arm(sender);
         }
     }
+
+    private static void Swiped(object? sender, ScrollGestureEventArgs e)
+    {
+        if (e.Delta.Y < 0)
+        {
+            Arm(sender);
+        }
+    }
+
+    private static void Grabbed(object? sender, PointerPressedEventArgs e)
+    {
+        if (OnScrollBar(e))
+        {
+            Arm(sender);
+        }
+    }
+
+    private static void Dragged(object? sender, PointerEventArgs e)
+    {
+        if (sender is Visual visual && e.GetCurrentPoint(visual).Properties.IsLeftButtonPressed && OnScrollBar(e))
+        {
+            Arm(sender);
+        }
+    }
+
+    private static bool OnScrollBar(RoutedEventArgs e) =>
+        e.Source is Visual source && (source is ScrollBar || source.FindAncestorOfType<ScrollBar>() is not null);
 
     private static void Pressed(object? sender, KeyEventArgs e)
     {
