@@ -34,7 +34,11 @@ public sealed class Arrivals
         list.ItemsView.CollectionChanged += (_, change) => Note(arrived, change);
         list.ContainerPrepared += (_, prepared) =>
         {
-            if (prepared.Container.DataContext is not { } item || !arrived.Remove(item))
+            if (prepared.Container.DataContext is { } item && arrived.Remove(item))
+            {
+                Motion.Release(prepared.Container);
+            }
+            else
             {
                 Motion.Settle(prepared.Container);
             }

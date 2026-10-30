@@ -17,7 +17,7 @@
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
     </Style>
     <Style Selector="ProgressBar#Fill">
-      <Setter Property="Height" Value="4" />
+      <Setter Property="Height" Value="5" />
       <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
@@ -58,7 +58,7 @@
                  FontSize="{DynamicResource FontSizeCaption}" />
     </Grid>
     <Panel>
-      <ProgressBar x:Name="Fill" Value="{Binding Fraction}" />
+      <ProgressBar x:Name="Fill" Classes="segmented" Value="{Binding Fraction}" />
       <ProgressBar x:Name="Tick"
                    Value="{Binding Threshold}"
                    IsVisible="{Binding HasThreshold}" />

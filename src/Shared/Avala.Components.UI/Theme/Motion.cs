@@ -23,6 +23,9 @@ public enum MotionEntrance
     Draw,
     Linger,
     Ping,
+    Boot,
+    Glitch,
+    Close,
 }
 
 public enum MotionLoop
@@ -118,7 +121,19 @@ public sealed class Motion
         }
     }
 
-    private static bool IsSettling(Visual visual)
+    internal static void Withhold(Visual container) => container.SetValue(SettlesProperty, true);
+
+    internal static void Release(Visual container)
+    {
+        container.ClearValue(SettlesProperty);
+
+        foreach (var watched in container.GetSelfAndVisualDescendants().Where(visual => visual.GetValue(IsWatchedProperty)))
+        {
+            Refresh(watched);
+        }
+    }
+
+    internal static bool IsSettling(Visual visual)
     {
         for (var current = visual; current is not null; current = current.GetVisualParent())
         {

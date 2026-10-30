@@ -23,7 +23,7 @@ internal static class MotionCatalog
 
     private static readonly Move ArriveGentle = Enter(0.42, Gentle, Frame(0, [X(24), Opacity(0)]), Frame(1, [X(0), Opacity(1)]));
 
-    private static readonly Move SheetIn = Enter(0.42, Gentle, Frame(0, [Y(16), .. Scale(0.985), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)]));
+    private static readonly Move SheetIn = Enter(0.42, Settling, Frame(0, [.. Scale(0.96), Opacity(0)]), Frame(0.4, [Opacity(0.9)]), Frame(1, [.. Scale(1), Opacity(1)])) with { Origin = TopLeft };
 
     private static readonly Move PopIn = Enter(0.38, Gentle, Frame(0, [Y(-6), .. Scale(0.97), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)])) with { Origin = TopLeft };
 
@@ -40,6 +40,12 @@ internal static class MotionCatalog
     private static readonly Move DrawIn = new(Animated(0.6, Gentle, TimeSpan.FromSeconds(0.3), Frame(0, [Dash(12)]), Frame(1, [Dash(0)])), false) { Dashes = [12, 12] };
 
     private static readonly Move PingOut = Enter(0.9, new CubicEaseOut(), Frame(0, [.. Scale(1), Opacity(0.8)]), Frame(1, [.. Scale(2.8), Opacity(0)]));
+
+    private static readonly Move BootIn = Enter(0.5, Settling, Frame(0, [.. Scale(0.96), Opacity(0)]), Frame(0.4, [Opacity(0.9)]), Frame(1, [.. Scale(1), Opacity(1)])) with { Origin = TopLeft };
+
+    private static readonly Move GlitchIn = Enter(0.36, null, Frame(0, [X(4), Opacity(0)]), Frame(0.2, [X(-3), Opacity(1)]), Frame(0.4, [X(2), Opacity(0.7)]), Frame(0.6, [X(-1), Opacity(1)]), Frame(1, [X(0), Opacity(1)]));
+
+    private static readonly Move CloseIn = Enter(0.24, Snappy, Frame(0, [.. Scale(1.08), Opacity(0)]), Frame(1, [.. Scale(1), Opacity(1)]));
 
     public static Move SwapIn { get; } = Enter(0.18, Gentle, Frame(0, [.. Scale(0.92), Opacity(0)]), Frame(1, [.. Scale(1), Opacity(1)]));
 
@@ -79,6 +85,9 @@ internal static class MotionCatalog
         [MotionEntrance.Draw] = DrawIn,
         [MotionEntrance.Linger] = LingerIn,
         [MotionEntrance.Ping] = PingOut,
+        [MotionEntrance.Boot] = BootIn,
+        [MotionEntrance.Glitch] = GlitchIn,
+        [MotionEntrance.Close] = CloseIn,
     };
 
     public static IReadOnlyDictionary<MotionLoop, Move> Loops { get; } = new Dictionary<MotionLoop, Move>

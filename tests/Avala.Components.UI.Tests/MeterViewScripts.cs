@@ -59,5 +59,27 @@ public sealed class MeterViewScripts(HeadlessUi ui)
             Assert.Equal(Color.Parse("#FFB547"), Brush(view.Find<TextBlock>("Reading").Foreground));
         }, Cancellation);
 
+    [Fact]
+    public Task AMeterFillsInSegmentsThatLightUpToItsNewReadingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var meter = new MeterViewModel("claude-work · 5h", 0.9);
+            meter.Show(0.2);
+            var view = ViewScript.Show(meter);
+            var fill = view.Find<ProgressBar>("Fill");
+            view.Elapse(TimeSpan.FromMilliseconds(700));
+            var shown = fill.Value;
+
+            meter.Show(0.8, "resets 16:20");
+            view.Settle();
+            var rising = fill.Value;
+            view.Elapse(TimeSpan.FromMilliseconds(700));
+
+            Assert.IsType<DrawingBrush>(fill.OpacityMask);
+            Assert.Equal(0.2, shown, 3);
+            Assert.InRange(rising, 0.2, 0.79);
+            Assert.Equal(0.8, fill.Value, 3);
+        }, Cancellation);
+
     private static Color Brush(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 }

@@ -394,6 +394,7 @@ public sealed class TimelinePanel : VirtualizingPanel
             if (pool.TryGetValue(recycleKey, out var stack) && stack.TryPop(out var recycled))
             {
                 container = recycled;
+                Withhold(container);
                 container.IsVisible = true;
                 generator.PrepareItemContainer(container, item, index);
             }
@@ -401,6 +402,7 @@ public sealed class TimelinePanel : VirtualizingPanel
             {
                 container = generator.CreateContainer(item, index, key);
                 keys[container] = recycleKey;
+                Withhold(container);
                 generator.PrepareItemContainer(container, item, index);
                 AddInternalChild(container);
             }
@@ -417,6 +419,14 @@ public sealed class TimelinePanel : VirtualizingPanel
         anchors?.RegisterAnchorCandidate(container);
 
         return container;
+    }
+
+    private void Withhold(Control container)
+    {
+        if (ItemsControl is { } list && Avala.Components.UI.Theme.Arrivals.GetOnlyNewEnter(list))
+        {
+            Avala.Components.UI.Theme.Motion.Withhold(container);
+        }
     }
 
     private void Recycle(int index)

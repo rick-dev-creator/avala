@@ -38,4 +38,18 @@ public sealed class CiViewScripts(HeadlessUi ui)
 
             Assert.Equal(("All 3 checks of pull request #12 passed", false), (view.TextOf("Passed"), view.Shows("Card")));
         }, Cancellation);
+
+    [Fact]
+    public Task AFailedCheckGlitchesOnceAsItsCardArrivesThenHoldsStillAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignCiViewModel());
+            var card = view.Find("Card");
+            var arriving = (card.Opacity, card.RenderTransform?.Value.IsIdentity ?? true);
+
+            view.Elapse(TimeSpan.FromMilliseconds(400));
+
+            Assert.Equal((0d, false), arriving);
+            Assert.Equal((1d, true), (card.Opacity, card.RenderTransform?.Value.IsIdentity ?? true));
+        }, Cancellation);
 }

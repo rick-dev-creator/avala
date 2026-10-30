@@ -64,6 +64,24 @@
     </ResourceDictionary>
   </Styles.Resources>
 
+  <Style Selector="ProgressBar.segmented">
+    <Setter Property="OpacityMask">
+      <DrawingBrush TileMode="Tile" DestinationRect="0,0,6,1" Stretch="None" AlignmentX="Left" AlignmentY="Top">
+        <DrawingBrush.Drawing>
+          <GeometryDrawing Brush="Black" Geometry="M0,0 H4 V1 H0 Z" />
+        </DrawingBrush.Drawing>
+      </DrawingBrush>
+    </Setter>
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+  <Style Selector="ProgressBar.segmented[(theme|Motion.IsReduced)=False]">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Value" Duration="0:0:0.6" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+
   <Style Selector="theme|GridBackdrop">
     <Setter Property="LineBrush" Value="{DynamicResource GridLineBrush}" />
     <Setter Property="Spacing" Value="{StaticResource GridSpacing}" />

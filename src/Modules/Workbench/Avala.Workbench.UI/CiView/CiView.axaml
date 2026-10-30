@@ -25,7 +25,7 @@
                HorizontalAlignment="Center"
                Text="{Binding Headline}"
                IsVisible="{Binding !IsFailed}" />
-    <Border x:Name="Card" IsVisible="{Binding IsFailed}">
+    <Border x:Name="Card" IsVisible="{Binding IsFailed}" theme:Motion.Enter="Glitch" theme:Motion.When="{Binding IsFailed}">
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
           <Ellipse Width="6" Height="6" Fill="{DynamicResource FailureBrush}" VerticalAlignment="Center" />

@@ -2,6 +2,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:copying="using:Avala.Components.UI.Copying"
         xmlns:theme="using:Avala.Components.UI.Theme">
+  <Style Selector="Path.bracket">
+    <Setter Property="Stroke" Value="{DynamicResource SystemBrush}" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="Margin" Value="-3" />
+  </Style>
+  <Style Selector="Button.row">
+    <Setter Property="theme:Brackets.OnHover" Value="True" />
+  </Style>
+  <Style Selector="Border.cursor">
+    <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="2,0,0,0" />
+  </Style>
   <Style Selector="Border.qr-paper">
     <Setter Property="Background" Value="{DynamicResource QrPaperBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
