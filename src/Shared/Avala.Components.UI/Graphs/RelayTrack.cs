@@ -213,19 +213,19 @@ public sealed class RelayTrack : Control
             switch (marker.Kind)
             {
                 case RelayStopKind.HandedOff:
-                    context.DrawEllipse(SurfaceBrush, new Pen(RouteBrush, 2), at, 6, 6);
+                    context.DrawGeometry(SurfaceBrush, new Pen(RouteBrush, 2), Diamond(at, 7));
                     break;
                 case RelayStopKind.Capped:
-                    context.DrawRectangle(CapBrush, null, new Rect(at.X - 4.5, at.Y - 4.5, 9, 9), 2, 2);
+                    context.DrawRectangle(CapBrush, null, new Rect(at.X - 4.5, at.Y - 4.5, 9, 9));
                     break;
                 case RelayStopKind.Compacting:
                     context.DrawGeometry(SurfaceBrush, new Pen(WaitBrush, 1.8), Diamond(at, 5.5));
                     break;
                 case RelayStopKind.Resumed:
-                    context.DrawEllipse(RouteBrush, null, at, 4, 4);
+                    context.DrawGeometry(RouteBrush, null, Diamond(at, 5));
                     break;
                 default:
-                    context.DrawEllipse(WaitBrush, null, at, 4.5, 4.5);
+                    context.DrawGeometry(WaitBrush, null, Diamond(at, 5.5));
                     break;
             }
         }
@@ -264,15 +264,15 @@ public sealed class RelayTrack : Control
 
             using (context.PushOpacity(0.35 * (1 - phase)))
             {
-                context.DrawEllipse(brush, null, at, halo, halo);
+                context.DrawGeometry(null, new Pen(brush, 1.5), Diamond(at, halo + 2));
             }
 
             using (context.PushOpacity(0.2))
             {
-                context.DrawEllipse(brush, null, at, 10, 10);
+                context.DrawGeometry(brush, null, Diamond(at, 12));
             }
 
-            context.DrawEllipse(brush, new Pen(SurfaceBrush, 2), at, 6, 6);
+            context.DrawGeometry(brush, new Pen(SurfaceBrush, 2), Diamond(at, 7.5));
         }
     }
 

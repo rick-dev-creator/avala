@@ -23,6 +23,8 @@ internal interface IConversationViewModel
 
     IStatusPillViewModel Pill { get; }
 
+    IAvaViewModel Ava { get; }
+
     IPlanPanelViewModel Plan { get; }
 
     IComposerViewModel Composer { get; }
@@ -51,6 +53,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly TranscriptExport export;
     private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
     private readonly WorkingViewModel working = new();
+    private readonly AvaViewModel ava = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private readonly ConversationSearchViewModel search;
     private readonly ToolRuns runs = new();
@@ -76,6 +79,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public IComposerViewModel Composer => composer;
 
     public IStatusPillViewModel Pill => pill;
+
+    public IAvaViewModel Ava => ava;
 
     public IPlanPanelViewModel Plan => plan;
 
@@ -113,6 +118,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Status = job.Status;
         pill.Kind = FactPhrases.Dot(job);
         pill.Text = ConversationPhrases.Pill(job);
+        ava.Show(pill.Kind);
         composer.Track(job);
         working.Show(job);
 

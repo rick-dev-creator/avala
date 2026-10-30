@@ -1,69 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="using:Avala.Components.UI.Theme">
-  <Styles.Resources>
-    <ResourceDictionary>
-      <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Dark">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#11151B"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#11151B" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Light">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#E6E1D4"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.7, Windows=0.85}"
-                                       FallbackColor="#E6E1D4" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="{x:Static theme:Themes.Tide}">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#0B1C24"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#0B1C24" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="{x:Static theme:Themes.Unit}">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#151020"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#151020" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="{x:Static theme:Themes.Ash}">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#1A1917"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#1A1917" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="{x:Static theme:Themes.Bloom}">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#F5EDEE"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.7, Windows=0.85}"
-                                       FallbackColor="#F5EDEE" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="{x:Static theme:Themes.Signal}">
-          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
-                                       BackgroundSource="Digger"
-                                       TintColor="#0A0A0A"
-                                       TintOpacity="1"
-                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#0A0A0A" />
-        </ResourceDictionary>
-      </ResourceDictionary.ThemeDictionaries>
-    </ResourceDictionary>
-  </Styles.Resources>
-
   <Style Selector="ProgressBar.segmented">
     <Setter Property="OpacityMask">
       <DrawingBrush TileMode="Tile" DestinationRect="0,0,6,1" Stretch="None" AlignmentX="Left" AlignmentY="Top">

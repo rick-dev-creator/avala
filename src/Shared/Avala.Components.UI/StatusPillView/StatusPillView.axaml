@@ -34,7 +34,7 @@
   </UserControl.Styles>
   <Border x:Name="Pill"
           BorderThickness="1"
-          CornerRadius="{DynamicResource RadiusPill}"
+          CornerRadius="{DynamicResource RadiusTag}"
           Padding="{DynamicResource PaddingPill}">
     <StackPanel Orientation="Horizontal" Spacing="6">
       <ContentControl x:Name="Dot"
@@ -45,7 +45,7 @@
                       VerticalAlignment="Center" />
       <TextBlock x:Name="Label"
                  Text="{Binding Text}"
-                 FontSize="{DynamicResource FontSizeCaption}"
+                 Classes="label"
                  VerticalAlignment="Center" />
     </StackPanel>
   </Border>

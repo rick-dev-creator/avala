@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:ui="using:Avala.Components.UI"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:onboarding="using:Avala.Workbench.Onboarding"
              x:Class="Avala.Workbench.UI.WelcomeStepView"
@@ -10,27 +11,13 @@
   </Design.DataContext>
   <UserControl.Styles>
     <Style Selector="Border#AppIcon">
-      <Setter Property="Width" Value="104" />
-      <Setter Property="Height" Value="104" />
-      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
-      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
       <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
     </Style>
   </UserControl.Styles>
   <StackPanel x:Name="Welcome" theme:Motion.Enter="Gentle" Margin="0,60,0,0">
     <Border x:Name="AppIcon">
-      <Viewbox Width="62" Height="62">
-        <Canvas Width="24" Height="24">
-          <Path Data="{StaticResource LogoMark}"
-                Stroke="{DynamicResource TextPrimaryBrush}"
-                StrokeThickness="1.6"
-                StrokeJoin="Round" />
-          <Path Data="{StaticResource LogoEye}" Fill="{DynamicResource AccentBrush}" />
-        </Canvas>
-      </Viewbox>
+      <ui:Portrait x:Name="Ava" Mood="Pleased" Width="132" Height="162" />
     </Border>
     <TextBlock x:Name="Title" Classes="hero" Margin="0,28,0,0" Text="{Binding Title}" />
     <TextBlock x:Name="Text" Classes="lede" Margin="0,8,0,0" Text="{Binding Text}" />

@@ -16,6 +16,7 @@ internal static class MotionCatalog
     private static readonly SplineEasing Settling = new(0.2, 0.8, 0.2, 1);
     private static readonly RelativePoint TopLeft = new(0, 0, RelativeUnit.Relative);
     private static readonly RelativePoint TopCenter = new(0.5, 0, RelativeUnit.Relative);
+    private static readonly RelativePoint BottomCenter = new(0.5, 1, RelativeUnit.Relative);
 
     private static readonly Move FadeIn = Enter(0.12, null, Frame(0, [Opacity(0)]), Frame(1, [Opacity(1)]));
 
@@ -71,6 +72,8 @@ internal static class MotionCatalog
 
     private static readonly Move DriftLoop = Repeat(4.8, new SineEaseInOut(), TimeSpan.Zero, Frame(0, [X(0), Y(0)]), Frame(0.5, [X(2), Y(-4)]), Frame(1, [X(0), Y(0)]));
 
+    private static readonly Move BreatheLoop = Repeat(4.2, new SineEaseInOut(), TimeSpan.Zero, Frame(0, [ScaleY(1)]), Frame(0.5, [ScaleY(1.025)]), Frame(1, [ScaleY(1)])) with { Origin = BottomCenter };
+
     public static IReadOnlyDictionary<MotionEntrance, Move> Entrances { get; } = new Dictionary<MotionEntrance, Move>
     {
         [MotionEntrance.Fade] = FadeIn,
@@ -101,6 +104,7 @@ internal static class MotionCatalog
         [MotionLoop.ShimmerText] = ShimmerTextLoop,
         [MotionLoop.Caret] = CaretLoop,
         [MotionLoop.Drift] = DriftLoop,
+        [MotionLoop.Breathe] = BreatheLoop,
     };
 
     public static IReadOnlyDictionary<MotionLoop, Pose> Stills { get; } = new Dictionary<MotionLoop, Pose>

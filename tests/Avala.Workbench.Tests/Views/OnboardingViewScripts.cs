@@ -39,7 +39,7 @@ public sealed class OnboardingViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal(
-                [("Welcome to Avala", 0, "Continue"), ("Your agents", 1, "Continue"), ("Your code", 2, "Continue"), ("Your privacy", 3, "Start")],
+                [("Hi, I'm Ava.", 0, "Continue"), ("Your agents", 1, "Continue"), ("Your code", 2, "Continue"), ("Your privacy", 3, "Start")],
                 seen);
             Assert.False(view.Shows("Card"));
             Assert.True(touring.Onboarding.IsDone);
@@ -93,7 +93,7 @@ public sealed class WelcomeStepViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignWelcomeStepViewModel());
 
-            Assert.Equal((true, "Welcome to Avala", "Agents you can trust without watching."), (view.Shows("AppIcon"), view.TextOf("Title"), view.TextOf("Text")));
+            Assert.Equal((true, "Hi, I'm Ava.", "Leave it with me."), (view.Shows("AppIcon"), view.TextOf("Title"), view.TextOf("Text")));
         }, TestContext.Current.CancellationToken);
 }
 

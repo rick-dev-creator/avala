@@ -92,5 +92,5 @@ public sealed class WelcomeStepViewModelScripts
 {
     [Fact]
     public void TheWelcomeSaysWhatAvalaIsInOneLine() =>
-        Assert.Equal(("Welcome to Avala", "Agents you can trust without watching."), (new WelcomeStepViewModel().Title, new WelcomeStepViewModel().Text));
+        Assert.Equal(("Hi, I'm Ava.", "Leave it with me."), (new WelcomeStepViewModel().Title, new WelcomeStepViewModel().Text));
 }

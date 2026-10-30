@@ -36,7 +36,10 @@
             <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
           </Button>
           <TextBlock x:Name="Caption" DockPanel.Dock="Right" Classes="caption" Margin="0,0,8,0" Text="{Binding Caption}" VerticalAlignment="Center" />
-          <TextBlock Classes="strong" Text="Delegation" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock x:Name="Title" Classes="section" Text="Delegation" VerticalAlignment="Center" />
+            <TextBlock Classes="jp" Text="委任" VerticalAlignment="Center" />
+          </StackPanel>
         </DockPanel>
       </Border>
       <Border x:Name="PaneFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="18,10">

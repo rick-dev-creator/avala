@@ -36,7 +36,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.True(view.Shows("PageNavigation"));
             Assert.True(view.HasClass("InspectorPane", "shown"));
             Assert.Superset(
-                new HashSet<string>(["Avala", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet", "Overview", "Usage", "Settings"]),
+                new HashSet<string>(["AVALA", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet", "Overview", "Usage", "Settings"]),
                 view.VisibleTexts.ToHashSet());
             Assert.All(view.Find<ListBox>("PageNavigation").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>(), icon => Assert.NotNull(icon.Data));
         }, Cancellation);

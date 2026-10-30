@@ -21,6 +21,7 @@ internal sealed class HeaderFit
         parts.Row.SizeChanged += (_, _) => fit.Fit();
         parts.Chips.SizeChanged += (_, _) => fit.Fit();
         parts.Pill.SizeChanged += (_, _) => fit.Fit();
+        parts.Ava.SizeChanged += (_, _) => fit.Fit();
     }
 
     private bool Is(string name) => parts.Header.Classes.Contains(name);
@@ -66,7 +67,7 @@ internal sealed class HeaderFit
     {
         if (parts.Pill.IsMeasureValid)
         {
-            pillWidth = parts.Pill.DesiredSize.Width;
+            pillWidth = parts.Pill.DesiredSize.Width + (parts.Ava.IsVisible ? parts.Ava.DesiredSize.Width : 0);
         }
 
         if (Is("stacked") || Is("compact") || !parts.Chips.IsMeasureValid)
@@ -82,4 +83,4 @@ internal sealed class HeaderFit
     }
 }
 
-internal sealed record HeaderParts(Border Header, Grid Row, Control Title, Control Side, ItemsControl Chips, Control Pill);
+internal sealed record HeaderParts(Border Header, Grid Row, Control Title, Control Side, ItemsControl Chips, Control Pill, Control Ava);

@@ -40,6 +40,7 @@ public enum MotionLoop
     ShimmerText,
     Caret,
     Drift,
+    Breathe,
 }
 
 public sealed class Motion

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              x:Class="Avala.Workbench.UI.RelaysPaneView"
              x:ClassModifier="internal"
              x:DataType="overview:IRelaysPaneViewModel"
@@ -24,21 +25,25 @@
     </Style>
     <Style Selector="Border#Hero">
       <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     </Style>
     <Style Selector=":is(UserControl).waiting Border#Hero">
       <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBrush}" />
     </Style>
-    <Style Selector="Ellipse#Beacon">
+    <Style Selector="Rectangle#Beacon">
       <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
     </Style>
-    <Style Selector=":is(UserControl).waiting Ellipse#Beacon">
+    <Style Selector=":is(UserControl).waiting Rectangle#Beacon">
       <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
     </Style>
     <Style Selector="Border#Track">
       <Setter Property="BorderBrush" Value="{DynamicResource BorderCardBrush}" />
       <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     </Style>
     <Style Selector="graphs|RelayTrack">
       <Setter Property="TrackBrush" Value="{DynamicResource SeparatorStrongBrush}" />
@@ -61,7 +66,10 @@
             <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
           </Button>
           <TextBlock x:Name="Caption" DockPanel.Dock="Right" Classes="caption" Margin="0,0,8,0" Text="{Binding Caption}" VerticalAlignment="Center" />
-          <TextBlock Classes="strong" Text="Relays" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock x:Name="Title" Classes="section" Text="Relays" VerticalAlignment="Center" />
+            <TextBlock Classes="jp" Text="継走" VerticalAlignment="Center" />
+          </StackPanel>
         </DockPanel>
       </Border>
       <Border x:Name="PaneFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="18,10">
@@ -70,11 +78,11 @@
       <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="16,12,16,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel x:Name="Journey" Margin="16" Spacing="16" IsVisible="{Binding HasJourney}">
-          <Border x:Name="Hero" Padding="14,12">
+          <Border x:Name="Hero" BorderThickness="2,0,0,0" Padding="14,12">
             <Grid ColumnDefinitions="Auto,*">
-              <Panel Width="16" Height="16" Margin="0,3,12,0" VerticalAlignment="Top">
-                <Ellipse x:Name="Halo" Width="16" Height="16" Opacity="0.25" Fill="{Binding #Beacon.Fill}" />
-                <Ellipse x:Name="Beacon" Width="8" Height="8" />
+              <Panel Width="16" Height="16" Margin="0,3,12,0" VerticalAlignment="Top" RenderTransform="rotate(45deg)">
+                <Rectangle x:Name="Halo" Width="12" Height="12" Opacity="0.25" Fill="{Binding #Beacon.Fill}" theme:Motion.Loop="Pulse" />
+                <Rectangle x:Name="Beacon" Width="7" Height="7" />
               </Panel>
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock x:Name="Headline" Classes="strong" FontSize="{DynamicResource FontSizeTitleSmall}" Text="{Binding Headline}" TextWrapping="Wrap" />
@@ -86,16 +94,16 @@
             <Grid ColumnDefinitions="148,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock x:Name="Pattern"
                          Grid.ColumnSpan="2"
-                         Classes="caption tertiary"
-                         Margin="12,4,14,4"
+                         Classes="hud"
+                         Margin="12,6,14,4"
                          HorizontalAlignment="Right"
                          Text="Elastic Harness Chaining"
                          ToolTip.Tip="A relay race for agents: near a limit, the job packages its progress and hands it to a fresh harness" />
               <ItemsControl x:Name="Lanes" Grid.Row="1" ItemsSource="{Binding Lanes}" />
               <graphs:RelayTrack x:Name="Course" Grid.Row="1" Grid.Column="1" Course="{Binding Course}" LaneHeight="64" />
               <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="18,2,18,2">
-                <TextBlock x:Name="Began" Classes="caption" Text="{Binding Began}" />
-                <TextBlock x:Name="Latest" Grid.Column="1" Classes="caption" Text="{Binding Latest}" />
+                <TextBlock x:Name="Began" Classes="caption label" Text="{Binding Began}" />
+                <TextBlock x:Name="Latest" Grid.Column="1" Classes="caption label" Text="{Binding Latest}" />
               </Grid>
             </Grid>
           </Border>

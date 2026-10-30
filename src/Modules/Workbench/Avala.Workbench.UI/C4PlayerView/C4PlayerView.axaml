@@ -29,13 +29,13 @@
     </Style>
     <Style Selector="Border#Hud">
       <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
-      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
       <Setter Property="Padding" Value="5" />
       <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
     </Style>
     <Style Selector="Border#Caption">
       <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
-      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
       <Setter Property="Padding" Value="12,5" />
       <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
     </Style>

@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Fonts\**\*.ttf" />
+    <AvaloniaResource Include="Assets\Ava\*.png" />
     <None Include="Fonts\**\*-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

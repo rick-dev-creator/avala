@@ -22,7 +22,7 @@ public sealed class RelaysPaneViewScripts(HeadlessUi ui)
             Assert.Equal(("3 connections · 2 handoffs", "Running on claude-max", "Elastic Harness Chaining"), (view.TextOf("Caption"), view.TextOf("Headline"), view.TextOf("Pattern")));
             Assert.Equal(3, track.Route.Lanes.Count);
             Assert.Equal(3, view.All<Border>().Count(lane => lane.Name == "Lane"));
-            Assert.Equal(3, view.All<Ellipse>().Count(stop => stop.Name == "Stop"));
+            Assert.Equal(3, view.All<Rectangle>().Count(stop => stop.Name == "Stop"));
         }, Cancellation);
 
     [Fact]

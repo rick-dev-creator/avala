@@ -1,0 +1,52 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="using:Avala.Components.UI"
+                    xmlns:theme="using:Avala.Components.UI.Theme">
+  <ControlTheme x:Key="{x:Type ui:Portrait}" TargetType="ui:Portrait">
+    <Setter Property="Width" Value="84" />
+    <Setter Property="Height" Value="104" />
+    <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="Frame"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="1"
+                theme:Chamfer.Size="{StaticResource ChamferControl}">
+          <Viewbox Stretch="Uniform">
+            <Panel Name="Figure" Width="312" Height="384" theme:Motion.Loop="Breathe">
+              <Image Name="Face" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" Source="{TemplateBinding Picture}" theme:Motion.Swap="{TemplateBinding Mood}" />
+            </Panel>
+          </Viewbox>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^[(theme|Motion.IsReduced)=False]">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.3" Easing="0.22,1,0.36,1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="^.small">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="37" />
+    </Style>
+    <Style Selector="^.small /template/ Image#Face">
+      <Setter Property="RenderTransformOrigin" Value="50%,36%" />
+      <Setter Property="RenderTransform" Value="scale(1.8)" />
+    </Style>
+    <Style Selector="^:asking">
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="^:worried">
+      <Setter Property="BorderBrush" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector="^:pleased">
+      <Setter Property="BorderBrush" Value="{DynamicResource VerifiedBrush}" />
+    </Style>
+  </ControlTheme>
+</ResourceDictionary>

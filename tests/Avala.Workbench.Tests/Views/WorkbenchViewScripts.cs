@@ -648,7 +648,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         {
             var variant = theme == "Dark" ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
             var view = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.JpyRounding, "Paginate audit log export", JobStatus.Approved, "merged", Components.Status.StatusKind.Done, 0), variant, 400, 120);
-            var dot = ((Avalonia.Media.ISolidColorBrush)view.Find("Dot").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Ellipse>().Single(ellipse => ellipse.Name == "Core").Fill!).Color;
+            var dot = ((Avalonia.Media.ISolidColorBrush)view.Find("Dot").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Rectangle>().Single(core => core.Name == "Core").Fill!).Color;
             var fill = Legibility.Over(Legibility.Resource("FillSelectedBrush", variant), Legibility.Resource("SurfacePanelBrush", variant));
 
             Assert.True(Legibility.Contrast(dot, fill) >= 3, $"the done dot {dot} reads {Legibility.Contrast(dot, fill):0.00}:1 on the selection fill {fill}");

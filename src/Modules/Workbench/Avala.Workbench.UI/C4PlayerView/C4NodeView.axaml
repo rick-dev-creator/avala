@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:docs="using:Avala.Workbench.Docs"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              x:Class="Avala.Workbench.UI.C4NodeView"
              x:ClassModifier="internal"
              x:DataType="docs:IC4NodeViewModel"
@@ -26,6 +27,7 @@
     </Style>
     <Style Selector="Border#Node.person">
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="theme:Chamfer.Size" Value="0" />
     </Style>
     <Style Selector="Border#Node.external">
       <Setter Property="Background" Value="Transparent" />

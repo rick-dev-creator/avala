@@ -11,23 +11,23 @@
     <Style Selector="Rectangle#Rail">
       <Setter Property="Fill" Value="{DynamicResource SeparatorStrongBrush}" />
     </Style>
-    <Style Selector="Ellipse#Stop">
+    <Style Selector="Rectangle#Stop">
       <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
-    <Style Selector="Ellipse#Stop.current">
+    <Style Selector="Rectangle#Stop.current">
       <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
     </Style>
-    <Style Selector="Ellipse#Stop.waiting">
+    <Style Selector="Rectangle#Stop.waiting">
       <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
     </Style>
   </UserControl.Styles>
   <Grid ColumnDefinitions="22,*,Auto" MinHeight="48">
     <Rectangle x:Name="Rail" Width="1.5" HorizontalAlignment="Center" />
-    <Ellipse x:Name="Stop" Classes.current="{Binding IsCurrent}" Classes.waiting="{Binding IsWaiting}" Width="10" Height="10" Margin="0,5,0,0" VerticalAlignment="Top" />
+    <Rectangle x:Name="Stop" Classes.current="{Binding IsCurrent}" Classes.waiting="{Binding IsWaiting}" Width="8" Height="8" Margin="0,6,0,0" VerticalAlignment="Top" RenderTransform="rotate(45deg)" />
     <StackPanel Grid.Column="1" Margin="8,0,0,12" Spacing="2">
       <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
       <TextBlock x:Name="Detail" Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
     </StackPanel>
-    <TextBlock x:Name="When" Grid.Column="2" Classes="caption" Margin="8,1,2,0" Text="{Binding When}" />
+    <TextBlock x:Name="When" Grid.Column="2" Classes="caption label" Margin="8,1,2,0" Text="{Binding When}" />
   </Grid>
 </UserControl>
