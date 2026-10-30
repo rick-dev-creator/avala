@@ -1,27 +1,74 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theme="using:Avala.Components.UI.Theme">
   <Styles.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Dark">
           <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
                                        BackgroundSource="Digger"
-                                       TintColor="#1E1F24"
+                                       TintColor="#11151B"
                                        TintOpacity="1"
                                        MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                       FallbackColor="#18191D" />
+                                       FallbackColor="#11151B" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
           <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
                                        BackgroundSource="Digger"
-                                       TintColor="#EEEEF2"
+                                       TintColor="#E6E1D4"
                                        TintOpacity="1"
                                        MaterialOpacity="{OnPlatform Default=1, macOS=0.7, Windows=0.85}"
-                                       FallbackColor="#F3F3F6" />
+                                       FallbackColor="#E6E1D4" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Tide}">
+          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                       BackgroundSource="Digger"
+                                       TintColor="#0B1C24"
+                                       TintOpacity="1"
+                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                       FallbackColor="#0B1C24" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Unit}">
+          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                       BackgroundSource="Digger"
+                                       TintColor="#151020"
+                                       TintOpacity="1"
+                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                       FallbackColor="#151020" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Ash}">
+          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                       BackgroundSource="Digger"
+                                       TintColor="#1A1917"
+                                       TintOpacity="1"
+                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                       FallbackColor="#1A1917" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Bloom}">
+          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                       BackgroundSource="Digger"
+                                       TintColor="#F5EDEE"
+                                       TintOpacity="1"
+                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.7, Windows=0.85}"
+                                       FallbackColor="#F5EDEE" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Signal}">
+          <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                       BackgroundSource="Digger"
+                                       TintColor="#0A0A0A"
+                                       TintOpacity="1"
+                                       MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                       FallbackColor="#0A0A0A" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Styles.Resources>
+
+  <Style Selector="theme|GridBackdrop">
+    <Setter Property="LineBrush" Value="{DynamicResource GridLineBrush}" />
+    <Setter Property="Spacing" Value="{StaticResource GridSpacing}" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+  </Style>
 
   <Style Selector="Border.window">
     <Setter Property="Background" Value="{DynamicResource SurfaceWindowBrush}" />
@@ -42,12 +89,14 @@
   </Style>
 
   <Style Selector="Border.card">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
     <Setter Property="BoxShadow" Value="{DynamicResource ShadowCard}" />
   </Style>
 
   <Style Selector="Border.float">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -57,6 +106,7 @@
   </Style>
 
   <Style Selector="Border.quiet">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -70,6 +120,7 @@
   </Style>
 
   <Style Selector="Border.empty">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
     <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />

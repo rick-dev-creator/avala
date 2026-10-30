@@ -15,6 +15,9 @@ public static class Themes
 
     public static readonly ThemeVariant Signal = new(nameof(Signal), ThemeVariant.Dark);
 
+    public static bool IsDark(ThemeVariant variant) =>
+        variant == ThemeVariant.Dark || (variant.InheritVariant is { } basis && IsDark(basis));
+
     public static ThemeVariant Of(ThemeChoice theme) => theme switch
     {
         ThemeChoice.Light => ThemeVariant.Light,

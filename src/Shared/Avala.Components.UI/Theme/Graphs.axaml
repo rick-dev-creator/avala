@@ -7,23 +7,23 @@
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#59FFFFFF" />
-          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80E5A13A" />
-          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59E5A13A" />
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80FFB547" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59FFB547" />
           <SolidColorBrush x:Key="EdgeQuietBrush" Color="#3DFFFFFF" />
-          <SolidColorBrush x:Key="NodeBrush" Color="#FF26272D" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF1A1F27" />
           <SolidColorBrush x:Key="NodeBorderBrush" Color="#17FFFFFF" />
-          <SolidColorBrush x:Key="NodeTipBrush" Color="#F02C2D34" />
-          <SolidColorBrush x:Key="HubCoreBrush" Color="#1E1F24" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F01A1F27" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#11151B" />
           <SolidColorBrush x:Key="HubTrackBrush" Color="#2EFFFFFF" />
           <SolidColorBrush x:Key="MeterMarkerBrush" Color="#B3FFFFFF" />
           <SolidColorBrush x:Key="MeterMarkerQuietBrush" Color="#66FFFFFF" />
           <SolidColorBrush x:Key="SurfaceSectionBrush" Color="#09FFFFFF" />
           <SolidColorBrush x:Key="BorderSectionBrush" Color="#12FFFFFF" />
           <SolidColorBrush x:Key="BorderProposedBrush" Color="#38FFFFFF" />
-          <SolidColorBrush x:Key="ShareStrongBrush" Color="#A3A3AD" />
-          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#6E6E78" />
-          <SolidColorBrush x:Key="ShareQuietBrush" Color="#4E4E56" />
-          <SolidColorBrush x:Key="ShareFaintBrush" Color="#5A5A63" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#9BA3AA" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#7A838B" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#3A4148" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#545C64" />
           <BoxShadows x:Key="ShadowNode">0 12 28 -12 #B3000000</BoxShadows>
           <BoxShadows x:Key="ShadowHub">0 0 0 1 #12FFFFFF, 0 24 48 -16 #B3000000</BoxShadows>
           <BoxShadows x:Key="ShadowTip">0 16 32 -10 #B3000000</BoxShadows>
@@ -31,32 +31,87 @@
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#73000000" />
-          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#A6945800" />
-          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#73945800" />
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#A6744800" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#73744800" />
           <SolidColorBrush x:Key="EdgeQuietBrush" Color="#59000000" />
-          <SolidColorBrush x:Key="NodeBrush" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FFF3F0E8" />
           <SolidColorBrush x:Key="NodeBorderBrush" Color="#17000000" />
-          <SolidColorBrush x:Key="NodeTipBrush" Color="#F7FFFFFF" />
-          <SolidColorBrush x:Key="HubCoreBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F7F3F0E8" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#E6E1D4" />
           <SolidColorBrush x:Key="HubTrackBrush" Color="#2E000000" />
           <SolidColorBrush x:Key="MeterMarkerBrush" Color="#99000000" />
           <SolidColorBrush x:Key="MeterMarkerQuietBrush" Color="#4D000000" />
           <SolidColorBrush x:Key="SurfaceSectionBrush" Color="#06000000" />
           <SolidColorBrush x:Key="BorderSectionBrush" Color="#12000000" />
           <SolidColorBrush x:Key="BorderProposedBrush" Color="#2E000000" />
-          <SolidColorBrush x:Key="ShareStrongBrush" Color="#5E5E66" />
-          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#8E8E96" />
-          <SolidColorBrush x:Key="ShareQuietBrush" Color="#B4B4BA" />
-          <SolidColorBrush x:Key="ShareFaintBrush" Color="#A8A8B0" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#5E584C" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#6F685B" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#BDB6A6" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#A39C8C" />
           <BoxShadows x:Key="ShadowNode">0 0 0 1 #0A000000, 0 12 28 -12 #33000000</BoxShadows>
           <BoxShadows x:Key="ShadowHub">0 0 0 1 #12000000, 0 24 48 -16 #33000000</BoxShadows>
           <BoxShadows x:Key="ShadowTip">0 0 0 1 #0F000000, 0 16 32 -10 #33000000</BoxShadows>
           <BoxShadows x:Key="ShadowOrchestrator">0 0 0 1 #0F000000, 0 20 40 -16 #3D000000</BoxShadows>
         </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Tide}">
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80FFC857" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59FFC857" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF132B36" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F0132B36" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#0B1C24" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#8FB7B8" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#6A9799" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#2C4A50" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#45666B" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Unit}">
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80FFB000" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59FFB000" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF221A30" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F0221A30" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#151020" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#A89BB8" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#85789A" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#3B3248" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#584D68" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Ash}">
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80D9A55A" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59D9A55A" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF262421" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F0262421" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#1A1917" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#A39E95" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#857F77" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#3E3B37" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#58544E" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Bloom}">
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#A68F5500" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#738F5500" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FFFFFFFF" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F7FFFFFF" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#F5EDEE" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#6E5A62" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#7E6A72" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#D9C9CF" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#BFAEB5" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="{x:Static theme:Themes.Signal}">
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80FFD000" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59FFD000" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF1A1A1A" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F01A1A1A" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#0A0A0A" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#D6D6D6" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#B0B0B0" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#5A5A5A" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#808080" />
+        </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <CornerRadius x:Key="RadiusNode">12</CornerRadius>
-      <CornerRadius x:Key="RadiusSection">12</CornerRadius>
-      <CornerRadius x:Key="RadiusOrchestrator">16</CornerRadius>
+      <CornerRadius x:Key="RadiusNode">2</CornerRadius>
+      <CornerRadius x:Key="RadiusSection">2</CornerRadius>
+      <CornerRadius x:Key="RadiusOrchestrator">3</CornerRadius>
       <x:Double x:Key="FontSizeTitleSmall">14</x:Double>
       <x:Double x:Key="FontSizeFigure">22</x:Double>
       <x:Double x:Key="FontSizeNode">12.5</x:Double>

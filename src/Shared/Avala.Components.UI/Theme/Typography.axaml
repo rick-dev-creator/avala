@@ -4,7 +4,7 @@
     <FontFamily x:Key="InterfaceFont">fonts:Inter#Inter</FontFamily>
     <FontFamily x:Key="MonoFont">avares://Avala.Components.UI/Fonts#JetBrains Mono</FontFamily>
     <FontFamily x:Key="HudFont">avares://Avala.Components.UI/Fonts#Chakra Petch</FontFamily>
-    <FontFamily x:Key="VoiceFont">avares://Avala.Components.UI/Fonts#Zen Old Mincho</FontFamily>
+    <FontFamily x:Key="VoiceFont">avares://Avala.Components.UI/Fonts/Voice#Zen Old Mincho</FontFamily>
     <FontFamily x:Key="ContentControlThemeFontFamily">fonts:Inter#Inter</FontFamily>
   </Styles.Resources>
 

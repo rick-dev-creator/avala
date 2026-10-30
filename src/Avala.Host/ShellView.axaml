@@ -218,6 +218,7 @@
               theme:Chrome.IsBare="{Binding !IsSidebarShown}"
               theme:Chrome.IsFocusMode="{Binding IsFocused}">
         <Panel>
+          <theme:GridBackdrop x:Name="Backdrop" />
           <ui:Stage x:Name="ContentRegion" Keeps="16" Content="{Binding SelectedPage}" />
           <Border x:Name="EmptyContent"
                   Classes="empty"

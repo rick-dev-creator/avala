@@ -46,6 +46,7 @@
   </Style>
 
   <Style Selector="Button.primary">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferControl}" />
     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
     <Setter Property="BorderThickness" Value="0" />
@@ -72,6 +73,7 @@
   </Style>
 
   <Style Selector="Button.destructive">
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferControl}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
     <Setter Property="CornerRadius" Value="9" />

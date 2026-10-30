@@ -13,6 +13,7 @@
       <Color x:Key="FailureColor">#FF5468</Color>
 
       <SolidColorBrush x:Key="SurfaceWindowBrush" Color="#0B0E12" />
+      <SolidColorBrush x:Key="GridLineBrush" Color="#0B78C8DC" />
       <SolidColorBrush x:Key="SurfacePanelBrush" Color="#11151B" />
       <SolidColorBrush x:Key="SurfaceFloatBrush" Color="#171C23" />
       <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#141920" />
@@ -124,6 +125,7 @@
       <Color x:Key="FailureColor">#B0001E</Color>
 
       <SolidColorBrush x:Key="SurfaceWindowBrush" Color="#DCD6C7" />
+      <SolidColorBrush x:Key="GridLineBrush" Color="#103A362E" />
       <SolidColorBrush x:Key="SurfacePanelBrush" Color="#E6E1D4" />
       <SolidColorBrush x:Key="SurfaceFloatBrush" Color="#F0ECE2" />
       <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#EBE6DA" />

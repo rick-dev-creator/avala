@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -191,7 +192,7 @@ public sealed class CodeDiff : StackPanel
             return;
         }
 
-        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        var dark = Themes.IsDark(ActualThemeVariant);
 
         foreach (var (row, spans) in rows.Zip(colors))
         {

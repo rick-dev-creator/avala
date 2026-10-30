@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -152,7 +153,7 @@ public sealed class CodeText : SelectableTextBlock
         var typeface = new Typeface(FontFamily, FontStyle, FontWeight, FontStretch);
         var plain = new GenericTextRunProperties(typeface, FontSize, TextDecorations, Foreground, null, BaselineAlignment.Baseline, null, FontFeatures);
         var paragraph = new GenericTextParagraphProperties(FlowDirection, TextAlignment, true, false, plain, TextWrapping, LineHeight, 0, LetterSpacing);
-        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        var dark = Themes.IsDark(ActualThemeVariant);
         var styles = new Dictionary<uint, GenericTextRunProperties>();
         var runs = painted.Select(segment => (segment.Start, Style(styles, typeface, dark ? segment.Ink.Dark : segment.Ink.Light, plain))).ToList();
         var size = GetMaxSizeFromConstraint();
