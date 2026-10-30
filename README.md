@@ -5,10 +5,11 @@
   <img src="docs/assets/brand/avala-lockup-light.png" alt="Avala" width="220">
 </picture>
 
-### Agents you can trust without watching.
+### Leave it with Ava. · 任せて。
 
-An open-source desktop harness for coding agents: each agent works unattended in its own git worktree,<br>
-under your rules, with evidence for every result and a cost for every job.
+Avala is an open-source desktop harness for coding agents, and Ava is the one who runs it.<br>
+She gives each agent its own git worktree, keeps it to your rules, tells you when something needs you,<br>
+and calls a job done only when your checks pass, with what it cost beside it.
 
 [![CI](https://github.com/rick-dev-creator/avala/actions/workflows/ci.yml/badge.svg)](https://github.com/rick-dev-creator/avala/actions/workflows/ci.yml)
 [![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
@@ -18,7 +19,7 @@ under your rules, with evidence for every result and a cost for every job.
 [![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Install](#install) · [Quick start](#quick-start) · [Features](#features) · [For teams](#for-teams) · [Privacy](#privacy) · [Build from source](#build-from-source) · [Docs](#docs)
+[Meet Ava](#meet-ava) · [Install](#install) · [Quick start](#quick-start) · [Features](#features) · [For teams](#for-teams) · [Privacy](#privacy) · [Build from source](#build-from-source) · [Docs](#docs)
 
 <br>
 
@@ -30,17 +31,40 @@ under your rules, with evidence for every result and a cost for every job.
 
 </div>
 
-## Why Avala
+## Meet Ava
 
-- **Evidence, not the agent's word.** A job is done only when your repository's checks pass in its worktree.
-- **Policies, not prompts.** Permissions, questions and plans are answered by rules the agent cannot edit, and every decision is audited.
-- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
-- **Every account at once.** Each Claude Code login is a connection, and jobs and their sub-agents run on several in parallel.
-- **A usage limit is not a dead end.** A job near the limit waits for the reset, or is relayed to the connection with the most room left.
+<table>
+<tr>
+<td align="center" width="25%"><img src="docs/assets/readme/ava-focused.png" alt="Ava focused, her eyes narrowed on the work, in cool light" width="150"><br><sub><b>Focused</b> · 集中<br>while the job runs</sub></td>
+<td align="center" width="25%"><img src="docs/assets/readme/ava-asking.png" alt="Ava asking, a fingertip at her lips and a playful look" width="150"><br><sub><b>Asking</b> · 質問<br>when it needs you</sub></td>
+<td align="center" width="25%"><img src="docs/assets/readme/ava-worried.png" alt="Ava worried, biting her lip, lit red from below" width="150"><br><sub><b>Worried</b> · 心配<br>when a check fails</sub></td>
+<td align="center" width="25%"><img src="docs/assets/readme/ava-pleased.png" alt="Ava pleased, with a sly wink" width="150"><br><sub><b>Pleased</b> · 満足<br>when it is ready</sub></td>
+</tr>
+</table>
+
+Ava is calm, a little playful, and very hard to fool. She doesn't take an agent's word that the work is done; she runs your checks. She doesn't ask you about every command; she asks your rules first, and you only when they can't answer. And she doesn't make a show of herself: one short line when something happens, then she lets you read.
+
+> *"On it. Stay close, this part is the fun one."*
+>
+> *"I need your answer before I go on."*
+>
+> *"Something broke. I'll show you where."*
+>
+> *"It's ready for you. Take a look whenever you want."*
+
+**She keeps out of your way.** In a wide window she stands beside the conversation, in the margin it doesn't use. In a narrow one she folds into a single line above the composer and opens only when a job needs you, fails or is ready, folding again on her own, or as soon as you type or scroll back. The chat never grows because of her.
+
+## Why leave it with Ava
+
+- **She trusts evidence, not the agent's word.** A job is done only when your repository's checks pass in its worktree.
+- **She follows your rules, not prompts.** Permissions, questions and plans are answered by policies the agent cannot edit, and she audits every decision.
+- **Nothing runs away from her.** She catches stalled sessions, stops spending at your caps, and reclaims leftover processes, ports and worktrees.
+- **She works every account at once.** Each Claude Code login is a connection, and she runs jobs and their sub-agents on several in parallel.
+- **A usage limit doesn't stop her.** Near the limit she waits for the reset, or relays the job to the connection with the most room left.
 
 ## Features
 
-### Start and follow the work
+### Tell her what you need
 
 <table>
 <tr>
@@ -70,7 +94,7 @@ under your rules, with evidence for every result and a cost for every job.
 - Attach files and images by drop or paste, and mention files, commits and other jobs with `@`.
 - Canvases drawn as Markdown, SVG and Mermaid; conversations grouped by project and archived when finished.
 
-### Trust the result
+### She proves it before you review
 
 <table>
 <tr>
@@ -102,7 +126,7 @@ under your rules, with evidence for every result and a cost for every job.
 - **Checks found for you.** In a repository without `.avala/checks.json`, Avala finds its own build, lint and test commands, for any stack. [Checks and review](docs/guide/checks-and-review.md)
 - **Feature documentation.** A job can document what it builds, from its plan to the result, as Markdown with a C4 diagram in your repository. [Feature documentation](docs/guide/feature-documentation.md)
 
-### Run on every account
+### She runs on every account you have
 
 <table>
 <tr>
@@ -141,7 +165,7 @@ under your rules, with evidence for every result and a cost for every job.
 
 **Relayed at the usage limit.** With Elastic Harness Chaining, a job near the limit of its window winds down, and the next connection carries on from a brief of its work. The Relays pane draws the route. [Budgets and usage limits](docs/guide/budgets-and-usage-limits.md)
 
-### Stay in control
+### You stay in control
 
 <table>
 <tr>
@@ -171,7 +195,7 @@ under your rules, with evidence for every result and a cost for every job.
 - Caps on tokens, cost and memory per job, and a daily ceiling for the machine.
 - Worktrees are freed once a job no longer needs them, and rebuilt when it continues. [Worktrees and disk space](docs/guide/worktrees-and-disk-space.md)
 
-### Compare and preview
+### She tries it several ways, and shows you
 
 <table>
 <tr>
@@ -199,7 +223,7 @@ under your rules, with evidence for every result and a cost for every job.
 </tr>
 </table>
 
-### Automate
+### She works while you are away
 
 <table>
 <tr>
