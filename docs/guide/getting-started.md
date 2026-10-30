@@ -13,7 +13,7 @@ On a first run, a **welcome tour** of four steps shows what Avala found on your 
 1. **Install Avala.** See [Install](../../README.md#install) in the README; the packages are described in [Releasing](../release.md). To build from source, see [Contributing](../../CONTRIBUTING.md).
 2. **Install Claude Code.** Install the `claude` CLI, put it on your `PATH` and sign in once.
 3. **Start Avala and follow the tour.** Move on with Continue or Enter, and leave at any step with Skip or Esc:
-   1. **Welcome to Avala**: what Avala is, in one line.
+   1. **Hi, I'm Ava**: Ava introduces herself and what Avala does, in one line.
    2. **Your agents**: the coding agents signed in on this computer, each marked Signed in, At its limit, Signed out, Key not set or Not usable. With none found, the step shows the command that installs one and the one that signs in, and Check again looks once more.
    3. **Your code**: the **Projects folder** where new and cloned repositories go, with Change…, and the GitHub, Gitea or Forgejo sign-ins found on this computer, each added with one click.
    4. **Your privacy**: Hide personal details and Share anonymous usage statistics. Start finishes the tour.

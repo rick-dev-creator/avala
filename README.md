@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/avala-lockup-dark.png">
-  <img src="docs/assets/brand/avala-lockup-light.png" alt="Avala" width="220">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/ava-hero-dark.png">
+  <img src="docs/assets/readme/ava-hero-light.png" alt="Avala: Ava, a calm young woman with a short black and crimson bob, a choker and a jacket off one shoulder, beside the words AVALA and Leave it with Ava" width="900">
 </picture>
 
 ### Leave it with Ava. · 任せて。
@@ -274,6 +274,14 @@ The [guide](docs/guide/README.md) has a page for each feature.
 [Fleet server](docs/guide/fleet-server.md) shows how to install it.
 
 <sub>The pictures of the application are captured by its screen tests, which drive it headless on the development simulator, as [Contributing](CONTRIBUTING.md) explains. The Fleet page is captured from Avala connected to a fleet server holding sample data.</sub>
+
+<div align="center">
+
+**Give Ava the first job you'd rather not watch.**
+
+[Install Avala](#install) · [Read the guide](docs/guide/README.md)
+
+</div>
 
 ## Install
 

@@ -144,11 +144,11 @@ internal static class OnboardingPhrases
 
     public const string Start = "Start";
 
-    public const string WelcomeTitle = "Welcome to Avala";
+    public const string WelcomeTitle = "Hi, I'm Ava.";
 
-    public const string WelcomeText = "Agents you can trust without watching.";
+    public const string WelcomeText = "Leave it with me.";
 
-    public const string WelcomeDetail = "Each agent works in its own worktree. Every change is checked before you review it.";
+    public const string WelcomeDetail = "I give each agent its own worktree and check every change before you review it.";
 
     public const string AgentsTitle = "Your agents";
 
