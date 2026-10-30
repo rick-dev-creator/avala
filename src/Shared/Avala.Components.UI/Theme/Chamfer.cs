@@ -50,6 +50,7 @@ public sealed class Chamfer
                 Stretch = Stretch.None,
                 AlignmentX = AlignmentX.Left,
                 AlignmentY = AlignmentY.Top,
+                DestinationRect = new RelativeRect(0, 0, visual.Bounds.Width, visual.Bounds.Height, RelativeUnit.Absolute),
             }
             : null;
 }

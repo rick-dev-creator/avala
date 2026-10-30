@@ -17,7 +17,17 @@ public sealed class ChamferScripts(HeadlessUi ui)
             var (_, panel) = Shown(new Border { Width = 200, Height = 80 }, cut: 12);
 
             Assert.Null(panel.Clip);
+            Assert.Equal(new RelativeRect(0, 0, 200, 80, RelativeUnit.Absolute), Assert.IsType<DrawingBrush>(panel.OpacityMask).DestinationRect);
             Assert.Equal([new(0, 0), new(188, 0), new(200, 12), new(200, 80), new(12, 80), new(0, 68)], Outline(panel).Points);
+        }, Cancellation);
+
+    [Fact]
+    public Task AShadowedPanelKeepsItsWholeSizeUnderTheCutAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (_, panel) = Shown(new Border { Width = 200, Height = 80, BoxShadow = BoxShadows.Parse("0 24 48 -12 #80000000") }, cut: 12);
+
+            Assert.Equal(new RelativeRect(0, 0, 200, 80, RelativeUnit.Absolute), Assert.IsType<DrawingBrush>(panel.OpacityMask).DestinationRect);
         }, Cancellation);
 
     [Fact]
