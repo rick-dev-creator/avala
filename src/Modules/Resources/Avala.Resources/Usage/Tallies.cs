@@ -28,12 +28,20 @@ internal static class Tallies
             : now.Where(process => before.ContainsKey(process.Id))
                 .Sum(process => Math.Max(0, (process.CpuTime - before[process.Id]).TotalSeconds)) / elapsed.TotalSeconds;
 
-    public static Option<TimeSpan> KeptFor(this WorktreeRetention retention, JobStatus status) => status switch
+    public static Option<TimeSpan> DeletedAfter(this WorktreePolicy policy, JobStatus status) => status switch
     {
-        JobStatus.Discarded => retention.Discarded,
-        JobStatus.Failed => retention.Failed,
-        JobStatus.Approved => retention.Approved,
+        JobStatus.Discarded => policy.DeleteDiscarded,
+        JobStatus.Failed => policy.DeleteFailed,
         _ => Option<TimeSpan>.None,
+    };
+
+    public static WorktreeMoment EndedAs(this JobStatus status, bool delivered, bool awaitsMerge) => status switch
+    {
+        JobStatus.Discarded => WorktreeMoment.Discarded,
+        JobStatus.Failed => WorktreeMoment.Failed,
+        _ when delivered => WorktreeMoment.Delivered,
+        _ when awaitsMerge => WorktreeMoment.PullRequest,
+        _ => WorktreeMoment.Undelivered,
     };
 
     public static bool Ended(this JobStatus status) => status is JobStatus.Discarded or JobStatus.Failed or JobStatus.Approved;

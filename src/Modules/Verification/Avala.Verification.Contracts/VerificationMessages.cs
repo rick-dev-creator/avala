@@ -62,6 +62,30 @@ public sealed record VerificationReport(
     public Option<DeclarationProblem> Problem { get; init; }
 
     public bool Missing { get; init; }
+
+    public bool Discovered { get; init; }
+
+    public bool DiscoveryShipped { get; init; }
 }
 
 public sealed record AttemptVerified(VerificationReport Report) : IIntegrationEvent;
+
+public enum DiscoveryState
+{
+    Running,
+    Proposed,
+    Found,
+    NoneFound,
+}
+
+public sealed record ChecksDiscovery(JobId Job, string Repository, DiscoveryState State, IReadOnlyList<CheckDeclared> Checks)
+{
+    public bool Reads { get; init; }
+}
+
+public sealed record ChecksDiscoveryChanged(ChecksDiscovery Discovery) : IIntegrationEvent;
+
+public sealed record ChecksProposal(string Content)
+{
+    public const string Tool = "propose_checks";
+}

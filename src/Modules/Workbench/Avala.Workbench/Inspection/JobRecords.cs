@@ -35,7 +35,7 @@ internal sealed class JobRecords(IJobCatalog catalog, IWorkspaces workspaces, IR
             Workspace = workspace,
             Ports = workspace.Bind(LeaseOf),
             Parent = parent,
-            Children = await catalog.ChildrenAsync(history.Summary.Job, cancellationToken),
+            Children = [.. (await catalog.ChildrenAsync(history.Summary.Job, cancellationToken)).Where(child => !child.Companion)],
             Delegated = delegations.OfParent(history.Summary.Job),
         };
     }

@@ -62,7 +62,7 @@
             <StackPanel Spacing="4">
               <TextBlock Classes="caption" Text="Disk" />
               <TextBlock x:Name="Disk" Classes="figure" Text="{Binding Disk}" TextTrimming="CharacterEllipsis" />
-              <TextBlock Classes="caption" Text="in worktrees" />
+              <Button x:Name="OpenWorktrees" Classes="link" Padding="0" Content="in worktrees ›" Command="{Binding OpenWorktreesCommand}" ToolTip.Tip="See what worktrees take and what Avala freed" />
             </StackPanel>
           </Border>
           <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">

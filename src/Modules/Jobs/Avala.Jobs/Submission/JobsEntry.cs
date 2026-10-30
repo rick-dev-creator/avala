@@ -9,7 +9,7 @@ using Avala.Sdk;
 
 namespace Avala.Jobs.Submission;
 
-internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJob review, JobQueues queues) : IJobs, IOpenDeliveries, IRemoteJobs, IJobMessages
+internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJob review, JobQueues queues) : IJobs, ISessionBoundJobs, IOpenDeliveries, IRemoteJobs, IJobMessages
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         await submit.ExecuteAsync(request, cancellationToken);
@@ -17,13 +17,11 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
     public async ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         await InQueueAsync(job, (found, token) => controls.Hold.ExecuteAsync(found, reason, token), cancellationToken);
 
-    public async ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
-        await InQueueAsync(
-            job,
-            (found, token) => found.State == JobState.Running
-                ? controls.Hold.ExecuteAsync(found, reason, token)
-                : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
-            cancellationToken);
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
+        HoldRunningAsync(job, _ => true, reason, cancellationToken);
+
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningOnAsync(JobId job, SessionId session, HoldReason reason, CancellationToken cancellationToken) =>
+        HoldRunningAsync(job, found => found.Session == Option<SessionId>.Some(session), reason, cancellationToken);
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
         ContinueAsync(job, new JobMessage(message), cancellationToken);
@@ -38,12 +36,11 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, message, (found, guidance, token) => review.ContinueOnAsync(found, connection, guidance, token), cancellationToken);
 
-    public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
-        controls.Journal.Delivered(
-            job,
-            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy).Carrying(message.Messages)).TryGetValue(out var steering, out _)
-                ? await InQueueAsync(job, (found, token) => controls.Hold.SteerAsync(found, steering, token), cancellationToken)
-                : JobRejection.EmptyMessage);
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) =>
+        SteerAsync(job, _ => true, message, cancellationToken);
+
+    public ValueTask<Result<JobSteered, JobRejection>> SteerOnAsync(JobId job, SessionId session, JobMessage message, CancellationToken cancellationToken) =>
+        SteerAsync(job, found => found.Session == Option<SessionId>.Some(session), message, cancellationToken);
 
     public async ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         await InQueueAsync(job, review.DiscardAsync, cancellationToken);
@@ -84,6 +81,26 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
             job,
             Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy).Carrying(message.Messages)).TryGetValue(out var feedback, out _)
                 ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
+                : JobRejection.EmptyMessage);
+
+    private async ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, Func<Job, bool> on, HoldReason reason, CancellationToken cancellationToken) =>
+        await InQueueAsync(
+            job,
+            (found, token) => found.State == JobState.Running && on(found)
+                ? controls.Hold.ExecuteAsync(found, reason, token)
+                : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
+            cancellationToken);
+
+    private async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, Func<Job, bool> on, JobMessage message, CancellationToken cancellationToken) =>
+        controls.Journal.Delivered(
+            job,
+            Feedback.Create(message.Text).Map(created => created.With(message.Attachments).By(message.Author).CausedBy(message.CausedBy).Carrying(message.Messages)).TryGetValue(out var steering, out _)
+                ? await InQueueAsync(
+                    job,
+                    (found, token) => on(found)
+                        ? controls.Hold.SteerAsync(found, steering, token)
+                        : Task.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotRunning)),
+                    cancellationToken)
                 : JobRejection.EmptyMessage);
 
     private async Task<Result<T, JobRejection>> InQueueAsync<T>(

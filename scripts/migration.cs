@@ -14,9 +14,11 @@
 #:project ../src/Modules/Triggers/Avala.Triggers/Avala.Triggers.csproj
 #:project ../src/Modules/Forges/Avala.Forges/Avala.Forges.csproj
 #:project ../src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj
+#:project ../src/Modules/Fleet/Avala.Fleet/Avala.Fleet.csproj
 #:project ../src/Modules/Contests/Avala.Contests/Avala.Contests.csproj
 #:project ../src/Modules/Projects/Avala.Projects/Avala.Projects.csproj
 #:project ../src/Modules/Documentation/Avala.Documentation/Avala.Documentation.csproj
+#:project ../src/Modules/Resources/Avala.Resources/Avala.Resources.csproj
 
 using System.Reflection;
 using System.Text.RegularExpressions;

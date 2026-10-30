@@ -203,9 +203,11 @@ public sealed class DelegationDeskTests
         await using var desk = new Desk();
         await desk.StartedAsync();
         var child = await desk.DelegateAsync("notes");
+        var status = situation == "failed" ? JobStatus.Failed : JobStatus.NeedsHelp;
         desk.Jobs.Attempted(child, situation == "held" ? AttemptOutcome.Interrupted : AttemptOutcome.Rejected);
+        desk.Jobs.Is(child, status);
 
-        await desk.ProgressAsync(child, situation == "failed" ? JobStatus.Failed : JobStatus.NeedsHelp);
+        await desk.ProgressAsync(child, status);
         await desk.HeldAsync(child, HoldReason.BudgetExceeded);
 
         var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);

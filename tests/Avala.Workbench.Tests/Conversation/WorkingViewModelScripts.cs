@@ -55,6 +55,16 @@ public sealed class WorkingViewModelScripts
     }
 
     [Fact]
+    public void WhileAvalaFindsTheChecksTheWorkingRowSaysSoInsteadOfRunningThem()
+    {
+        var working = new WorkingViewModel();
+
+        working.Show(Board(Job().WithPrompts("Fix it", []), JobStatus.Checking) with { FindsChecks = true });
+
+        Assert.Equal((true, "Finding how to check the work"), (working.IsShown, working.Verb));
+    }
+
+    [Fact]
     public void TheWorkingRowStepsAsideWhileAnItemIsOpenAndOnceTheJobStopsWorking()
     {
         var replying = Job().Apply(new TurnStarted(session, turn), Now)

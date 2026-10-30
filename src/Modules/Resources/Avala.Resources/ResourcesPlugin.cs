@@ -1,14 +1,18 @@
 using Avala.Agents.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Claims;
 using Avala.Resources.Contracts;
 using Avala.Resources.Disks;
+using Avala.Resources.History;
 using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Sampling;
 using Avala.Resources.Scratch;
 using Avala.Resources.Settings;
+using Avala.Resources.Storage;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -41,9 +45,22 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<OrphanReaper>()
             .AddForwarded<IOrphans, OrphanReaper>()
             .AddSingleton<RetainedWorktrees>()
+            .AddSingleton<IWorktreeFacts, WorktreeFacts>()
             .AddSingleton<WorktreeHousekeeper>()
-            .AddForwarded<IWorktreeHousekeeping, WorktreeHousekeeper>()
+            .AddSingleton<IWorktreeHousekeeping, WorktreeDesk>()
             .AddForwarded<IStartupTask, WorktreeHousekeeper>()
+            .AddSingleton<SqliteWorktreeHistoryStore>()
+            .AddForwarded<IWorktreeHistoryStore, SqliteWorktreeHistoryStore>()
+            .AddForwarded<IStartupTask, SqliteWorktreeHistoryStore>()
+            .AddSingleton<WorktreeHistory>()
+            .AddForwarded<IWorktreeHistory, WorktreeHistory>()
+            .AddForwarded<IHandle<ResourcesSampled>, WorktreeHistory>()
+            .AddForwarded<IHandle<WorktreeFreed>, WorktreeHistory>()
+            .AddForwarded<IHandle<WorktreeReclaimed>, WorktreeHistory>()
+            .AddForwarded<IHandle<JobProgressed>, WorktreeHistory>()
+            .AddSingleton<WorktreeMoments>()
+            .AddForwarded<IHandle<ConversationsArchived>, WorktreeMoments>()
+            .AddForwarded<IHandle<PullRequestWatchChanged>, WorktreeMoments>()
             .AddSingleton<RetentionRecovery>()
             .AddForwarded<IStartupTask, RetentionRecovery>()
             .AddSingleton<SampleTaker>()

@@ -350,7 +350,7 @@ internal sealed class FakeResources : IResources
         TimeSpan.FromSeconds(60),
         OrphanPolicy.Report,
         new PortRange(24000, 24999, 10),
-        new WorktreeRetention(TimeSpan.Zero, Option<TimeSpan>.None, Option<TimeSpan>.None),
+        new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero) { DeleteDiscarded = TimeSpan.FromDays(7), DeleteFailed = TimeSpan.FromDays(30), Idle = TimeSpan.FromDays(3), SpaceBudget = 20L << 30, DiskFloor = 0.1 },
         ReconcilePolicy.Report);
 
     public List<PortLease> Leased { get; } = [];
@@ -370,6 +370,23 @@ internal sealed class FakeResources : IResources
     public IReadOnlyList<PortConflict> Conflicts() => [];
 
     public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Settings);
+
+    public List<WorktreePolicy> Policies { get; } = [];
+
+    public ResourceError? Refusal { get; set; }
+
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken)
+    {
+        if (Refusal is { } refusal)
+        {
+            return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Failure(refusal));
+        }
+
+        Policies.Add(policy);
+        Settings = Settings with { Worktrees = policy, Reconcile = reconcile, File = ResourceFileStatus.Applied };
+
+        return ValueTask.FromResult(Result<ResourceSettings, ResourceError>.Success(Settings));
+    }
 }
 
 internal sealed class FakeOrphans : IOrphans
@@ -398,6 +415,20 @@ internal sealed class FakeHousekeeping : IWorktreeHousekeeping
     public List<string> Calls { get; } = [];
 
     public IReadOnlyList<ReclaimedWorktree> Reclaimed() => [];
+
+    public IReadOnlyList<FreedWorktree> Freed() => [];
+
+    public Option<WorktreeSpace> Short { get; set; }
+
+    public List<WorktreeDue> Due { get; } = [];
+
+    public List<FreedWorktree> FreedNow { get; } = [];
+
+    public Option<WorktreeSpace> Shortage() => Short;
+
+    public IReadOnlyList<WorktreeDue> Upcoming() => Due;
+
+    public ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<FreedWorktree>>([.. FreedNow]);
 
     public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {
@@ -578,4 +609,11 @@ internal sealed class SubmittingJobs : IJobs
 
     public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+}
+
+internal sealed class FakeWorktreeHistory : IWorktreeHistory
+{
+    public WorktreeReport Report { get; set; } = new([], []);
+
+    public ValueTask<WorktreeReport> ReportAsync(DateOnly from, CancellationToken cancellationToken) => ValueTask.FromResult(Report);
 }

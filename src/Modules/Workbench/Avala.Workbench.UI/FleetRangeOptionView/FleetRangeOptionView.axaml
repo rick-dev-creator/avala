@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetRangeOptionView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetRangeOptionViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetRangeOptionViewModel />
+  </Design.DataContext>
+  <Button x:Name="OptionButton" Classes="segment" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding ChooseCommand}" />
+</UserControl>

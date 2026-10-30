@@ -5,6 +5,8 @@ namespace Avala.Jobs.Contracts;
 
 public interface ICompletionGate
 {
+    int Order => 0;
+
     ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken);
 }
 
@@ -20,6 +22,7 @@ public enum GateDecision
     Pass,
     Retry,
     Hold,
+    Defer,
 }
 
 public sealed record GateVerdict(GateDecision Decision, string Feedback)
@@ -28,7 +31,15 @@ public sealed record GateVerdict(GateDecision Decision, string Feedback)
 
     public Option<HoldReason> Hold { get; init; }
 
+    public bool Relays { get; init; }
+
     public static GateVerdict Retry(string feedback) => new(GateDecision.Retry, feedback);
+
+    public static GateVerdict Relay(string feedback) => new(GateDecision.Retry, feedback) { Relays = true };
+
+    public static GateVerdict Deferred { get; } = new(GateDecision.Defer, string.Empty);
 
     public static GateVerdict HoldFor(HoldReason reason) => new(GateDecision.Hold, string.Empty) { Hold = reason };
 }
+
+public sealed record DeferredGateReady(JobId Job) : Avala.Sdk.Events.IIntegrationEvent;

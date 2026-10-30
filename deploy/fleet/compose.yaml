@@ -1,0 +1,49 @@
+name: avala-fleet
+
+services:
+  postgres:
+    image: postgres:18.3
+    environment:
+      POSTGRES_DB: fleet
+      POSTGRES_USER: avala
+      POSTGRES_PASSWORD: ${AVALA_DATABASE_PASSWORD:?set AVALA_DATABASE_PASSWORD in .env}
+    volumes:
+      - fleet-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "avala", "-d", "fleet"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  server:
+    image: ${AVALA_SERVER_IMAGE:-ghcr.io/rick-dev-creator/avala-server}:${AVALA_SERVER_VERSION:?set AVALA_SERVER_VERSION in .env}
+    environment:
+      ConnectionStrings__fleet: Host=postgres;Database=fleet;Username=avala;Password=${AVALA_DATABASE_PASSWORD}
+      Authentication__AdministratorKey: ${AVALA_ADMINISTRATOR_KEY:?set AVALA_ADMINISTRATOR_KEY in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      AVALA_FLEET_DOMAIN: ${AVALA_FLEET_DOMAIN:?set AVALA_FLEET_DOMAIN in .env}
+      AVALA_FLEET_TLS: ${AVALA_FLEET_TLS:?set AVALA_FLEET_TLS in .env}
+    ports:
+      - ${AVALA_HTTP_PORT:-80}:80
+      - ${AVALA_HTTPS_PORT:-443}:443
+      - ${AVALA_HTTPS_PORT:-443}:443/udp
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  fleet-data:
+  caddy-data:
+  caddy-config:

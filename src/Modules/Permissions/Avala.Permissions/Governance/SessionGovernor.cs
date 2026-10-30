@@ -31,7 +31,7 @@ internal sealed class SessionGovernor(GovernanceBook book, SessionTerms terms, P
             Autonomy = policy.Declared,
             Strategy = policy.Strategy,
         };
-        await book.OpenedAsync(book.Of(integrationEvent.Session).OpenedIn(integrationEvent.WorkingDirectory, policy, report) with { Scratch = terms.ScratchOf(integrationEvent.WorkingDirectory), Own = integrationEvent.OwnFolders }, report, cancellationToken);
+        await book.OpenedAsync(book.Of(integrationEvent.Session).OpenedIn(integrationEvent.WorkingDirectory, policy, report) with { Writable = [.. terms.WritableOf(integrationEvent.WorkingDirectory), .. integrationEvent.WritableFolders], Own = integrationEvent.OwnFolders }, report, cancellationToken);
 
         await bus.PublishAsync(new PolicyLoaded(report), cancellationToken);
     }

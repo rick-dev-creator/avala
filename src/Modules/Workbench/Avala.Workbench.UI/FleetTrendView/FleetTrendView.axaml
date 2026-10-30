@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             x:Class="Avala.Workbench.UI.FleetTrendView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetTrendViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetTrendViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ProgressBar.column">
+      <Setter Property="Orientation" Value="Vertical" />
+      <Setter Property="Minimum" Value="0" />
+      <Setter Property="Maximum" Value="1" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+    <Style Selector="Border.swatch">
+      <Setter Property="Width" Value="8" />
+      <Setter Property="Height" Value="8" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ItemsControl#ColumnList">
+      <Setter Property="Height" Value="180" />
+    </Style>
+    <Style Selector="Border#Metric">
+      <Setter Property="DockPanel.Dock" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <ContainerQuery Name="Trend" Query="max-width:440">
+      <Style Selector="Border#Metric">
+        <Setter Property="DockPanel.Dock" Value="Bottom" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,8,0,0" />
+      </Style>
+      <Style Selector="ItemsControl#ColumnList">
+        <Setter Property="Height" Value="140" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <Border Classes="card" Padding="16,14">
+    <StackPanel Spacing="10" Container.Name="Trend" Container.Sizing="Width">
+      <DockPanel>
+        <Border x:Name="Metric" Classes="segments">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="ShowSpendButton" Classes="segment" Classes.selected="{Binding ShowsSpend}" Content="Spend" IsEnabled="{Binding CanShowSpend}" Command="{Binding ShowSpendCommand}" />
+            <Button x:Name="ShowTokensButton" Classes="segment" Classes.selected="{Binding !ShowsSpend}" Content="Tokens" Command="{Binding ShowTokensCommand}" />
+          </StackPanel>
+        </Border>
+        <StackPanel Spacing="2">
+          <TextBlock Classes="section" Text="Over time" />
+          <TextBlock x:Name="AxisText" Classes="caption" Text="{Binding Axis}" />
+        </StackPanel>
+      </DockPanel>
+      <TextBlock x:Name="EmptyText" Classes="caption" Text="Nothing was spent in this range" IsVisible="{Binding IsEmpty}" />
+      <ItemsControl x:Name="ColumnList" ItemsSource="{Binding Columns}" IsVisible="{Binding !IsEmpty}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Rows="1" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <WrapPanel x:Name="Legend" ItemSpacing="14" LineSpacing="4" IsVisible="{Binding !IsEmpty}">
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !ShowsSpend}">
+          <Border Classes="swatch" Background="{DynamicResource TextPrimaryBrush}" />
+          <TextBlock Classes="hint" Text="input" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !ShowsSpend}">
+          <Border Classes="swatch" Background="{DynamicResource TextSecondaryBrush}" />
+          <TextBlock Classes="hint" Text="output" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !ShowsSpend}">
+          <Border Classes="swatch" Background="{DynamicResource AccentBrush}" />
+          <TextBlock Classes="hint" Text="reasoning" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !ShowsSpend}">
+          <Border Classes="swatch" Background="{DynamicResource TextTertiaryBrush}" />
+          <TextBlock Classes="hint" Text="cache write" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !ShowsSpend}">
+          <Border Classes="swatch" Background="{DynamicResource ShareFaintBrush}" />
+          <TextBlock Classes="hint" Text="cache read" />
+        </StackPanel>
+        <StackPanel x:Name="PreviousLegend" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasPrevious}">
+          <Border Width="12" Height="2" Background="{DynamicResource MeterMarkerBrush}" VerticalAlignment="Center" />
+          <TextBlock x:Name="PreviousText" Classes="hint" Text="{Binding Previous}" />
+        </StackPanel>
+      </WrapPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Fleet.Settings"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Fleet.UI.FleetSettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IFleetSettingsViewModel">
+  <Design.DataContext>
+    <settings:DesignFleetSettingsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <TextBlock Classes="section" Text="Fleet" VerticalAlignment="Bottom" />
+      <TextBlock Classes="hint" Text="send this instance's jobs, usage and cost to your fleet server" VerticalAlignment="Bottom" />
+    </StackPanel>
+    <Border Classes="grouped">
+      <StackPanel Margin="16,12" Spacing="10">
+        <StackPanel Spacing="8" IsVisible="{Binding IsDisconnected}">
+          <TextBlock Classes="caption" Text="The server receives ids, states, tokens, cost and verdicts, never a path, a title, an instruction or a file name. Nothing from a chat without a repository is sent." TextWrapping="Wrap" />
+          <TextBox x:Name="ServerBox" PlaceholderText="https://fleet.example" Text="{Binding Server}" AutomationProperties.Name="Fleet server address" />
+          <TextBox x:Name="KeyBox" PasswordChar="•" PlaceholderText="avk_…" Text="{Binding KeyBox}" AutomationProperties.Name="Instance key" />
+          <TextBlock Classes="caption" Text="The key is kept in this system's keychain, never in a file." TextWrapping="Wrap" />
+          <Button x:Name="ConnectButton" Content="Connect" Command="{Binding ConnectCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+        <StackPanel Spacing="6" IsVisible="{Binding IsConnected}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock x:Name="StateText" Text="{Binding State}" />
+            <TextBlock Classes="caption" Text="as" VerticalAlignment="Center" />
+            <TextBlock x:Name="InstanceText" privacy:PersonalDetails.Text="{Binding Instance}" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock x:Name="ServerText" Classes="caption mono" Text="{Binding Server}" />
+          <TextBlock x:Name="WaitingText" Classes="caption" Text="{Binding Waiting}" />
+          <TextBlock x:Name="DeliveryText" Classes="caption" Text="{Binding LastDelivery}" />
+          <TextBlock x:Name="UnansweredText" Classes="caption failure" Text="{Binding Unanswered}" IsVisible="{Binding HasUnanswered}" TextWrapping="Wrap" />
+          <TextBlock x:Name="DroppedText" Classes="caption failure" Text="{Binding Dropped}" IsVisible="{Binding HasDropped}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="TestButton" Content="Test connection" Command="{Binding TestCommand}" />
+            <Button x:Name="RetryButton" Content="Retry" Command="{Binding RetryCommand}" />
+            <Button x:Name="PauseButton" Content="Pause or resume" Command="{Binding TogglePauseCommand}" />
+            <Button x:Name="DisconnectButton" Content="Disconnect" Command="{Binding DisconnectCommand}" />
+          </StackPanel>
+        </StackPanel>
+        <TextBlock x:Name="ProblemText" Classes="caption failure" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+        <StackPanel Spacing="4" IsVisible="{Binding HasRejections}">
+          <TextBlock Classes="hint" Text="events the server refused" />
+          <ItemsControl x:Name="Rejections" ItemsSource="{Binding Rejections}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

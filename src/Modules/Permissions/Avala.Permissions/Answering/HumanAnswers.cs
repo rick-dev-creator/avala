@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Permissions.Folders;
 using Avala.Permissions.Governance;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
@@ -20,7 +21,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             return PolicyError.NotAwaitingAnswer;
         }
 
-        if (governed.Job.IsSome && !Offered(reply.Remember, asked))
+        if (governed.Job.IsSome && !Offered(reply, asked))
         {
             return PolicyError.ScopeNotOffered;
         }
@@ -43,7 +44,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
 
         await ledger.JoinedAsync(governed.Session, cancellationToken);
 
-        if ((await agents.RespondAsync(governed.Session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken)).IsFailure)
+        if ((await DeliverAsync(governed.Session, asked, reply, cancellationToken)).IsFailure)
         {
             Undo(kept, raised);
 
@@ -57,6 +58,11 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
 
         return await RecordAsync(governed, asked, reply, kept.Select(found => found.Rule).FirstOrDefault().ToOption(), cancellationToken);
     }
+
+    private ValueTask<Result<ItemId, AgentError>> DeliverAsync(SessionId session, PolicyDecision asked, PermissionReply reply, CancellationToken cancellationToken) =>
+        asked.Folder.Match(
+            folder => agents.ReturnAsync(session, FolderTool.Answered(reply.Item, folder, reply), cancellationToken),
+            () => agents.RespondAsync(session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken));
 
     private void Undo(List<(JobId Job, PolicyRule Rule)> kept, JobId[] raised)
     {
@@ -91,11 +97,13 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
     private static PolicyAnswer PolicyAnswerTo(PermissionReply reply) =>
         reply.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny;
 
-    private static bool Offered(Remember remember, PolicyDecision asked) => remember switch
+    private static bool Offered(PermissionReply reply, PolicyDecision asked) => reply.Remember switch
     {
         Remember.ForThisJob or Remember.ForThisContest => asked.Scope.Match(scope => scope.Rule.IsSome, () => false),
         Remember.EverythingInThisJob or Remember.EverythingInThisContest => asked.Scope.Match(scope => scope.Raisable, () => false),
-        _ => true,
+        Remember.ReadsInThisFolder => asked.Folder.IsSome,
+        Remember.EditsInThisFolder => Folder(asked).IsSome,
+        _ => asked.Folder.IsNone || reply.Answer == PermissionAnswer.Deny,
     };
 
     private static PolicyRule[] Rules(Remember remember, PolicyDecision asked, PolicyAnswer answer) => remember switch
@@ -104,8 +112,13 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             rule => [Remembering.Contested(rule, remember == Remember.ForThisContest) with { Answer = answer }],
             () => []),
         Remember.InThisRepository => [Remembering.ForJob(asked.Kind, asked.Target, answer)],
+        Remember.ReadsInThisFolder when answer == PolicyAnswer.Allow => Folder(asked).Match<PolicyRule[]>(folder => [Remembering.Granted(folder, FolderAccess.Read)], () => []),
+        Remember.EditsInThisFolder when answer == PolicyAnswer.Allow => Folder(asked).Match<PolicyRule[]>(folder => [Remembering.Granted(folder, FolderAccess.Edit)], () => []),
         _ => [],
     };
+
+    private static Option<string> Folder(PolicyDecision asked) =>
+        asked.Folder.Match(request => Option<string>.Some(request.Folder), () => asked.Scope.Bind(scope => scope.Folder));
 
     private Task<Result<PolicyRule, PolicyError>> WriteAsync(Option<JobId> job, Option<PolicyRule> rule, CancellationToken cancellationToken) =>
         job.Match(

@@ -15,7 +15,19 @@ internal static class PreviewPhrases
 
     public const string Starting = "starting";
 
+    public const string Viewing = "file";
+
+    public static string FileName(string path) => Path.GetFileName(path.Replace('\\', '/').TrimEnd('/'));
+
     public const string Waiting = "Waiting for the server to listen on its port…";
+
+    public const string Responsive = "Responsive";
+
+    public const string FitsThePane = "fits the pane";
+
+    public static string Size(int width, int height) => $"{width} × {height}";
+
+    public static string Device(string name, string size) => $"{name} · {size}";
 
     public static string Chip(PreviewTarget target) => $"Running · {target.Origin}";
 
@@ -42,6 +54,7 @@ internal static class PreviewPhrases
         PreviewError.NoScript => "Nothing to run: no dev or start script and no index.html.",
         PreviewError.NoLease => "No free ports are left for this worktree.",
         PreviewError.NotStarted => "The script could not start.",
+        PreviewError.Outside => "This file is outside the job's worktree.",
         _ => "Nothing is running.",
     };
 }

@@ -2,6 +2,7 @@
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.WorktreeSectionView"
@@ -69,9 +70,17 @@
                    privacy:PersonalDetails.Scrubbed="{Binding FolderProblem}"
                    IsVisible="{Binding FolderProblem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
-      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-        <TextBlock Classes="caption secondary" Text="Branch" />
-        <TextBlock x:Name="Branch" Grid.Column="1" Classes="value" TextTrimming="CharacterEllipsis" Text="{Binding Branch}" />
+      <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" VerticalAlignment="Center" Text="Branch" />
+        <TextBlock x:Name="Branch" Grid.Column="1" Classes="value" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding Branch}" ToolTip.Tip="{Binding Branch}" />
+        <copying:CopyButton x:Name="CopyBranch"
+                            Grid.Column="2"
+                            Margin="6,0,-4,0"
+                            VerticalAlignment="Center"
+                            Command="{Binding CopyBranchCommand}"
+                            IsCopied="{Binding IsBranchCopied}"
+                            ToolTip.Tip="Copy the branch name"
+                            AutomationProperties.Name="Copy the branch name" />
       </Grid>
       <TextBlock x:Name="NoWorktree"
                  Classes="caption secondary"
@@ -81,9 +90,17 @@
         <TextBlock Classes="caption secondary" Text="Base" />
         <TextBlock x:Name="Base" Grid.Column="1" Classes="value" Text="{Binding Base}" />
       </Grid>
-      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding !!Path.Value.Length}">
+      <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding !!Path.Value.Length}">
         <TextBlock Classes="caption secondary" Text="Path" />
         <SelectableTextBlock x:Name="Path" Grid.Column="1" Classes="value" TextWrapping="Wrap" privacy:PersonalDetails.Text="{Binding Path}" />
+        <copying:CopyButton x:Name="CopyPath"
+                            Grid.Column="2"
+                            Margin="6,-3,-4,0"
+                            VerticalAlignment="Top"
+                            Command="{Binding CopyPathCommand}"
+                            IsCopied="{Binding IsPathCopied}"
+                            ToolTip.Tip="Copy the full path, to carry on from a terminal"
+                            AutomationProperties.Name="Copy the worktree path" />
       </Grid>
       <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Ports, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Classes="caption secondary" Text="Ports" />

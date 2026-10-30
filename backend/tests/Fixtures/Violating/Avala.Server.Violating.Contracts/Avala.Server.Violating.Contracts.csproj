@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Ardalis.Result" />
+    <PackageReference Include="Mediator.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Violating.Application" />
+    <InternalsVisibleTo Include="Avala.Server.Violating.Infrastructure" />
+    <InternalsVisibleTo Include="Avala.Server.Violating.EndPoints" />
+  </ItemGroup>
+</Project>

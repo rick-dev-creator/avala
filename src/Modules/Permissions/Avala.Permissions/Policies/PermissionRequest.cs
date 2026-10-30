@@ -11,6 +11,10 @@ internal sealed record PermissionRequest(ItemKind Kind, string Target, bool Insi
     public bool ReadOnly { get; init; }
 
     public bool Readable { get; init; }
+
+    public Option<string> Granted { get; init; }
+
+    public Option<string> Grantable { get; init; }
 }
 
 internal sealed record Verdict(PolicyAnswer Answer, Option<PolicyRule> Rule);

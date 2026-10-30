@@ -9,6 +9,7 @@ using Avala.Workspaces.Scratch;
 using Avala.Workspaces.Storage;
 using Avala.Workspaces.WorkingFiles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Avala.Workspaces;
 
@@ -16,7 +17,9 @@ public sealed class WorkspacesPlugin : IPlugin
 {
     public PluginInfo Info { get; } = new("avala.workspaces", "Workspaces");
 
-    public void Register(IPluginRegistrar registrar) =>
+    public void Register(IPluginRegistrar registrar)
+    {
+        registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton(provider => new WorkspaceSettings(provider.GetRequiredService<AvalaPaths>().Folder("worktrees")))
             .AddSingleton<IGit, GitCli>()
@@ -25,6 +28,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddForwarded<IStartupTask, SqliteWorkspaceStore>()
             .AddSingleton<WorktreeReconciler>()
             .AddSingleton<IWorkspaces, WorkspaceService>()
+            .AddSingleton<IWorkspaceShelf, WorkspaceShelf>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
             .AddSingleton<IWorkingFiles, WorkingFileStore>()
             .AddSingleton<IWorkingCommits, WorkingCommitter>()
@@ -32,7 +36,9 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddForwarded<IRepositories, GitRepositories>()
             .AddSingleton(provider => new ScratchSettings(provider.GetRequiredService<AvalaPaths>().Folder("scratch")))
             .AddSingleton<IScratchRepositories, ScratchRepositories>()
-            .AddSingleton<IRemoteRepositories, GitRemotes>()
+            .AddSingleton<GitRemotes>()
+            .AddForwarded<IRemoteRepositories, GitRemotes>()
+            .AddForwarded<IRepositoryOrigins, GitRemotes>()
             .AddSingleton<IRepositoryIndex, GitIndex>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>()
@@ -41,4 +47,5 @@ public sealed class WorkspacesPlugin : IPlugin
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 Path.Combine(provider.GetRequiredService<AvalaPaths>().Data, ProjectsSettings.FileName)))
             .AddSingleton<IProjectsFolder, ProjectsFolders>();
+    }
 }

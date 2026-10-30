@@ -117,6 +117,25 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AChildRetriedAtStartupIsNotReportedOutOfRetriesWhenItsHoldIsAnnouncedAfterwardsAsync()
+    {
+        await using var desk = new Desk { Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        desk.Jobs.HeldFor(child, HoldReason.TurnFailed);
+        await desk.StartupCompletedAsync();
+
+        await desk.ProgressAsync(child, JobStatus.NeedsHelp);
+        await desk.HeldAsync(child, HoldReason.TurnFailed);
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+        await desk.HeldMidAttemptAsync(child, HoldReason.TurnFailed);
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((ChildOutcome.GivenUp, JobStatus.Discarded, 2), (report.Outcome, report.Status, report.Retries));
+    }
+
+    [Fact]
     public async Task AReportBriefedInAMessageThatReachedTheParentJustBeforeARestartIsNotBriefedAgainAfterItAsync()
     {
         await using var desk = new Desk();

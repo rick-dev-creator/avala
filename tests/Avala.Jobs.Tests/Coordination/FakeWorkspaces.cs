@@ -4,16 +4,19 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Tests.Coordination;
 
-internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceCheckpoints
+internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceCheckpoints, IWorkspaceShelf
 {
     private readonly ConcurrentDictionary<WorkspaceId, WorkspaceInfo> prepared = new();
     private readonly ConcurrentQueue<WorkspaceRequest> requests = new();
     private readonly ConcurrentQueue<(WorkspaceId Workspace, string Label)> checkpoints = new();
     private readonly ConcurrentQueue<int> restored = new();
+    private readonly ConcurrentQueue<WorkspaceId> rebuilt = new();
 
     public Option<WorkspaceFailure> PreparationFailure { get; init; }
 
     public bool RemovalFails { get; set; }
+
+    public bool RebuildFails { get; set; }
 
     public IReadOnlyList<string> Requests => [.. requests.Select(request => request.RepositoryPath)];
 
@@ -56,6 +59,31 @@ internal sealed class FakeWorkspaces : IWorkspaces, IWorkspaceCheckpoints
         return ValueTask.FromResult(Result<CheckpointInfo, WorkspaceFailure>.Success(
             new CheckpointInfo(workspace, checkpoints.Count, new string('a', 40), label)));
     }
+
+    public IReadOnlyList<WorkspaceId> Rebuilt => [.. rebuilt];
+
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> ShelveAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        prepared[workspace] = prepared[workspace] with { Shelved = true };
+
+        return FindAsync(workspace, cancellationToken);
+    }
+
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> RebuildAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (RebuildFails)
+        {
+            return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Failure(WorkspaceFailure.GitFailed));
+        }
+
+        rebuilt.Enqueue(workspace);
+        prepared[workspace] = prepared[workspace] with { Shelved = false };
+
+        return FindAsync(workspace, cancellationToken);
+    }
+
+    public ValueTask<Result<bool, WorkspaceFailure>> DeliveredAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<bool, WorkspaceFailure>.Success(false));
 
     public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAtAsync(string folder, CancellationToken cancellationToken) =>
         ValueTask.FromResult(prepared.Values.FirstOrDefault(info => info.Path == folder).ToOption().ToResult(WorkspaceFailure.UnknownWorkspace));

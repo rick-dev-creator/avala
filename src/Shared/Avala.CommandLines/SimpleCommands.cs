@@ -72,6 +72,9 @@ internal static class SimpleCommands
     {
         switch (program)
         {
+            case "cd" when words.Count == 2:
+                reader.ChangesDirectory(words[1]);
+                break;
             case "cd" or "pushd" or "popd":
                 reader.MovesDirectory();
                 break;

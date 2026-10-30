@@ -35,6 +35,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
+    public static (string File, string Content) DiscoveryOff { get; } = ("verification.json", """{ "discoverChecks": false }""");
+
+    public static (string File, string Content) DiscoveryOn { get; } = ("verification.json", """{ "discoverChecks": true }""");
+
     private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
@@ -76,6 +80,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public LaunchFault LaunchFault => surroundings.Launch;
 
     public FakeNotifierEndpoint Notifier => surroundings.Notifier.Endpoint;
+
+    public FleetGate Fleet => surroundings.Fleet;
 
     public TelemetryGate Telemetry => surroundings.Telemetry;
 
@@ -193,13 +199,19 @@ internal sealed class SimulatedRun : IAsyncDisposable
         string repositoryName = "repository",
         bool production = false,
         bool realSignIns = false,
-        bool realGit = false)
+        bool realGit = false,
+        bool realFleet = false)
     {
         var data = new TemporaryFolder();
 
         if (onboarded)
         {
             await File.WriteAllTextAsync(Path.Combine(data.Path, "onboarding.json"), """{ "onboarded": true }""", Cancellation);
+        }
+
+        if (!settings.Any(setting => setting.File == DiscoveryOff.File))
+        {
+            await File.WriteAllTextAsync(Path.Combine(data.Path, DiscoveryOff.File), DiscoveryOff.Content, Cancellation);
         }
 
         foreach (var (file, content) in settings)
@@ -217,6 +229,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Git = realGit || UsesRealGit ? Option<InMemoryGit>.None : new InMemoryGit(),
         };
         surroundings.Telemetry.Configured = telemetry;
+        surroundings.Fleet.Real = realFleet;
         surroundings.SignIns.Real = realSignIns;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
@@ -288,6 +301,16 @@ internal sealed class SimulatedRun : IAsyncDisposable
         application.Watch<TEvent>();
 
     public string DataFolder => data.Path;
+
+    public Task AddRemoteAsync(string name, string url) =>
+        surroundings.Git.Match(
+            git =>
+            {
+                git.AddRemote(repository.Path, name, url);
+
+                return Task.CompletedTask;
+            },
+            () => repository.GitAsync(Cancellation, "remote", "add", name, url));
 
     public async Task<Result<JobId, JobRejection>> SubmitAsync(JobRequest request) =>
         await Get<IJobs>().SubmitAsync(request with { RepositoryPath = repository.Path }, Cancellation);
@@ -393,6 +416,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<ReclaimedWorktree> ReclaimedAsync() => (await application.Reclaimed.UntilAsync(_ => true)).Reclaimed;
 
+    public async Task<FreedWorktree> FreedAsync() => (await application.Freed.UntilAsync(_ => true)).Freed;
+
     public async Task<PortLease> LeasedAsync() => (await application.Leased.UntilAsync(_ => true)).Lease;
 
     public async Task<JobQueued> QueuedAsync() => await application.Queued.UntilAsync(_ => true);
@@ -441,6 +466,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await surroundings.Tools.DisposeAsync();
             await data.DisposeAsync();
             surroundings.Notifier.Dispose();
+            surroundings.Fleet.Dispose();
             Ui.Dispose();
         }
 
@@ -486,6 +512,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public NotifierGate Notifier { get; } = new();
 
+        public FleetGate Fleet { get; } = new();
+
         public JudgeGate Judge { get; } = new();
 
         public LaunchFault Launch { get; } = new();
@@ -530,7 +558,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 Links,
                 [
                     .. Git.Match<IPlugin[]>(git => [new InMemoryWorkspacesPlugin(git)], () => []),
-                    .. RealNotifier ? [new TurnLedger(), Messages, Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues] : new IPlugin[] { new TurnLedger(), Messages, Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues },
+                    .. RealNotifier ? [new TurnLedger(), Messages, Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues, Fleet] : new IPlugin[] { new TurnLedger(), Messages, Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Environment, Processes, Surfaces, Cues, Fleet },
                 ]);
     }
 }

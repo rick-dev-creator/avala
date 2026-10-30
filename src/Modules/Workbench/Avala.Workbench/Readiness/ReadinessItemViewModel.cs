@@ -16,11 +16,17 @@ internal interface IReadinessItemViewModel
 
     bool IsDone { get; }
 
+    bool IsWorking { get; }
+
     string Error { get; }
 
     IReadOnlyList<IReadinessAccountViewModel> Accounts { get; }
 
+    string Dismiss { get; }
+
     IAsyncRelayCommand ActCommand { get; }
+
+    IAsyncRelayCommand DismissCommand { get; }
 }
 
 internal interface IReadinessAccountViewModel
@@ -45,6 +51,7 @@ internal sealed class ReadinessAccountViewModel(Personal login, string tool, Fun
 internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
 {
     private Func<CancellationToken, Task> act;
+    private Func<CancellationToken, Task> dismiss = _ => Task.CompletedTask;
 
     public ReadinessItemViewModel(ReadinessStep step, Func<CancellationToken, Task> act, IReadOnlyList<IReadinessAccountViewModel> accounts)
     {
@@ -70,6 +77,13 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
     public partial bool IsDone { get; private set; }
 
     [ObservableProperty]
+    public partial bool IsWorking { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DismissCommand))]
+    public partial string Dismiss { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Error { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -82,8 +96,12 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
         Action = step.Action;
         Command = step.Command;
         Accounts = choices;
+        IsWorking = step.Working;
+        Dismiss = step.Dismiss;
         IsDone = false;
     }
+
+    public void Dismissing(Func<CancellationToken, Task> next) => dismiss = next;
 
     public void Finish(PersonalPhrase done)
     {
@@ -92,6 +110,8 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
         Command = string.Empty;
         Accounts = [];
         Error = string.Empty;
+        IsWorking = false;
+        Dismiss = string.Empty;
         IsDone = true;
     }
 
@@ -99,4 +119,9 @@ internal sealed partial class ReadinessItemViewModel : IReadinessItemViewModel
     private Task ActAsync(CancellationToken cancellationToken) => act(cancellationToken);
 
     private bool CanAct() => !IsDone && Action.Length > 0;
+
+    [RelayCommand(CanExecute = nameof(CanDismiss))]
+    private Task DismissAsync(CancellationToken cancellationToken) => dismiss(cancellationToken);
+
+    private bool CanDismiss() => !IsDone && Dismiss.Length > 0;
 }

@@ -11,6 +11,18 @@ public sealed class ScriptLanguagesTests
             ScriptLanguages.ForeignScripts(["scripts/metrics.cs", "tools/clean.sh", "build.ps1", "gen.py", "setup.CMD", "README.md"]));
 
     [Fact]
+    public void FlagsShebangScriptsWithoutAnExtensionExceptTheFleetCommand() =>
+        Assert.Equal(
+            ["tools/clean", "deploy/fleet/other"],
+            ScriptLanguages.ShebangScripts([
+                ("tools/clean", "#!/bin/sh"),
+                ("deploy/fleet/fleet", "#!/bin/sh"),
+                ("deploy/fleet/other", "#!/usr/bin/env bash"),
+                ("LICENSE", "MIT License"),
+                ("scripts/metrics.cs", "#!/usr/bin/env dotnet"),
+            ]));
+
+    [Fact]
     public void AcceptsOnlyTheJavaScriptOfTheDocsSiteTemplateItsOwnFolder() =>
         Assert.Equal(
             ["src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/nested/tool.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/build.sh", "src/Modules/Workbench/Avala.Workbench/SiteTemplate/public/main.js", "src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/types.ts"],
@@ -33,6 +45,18 @@ public sealed class ScriptLanguagesTests
                 "docs/template/public/nested/tool.js",
                 "docs/template/public/build.sh",
                 "docs/template/main.js",
+            ]));
+
+    [Fact]
+    public void AcceptsOnlyTheJavaScriptOfTheModelViewerAtAnyDepthOfItsOwnFolder() =>
+        Assert.Equal(
+            ["src/Modules/Preview/Avala.Preview/Viewer/three/build.sh", "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts", "src/Modules/Preview/Avala.Preview/Pages/viewer.js"],
+            ScriptLanguages.ForeignScripts([
+                "/home/dev/avala/src/Modules/Preview/Avala.Preview/Viewer/viewer.js",
+                "src/Modules/Preview/Avala.Preview/Viewer/three/addons/loaders/GLTFLoader.js",
+                "src/Modules/Preview/Avala.Preview/Viewer/three/build.sh",
+                "src/Modules/Preview/Avala.Preview/Viewer/viewer.ts",
+                "src/Modules/Preview/Avala.Preview/Pages/viewer.js",
             ]));
 
     [Fact]

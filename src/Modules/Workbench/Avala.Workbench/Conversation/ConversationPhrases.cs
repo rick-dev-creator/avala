@@ -46,6 +46,14 @@ internal static class ConversationPhrases
 
     public const string OpenInBrowser = "Open in your browser";
 
+    public const string ShowInPreview = "Show in the preview";
+
+    public const string PageKind = "Page";
+
+    public const string ModelKind = "3D model";
+
+    public static string OpenTheJob(string name) => $"Open this job's conversation to see {name}.";
+
     public static string Missing(string name) => $"{name} is no longer in the workspace or the repository.";
 
     public static string MoreLines(int count) => count == 1 ? "… 1 more line" : $"… {count.ToString(System.Globalization.CultureInfo.InvariantCulture)} more lines";
@@ -281,6 +289,10 @@ internal static class ConversationPhrases
             _ => string.Create(CultureInfo.InvariantCulture, $"Approved · Avala watches pull request #{state.PullRequest.Number} until it is merged or closed"),
         },
     };
+
+    public const string ChoosingChecks = "Avala proposes checks for this job · use or skip them above the conversation…";
+
+    public const string FindingChecks = "Avala is finding how to check the work · queue a message for when the checks end…";
 
     private static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch
     {

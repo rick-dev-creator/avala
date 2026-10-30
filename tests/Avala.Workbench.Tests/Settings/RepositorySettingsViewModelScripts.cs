@@ -140,6 +140,31 @@ public sealed class RepositorySettingsViewModelScripts
     }
 
     [Fact]
+    public async Task TheRulesOpenOnPermissionsAndEachTabShowsAloneAsync()
+    {
+        var settings = RepositorySettings();
+        await settings.OpenCommand.ExecuteAsync(Repository);
+        var opened = (settings.Tab, settings.ShowsPermissions);
+
+        settings.ShowTabCommand.Execute(RepositoryTab.Checks);
+
+        Assert.Equal((RepositoryTab.Permissions, true), opened);
+        Assert.Equal((true, false, ".avala/checks.json", ".avala/jobs.json"), (settings.ShowsChecks, settings.ShowsPermissions, settings.ChecksFile?.Path, settings.JobsFile?.Path));
+    }
+
+    [Fact]
+    public void ThePageCannotReadAnotherRepositoryUntilOneIsTyped()
+    {
+        var settings = RepositorySettings();
+        var page = new SettingsViewModel(settings, new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel(), new DesignAboutViewModel());
+        var empty = page.ReadRepositoryCommand.CanExecute(null);
+
+        settings.Repository = Repository;
+
+        Assert.Equal((false, true), (empty, page.ReadRepositoryCommand.CanExecute(null)));
+    }
+
+    [Fact]
     public async Task ChoosingNoRepositoryReadsNothingAsync()
     {
         var settings = RepositorySettings();

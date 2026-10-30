@@ -120,6 +120,25 @@ public sealed class RequestFactsTests
     }
 
     [Fact]
+    public void AnEditOrAWriteInAnyOfTheSessionsWritableFoldersIsInsideItsWorkspaceExceptInAGitFolder()
+    {
+        using var workspace = new TemporaryFolder();
+        using var temporary = new TemporaryFolder();
+        using var memory = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        string[] writable = [temporary.Path, memory.Path];
+        var notes = Path.Combine(temporary.Path, "notes.txt");
+        var remembered = Path.Combine(memory.Path, "MEMORY.md");
+
+        var written = Requested(ItemKind.Command, $"echo x > {notes}").Facts(workspace.Path, writable, [], [], Links).Locate(notes);
+        var kept = Requested(ItemKind.FileEdit, remembered).Facts(workspace.Path, writable, [], [], Links);
+        var outside = Requested(ItemKind.FileEdit, Path.Combine(elsewhere.Path, "x.txt")).Facts(workspace.Path, writable, [], [], Links);
+        var git = Requested(ItemKind.FileEdit, Path.Combine(temporary.Path, "clone", ".git", "config")).Facts(workspace.Path, writable, [], [], Links);
+
+        Assert.Equal((true, true, false, false), (written.InsideWorkspace, kept.InsideWorkspace, outside.InsideWorkspace, git.InsideWorkspace));
+    }
+
+    [Fact]
     public void AReadIsReadableOnlyWhenItsRealPathIsInsideAReadableFolder()
     {
         using var workspace = new TemporaryFolder();

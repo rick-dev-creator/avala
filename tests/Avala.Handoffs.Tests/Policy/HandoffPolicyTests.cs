@@ -102,6 +102,63 @@ public sealed class HandoffPolicyTests
             Outcomes.Present(HandoffPolicy.ByThreshold(Situated(Chosen(Work, Personal, Spare), Rules(OnLimit.HandOffSameHarness), Reading(Work, 0.95))).Choice).Connection);
 
     [Fact]
+    public void InOrderMovesToTheFirstListedConnectionWithRoomWhateverItsUsage()
+    {
+        var decision = HandoffPolicy.ByThreshold(Situated(
+            Option<ConnectionChoice>.None,
+            Rules(OnLimit.HandOffSameHarness, Work, Personal, Spare) with { Strategy = HandoffStrategy.InOrder },
+            Reading(Work, 0.95),
+            Reading(Personal, 0.7),
+            Reading(Spare, 0.1)));
+        var choice = Outcomes.Present(decision.Choice);
+
+        Assert.Equal((Personal, ChoiceReason.Preference), (choice.Connection, choice.Reason));
+    }
+
+    [Fact]
+    public void SoonestResetMovesToTheConnectionWithRoomWhoseWindowRenewsFirst()
+    {
+        var decision = HandoffPolicy.ByThreshold(Situated(
+            Chosen(Work, Personal, Spare),
+            Rules(OnLimit.HandOffSameHarness) with { Strategy = HandoffStrategy.SoonestReset },
+            Reading(Work, 0.95),
+            Reading(Personal, 0.1, TimeSpan.FromHours(4)),
+            Reading(Spare, 0.6, TimeSpan.FromMinutes(30))));
+        var choice = Outcomes.Present(decision.Choice);
+
+        Assert.Equal((Spare, ChoiceReason.SoonestReset), (choice.Connection, choice.Reason));
+    }
+
+    [Fact]
+    public void RoundRobinMovesToTheNextListedConnectionAfterTheJobsOwnAndWrapsAround()
+    {
+        var rules = Rules(OnLimit.HandOffSameHarness, Personal, Work, Spare) with { Strategy = HandoffStrategy.RoundRobin };
+        var fromWork = HandoffPolicy.ByThreshold(Situated(Option<ConnectionChoice>.None, rules, Reading(Work, 0.95), Reading(Personal, 0.1), Reading(Spare, 0.5)));
+        var onSpare = Situated(Option<ConnectionChoice>.None, rules, Reading(Work, 0.1), Reading(Personal, 0.5), Reading(Spare, 0.95));
+        var fromSpare = HandoffPolicy.ByThreshold(onSpare with { Own = onSpare.Usable[2] });
+        var turned = Outcomes.Present(fromWork.Choice);
+
+        Assert.Equal((Spare, ChoiceReason.Rotation), (turned.Connection, turned.Reason));
+        Assert.Equal(Personal, Outcomes.Present(fromSpare.Choice).Connection);
+    }
+
+    [Fact]
+    public void EveryStrategySkipsAConnectionAlreadyOverTheThreshold()
+    {
+        foreach (var strategy in Enum.GetValues<HandoffStrategy>())
+        {
+            var decision = HandoffPolicy.ByThreshold(Situated(
+                Option<ConnectionChoice>.None,
+                Rules(OnLimit.HandOffSameHarness, Work, Personal, Spare) with { Strategy = strategy },
+                Reading(Work, 0.95),
+                Reading(Personal, 0.93, TimeSpan.FromMinutes(5)),
+                Reading(Spare, 0.5)));
+
+            Assert.Equal(Spare, Outcomes.Present(decision.Choice).Connection);
+        }
+    }
+
+    [Fact]
     public void AWindowThatHasResetCountsAsUnused()
     {
         var reset = new UsageLimit("5h", 0.99, Now.AddMinutes(-1));

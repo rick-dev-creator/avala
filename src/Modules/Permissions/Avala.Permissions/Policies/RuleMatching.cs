@@ -10,12 +10,14 @@ internal static class RuleMatching
     extension(PolicyRule rule)
     {
         public bool Matches(PermissionRequest request) =>
-            rule.Kind.Match(kind => kind == request.Kind, () => true)
+            rule.Scope == RuleScope.Granted
+                ? rule.Kind.Match(kind => kind == request.Kind, () => false) && request.Granted.IsSome && rule.Target == request.Granted
+                : rule.Kind.Match(kind => kind == request.Kind, () => true)
             && rule.Target.Match(pattern => Targets(rule, pattern, request), () => true)
             && rule.Scope switch
             {
                 RuleScope.Workspace => request.InsideWorkspace,
-                RuleScope.OutsideWorkspace => !request.InsideWorkspace,
+                RuleScope.OutsideWorkspace => !request.InsideWorkspace && request.Granted.IsNone,
                 RuleScope.ReadOnly => request.ReadOnly,
                 RuleScope.Readable => request.Readable && request.Kind != ItemKind.FileEdit,
                 _ => true,
@@ -39,7 +41,7 @@ internal static class RuleMatching
             Verdict[] verdicts =
             [
                 .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(Part(request, command, reads)))),
-                .. line.Writes.Select(path => rules.First(rule => (rule.Answered && rule.Covers(request)) || rule.Matches(Written(line, path, request)))),
+                .. line.Landings.Select(request.Locate).Concat(line.Adrift.Select(Adrift)).Select(written => rules.First(rule => (rule.Answered && rule.Covers(request)) || rule.Matches(written))),
                 .. line.Opaque ? [rules.First(rule => rule.Covers(request))] : Array.Empty<Verdict>(),
             ];
 
@@ -60,8 +62,7 @@ internal static class RuleMatching
     private static PermissionRequest Part(PermissionRequest request, ShellCommand command, bool reads) =>
         request with { Target = command.Text, ReadOnly = reads && ReadOnlyCommands.Reads(command, request.Locate) };
 
-    private static PermissionRequest Written(CommandLine line, string path, PermissionRequest request) =>
-        line.MovesDirectory && !CommandLine.Rooted(path) ? new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false) : request.Locate(path);
+    private static PermissionRequest Adrift(string path) => new(ItemKind.FileEdit, path, InsideWorkspace: false);
 
     private static bool Globs(string pattern, string text)
     {

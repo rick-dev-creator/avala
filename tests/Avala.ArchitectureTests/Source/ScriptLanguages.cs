@@ -11,9 +11,27 @@ internal static partial class ScriptLanguages
 
     public const string LaidOutSiteTemplate = "docs/template/public/";
 
+    public const string ModelViewer = "src/Modules/Preview/Avala.Preview/Viewer/";
+
+    public const string FleetCommand = "deploy/fleet/fleet";
+
+    public static IEnumerable<string> ShebangScripts(IEnumerable<(string Path, string FirstLine)> files) =>
+        files
+            .Where(file => Path.GetExtension(file.Path).Length == 0 && file.FirstLine.StartsWith("#!", StringComparison.Ordinal))
+            .Select(file => file.Path)
+            .Where(path => !path.Replace('\\', '/').EndsWith("/" + FleetCommand, StringComparison.Ordinal) && path.Replace('\\', '/') != FleetCommand);
+
     public static IEnumerable<string> ForeignScripts(IEnumerable<string> paths) =>
         paths.Where(path => ForeignExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)
-            && !InFolder(path, SiteTemplate) && !InFolder(path, LaidOutSiteTemplate));
+            && !InFolder(path, SiteTemplate) && !InFolder(path, LaidOutSiteTemplate) && !UnderFolder(path, ModelViewer));
+
+    private static bool UnderFolder(string path, string folder)
+    {
+        var normalized = path.Replace('\\', '/');
+
+        return Path.GetExtension(normalized).Equals(".js", StringComparison.Ordinal)
+            && (normalized.StartsWith(folder, StringComparison.Ordinal) || normalized.Contains("/" + folder, StringComparison.Ordinal));
+    }
 
     private static bool InFolder(string path, string folder)
     {

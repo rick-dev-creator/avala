@@ -140,7 +140,7 @@ internal sealed partial record PackageVersion(string Text)
 
 internal static class Versions
 {
-    public const string Development = "0.1.0-dev";
+    public const string Development = "0.2.0-dev";
 
     public static async Task<PackageVersion> ResolveAsync(string? requested, string root)
     {

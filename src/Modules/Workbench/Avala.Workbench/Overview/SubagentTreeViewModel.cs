@@ -52,6 +52,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     private readonly HashSet<string> folded = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IAgentBranch> known = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> settledSince = new(StringComparer.Ordinal);
+    private readonly HashSet<string> told = new(StringComparer.Ordinal);
     private ITimer? sweep;
     private bool disposed;
     private Option<DelegationTree> shown;
@@ -114,7 +115,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         {
             var root = AgentBranches.Of(tree);
             var now = clock.GetUtcNow();
-            Note(root, now);
+            Note(tree, root, now);
             branches.ShowInPlace(Visible(root, 0), (branch, next) => branch.Place.Key == next.Key, next => Known(tree, next), (branch, next) => Update(tree, branch, next));
             Forget(root);
             Summarize(tree, root);
@@ -138,25 +139,24 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     }
 
     private bool Gone(AgentBranch branch) =>
-        branch.IsSettled
-        && !branch.GivenUp
-        && !Finished
-        && !(branch.Node.IsSome && viewing == Option<JobId>.Some(branch.Job))
+        !(branch.Node.IsSome && viewing == Option<JobId>.Some(branch.Job))
         && settledSince.TryGetValue(branch.Key, out var since)
         && clock.GetUtcNow() - since >= Linger;
 
-    private bool Finished => shown.Match(tree => SubagentStates.Of(tree.Root.Status, tree.Root.Hold) is SubagentState.Completed or SubagentState.Stopped, () => false);
+    private bool Leaves(DelegationTree tree, AgentBranch branch) =>
+        branch.IsSettled || (branch.HasEnded && (branch.Kind is BranchKind.InProcess or BranchKind.Command || branch.Node.Bind(node => node.Report).IsSome || told.Contains(branch.Key) || !Reachable(tree, branch)));
 
-    private void Note(AgentBranch root, DateTimeOffset now)
+    private void Note(DelegationTree tree, AgentBranch root, DateTimeOffset now)
     {
         var all = root.Descendants.ToList();
+        told.RemoveWhere(key => !all.Any(branch => branch.Key == key && branch.State is SubagentState.Failed or SubagentState.Lost));
 
-        foreach (var branch in all.Where(branch => !branch.IsSettled))
+        foreach (var branch in all.Where(branch => !Leaves(tree, branch)))
         {
             settledSince.Remove(branch.Key);
         }
 
-        foreach (var branch in all.Where(branch => branch.IsSettled))
+        foreach (var branch in all.Where(branch => Leaves(tree, branch)))
         {
             settledSince.TryAdd(branch.Key, now);
         }
@@ -170,7 +170,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
         var next = settledSince.Values.Select(since => since + Linger).Where(due => due > now).DefaultIfEmpty().Min();
         sweep?.Dispose();
-        sweep = next == default || disposed || Finished ? null : clock.CreateTimer(_ => refresh(), null, next - now, Timeout.InfiniteTimeSpan);
+        sweep = next == default || disposed ? null : clock.CreateTimer(_ => refresh(), null, next - now, Timeout.InfiniteTimeSpan);
     }
 
     private IAgentBranch Known(DelegationTree tree, ShownBranch next)
@@ -227,7 +227,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
         if (shownBranch.Place is BranchPlaceViewModel place)
         {
-            place.Reach(Orchestrator(tree, branch).Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed));
+            place.Reach(Reachable(tree, branch));
         }
 
         switch (shownBranch)
@@ -253,7 +253,19 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
         }
     }
 
-    private Task<bool> TellAsync(string key)
+    private async Task<bool> TellAsync(string key)
+    {
+        var sent = await SendAsync(key).ConfigureAwait(true);
+
+        if (sent && told.Add(key))
+        {
+            refresh();
+        }
+
+        return sent;
+    }
+
+    private Task<bool> SendAsync(string key)
     {
         var tree = shown.Match(found => found, () => throw new InvalidOperationException("No tree is shown."));
         var root = AgentBranches.Of(tree);
@@ -268,6 +280,9 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
 
         return actions.TellAsync(orchestrator, status, BranchPhrases.Told(branch), CancellationToken.None);
     }
+
+    private static bool Reachable(DelegationTree tree, AgentBranch branch) =>
+        Orchestrator(tree, branch).Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
 
     private static (JobId Job, JobStatus Status) Orchestrator(DelegationTree tree, AgentBranch branch)
     {
@@ -290,7 +305,7 @@ internal sealed partial class SubagentTreeViewModel(IRelayCommand<JobId> open, R
     private void Summarize(DelegationTree tree, AgentBranch root)
     {
         var agents = root.Descendants.Where(agent => !Gone(agent)).ToList();
-        Agents = agents.Count == 0 ? "no sub-agent yet" : OverviewPhrases.Count(agents.Count, "agent");
+        Agents = agents.Count == 0 && root.Descendants.Any() ? "no sub-agent at work" : agents.Count == 0 ? "no sub-agent yet" : OverviewPhrases.Count(agents.Count, "agent");
         var working = agents.Count(agent => agent.State == SubagentState.Working);
         Working = working == 0 ? string.Empty : $"{working} working";
         var waiting = agents.Prepend(root).Where(agent => agent.NeedsYou).ToList();

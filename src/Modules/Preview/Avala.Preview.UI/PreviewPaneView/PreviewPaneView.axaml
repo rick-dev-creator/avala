@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:pane="using:Avala.Preview.Pane"
+             xmlns:ui="using:Avala.Preview.UI"
              x:Class="Avala.Preview.UI.PreviewPaneView"
              x:ClassModifier="internal"
              x:DataType="pane:IPreviewPaneViewModel">
@@ -19,6 +20,172 @@
       <Setter Property="Padding" Value="{DynamicResource PaddingPill}" />
       <Setter Property="MinHeight" Value="28" />
     </Style>
+    <Style Selector="Panel#Stage.framed">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Panel#Device">
+      <Setter Property="Margin" Value="28" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Border#Body">
+      <Setter Property="Background" Value="{DynamicResource DeviceBodyBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DeviceRimBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
+    </Style>
+    <Style Selector="Panel#Stage.framed Border#Screen">
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Panel#Device.island Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhone}" />
+    </Style>
+    <Style Selector="Panel#Device.island Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDevicePhoneScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.punch Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroid}" />
+    </Style>
+    <Style Selector="Panel#Device.punch Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceAndroidScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.classic Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceClassic}" />
+    </Style>
+    <Style Selector="Panel#Device.fold Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceFold}" />
+    </Style>
+    <Style Selector="Panel#Device.fold Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceFoldScreen}" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Body">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTablet}" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Screen">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceTabletScreen}" />
+    </Style>
+    <Style Selector="Panel#Device Border.part">
+      <Setter Property="IsVisible" Value="False" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Panel#Device.island Border#Island">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="104" />
+      <Setter Property="Height" Value="30" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceIsland}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,22,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.island.turned Border#Island">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="104" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="22,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.punch Border#Lens">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceLens}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceIslandBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,22,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.tablet Border#Lens">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceLensSmall}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceLensBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,7,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.punch.turned Border#Lens">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="22,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.tablet.turned Border#Lens">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="7,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.classic Border#Speaker">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="50" />
+      <Setter Property="Height" Value="5" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceSpeaker}" />
+      <Setter Property="Background" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,32,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.classic.turned Border#Speaker">
+      <Setter Property="Width" Value="5" />
+      <Setter Property="Height" Value="50" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="32,0,0,0" />
+    </Style>
+    <Style Selector="Panel#Device.classic Border#Home">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="46" />
+      <Setter Property="Height" Value="46" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceHome}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Bottom" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style Selector="Panel#Device.classic.turned Border#Home">
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style Selector="Panel#Device.fold Border#Crease">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource DeviceCreaseBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Panel#Device.fold.turned Border#Crease">
+      <Setter Property="Width" Value="NaN" />
+      <Setter Property="Height" Value="1" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Panel#Device.island Border.button, Panel#Device.punch Border.button, Panel#Device.classic Border.button">
+      <Setter Property="IsVisible" Value="True" />
+      <Setter Property="Width" Value="3" />
+      <Setter Property="Background" Value="{DynamicResource DeviceButtonBrush}" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Panel#Device.turned Border.button">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Panel#Device Border#Power">
+      <Setter Property="Height" Value="78" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Margin" Value="0,196,-3,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonRight}" />
+    </Style>
+    <Style Selector="Panel#Device Border#VolumeUp">
+      <Setter Property="Height" Value="56" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="-3,176,0,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonLeft}" />
+    </Style>
+    <Style Selector="Panel#Device Border#VolumeDown">
+      <Setter Property="Height" Value="56" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Margin" Value="-3,244,0,0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusDeviceButtonLeft}" />
+    </Style>
     <Style Selector="Border#RefusalBar">
       <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
@@ -32,7 +199,7 @@
             Padding="10,10,10,9"
             BorderBrush="{DynamicResource EdgeBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
         <Button x:Name="Back"
                 Classes="glyph"
                 Command="{Binding BackCommand}"
@@ -55,8 +222,9 @@
             <TextBlock x:Name="State" Classes="caption" Text="{Binding State}" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
+        <ContentControl x:Name="DeviceFrame" Grid.Column="3" Content="{Binding Frame}" />
         <ToggleButton x:Name="Network"
-                      Grid.Column="3"
+                      Grid.Column="4"
                       Classes="glyph"
                       IsChecked="{Binding AllowsNetwork, Mode=OneWay}"
                       Command="{Binding ToggleNetworkCommand}"
@@ -65,7 +233,7 @@
           <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconWeb}" />
         </ToggleButton>
         <Button x:Name="OpenInBrowser"
-                Grid.Column="4"
+                Grid.Column="5"
                 Classes="glyph"
                 Command="{Binding OpenInBrowserCommand}"
                 ToolTip.Tip="Open in browser"
@@ -73,7 +241,7 @@
           <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconExternal}" />
         </Button>
         <Button x:Name="Close"
-                Grid.Column="5"
+                Grid.Column="6"
                 Classes="glyph"
                 Command="{Binding CloseCommand}"
                 ToolTip.Tip="Close preview"
@@ -89,8 +257,29 @@
         <Button x:Name="DismissRefusal" Grid.Column="2" Classes="ghost" Margin="6,0,0,0" Content="Stay here" Command="{Binding DismissRefusalCommand}" />
       </Grid>
     </Border>
-    <Panel>
-      <ContentControl x:Name="Page" Content="{Binding Surface}" IsVisible="{Binding IsEmbedded}" />
+    <Panel x:Name="Stage" Classes.framed="{Binding Frame.IsFlat}">
+      <ui:DeviceBox OuterWidth="{Binding Frame.OuterWidth}" OuterHeight="{Binding Frame.OuterHeight}" IsVisible="{Binding IsEmbedded}">
+        <Panel x:Name="Device"
+               Classes.island="{Binding Frame.IsIsland}"
+               Classes.punch="{Binding Frame.IsPunch}"
+               Classes.classic="{Binding Frame.IsClassic}"
+               Classes.fold="{Binding Frame.IsFold}"
+               Classes.tablet="{Binding Frame.IsTablet}"
+               Classes.turned="{Binding Frame.IsTurned}">
+          <Border x:Name="Body" />
+          <Border x:Name="Screen" Margin="{Binding Frame.Insets, Converter={x:Static ui:DeviceInsetsConverter.Margin}}">
+            <ContentControl x:Name="Page" Content="{Binding Surface}" />
+          </Border>
+          <Border x:Name="Island" Classes="part" />
+          <Border x:Name="Lens" Classes="part" />
+          <Border x:Name="Speaker" Classes="part" />
+          <Border x:Name="Home" Classes="part" />
+          <Border x:Name="Crease" Classes="part" />
+          <Border x:Name="Power" Classes="part button" />
+          <Border x:Name="VolumeUp" Classes="part button" />
+          <Border x:Name="VolumeDown" Classes="part button" />
+        </Panel>
+      </ui:DeviceBox>
       <StackPanel x:Name="Notice"
                   IsVisible="{Binding !IsEmbedded}"
                   MaxWidth="320"

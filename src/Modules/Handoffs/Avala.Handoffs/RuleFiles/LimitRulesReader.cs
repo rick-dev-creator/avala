@@ -6,13 +6,18 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Handoffs.RuleFiles;
 
-internal sealed class LimitRulesReader(IBaseFiles files, AvalaPaths paths) : ILimitRules
+internal sealed class LimitRulesReader(IBaseFiles files, AvalaPaths paths) : ILimitRules, ILimitSettings, IAsyncDisposable
 {
     public const string JobFile = ".avala/jobs.json";
 
     public const string MachineFile = "limits.json";
 
+    private readonly SerialExecutor writes = new();
     private Task<LimitRules>? machine;
+
+    string ILimitSettings.MachineFile => MachinePath;
+
+    private string MachinePath => Path.Combine(paths.Data, MachineFile);
 
     public async ValueTask<LimitRules> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) =>
         await (await files.ReadAsync(worktree, JobFile, cancellationToken)).Match(
@@ -23,8 +28,42 @@ internal sealed class LimitRulesReader(IBaseFiles files, AvalaPaths paths) : ILi
                 () => MachineAsync(cancellationToken)),
             _ => Task.FromResult(LimitRules.Rejected(HandoffError.Unreadable)));
 
+    async ValueTask<LimitFile> ILimitSettings.MachineAsync(CancellationToken cancellationToken) =>
+        (await MachineAsync(cancellationToken)).File();
+
+    public async ValueTask<Result<LimitFile, HandoffError>> ChangeMachineAsync(LimitSettings settings, CancellationToken cancellationToken)
+    {
+        var text = LimitRulesParser.Text(LimitRules.Of(settings));
+
+        return await LimitRulesParser.ParseMachine(text).Match(
+            rules => writes.RunAsync(token => WriteAsync(rules, text, token), cancellationToken),
+            error => Task.FromResult(Result<LimitFile, HandoffError>.Failure(error)));
+    }
+
+    public ValueTask DisposeAsync() => writes.DisposeAsync();
+
     private Task<LimitRules> MachineAsync(CancellationToken cancellationToken) =>
-        LazyInitializer.EnsureInitialized(ref machine, () => ReadAsync(Path.Combine(paths.Data, MachineFile))).WaitAsync(cancellationToken);
+        LazyInitializer.EnsureInitialized(ref machine, () => ReadAsync(MachinePath)).WaitAsync(cancellationToken);
+
+    private async Task<Result<LimitFile, HandoffError>> WriteAsync(LimitRules rules, string text, CancellationToken cancellationToken)
+    {
+        var temporary = $"{MachinePath}.{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            Directory.CreateDirectory(paths.Data);
+            await File.WriteAllTextAsync(temporary, text, cancellationToken);
+            File.Move(temporary, MachinePath, overwrite: true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return HandoffError.Unwritable;
+        }
+
+        Volatile.Write(ref machine, Task.FromResult(rules));
+
+        return rules.File();
+    }
 
     private static async Task<LimitRules> ReadAsync(string path)
     {

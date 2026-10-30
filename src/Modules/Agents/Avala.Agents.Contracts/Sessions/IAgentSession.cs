@@ -11,6 +11,8 @@ public interface IAgentSession : IAsyncDisposable
 
     IReadOnlyList<string> OwnFolders => [];
 
+    IReadOnlyList<string> WritableFolders => [];
+
     IAsyncEnumerable<IAgentEvent> Events { get; }
 
     ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);

@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetRangeView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetRangeViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetRangeViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <WrapPanel>
+      <Border Classes="segments" Margin="0,0,12,4">
+        <ItemsControl x:Name="RangeOptions" ItemsSource="{Binding Options}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Border>
+      <TextBlock x:Name="CaptionText" Classes="caption" Text="{Binding Caption}" VerticalAlignment="Center" />
+    </WrapPanel>
+    <WrapPanel x:Name="CustomPanel" ItemSpacing="8" LineSpacing="8" IsVisible="{Binding IsCustomOpen}">
+      <TextBlock Classes="caption" Text="From" VerticalAlignment="Center" />
+      <TextBox x:Name="CustomFromBox" Width="120" PlaceholderText="2026-10-01" Text="{Binding CustomFrom}" />
+      <TextBlock Classes="caption" Text="to" VerticalAlignment="Center" />
+      <TextBox x:Name="CustomToBox" Width="120" PlaceholderText="2026-10-25" Text="{Binding CustomTo}" />
+      <Button x:Name="ApplyCustomButton" Classes="primary" Content="Show" Command="{Binding ApplyCustomCommand}" />
+    </WrapPanel>
+    <TextBlock x:Name="RefusalText" Classes="caption failure" Text="{Binding Refusal}" IsVisible="{Binding HasRefusal}" />
+  </StackPanel>
+</UserControl>

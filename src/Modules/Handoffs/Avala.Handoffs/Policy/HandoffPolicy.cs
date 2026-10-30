@@ -51,7 +51,7 @@ internal static class HandoffPolicy
         var own = situation.Own.Connection;
         var listed = situation.Rules.Connections;
         var pool = situation.Choice.Match(
-            choice => choice.Compared.Select(candidate => candidate.Connection).Where(name => listed.Count == 0 || listed.Contains(name)),
+            choice => PoolOf(choice).Where(name => listed.Count == 0 || listed.Contains(name)),
             () => listed.Contains(own) ? listed : []);
 
         return
@@ -73,20 +73,76 @@ internal static class HandoffPolicy
 
                 var resume = Earliest(situation, own, window, candidates);
 
-                return measured.Where(candidate => candidate.Available).MinBy(candidate => candidate.Used) is { } best
+                return Pick(situation, measured) is { } best
                     ? new Decision(Verdict.HandOff)
                     {
                         Why = why,
                         Resume = resume,
                         Choice = new ConnectionChoice(
                             best.Connection,
-                            ChoiceReason.MostCapacity,
+                            ReasonOf(situation.Rules.Strategy),
                             [new CandidateCapacity(situation.Own.Connection, window.UsedFraction, window, situation.Rules.Threshold, Available: false), .. measured],
-                            situation.Now),
+                            situation.Now)
+                        {
+                            Pool = Carried(situation, measured.Select(candidate => candidate.Connection)),
+                        },
                     }
                     : new Decision(Verdict.Wait) { Why = why, Resume = resume };
             },
             () => Decision.GoOn);
+
+    public static IReadOnlyList<ConnectionName> Ring(Situation situation) =>
+        situation.Rules.Connections.Count > 0
+            ? situation.Rules.Connections
+            : situation.Choice.Match(PoolOf, () => []);
+
+    public static IReadOnlyList<ConnectionName> PoolOf(ConnectionChoice choice) =>
+        choice.Pool.Count > 0 ? choice.Pool : [.. choice.Compared.Select(candidate => candidate.Connection).Distinct()];
+
+    public static IReadOnlyList<ConnectionName> Carried(Situation situation, IEnumerable<ConnectionName> compared) =>
+        situation.Choice.Match<IReadOnlyList<ConnectionName>>(
+            choice => [.. PoolOf(choice).Append(situation.Own.Connection).Concat(compared).Distinct()],
+            () => []);
+
+    private static CandidateCapacity? Pick(Situation situation, IReadOnlyList<CandidateCapacity> measured)
+    {
+        var available = measured.Where(candidate => candidate.Available).ToList();
+        var ring = Ring(situation);
+
+        return situation.Rules.Strategy switch
+        {
+            HandoffStrategy.InOrder => available.OrderBy(candidate => Place(ring, candidate.Connection)).FirstOrDefault(),
+            HandoffStrategy.SoonestReset => available
+                .OrderBy(candidate => candidate.Window.Bind(window => window.ResetsAt).Match(at => at, () => DateTimeOffset.MaxValue))
+                .ThenBy(candidate => candidate.Used)
+                .FirstOrDefault(),
+            HandoffStrategy.RoundRobin => available.OrderBy(candidate => After(ring, situation.Own.Connection, candidate.Connection)).FirstOrDefault(),
+            _ => available.MinBy(candidate => candidate.Used),
+        };
+    }
+
+    private static int Place(IReadOnlyList<ConnectionName> ring, ConnectionName connection)
+    {
+        var index = ring.ToList().IndexOf(connection);
+
+        return index < 0 ? int.MaxValue : index;
+    }
+
+    private static int After(IReadOnlyList<ConnectionName> ring, ConnectionName own, ConnectionName connection)
+    {
+        var place = Place(ring, connection);
+        var from = Place(ring, own);
+
+        return place == int.MaxValue ? int.MaxValue : from == int.MaxValue ? place : (place - from - 1 + ring.Count) % ring.Count;
+    }
+
+    private static ChoiceReason ReasonOf(HandoffStrategy strategy) => strategy switch
+    {
+        HandoffStrategy.InOrder => ChoiceReason.Preference,
+        HandoffStrategy.SoonestReset => ChoiceReason.SoonestReset,
+        HandoffStrategy.RoundRobin => ChoiceReason.Rotation,
+        _ => ChoiceReason.MostCapacity,
+    };
 
     private static ResumePoint Earliest(Situation situation, Availability own, UsageLimit window, IReadOnlyList<ConnectionState> candidates)
     {

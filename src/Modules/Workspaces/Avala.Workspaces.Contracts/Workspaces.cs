@@ -12,6 +12,8 @@ public sealed record WorkspaceInfo(WorkspaceId Id, string Path, string Branch, s
     public Option<string> BaseBranch { get; init; }
 
     public string RulesCommit { get; init; } = BaseCommit;
+
+    public bool Shelved { get; init; }
 }
 
 public sealed record CheckpointInfo(WorkspaceId Workspace, int Number, string Commit, string Label);
@@ -45,4 +47,5 @@ public enum WorkspaceFailure
     PushRejected,
     RelativeFolder,
     UnknownCheckpoint,
+    CheckoutLeftItsBranch,
 }

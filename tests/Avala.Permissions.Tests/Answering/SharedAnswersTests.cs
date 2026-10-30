@@ -30,7 +30,7 @@ public sealed class SharedAnswersTests
     public SharedAnswersTests()
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 12, 9, 0, 0, TimeSpan.Zero));
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         var ledger = new AnswerLedger(book, bus, clock, new RecordedRounds());
         answers = new SharedAnswers(new HumanAnswers(book, agents, new RepositoryFiles(), ledger), book, ledger, [new Rivals(job, rival)]);
         book.Keep(book.Of(session).WorkingOn(job));

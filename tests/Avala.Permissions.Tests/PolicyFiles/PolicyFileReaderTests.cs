@@ -88,6 +88,8 @@ public sealed class PolicyFileReaderTests
                 (RuleOrigin.BuiltIn, "read-only allowed"),
                 (RuleOrigin.BuiltIn, "reads-in-readable-folders"),
                 (RuleOrigin.BuiltIn, "autonomous-commands-in-the-worktree"),
+                (RuleOrigin.BuiltIn, "autonomous-subagents"),
+                (RuleOrigin.BuiltIn, "autonomous-web"),
                 (RuleOrigin.BuiltIn, "autonomous-denies-the-rest"),
             ],
             policy.Rules.Select(rule => (rule.Origin, rule.Name)));

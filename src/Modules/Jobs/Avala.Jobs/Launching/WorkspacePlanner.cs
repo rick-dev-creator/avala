@@ -8,17 +8,27 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaults defaults, JobQueues queues, ConnectionChooser chooser)
+internal sealed class JobWorkspaces(IWorkspaces workspaces, IWorkspaceShelf shelf)
 {
+    public IWorkspaces Workspaces => workspaces;
+
+    public async Task<Result<WorkspaceInfo, WorkspaceFailure>> ReadyAsync(Job job, CancellationToken cancellationToken) =>
+        await workspaces.FindAsync(job, cancellationToken)
+            .BindAsync(async found => found.Shelved ? await shelf.RebuildAsync(found.Id, cancellationToken) : found);
+}
+
+internal sealed class WorkspacePlanner(JobWorkspaces worktrees, IRepositoryDefaults defaults, JobQueues queues, ConnectionChooser chooser)
+{
+
     public async Task<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(Job job, CancellationToken cancellationToken) =>
         await job.Parent.Match(
             parent => FromParentAsync(job, parent, cancellationToken),
-            () => workspaces.PrepareAsync(new WorkspaceRequest(job.Repository.Value), cancellationToken).AsTask());
+            () => worktrees.Workspaces.PrepareAsync(new WorkspaceRequest(job.Repository.Value), cancellationToken).AsTask());
 
-    public Task<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(Job job, CancellationToken cancellationToken) => workspaces.FindAsync(job, cancellationToken);
+    public Task<Result<WorkspaceInfo, WorkspaceFailure>> ReadyAsync(Job job, CancellationToken cancellationToken) => worktrees.ReadyAsync(job, cancellationToken);
 
     public async Task<bool> RemoveAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        (await workspaces.RemoveAsync(workspace, cancellationToken)).Match(_ => true, failure => failure == WorkspaceFailure.UnknownWorkspace);
+        (await worktrees.Workspaces.RemoveAsync(workspace, cancellationToken)).Match(_ => true, failure => failure == WorkspaceFailure.UnknownWorkspace);
 
     public async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
         Job job,
@@ -59,12 +69,12 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
 
     private async Task<Result<WorkspaceInfo, WorkspaceFailure>> StartFromAsync(Job parent, Job child, CancellationToken cancellationToken)
     {
-        if (!(await workspaces.FindAsync(parent, cancellationToken)).TryGetValue(out var origin, out var failure)
-            || !(await workspaces.CheckpointAsync(parent, $"Delegated to job {child.Id.Value}", cancellationToken)).TryGetValue(out _, out failure))
+        if (!(await worktrees.Workspaces.FindAsync(parent, cancellationToken)).TryGetValue(out var origin, out var failure)
+            || !(await worktrees.Workspaces.CheckpointAsync(parent, $"Delegated to job {child.Id.Value}", cancellationToken)).TryGetValue(out _, out failure))
         {
             return failure;
         }
 
-        return await workspaces.PrepareAsync(new WorkspaceRequest(child.Repository.Value, origin.Branch) { Rules = origin.RulesCommit }, cancellationToken);
+        return await worktrees.Workspaces.PrepareAsync(new WorkspaceRequest(child.Repository.Value, origin.Branch) { Rules = origin.RulesCommit }, cancellationToken);
     }
 }

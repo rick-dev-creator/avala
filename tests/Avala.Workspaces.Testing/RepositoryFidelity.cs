@@ -23,7 +23,46 @@ public static class RepositoryFidelity
             [nameof(InitializingAFolderLeavesItsFilesAsTheyWereAsync)] = InitializingAFolderLeavesItsFilesAsTheyWereAsync,
             [nameof(RefusesToPublishToAFolderThatIsNotARepositoryAsync)] = RefusesToPublishToAFolderThatIsNotARepositoryAsync,
             [nameof(ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync)] = ListsTheFilesOfASubfolderWithoutWhatTheRootIgnoresAsync,
+            [nameof(ListsACloneOriginWithItsUrlAsync)] = ListsACloneOriginWithItsUrlAsync,
+            [nameof(ListsTheRootCommitByItsHashAsync)] = ListsTheRootCommitByItsHashAsync,
+        [nameof(AFolderOutsideAnyRepositoryHasNoOriginsAsync)] = AFolderOutsideAnyRepositoryHasNoOriginsAsync,
         };
+
+    private static async Task<IReadOnlyList<string>> ListsACloneOriginWithItsUrlAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var parent = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "origins");
+        Directory.CreateDirectory(parent);
+        var cloned = await bench.Remotes.CloneAsync(bench.Repository, parent, "clone", cancellationToken);
+
+        var remotes = cloned.TryGetValue(out var clone, out _) ? (await bench.Origins.RemotesAsync(clone, cancellationToken)).Match(found => found, _ => []) : Array.Empty<OriginRemote>();
+        WorkspaceFidelity.Check(remotes is [{ Name: "origin" } origin] && origin.Url == bench.Repository, problems, $"the clone's remotes read otherwise: {string.Join(", ", remotes)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> ListsTheRootCommitByItsHashAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+
+        var roots = (await bench.Origins.RootCommitsAsync(bench.Repository, cancellationToken)).Match(found => found, _ => []);
+        WorkspaceFidelity.Check(roots is [var root] && root.Length is 40 or 64 && root.All(char.IsAsciiHexDigitLower), problems, $"the root commits read otherwise: {string.Join(", ", roots)}");
+
+        return problems;
+    }
+
+    private static async Task<IReadOnlyList<string>> AFolderOutsideAnyRepositoryHasNoOriginsAsync(FidelityBench bench, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+        var outside = Path.Combine(Path.GetDirectoryName(bench.Repository)!, "outside");
+        Directory.CreateDirectory(outside);
+
+        var remotes = await bench.Origins.RemotesAsync(outside, cancellationToken);
+        var roots = await bench.Origins.RootCommitsAsync(outside, cancellationToken);
+        WorkspaceFidelity.Check(!remotes.IsSuccess && !roots.IsSuccess, problems, "a folder outside any repository reads as one without remotes or commits");
+
+        return problems;
+    }
 
     private static async Task<IReadOnlyList<string>> NamesAMergeCommitByTheFirstLineOfItsMessageAsync(FidelityBench bench, CancellationToken cancellationToken)
     {

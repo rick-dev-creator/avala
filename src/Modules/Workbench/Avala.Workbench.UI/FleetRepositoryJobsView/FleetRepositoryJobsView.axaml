@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetRepositoryJobsView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetRepositoryJobsViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetRepositoryJobsViewModel />
+  </Design.DataContext>
+  <Border Classes="card" Padding="14,12">
+    <StackPanel Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Classes="section" Text="Jobs of" />
+        <TextBlock x:Name="RepositoryText" Classes="mono" privacy:PersonalDetails.Text="{Binding Repository}" />
+      </StackPanel>
+      <TextBlock x:Name="NoticeText" Classes="caption" Text="{Binding Notice}" TextWrapping="Wrap" />
+      <ItemsControl x:Name="JobList" ItemsSource="{Binding Jobs}" />
+    </StackPanel>
+  </Border>
+</UserControl>

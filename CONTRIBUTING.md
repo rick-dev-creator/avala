@@ -11,7 +11,7 @@ dotnet build Avala.slnx
 dotnet test --solution Avala.slnx
 ```
 
-Both must be green before and after every change. Warnings are errors, so a clean build has none. `Avala.UnitTests.slnf` holds the unit tests alone, the ones coverage is measured on.
+Both must be green before and after every change. Warnings are errors, so a clean build has none. `Avala.UnitTests.slnf` holds the unit tests alone, the ones coverage is measured on. `Avala.SystemTests.slnf` holds the architecture, documentation, integration and host tests, and `Avala.ContainerTests.slnf` the fleet server's PostgreSQL tests, which need a Linux container engine, Docker or Podman, and skip without one; CI runs them with `--fail-skips on`. Every test project belongs to exactly one of the three.
 
 ## Run the simulator
 

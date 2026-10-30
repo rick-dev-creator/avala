@@ -47,6 +47,28 @@ public sealed class FilePreviewViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AModelShowsACardNamingItThatOpensItInThePreviewAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var worktree = new Worktree();
+            worktree.Files.Stored[Path.Combine(Worktree.Folder, "robot.glb")] = [60];
+            var asked = new List<string>();
+            CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<List<string>, Preview.Contracts.WorktreeFileRequested>(worktree.Messenger, asked, (list, message) =>
+            {
+                message.Show();
+                list.Add(message.Path);
+            });
+            var preview = worktree.Viewing(worktree.Worked()).For(worktree.Job).Preview("robot.glb");
+            var view = Screen.Show(preview);
+
+            view.Click("Artifact");
+            await (preview.OpenCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal(("robot.glb", "3D model", false), (view.TextOf("ArtifactName"), view.TextOf("ArtifactCaption"), view.Shows("Thumbnail")));
+            Assert.Equal([Path.Combine(Worktree.Folder, "robot.glb")], asked);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheDesignTimePreviewShowsADrawingsThumbnailAsync() =>
         ui.RunAsync(() =>
         {

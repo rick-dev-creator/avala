@@ -59,9 +59,12 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
         await (await EvaluateAsync(job, turn, cancellationToken)).Match(
             verdict => verdict.Hold.Match(
                 reason => round.HoldAsync(job, reason, cancellationToken),
-                () => verdict.Decision == GateDecision.Pass
-                    ? PassAsync(job, cancellationToken)
-                    : RetryAsync(job, verdict.Feedback, retry, cancellationToken)),
+                () => verdict.Decision switch
+                {
+                    GateDecision.Pass => PassAsync(job, cancellationToken),
+                    GateDecision.Defer => Task.CompletedTask,
+                    _ => RetryAsync(job, verdict, retry, cancellationToken),
+                }),
             () => FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken));
 
     private async Task<Option<GateVerdict>> EvaluateAsync(Job job, Option<FinishedTurn> turn, CancellationToken cancellationToken)
@@ -83,10 +86,16 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
         await ledger.RecordAsync(job, cancellationToken);
     }
 
-    private async Task RetryAsync(Job job, string reason, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
+    private async Task RetryAsync(Job job, GateVerdict verdict, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
     {
-        if (!Feedback.Create(string.IsNullOrWhiteSpace(reason) ? DefaultFeedback : reason).Map(created => created.By(MessageAuthor.Avala)).TryGetValue(out var feedback, out _))
+        if (!Feedback.Create(string.IsNullOrWhiteSpace(verdict.Feedback) ? DefaultFeedback : verdict.Feedback).Map(created => created.By(MessageAuthor.Avala)).TryGetValue(out var feedback, out _))
         {
+            return;
+        }
+
+        if (verdict.Relays)
+        {
+            await round.RelayAsync(job, feedback, retry, cancellationToken);
             return;
         }
 

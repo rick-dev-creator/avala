@@ -33,6 +33,7 @@ internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall
         return new BoardJob(history.Summary, recalled.WithCi(watch, wakeUps))
         {
             Handoffs = handoffs.OfJob(history.Summary.Job),
+            Marks = handoffs.MarksOf(history.Summary.Job),
             Hold = history.Summary.Status == JobStatus.NeedsHelp ? history.Summary.Hold : Option<HoldReason>.None,
             Wait = history.Summary.Status == JobStatus.NeedsHelp ? handoffs.WaitOf(history.Summary.Job) : Option<ResetWait>.None,
             Attempts = history.Attempts.Count,

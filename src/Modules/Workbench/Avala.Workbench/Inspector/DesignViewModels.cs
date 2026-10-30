@@ -56,14 +56,18 @@ internal sealed class DesignAuditSectionViewModel : IAuditSectionViewModel
 
     public string Summary => "6 allowed by rules · 1 answered by you · 1 assumption";
 
-    public IReadOnlyList<string> Decisions { get; } =
+    public IReadOnlyList<DecisionRow> Decisions { get; } =
     [
-        "Allowed: run npm test -- test/auth · rule tests",
-        "Allowed: edit src/auth/rateLimit.ts · rule source",
-        "You allowed: run npm install express-rate-limit",
+        new(DecisionVerdict.Allowed, "Run", "npm install express-rate-limit", "allowed by you"),
+        new(DecisionVerdict.Allowed, "Run", "npm test -- test/auth", "allowed by rule tests") { Times = 4 },
+        new(DecisionVerdict.Allowed, "Edit", "src/auth/rateLimit.ts", "allowed by rule source"),
     ];
 
-    public IReadOnlyList<string> Assumptions { get; } = ["How many failed logins before the limit?: 5 attempts per minute"];
+    public string More => string.Empty;
+
+    public IRelayCommand ShowAllCommand { get; } = new RelayCommand(() => { });
+
+    public IReadOnlyList<AssumptionRow> Assumptions { get; } = [new("How many failed logins before the limit?", "5 attempts per minute")];
 }
 
 internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
@@ -155,22 +159,17 @@ internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
 
     public string RetryRefusal { get; init; } = string.Empty;
 
+    public bool IsBranchCopied => false;
+
+    public bool IsPathCopied { get; init; }
+
+    public IAsyncRelayCommand CopyBranchCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CopyPathCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     public IAsyncRelayCommand OpenFolderCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand RetryCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
-}
-
-internal sealed class DesignDelegationSectionViewModel : IDelegationSectionViewModel
-{
-    public bool IsLoaded => true;
-
-    public string Fact => "a sub-agent";
-
-    public string Parent => "Delegated by Harden the auth endpoints";
-
-    public IReadOnlyList<string> Children { get; } = [];
-
-    public bool IsEmpty => false;
 }
 
 internal sealed class DesignContestSectionViewModel : IContestSectionViewModel

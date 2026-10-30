@@ -52,7 +52,11 @@ internal sealed class Worktree
 
     public FakePictures Pictures { get; } = new();
 
+    public IMessenger Messenger { get; } = new StrongReferenceMessenger();
+
     public bool Gone { get; init; }
+
+    public bool Freed { get; init; }
 
     public Avala.Workbench.Tests.RepositoryChoice.FakeRemotes Remotes { get; } = new();
 
@@ -70,7 +74,7 @@ internal sealed class Worktree
 
         if (!Gone)
         {
-            workspaces.Known[workspace] = new WorkspaceInfo(workspace, Folder, "avala/solar", "ba5e");
+            workspaces.Known[workspace] = new WorkspaceInfo(workspace, Folder, "avala/solar", "ba5e") { Shelved = Freed };
         }
 
         return new WorkedFiles(catalog, Changes, workspaces, Files);
@@ -85,7 +89,7 @@ internal sealed class Worktree
 
     public FileViewing Viewing(WorkedFiles worked)
     {
-        var links = new Links(Opener, new StrongReferenceMessenger());
+        var links = new Links(Opener, Messenger);
 
         return new(worked, links, Pictures, new ReplyTools(Tools.Code, new JobReferences(catalog, Remotes, links)));
     }

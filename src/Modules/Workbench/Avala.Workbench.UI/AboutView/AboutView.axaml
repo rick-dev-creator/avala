@@ -9,7 +9,7 @@
     <settings:DesignAboutViewModel />
   </Design.DataContext>
   <StackPanel Spacing="8">
-    <TextBlock Classes="section" Text="About" />
+    <TextBlock Classes="section" Text="This build" />
     <Border x:Name="Note"
             Classes="quiet"
             Padding="12,8"

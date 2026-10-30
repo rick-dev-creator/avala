@@ -92,7 +92,7 @@ public sealed class ClaudeCodePermissionTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AClaudeCodeWriteIntoAnIsolatedWorktreeOfTheMainRepositoryGoesToAHumanAsync()
+    public async Task AClaudeCodeWriteIntoAnIsolatedWorktreeOfTheMainRepositoryIsTheJobsOwnAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("agent-worktree-write");
         await using var run = await SimulatedRun.TranscribedAsync(
@@ -105,18 +105,18 @@ public sealed class ClaudeCodePermissionTests(PublishedPlugins plugins)
         var write = (await run.DecisionsUntilAsync(decision => decision.Kind == ItemKind.FileEdit))[^1];
 
         Assert.Equal(
-            (Path.Combine(run.Repository.Path, ".claude", "worktrees", "agent-a4f81c2d", "README.md"), PolicyAnswer.Ask, DecisionDelivery.LeftToHuman, "edits-outside-the-workspace-go-to-a-human"),
-            (write.Target, write.Answer, write.Delivery, write.Rule.Match(rule => rule.Name, () => string.Empty)));
+            (Path.Combine(run.Repository.Path, ".claude", "worktrees", "agent-a4f81c2d", "README.md"), PolicyAnswer.Allow, "edits-inside-the-workspace"),
+            (write.Target, write.Answer, write.Rule.Match(rule => rule.Name, () => string.Empty)));
     }
 
     [Fact]
-    public async Task AReadOfAnImageUnderTheSystemTemporaryFolderAsksAHumanAndAllowingItLetsTheClaudeCodeAgentRetryItAsync()
+    public async Task AReadOfAnImageOutsideTheWorktreeAsksAHumanAndAllowingItLetsTheClaudeCodeAgentRetryItAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("tmp-image");
         await using var run = await SimulatedRun.TranscribedAsync(
             plugins,
             claude.Plugin,
-            new JobRequest(string.Empty, "Look at the screenshot at /tmp/avala-replayed-screenshot.png and describe it."),
+            new JobRequest(string.Empty, "Look at the screenshot at /srv/avala-replayed-screenshot.png and describe it."),
             claude.Data,
             [(".avala/permissions.json", Autonomous)]);
         var workbench = await run.WorkbenchAsync();
@@ -129,8 +129,8 @@ public sealed class ClaudeCodePermissionTests(PublishedPlugins plugins)
         await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
 
         var (denied, retried) = await run.DecisionsAsync(2) is [var first, var second] ? (first, second) : default;
-        Assert.Equal(("/tmp/avala-replayed-screenshot.png", PolicyAnswer.Deny), (denied.Target, denied.Answer));
-        Assert.Equal(("/tmp/avala-replayed-screenshot.png", PolicyAnswer.Allow), (retried.Target, retried.Answer));
+        Assert.Equal(("/srv/avala-replayed-screenshot.png", PolicyAnswer.Deny), (denied.Target, denied.Answer));
+        Assert.Equal(("/srv/avala-replayed-screenshot.png", PolicyAnswer.Allow), (retried.Target, retried.Answer));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
     }
 

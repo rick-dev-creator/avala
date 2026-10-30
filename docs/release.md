@@ -4,7 +4,7 @@ How a version of Avala reaches people: the packages, how a release is cut, its u
 
 ## Versions
 
-A version is a tag `v<major>.<minor>.<patch>`, with an optional prerelease such as `v0.1.0-beta.1`. The tag is the only source of a release's version: the packaging script passes it to every project as `-p:Version`, so the informational version, which About shows and the update check compares, reads `0.1.0-beta.1+<commit>`. A build from a checkout without a tag is `0.1.0-dev`, from `VersionPrefix` and `VersionSuffix` in `Directory.Build.props`; raise the prefix after a release.
+A version is a tag `v<major>.<minor>.<patch>`, with an optional prerelease such as `v0.1.0-beta.1`. The tag is the only source of a release's version: the packaging script passes it to every project as `-p:Version`, so the informational version, which About shows and the update check compares, reads `0.1.0-beta.1+<commit>`. A build from a checkout without a tag is `0.2.0-dev`, from `VersionPrefix` and `VersionSuffix` in `Directory.Build.props`; raise the prefix after a release.
 
 A tag with a hyphen is drafted as a prerelease. A stable build of Avala is only ever offered stable releases, and a prerelease build is offered prereleases too.
 
@@ -89,7 +89,7 @@ The pack id is `Avala.Desktop` rather than `Avala` because Velopack installs int
 
 ### Arch Linux: the AUR package
 
-`packaging/aur/PKGBUILD` is the recipe of `avala-bin`, with `@VERSION@`, `@PKGVER@` and `@SHA256@` where a release's values go. `scripts/aur.cs` fills them from the release's `avala-<version>-linux-x64.tar.gz` and writes the matching `.SRCINFO`; the release workflow attaches both as `avala-bin-<version>.PKGBUILD` and `avala-bin-<version>.SRCINFO`. The package installs the tar.gz to `/opt/avala`, links `/usr/bin/avala` to it, installs the desktop entry with `Exec=avala`, the icon and the license, depends on `git` and the libraries Avalonia and .NET load, and suggests `claude-code`, `github-cli` and `tea`. The version's hyphen becomes an underscore, `0.1.0-beta.1` as `0.1.0_beta.1`, which `pacman` orders before `0.1.0`.
+`packaging/aur/PKGBUILD` is the recipe of `avala-bin`, with `@VERSION@`, `@PKGVER@` and `@SHA256@` where a release's values go. `scripts/aur.cs` fills them from the release's `avala-<version>-linux-x64.tar.gz` and writes the matching `.SRCINFO`; the release workflow attaches both as `avala-bin-<version>.PKGBUILD` and `avala-bin-<version>.SRCINFO`. The package installs the tar.gz to `/opt/avala`, links `/usr/bin/avala` to it, installs the desktop entry with `Exec=avala`, the icon and the license, depends on `git`, the libraries Avalonia and .NET load, and `libsecret`, through which a [fleet](architecture.md#the-fleet) keeps its instance key in the Secret Service, and suggests `claude-code`, `github-cli` and `tea`. The version's hyphen becomes an underscore, `0.1.0-beta.1` as `0.1.0_beta.1`, which `pacman` orders before `0.1.0`.
 
 To publish it, once, with an AUR account and an SSH key added to it:
 
@@ -116,6 +116,8 @@ git push
 
 Avala drives git, the `claude` CLI, `gh`, `tea`, `npm` and the person's own scripts in the person's repositories, so the sandbox is open where it must be: `--filesystem=home` for the repositories, `--share=network`, `--socket=wayland` with `--socket=fallback-x11`, `--device=dri`, `--share=ipc`, `--talk-name=org.freedesktop.Notifications`, and `--talk-name=org.freedesktop.Flatpak` so every child process runs on the host. Inside Flatpak, which Avala knows from `/.flatpak-info`, `FlatpakHost` in the SDK starts each child as `flatpak-spawn --host --watch-bus --directory=<its folder>`, passes the variables Avala set or removed with `--env` and `--unset-env`, and runs the program through `sh -lc` so the person's login profile puts `~/.local/bin` and the like on `PATH`. `--watch-bus` ends the host process when Avala's side ends. Stopping a job's processes reaches the host through `flatpak-spawn`, which forwards the termination; the process tree only sees the `flatpak-spawn` side, so a host process that outlives it is reclaimed by `--watch-bus` rather than by the tree.
 
+A fleet's instance key goes to the system keychain through `libsecret-1.so.0`, which the freedesktop 26.08 runtime ships with `libglib-2.0.so.0`, so the manifest adds no module for it. Inside the sandbox libsecret keeps secrets through the Secret portal of `xdg-desktop-portal`, in a file of the app's own data folder encrypted with a key the portal's backend, such as GNOME Keyring, holds; portals need no `--talk-name`, so the sandbox is not opened for it. Where no portal backend answers, Settings says the system has no keychain Avala can use, and no fleet can be connected.
+
 Building it needs `flatpak`, `flatpak-builder` or the `org.flatpak.Builder` Flatpak, and the SDK, once:
 
 ```
@@ -141,7 +143,7 @@ The release workflow does not build it: CI steps run only `dotnet`, and the runn
 dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 ```
 
-`--rid` is one of `win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`, and any of them can be built from any system, but signing needs its own. `--version 0.1.0-beta.1` sets the version; without it the script takes the tag the workflow was started by, then the tag on `HEAD`, then `0.1.0-dev`. `--output <folder>` chooses where the archives go, `artifacts/packages` by default, and the work folder is `artifacts/package/<rid>`. `--smoke` runs the packaged `--version` and `--smoke` when the platform is the one running the script. `--sign` signs, see below.
+`--rid` is one of `win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`, and any of them can be built from any system, but signing needs its own. `--version 0.1.0-beta.1` sets the version; without it the script takes the tag the workflow was started by, then the tag on `HEAD`, then `0.2.0-dev`. `--output <folder>` chooses where the archives go, `artifacts/packages` by default, and the work folder is `artifacts/package/<rid>`. `--smoke` runs the packaged `--version` and `--smoke` when the platform is the one running the script. `--sign` signs, see below.
 
 Then the installers, from that archive:
 
@@ -155,6 +157,24 @@ dotnet run scripts/installer.cs -- --rid linux-x64 --archive artifacts/packages 
 ### The smoke run
 
 `Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin in the package, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, and it exits 1 when the window cannot be shown or the runtime stops before its startup completes. It exits only once Avalonia's main loop runs, however fast the startup was. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
+
+## The fleet server image
+
+The release workflow's `server-image` job publishes the fleet server as `ghcr.io/rick-dev-creator/avala-server`, for `linux/amd64` and `linux/arm64`, tagged with the version and, for a stable version, `latest`.
+
+- **How it is built.** `dotnet run scripts/server-image.cs -- --tag <tag>` runs `dotnet publish -t:PublishContainer` with the .NET SDK's own container support, without a Dockerfile, on `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra`. The `extra` image keeps the time-zone data the Fleet dashboard needs; it has no shell and runs as the non-root user `app`, listening on 8080. The job authenticates with `SDK_CONTAINER_REGISTRY_UNAME` and `SDK_CONTAINER_REGISTRY_PWORD` set to the actor and `GITHUB_TOKEN`, with `packages: write`, so it uses only `dotnet` steps.
+- **Once, after the first release:** GHCR creates the package private, so `docker compose pull` answers `unauthorized`. Make it public in GitHub, Packages, `avala-server`, Package settings.
+- **Building it locally:** `dotnet publish backend/Fleet/Avala.Server -t:PublishContainer -p:ContainerRuntimeIdentifiers=linux-x64 -p:ContainerImageTag=local`, adding `-p:LocalRegistry=Podman` on Podman. Set `AVALA_SERVER_IMAGE=localhost/avala-server` and `AVALA_SERVER_VERSION=local` in `.env` to run it.
+- **When it is published:** after every desktop package is built, so a release that fails to package publishes no image.
+- **Before a release:** run `dotnet run scripts/fleet-deploy-check.cs` on Linux with Docker Compose, or `docker-compose` on Podman's socket. It runs as a compose project of its own, so a fleet running on the same machine is never touched, and it refuses to start while ports 8080 or 8443 are taken. It needs no running Avala and leaves nothing behind. It checks:
+  - the compose in `deploy/fleet/`, built from the working tree;
+  - an upgrade from the previous release's image;
+  - the real desktop, connecting over HTTPS with validation on;
+  - restarts;
+  - a backup and restore after deleting the volumes;
+  - that no key reaches the logs.
+
+  Pass `--previous <commit>` to choose the version upgraded from. A check interrupted with Ctrl-C leaves its own project behind, never a real fleet's; `docker compose ls` names it, and `docker compose -p <name> down -v` removes it.
 
 ## Release notes
 

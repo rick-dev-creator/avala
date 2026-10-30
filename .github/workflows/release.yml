@@ -86,6 +86,25 @@ jobs:
           path: artifacts/release/*
           if-no-files-found: error
 
+  server-image:
+    name: Publish the fleet server image
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Build and push the image for linux-x64 and linux-arm64
+        env:
+          SDK_CONTAINER_REGISTRY_UNAME: ${{ github.actor }}
+          SDK_CONTAINER_REGISTRY_PWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet run scripts/server-image.cs -- --tag ${{ github.ref_name }}
+
   draft:
     name: Draft the GitHub release
     needs: package

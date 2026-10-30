@@ -4,6 +4,7 @@ using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Projects.Contracts;
 using Avala.Sdk;
+using Avala.Verification.Contracts;
 
 namespace Avala.Workbench.Board;
 
@@ -16,6 +17,7 @@ internal sealed class JobBoard
     private ImmutableHashSet<JobId> drafted = [];
     private ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> checkpoints = ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>>.Empty;
     private ImmutableDictionary<JobId, JobDocumentation> docs = ImmutableDictionary<JobId, JobDocumentation>.Empty;
+    private ImmutableDictionary<JobId, ChecksDiscovery> discoveries = ImmutableDictionary<JobId, ChecksDiscovery>.Empty;
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
     public ImmutableDictionary<JobId, BoardJob> Jobs => Volatile.Read(ref jobs);
@@ -31,6 +33,8 @@ internal sealed class JobBoard
     public ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> Checkpoints => Volatile.Read(ref checkpoints);
 
     public ImmutableDictionary<JobId, JobDocumentation> Docs => Volatile.Read(ref docs);
+
+    public ImmutableDictionary<JobId, ChecksDiscovery> Discoveries => Volatile.Read(ref discoveries);
 
     public BoardRemote RemoteOf(JobId job) => Remotes.GetValueOrDefault(job, BoardRemote.None);
 
@@ -82,6 +86,12 @@ internal sealed class JobBoard
     public void Publish(ImmutableDictionary<JobId, JobDocumentation> next)
     {
         Volatile.Write(ref docs, next);
+        Notify();
+    }
+
+    public void Publish(ImmutableDictionary<JobId, ChecksDiscovery> next)
+    {
+        Volatile.Write(ref discoveries, next);
         Notify();
     }
 

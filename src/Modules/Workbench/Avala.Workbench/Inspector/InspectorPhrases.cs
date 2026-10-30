@@ -23,6 +23,9 @@ internal static class InspectorPhrases
     {
         ChoiceReason.Person => $"Moved to {choice.Connection.Value} by you",
         ChoiceReason.AllAtLimit => $"Chosen by capacity: every connection was at its limit, so {choice.Connection.Value}, the least used",
+        ChoiceReason.Preference => $"Chosen by preference: {choice.Connection.Value} was the first listed with room",
+        ChoiceReason.SoonestReset => $"Chosen by reset: {choice.Connection.Value} had room and its window renews soonest",
+        ChoiceReason.Rotation => $"Chosen in turn: {choice.Connection.Value} was next in the rotation",
         _ => $"Chosen by capacity: {choice.Connection.Value} had the most left",
     };
 
@@ -91,36 +94,55 @@ internal static class InspectorPhrases
         + report.Problem.Match(problem => $" · {Problem(problem)}", () => string.Empty)
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");
 
-    public static string Decision(PolicyDecision decision) =>
-        $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : decision.Parent.IsSome ? "Asked its parent" : "Asked you")}: {Presenting.CommandPhrases.Request(decision.Kind, decision.Target)}"
-        + decision.Rule.Match(rule => $" · rule {rule.Name}", () => decision.Delivery == DecisionDelivery.Answered && decision.Answer != PolicyAnswer.Ask ? " · default" : string.Empty);
+    public static Option<DecisionRow> Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
+        decision.Answer switch
+        {
+            PolicyAnswer.Allow => Option<DecisionRow>.Some(Row(DecisionVerdict.Allowed, decision.Kind, decision.Target, $"allowed {Ruled(decision.Rule)}")),
+            PolicyAnswer.Deny => Option<DecisionRow>.Some(Row(DecisionVerdict.Denied, decision.Kind, decision.Target, $"denied {Ruled(decision.Rule)}")),
+            _ when answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item) => Option<DecisionRow>.None,
+            _ => Option<DecisionRow>.Some(Asked(decision, latest)),
+        };
 
-    public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
-        Decision(decision)
-        + (decision.Delivery == DecisionDelivery.Withdrawn ? " · withdrawn by the harness"
-        : decision.Delivery is not (DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent) || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
-            ? string.Empty
-            : latest != Option<SessionId>.Some(decision.Session) ? " · unanswered, its session ended"
-            : decision.Delivery == DecisionDelivery.LeftToParent ? " · waiting for its parent"
-            : " · unanswered");
+    private static string Ruled(Option<PolicyRule> rule) => rule.Match(found => $"by rule {found.Name}", () => "by default");
+
+    private static DecisionRow Asked(PolicyDecision decision, Option<SessionId> latest) =>
+        decision.Delivery == DecisionDelivery.Withdrawn ? Row(DecisionVerdict.Unanswered, decision.Kind, decision.Target, "withdrawn by the harness")
+        : decision.Delivery is not (DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent) ? Row(DecisionVerdict.Unanswered, decision.Kind, decision.Target, decision.Parent.IsSome ? "asked its parent" : "asked you")
+        : latest != Option<SessionId>.Some(decision.Session) ? Row(DecisionVerdict.Unanswered, decision.Kind, decision.Target, "unanswered, its session ended")
+        : decision.Delivery == DecisionDelivery.LeftToParent ? Row(DecisionVerdict.Waiting, decision.Kind, decision.Target, "waiting for its parent")
+        : Row(DecisionVerdict.Waiting, decision.Kind, decision.Target, "waiting for you");
 
     public static string ByParent(int answeredByParent, int givenToChildren) =>
         (answeredByParent > 0 ? $" · {Amounts.Count(answeredByParent, "answered by its parent", "answered by its parent")}" : string.Empty)
         + (givenToChildren > 0 ? $" · {Amounts.Count(givenToChildren, "answer given to its sub-agents", "answers given to its sub-agents")}" : string.Empty);
 
-    public static string Given(HumanAnswer answer) =>
-        $"{(answer.Answer == PermissionAnswer.Allow ? "Allowed" : "Denied")} for a sub-agent: {Presenting.CommandPhrases.Request(answer.Kind, answer.Target)}";
+    public static DecisionRow Given(HumanAnswer answer) =>
+        Row(Verdict(answer.Answer), answer.Kind, answer.Target, $"{Answered(answer.Answer)} for a sub-agent");
 
-    public static string Answer(HumanAnswer answer) =>
-        $"{(answer.Parent.IsSome ? "Its parent" : "You")} {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")}: {Presenting.CommandPhrases.Request(answer.Kind, answer.Target)}"
-        + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
-        + (answer.Everything ? " · everything in this job" : string.Empty)
-        + answer.RepositoryRule.Match(
-            rule => $" · {rule.Name}",
-            () => answer.RepositoryError.Match(_ => " · not added to the repository", () => string.Empty));
+    public static DecisionRow Answer(HumanAnswer answer) =>
+        Row(
+            Verdict(answer.Answer),
+            answer.Kind,
+            answer.Target,
+            $"{Answered(answer.Answer)} by {(answer.Parent.IsSome ? "its parent" : "you")}"
+            + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
+            + (answer.Everything ? " · everything in this job" : string.Empty)
+            + answer.RepositoryRule.Match(
+                rule => $" · {rule.Name}",
+                () => answer.RepositoryError.Match(_ => " · not added to the repository", () => string.Empty)));
 
-    public static string Assumption(Assumption assumption) =>
-        $"{assumption.Prompt}: {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")}";
+    private static DecisionVerdict Verdict(PermissionAnswer answer) => answer == PermissionAnswer.Allow ? DecisionVerdict.Allowed : DecisionVerdict.Denied;
+
+    private static string Answered(PermissionAnswer answer) => answer == PermissionAnswer.Allow ? "allowed" : "denied";
+
+    private static DecisionRow Row(DecisionVerdict verdict, ItemKind kind, string target, string by) =>
+        new(verdict, Presenting.CommandPhrases.Action(kind), Presenting.CommandPhrases.Target(kind, target), by);
+
+    public static IReadOnlyList<DecisionRow> Grouped(IEnumerable<DecisionRow> rows) =>
+        [.. rows.GroupBy(row => row).Select(group => group.Key with { Times = group.Count() }).OrderBy(row => row.Verdict)];
+
+    public static AssumptionRow Assumption(Assumption assumption) =>
+        new(assumption.Prompt, assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment");
 
     public static string Audit(int allowed, int byYou, int denied, int assumptions) =>
         allowed + byYou + denied + assumptions == 0
@@ -195,25 +217,6 @@ internal static class InspectorPhrases
                 ? $"{autonomy.Effective}, as the repository declares"
                 : $"{autonomy.Effective}, tightened from the repository's {autonomy.Declared}";
 
-    public static string Child(JobSummary child, Option<DelegationRecord> delegation) =>
-        Amounts.Joined([
-            FactPhrases.Title(child.Instruction),
-            .. delegation.Map(record => Presenting.DelegationPhrases.Role(record.Role)).Match<string[]>(role => role.Length == 0 ? [] : [role], () => []),
-            Presenting.DelegationPhrases.Status(child.Status),
-            .. child.Connection.Match<string[]>(connection => [connection.Value], () => []),
-            .. delegation.Bind(record => record.Report).Match<string[]>(report => [Presenting.DelegationPhrases.Outcome(report.Outcome)], () => []),
-            .. delegation.Match<string[]>(Delivery, () => []),
-        ]);
-
-    private static string[] Delivery(DelegationRecord record) =>
-        record.Answered.Match<string[]>(
-            answer => answer.Route == AnswerRoute.Message ? ["told to its parent in a message"] : [],
-            () => record.Report.IsSome ? ["not yet told to its parent"] : []);
-
-    public static string Refused(DelegationRecord record) =>
-        $"Refused: {FactPhrases.Title(record.Instruction)}"
-        + record.Refusal.Match(refusal => $" · {Presenting.DelegationPhrases.Refusal(refusal)}", () => record.Rejection.Match(rejection => $" · {ConversationPhrases.Rejection(rejection)}", () => string.Empty));
-
     public static string Checked(IReadOnlyList<VerificationReport> verifications) =>
         verifications.Count == 0
             ? "no checks yet"
@@ -245,12 +248,9 @@ internal static class InspectorPhrases
             ? Option<double>.None
             : Option<double>.Some((double)(usage.Match(spent => Spent(spent, limit.Currency).Amount, () => 0m) / limit.Amount)));
 
-    public static string Delegated(int children, bool delegatedByParent) =>
-        children > 0 ? Amounts.Count(children, "sub-agent", "sub-agents")
-        : delegatedByParent ? "a sub-agent"
-        : "none";
-
     public static string Scratch(string fact) => $"{fact} · scratch";
+
+    public static string Freed(string fact) => $"{fact} · freed, rebuilt when the job continues";
 
     public static string FolderUnopened(string folder) => $"The folder could not be opened here: it is {folder}.";
 

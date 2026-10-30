@@ -81,7 +81,7 @@ internal sealed class FakeWebSurfaces : IWebSurfaces
     }
 }
 
-internal sealed class FakePreviews(PreviewBook book) : IPreviews
+internal sealed class FakePreviews(PreviewBook book, FakeGateways pages) : IPreviews
 {
     public ConcurrentDictionary<JobId, string> Scripts { get; } = new();
 
@@ -107,6 +107,23 @@ internal sealed class FakePreviews(PreviewBook book) : IPreviews
 
                 return Result<PreviewRun, PreviewError>.Success(new PreviewRun(job, Scripts[job]));
             }));
+
+    public const string Worktree = "/w/job/";
+
+    public static Uri Files { get; } = new("http://127.0.0.1:24009/");
+
+    public List<(JobId Job, string Path)> FilesServed { get; } = [];
+
+    public ValueTask<Result<Uri, PreviewError>> ServeFileAsync(JobId job, string path, CancellationToken cancellationToken)
+    {
+        FilesServed.Add((job, path));
+        pages.Ports.AddOrUpdate(job, [Files.Port], (_, known) => known.Add(Files.Port));
+
+        return ValueTask.FromResult(
+            path.StartsWith(Worktree, StringComparison.Ordinal) ? Result<Uri, PreviewError>.Success(new Uri(Files, path[Worktree.Length..]))
+            : !path.StartsWith('/') ? Result<Uri, PreviewError>.Success(new Uri(Files, path))
+            : Result<Uri, PreviewError>.Failure(PreviewError.Outside));
+    }
 
     public ValueTask<Result<PreviewRun, PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken)
     {
@@ -191,7 +208,7 @@ internal sealed class PaneBench : IDisposable
 {
     public PaneBench()
     {
-        Previews = new FakePreviews(Book);
+        Previews = new FakePreviews(Book, Pages);
     }
 
     public JobId Job { get; } = JobId.New();

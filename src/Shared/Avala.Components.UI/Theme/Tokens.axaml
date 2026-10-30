@@ -62,6 +62,17 @@
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#282930" />
       <SolidColorBrush x:Key="QrPaperBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="QrInkBrush" Color="#101114" />
+      <SolidColorBrush x:Key="DeviceBodyBrush" Color="#0B0B0D" />
+      <SolidColorBrush x:Key="DeviceIslandBrush" Color="#000000" />
+      <SolidColorBrush x:Key="DeviceLensBrush" Color="#1E2230" />
+      <SolidColorBrush x:Key="DeviceButtonBrush" Color="#6C6C72" />
+      <SolidColorBrush x:Key="DeviceCreaseBrush" Color="#1F000000" />
+      <LinearGradientBrush x:Key="DeviceRimBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#B8B8BE" />
+        <GradientStop Offset="0.35" Color="#5A5A60" />
+        <GradientStop Offset="0.7" Color="#8E8E94" />
+        <GradientStop Offset="1" Color="#4A4A50" />
+      </LinearGradientBrush>
 
       <SolidColorBrush x:Key="FillBubbleBrush" Color="#12FFFFFF" />
       <SolidColorBrush x:Key="FillRowSelectedBrush" Color="#14FFFFFF" />
@@ -156,6 +167,17 @@
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="QrPaperBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="QrInkBrush" Color="#101114" />
+      <SolidColorBrush x:Key="DeviceBodyBrush" Color="#0B0B0D" />
+      <SolidColorBrush x:Key="DeviceIslandBrush" Color="#000000" />
+      <SolidColorBrush x:Key="DeviceLensBrush" Color="#1E2230" />
+      <SolidColorBrush x:Key="DeviceButtonBrush" Color="#6C6C72" />
+      <SolidColorBrush x:Key="DeviceCreaseBrush" Color="#1F000000" />
+      <LinearGradientBrush x:Key="DeviceRimBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#B8B8BE" />
+        <GradientStop Offset="0.35" Color="#5A5A60" />
+        <GradientStop Offset="0.7" Color="#8E8E94" />
+        <GradientStop Offset="1" Color="#4A4A50" />
+      </LinearGradientBrush>
 
       <SolidColorBrush x:Key="FillBubbleBrush" Color="#0D000000" />
       <SolidColorBrush x:Key="FillRowSelectedBrush" Color="#10000000" />

@@ -33,6 +33,8 @@ public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, str
     public CapabilitySet Capabilities { get; init; } = CapabilitySet.None;
 
     public IReadOnlyList<string> OwnFolders { get; init; } = [];
+
+    public IReadOnlyList<string> WritableFolders { get; init; } = [];
 }
 
 public sealed record SessionStopped(SessionId Session) : IIntegrationEvent;

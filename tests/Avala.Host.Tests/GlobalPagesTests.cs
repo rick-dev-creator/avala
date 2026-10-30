@@ -151,12 +151,33 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheWorktreesPageShowsAFreedWorktreeInItsHistoryAndWhyItWasFreedAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
+        _ = await run.FreedAsync();
+        await run.DeliveredAsync();
+
+        var worktrees = await Pages.ActivatedAsync(run, "Worktrees");
+        await run.Ui.PresentedAsync(
+            worktrees.Presentation,
+            () => worktrees["History"].Items.Count == 1,
+            () => $"{worktrees["History"].Items.Count} in history");
+
+        Assert.Equal(
+            ("discarded", "1 worktree"),
+            await run.Ui.ReadAsync(() => (worktrees["Recovered"].Items[0]["Title"].Text, worktrees["Recovered"].Items[0]["Detail"].Text)));
+        Assert.StartsWith("freed ", await run.Ui.ReadAsync(() => worktrees["History"].Items[0]["Detail"].Text), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheResourcesPageShowsAnOrphanAndCleansItUpAsync()
     {
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", $$"""{ "orphans": "report", {{LeasedPorts.Settings()}}, "worktrees": { "keepDiscardedHours": null } }""")],
+            [("resources.json", $$"""{ "orphans": "report", {{LeasedPorts.Settings()}}, "worktrees": { "freeDiscardedHours": null, "deleteDiscardedHours": null } }""")],
             [(".avala/permissions.json", ServicesPolicy)]);
         var reaped = run.Watch<OrphansReaped>();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());

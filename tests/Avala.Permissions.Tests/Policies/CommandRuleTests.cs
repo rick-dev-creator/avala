@@ -160,6 +160,16 @@ public sealed class CommandRuleTests
         Assert.Equal(PolicyAnswer.Deny, policy.Decide(Command("cd /tmp && echo x > build.log")).Answer);
     }
 
+    [Theory]
+    [InlineData("cd src/app && cat > notes.md <<'EOF'\n# Notes\nEOF", PolicyAnswer.Allow)]
+    [InlineData("cd .method/tmp && grep -o passed run.txt | sort -u > done.txt", PolicyAnswer.Allow)]
+    [InlineData("dotnet test > red.log; cd src && ls", PolicyAnswer.Allow)]
+    [InlineData("cd /tmp && echo x > build.log", PolicyAnswer.Deny)]
+    [InlineData("cd $DIR && echo x > build.log", PolicyAnswer.Deny)]
+    [InlineData("pushd src && echo x > build.log", PolicyAnswer.Deny)]
+    public void AnAutonomousPolicyJudgesAWriteAfterACdInEveryFolderTheCdMayHaveReached(string line, PolicyAnswer answer) =>
+        Assert.Equal(answer, new PermissionPolicy([], Autonomy.Autonomous, FormStrategy.Recommended).Decide(Command(line)).Answer);
+
     [Fact]
     public void ARuleThatRunsTheTestsAllowsAChainedLineOnlyWhenEachOtherPartIsAllowedByItsOwnRule()
     {

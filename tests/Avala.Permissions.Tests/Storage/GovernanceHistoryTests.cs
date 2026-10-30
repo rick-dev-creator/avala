@@ -45,6 +45,30 @@ public sealed class GovernanceHistoryTests
     }
 
     [Fact]
+    public async Task AFolderRequestAndItsGrantSurviveAReopeningAsync()
+    {
+        await using var data = new TemporaryFolder();
+        var (session, job, folder) = (SessionId.New(), JobId.New(), "/home/me/Projects/contracts");
+        var grant = new PolicyRule(RuleOrigin.Job, "edits in this folder for this job", ItemKind.FileEdit, folder, RuleScope.Granted, PolicyAnswer.Allow);
+        var decision = new PolicyDecision(session, TurnId.New(), new ItemId("ask"), job, ItemKind.Other, folder, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, Nine)
+        {
+            Folder = new FolderRequest(folder, FolderAccess.Edit, "Update the client"),
+        };
+        await using (var first = new SqliteGovernanceStore(new AvalaPaths(data.Path)))
+        {
+            await first.RecordAsync(decision, Cancellation);
+            await first.RecordAsync(new HumanAnswer(session, job, new ItemId("ask"), ItemKind.Other, folder, PermissionAnswer.Allow, Option<string>.None, grant, Nine), Cancellation);
+        }
+
+        await using var second = new SqliteGovernanceStore(new AvalaPaths(data.Path));
+        var book = new GovernanceBook(second);
+        await book.RunAsync(Cancellation);
+
+        Assert.Equal([decision], book.OfJob(job));
+        Assert.Equal([grant], book.JobRulesOf(job));
+    }
+
+    [Fact]
     public async Task GovernanceSurvivesAReopeningAndEarlierRunsLeaveOutWhatThisRunStoredAsync()
     {
         await using var folder = new TemporaryFolder();
@@ -92,7 +116,7 @@ public sealed class GovernanceHistoryTests
         var store = new InMemoryGovernance();
         var book = new GovernanceBook(store);
         var bus = new RecordingBus();
-        var governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new Avala.Permissions.Answering.PermissionResponder(new AnsweringAgents(), new Avala.Permissions.Answering.RequestPlaces(new Avala.Permissions.Links.SymbolicLinks(), new FixedReadableFolders([])), TimeProvider.System, []), bus);
+        var governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new Avala.Permissions.Links.SymbolicLinks()), new Avala.Permissions.Answering.PermissionResponder(new AnsweringAgents(), new Avala.Permissions.Answering.RequestPlaces(new Avala.Permissions.Links.SymbolicLinks(), new FixedReadableFolders([])), TimeProvider.System, []), bus);
         var (running, ended) = (JobId.New(), JobId.New());
         store.Earlier = GovernanceHistory.Empty with
         {

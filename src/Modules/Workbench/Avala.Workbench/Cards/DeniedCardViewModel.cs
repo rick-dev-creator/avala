@@ -66,7 +66,7 @@ internal sealed partial class DeniedCardViewModel : IDeniedCardViewModel, ITimel
     [ObservableProperty]
     public partial string Error { get; private set; }
 
-    private bool Allowable => denied.Decision.Scope.Bind(scope => scope.Rule).IsSome;
+    private bool Allowable => denied.Decision.Scope.Match(scope => scope.Rule.IsSome || scope.Folder.IsSome, () => false);
 
     public void Update(ITimelineEntry entry)
     {

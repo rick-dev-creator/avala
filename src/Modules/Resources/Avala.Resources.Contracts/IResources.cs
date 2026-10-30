@@ -24,6 +24,8 @@ public interface IResources
     IReadOnlyList<PortConflict> Conflicts();
 
     ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken);
 }
 
 public interface IPortLeases
@@ -46,7 +48,20 @@ public interface IWorktreeHousekeeping
 {
     IReadOnlyList<ReclaimedWorktree> Reclaimed();
 
+    IReadOnlyList<FreedWorktree> Freed();
+
+    Option<WorktreeSpace> Shortage();
+
+    IReadOnlyList<WorktreeDue> Upcoming();
+
+    ValueTask<IReadOnlyList<FreedWorktree>> FreeNowAsync(CancellationToken cancellationToken);
+
     ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken);
 
     ValueTask<WorktreeReconciliation> CleanAsync(CancellationToken cancellationToken);
+}
+
+public interface IWorktreeHistory
+{
+    ValueTask<WorktreeReport> ReportAsync(DateOnly from, CancellationToken cancellationToken);
 }

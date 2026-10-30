@@ -170,8 +170,6 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         var record = (await reported.UntilAsync(_ => true)).Delegation;
         Assert.Equal([JobStatus.AwaitingReview], await review.SettledAsync(reviewed));
         var bench = await review.WorkbenchAsync();
-        _ = await bench.InspectAsync(reviewed, "DelegationSectionViewModel");
-        await Camera.ShootAsync(review, "17-reviewer-child-read-only-in-parent-inspector-dark", FeatureCamera.Unfold("Delegation"));
         _ = await SelectChildAsync(review, bench, Outcomes.Present(record.Report).Child);
         await Camera.ShootAsync(review, "18-reviewer-child-inspector-read-only-dark", FeatureCamera.Unfold("Autonomy & connection", "Decisions"));
     }
@@ -269,15 +267,11 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (Avala.Sdk.IPage)page.Target, Cancellation);
         await run.Ui.RunAsync(() => page["Loading"].Value<Task>());
         Assert.True(await run.Ui.ReadAsync(() => page["Machine"]["Notifications"]["IsSetUp"].Value<bool>()));
+        await run.Ui.InvokeAsync(() => page.ShowSection("Notifications"), Cancellation);
 
-        await Camera.ShootAsync(run, "27-settings-notifications-dark", ShowNotifications);
-        await Camera.ShootAsync(run, "27-settings-notifications-light", ThemeVariant.Light, ShowNotifications);
+        await Camera.ShootAsync(run, "27-settings-notifications-dark");
+        await Camera.ShootAsync(run, "27-settings-notifications-light", ThemeVariant.Light);
     }
-
-    private static void ShowNotifications(Avalonia.Controls.Window window) =>
-        Avalonia.Controls.ControlExtensions.BringIntoView(
-            window.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().First(block => block.Text == "Notifications"),
-            new Avalonia.Rect(0, -16, 10, 600));
 
     [Fact]
 
@@ -440,6 +434,24 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheDelegationPaneOfAJobCentresItsTreeAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "subagents");
+        var install = await run.DecisionAsync();
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        var pane = workbench.Page["Regions"]["Preview"].Items.Single(item => item.Kind == "DelegationPaneViewModel");
+
+        Outcomes.Succeeds(await run.Get<Avala.Agents.Contracts.IAgents>().RespondAsync(install.Session, new Avala.Agents.Contracts.Sessions.PermissionDecision(install.Item, Avala.Agents.Contracts.Events.PermissionAnswer.Allow), Cancellation));
+        _ = await run.DecisionAsync();
+        await workbench.ShowsAsync(pane, () => pane["IsOpen"].Value<bool>() && pane["HasTree"].Value<bool>() && pane["Tree"]["Branches"].Items.Any(branch => branch.Kind == "SubagentViewModel"));
+
+        await Camera.ShootAsync(run, "26-delegation-pane-centred-tree-dark");
+        await Camera.ShootAsync(run, "26-delegation-pane-centred-tree-light", ThemeVariant.Light);
+    }
+
+    [Fact]
     public async Task TheInspectorsUsageHeadlineReadsWholeUnderACostCapAsync()
     {
         Gated();
@@ -465,6 +477,24 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
 
         await Camera.ShootAsync(run, "52-denied-card-dark");
         await Camera.ShootAsync(run, "52-denied-card-light", ThemeVariant.Light);
+    }
+
+    [Fact]
+    public async Task TheInspectorsDecisionsAndWorktreeOfAJobThatWasDeniedSomethingAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "tools", (".avala/permissions.json", Autonomous));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.InspectAsync(run.Job, "AuditSectionViewModel", "WorktreeSectionViewModel");
+
+        await Camera.ShootAsync(run, "53-inspector-decisions-and-worktree-dark", FeatureCamera.Unfold("Decisions", "Worktree"));
+        await Camera.ShootAsync(run, "53-inspector-decisions-and-worktree-light", ThemeVariant.Light, FeatureCamera.Unfold("Decisions", "Worktree"));
+
+        await using var governed = await SimulatedRun.StartAsync(plugins, "governed", (".avala/permissions.json", """{ "autonomy": "autonomous", "rules": [ { "name": "no-migrations", "kind": "command", "target": "dotnet ef*", "answer": "deny" } ] }"""));
+        Assert.Equal(JobStatus.AwaitingReview, await governed.SettledAsync());
+        _ = await (await governed.WorkbenchAsync()).InspectAsync(governed.Job, "AuditSectionViewModel");
+        await Camera.ShootAsync(governed, "54-inspector-decisions-with-assumptions-dark", FeatureCamera.Unfold("Decisions"));
     }
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";

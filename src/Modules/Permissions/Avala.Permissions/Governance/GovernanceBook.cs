@@ -14,11 +14,43 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
     private ImmutableList<HumanAnswer> earlierAnswers = [];
     private ImmutableList<HumanAnswer> answers = [];
     private ImmutableDictionary<JobId, DateTimeOffset> raised = ImmutableDictionary<JobId, DateTimeOffset>.Empty;
+    private ImmutableDictionary<SessionId, TaskCompletionSource> unassigned = ImmutableDictionary<SessionId, TaskCompletionSource>.Empty;
 
     public GovernedSession Of(SessionId session) => Volatile.Read(ref sessions).GetValueOrDefault(session) ?? new GovernedSession(session);
 
-    public void Keep(GovernedSession session) =>
+    public void Keep(GovernedSession session)
+    {
         ImmutableInterlocked.AddOrUpdate(ref sessions, session.Session, session, (_, _) => session);
+
+        if (session.Job.IsSome && ImmutableInterlocked.TryRemove(ref unassigned, session.Session, out var waiting))
+        {
+            waiting.TrySetResult();
+        }
+    }
+
+    public async Task<GovernedSession> WorkingAsync(SessionId session, TimeSpan patience, TimeProvider clock, CancellationToken cancellationToken)
+    {
+        if (Of(session).Job.IsSome)
+        {
+            return Of(session);
+        }
+
+        var waiting = ImmutableInterlocked.GetOrAdd(ref unassigned, session, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        try
+        {
+            if (Of(session).Job.IsNone)
+            {
+                await waiting.Task.WaitAsync(patience, clock, cancellationToken);
+            }
+        }
+        catch (TimeoutException)
+        {
+            ImmutableInterlocked.TryRemove(ref unassigned, session, out _);
+        }
+
+        return Of(session);
+    }
 
     public async Task OpenedAsync(GovernedSession session, SessionPolicy report, CancellationToken cancellationToken)
     {

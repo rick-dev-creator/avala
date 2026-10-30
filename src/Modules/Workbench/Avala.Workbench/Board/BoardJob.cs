@@ -34,6 +34,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public Option<ResetWait> Wait { get; init; }
 
+    public IReadOnlyList<RelayMark> Marks { get; init; } = [];
+
     public Option<PullRequestWatchState> PullRequest { get; init; }
 
     public IReadOnlyList<WakeUpRecord> WakeUps { get; init; } = [];
@@ -41,6 +43,10 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
     public int Revision { get; init; }
 
     public IReadOnlyList<JobCheckpoint> Checkpoints { get; init; } = [];
+
+    public bool FindsChecks { get; init; }
+
+    public bool ProposesChecks { get; init; }
 
     public bool TakesMessagesMidTurn { get; init; }
 

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Violating.Application" />
+    <InternalsVisibleTo Include="Avala.Server.Violating.Infrastructure" />
+    <InternalsVisibleTo Include="Avala.Server.Violating.EndPoints" />
+  </ItemGroup>
+</Project>

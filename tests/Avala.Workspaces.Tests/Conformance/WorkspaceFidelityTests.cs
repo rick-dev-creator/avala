@@ -19,6 +19,7 @@ public sealed class WorkspaceFidelityTests
     public async Task TheInMemoryWorkspacesAnswerAsTheModuleWithGitDoesAsync(string name, bool realGit)
     {
         Assert.SkipWhen(WorkspaceFidelity.Approximated.ContainsKey(name), WorkspaceFidelity.Approximated.GetValueOrDefault(name, string.Empty));
+        Assert.SkipWhen(OperatingSystem.IsWindows() && WorkspaceFidelity.UnnamableOnWindows.ContainsKey(name), WorkspaceFidelity.UnnamableOnWindows.GetValueOrDefault(name, string.Empty));
         Assert.SkipWhen(
             realGit && name == "InitializingAFolderLeavesItsFilesAsTheyWereAsync" && !await HasGitIdentityAsync(),
             "The module with git initializes a folder only for a git identity, and this machine has no user.name or user.email.");

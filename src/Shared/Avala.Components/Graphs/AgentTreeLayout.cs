@@ -8,6 +8,8 @@ public enum AgentTreeShape
     Rail,
 }
 
+public sealed record TreeNodeSpec(int Depth, GraphSize Size);
+
 public sealed record AgentTreeSpacing(double Gap = 12, double Indent = 24, double Drop = 28);
 
 public sealed record AgentTreeEdge(int Node, IReadOnlyList<GraphPoint> Points)
@@ -57,6 +59,24 @@ public static class AgentTreeLayout
         return fitting.Rects is { } rects
             ? Drawn(fitting.Shape, rects, parents, spacing)
             : Drawn(AgentTreeShape.Rail, Rail(nodes, levels, rooted, spacing), parents, spacing);
+    }
+
+    public static AgentTreeGraphLayout Centered(AgentTreeGraphLayout layout, double width)
+    {
+        var shift = layout.Shape == AgentTreeShape.Rail || !double.IsFinite(width) ? 0 : (width - layout.Size.Width) / 2;
+
+        if (shift <= 0)
+        {
+            return layout;
+        }
+
+        return layout with
+        {
+            Nodes = [.. layout.Nodes.Select(node => node with { X = node.X + shift })],
+            Edges = [.. layout.Edges.Select(edge => edge with { Points = [.. edge.Points.Select(point => point with { X = point.X + shift })] })],
+            Joints = [.. layout.Joints.Select(joint => joint with { X = joint.X + shift })],
+            Size = layout.Size with { Width = width },
+        };
     }
 
     public static int[] Parents(IReadOnlyList<TreeNodeSpec> nodes)

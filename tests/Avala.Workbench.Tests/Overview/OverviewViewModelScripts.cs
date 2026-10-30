@@ -101,6 +101,16 @@ public sealed class OverviewViewModelScripts : IDisposable
 
             public string Caption => string.Empty;
 
+            public FleetScope Scope => FleetScope.InProgress;
+
+            public string InProgressLabel => string.Empty;
+
+            public string ForReviewLabel => string.Empty;
+
+            public string AllLabel => string.Empty;
+
+            public CommunityToolkit.Mvvm.Input.IRelayCommand<FleetScope> ScopeCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand<FleetScope>(_ => { });
+
             public CommunityToolkit.Mvvm.Input.IRelayCommand<Jobs.Contracts.JobId> OpenCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand<Jobs.Contracts.JobId>(_ => { });
 
             public long Revision => 0;
@@ -185,6 +195,34 @@ public sealed class ConnectionsViewModelScripts : IDisposable
         await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
 
         Assert.Empty(await ui.ReadAsync(() => page.Connections.ToList()));
+    }
+
+    [Fact]
+    public async Task TheConnectionsShowOnlyTheJobsInProgressUntilAnotherScopeIsChosenAndEachScopeCountsItsJobsAsync()
+    {
+        var board = new JobBoard();
+        var sessions = new SessionBook(new FakeUsage());
+        var running = Pages.Summary("Ship the release", JobStatus.Running);
+        var review = Pages.Summary("Write the notes", JobStatus.AwaitingReview);
+        _ = await sessions.OpenAsync("work", running.Job);
+        _ = await sessions.OpenAsync("work", review.Job);
+        board.Publish(Pages.Board(running, review).Jobs);
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections("work"), Pages.Readings(new FakeUsage()), sessions, board), new LiveFeed(new Pulse(board), ui, NullLogger<LiveFeed>.Instance), Focusing.Focus(), Focusing.Spending(new FakeUsage(), sessions));
+        IConnectionsViewModel shown = page;
+
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Connections.Count == 1, () => $"{page.Connections.Count} connections");
+        var inProgress = await ui.ReadAsync(() => page.Connections[0].Agents.Select(agent => agent.Title).ToList());
+        var labels = await ui.ReadAsync(() => (page.InProgressLabel, page.ForReviewLabel, page.AllLabel));
+        await ui.InvokeAsync(() => shown.ScopeCommand.Execute(FleetScope.ForReview), TestContext.Current.CancellationToken);
+        var forReview = await ui.ReadAsync(() => page.Connections[0].Agents.Select(agent => agent.Title).ToList());
+        await ui.InvokeAsync(() => shown.ScopeCommand.Execute(FleetScope.All), TestContext.Current.CancellationToken);
+        var all = await ui.ReadAsync(() => page.Connections[0].Agents.Select(agent => agent.Title).Order(StringComparer.Ordinal).ToList());
+
+        Assert.Equal(["Ship the release"], inProgress);
+        Assert.Equal(("In progress · 1", "Ready for review · 1", "All · 2"), labels);
+        Assert.Equal(["Write the notes"], forReview);
+        Assert.Equal(["Ship the release", "Write the notes"], all);
     }
 
     public void Dispose() => ui.Dispose();

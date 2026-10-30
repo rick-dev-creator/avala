@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.RelaysPaneView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IRelaysPaneViewModel"
+             Classes.waiting="{Binding IsWaiting}">
+  <Design.DataContext>
+    <overview:DesignRelaysPaneViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+    </Style>
+    <Style Selector="Border#PaneHeader, Border#PaneFooter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+    <Style Selector="Border#Hero">
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    </Style>
+    <Style Selector=":is(UserControl).waiting Border#Hero">
+      <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Beacon">
+      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).waiting Ellipse#Beacon">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Border#Track">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderCardBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    </Style>
+    <Style Selector="graphs|RelayTrack">
+      <Setter Property="TrackBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+      <Setter Property="RouteBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="WaitBrush" Value="{DynamicResource AttentionBrush}" />
+      <Setter Property="CapBrush" Value="{DynamicResource FailureBrush}" />
+      <Setter Property="SurfaceBrush" Value="{DynamicResource SurfacePanelBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Surface" IsVisible="{Binding IsOpen}">
+    <DockPanel>
+      <Border x:Name="PaneHeader" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="18,0,10,0" Height="44">
+        <DockPanel>
+          <Button x:Name="Close"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  Command="{Binding CloseCommand}"
+                  ToolTip.Tip="Close"
+                  AutomationProperties.Name="Close the relays">
+            <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
+          </Button>
+          <TextBlock x:Name="Caption" DockPanel.Dock="Right" Classes="caption" Margin="0,0,8,0" Text="{Binding Caption}" VerticalAlignment="Center" />
+          <TextBlock Classes="strong" Text="Relays" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+      <Border x:Name="PaneFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="18,10">
+        <TextBlock x:Name="Footer" Classes="caption" Text="{Binding Footer}" TextTrimming="CharacterEllipsis" />
+      </Border>
+      <ContentControl x:Name="ReadProblem" DockPanel.Dock="Top" Margin="16,12,16,0" Content="{Binding ReadProblem}" IsVisible="{Binding ReadProblem.IsShown}" />
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="Journey" Margin="16" Spacing="16" IsVisible="{Binding HasJourney}">
+          <Border x:Name="Hero" Padding="14,12">
+            <Grid ColumnDefinitions="Auto,*">
+              <Panel Width="16" Height="16" Margin="0,3,12,0" VerticalAlignment="Top">
+                <Ellipse x:Name="Halo" Width="16" Height="16" Opacity="0.25" Fill="{Binding #Beacon.Fill}" />
+                <Ellipse x:Name="Beacon" Width="8" Height="8" />
+              </Panel>
+              <StackPanel Grid.Column="1" Spacing="2">
+                <TextBlock x:Name="Headline" Classes="strong" FontSize="{DynamicResource FontSizeTitleSmall}" Text="{Binding Headline}" TextWrapping="Wrap" />
+                <TextBlock x:Name="Subline" Classes="caption" Text="{Binding Subline}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
+          </Border>
+          <Border x:Name="Track" BorderThickness="1" Padding="0,4,0,6" ClipToBounds="True">
+            <Grid ColumnDefinitions="148,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock x:Name="Pattern"
+                         Grid.ColumnSpan="2"
+                         Classes="caption tertiary"
+                         Margin="12,4,14,4"
+                         HorizontalAlignment="Right"
+                         Text="Elastic Harness Chaining"
+                         ToolTip.Tip="A relay race for agents: near a limit, the job packages its progress and hands it to a fresh harness" />
+              <ItemsControl x:Name="Lanes" Grid.Row="1" ItemsSource="{Binding Lanes}" />
+              <graphs:RelayTrack x:Name="Course" Grid.Row="1" Grid.Column="1" Course="{Binding Course}" LaneHeight="64" />
+              <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="18,2,18,2">
+                <TextBlock x:Name="Began" Classes="caption" Text="{Binding Began}" />
+                <TextBlock x:Name="Latest" Grid.Column="1" Classes="caption" Text="{Binding Latest}" />
+              </Grid>
+            </Grid>
+          </Border>
+          <TextBlock Classes="section" Text="Journey" Margin="2,4,0,0" />
+          <ItemsControl x:Name="Legs" ItemsSource="{Binding Legs}" />
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

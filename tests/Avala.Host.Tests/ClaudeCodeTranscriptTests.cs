@@ -62,7 +62,8 @@ public sealed class ClaudeCodeTranscriptTests(PublishedPlugins plugins)
             + "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
             + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
             + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
-            + "Never open a browser or take screenshots.",
+            + "Never open a browser or take screenshots. "
+            + "A 3D model needs no page: write it into the worktree as .glb, .gltf, .stl or .obj and give its path, and Avala shows it in its own viewer.",
             arguments[arguments.IndexOf("--append-system-prompt") + 1]);
         Assert.True((bool)listed.Single(tool => (string)tool!["name"]! == "canvas")!["_meta"]!["anthropic/alwaysLoad"]!);
     }

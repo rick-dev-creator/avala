@@ -77,7 +77,8 @@ public sealed class TelemetryTests(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "telemetry-01-first-run-notice-dark");
         await Camera.ShootAsync(run, "telemetry-01-first-run-notice-light", ThemeVariant.Light);
 
-        _ = await SettingsAsync(run);
+        var settings = await SettingsAsync(run);
+        await run.Ui.InvokeAsync(() => settings.ShowSection("About"), Cancellation);
         await Camera.ShootAsync(run, "telemetry-02-settings-usage-statistics-dark", ShowSection);
         await Camera.ShootAsync(run, "telemetry-02-settings-usage-statistics-light", ThemeVariant.Light, ShowSection);
     }

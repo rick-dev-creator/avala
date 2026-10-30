@@ -50,6 +50,9 @@
       "src/Modules/Gitea/Avala.Gitea/Avala.Gitea.csproj",
       "src/Modules/ForgeSimulator/Avala.ForgeSimulator/Avala.ForgeSimulator.csproj",
       "src/Modules/Notifications/Avala.Notifications.Contracts/Avala.Notifications.Contracts.csproj",
+      "src/Modules/Fleet/Avala.Fleet.Contracts/Avala.Fleet.Contracts.csproj",
+      "src/Modules/Fleet/Avala.Fleet/Avala.Fleet.csproj",
+      "src/Modules/Fleet/Avala.Fleet.UI/Avala.Fleet.UI.csproj",
       "src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj",
       "src/Modules/Contests/Avala.Contests.Contracts/Avala.Contests.Contracts.csproj",
       "src/Modules/Contests/Avala.Contests/Avala.Contests.csproj",
@@ -79,7 +82,26 @@
       "tests/Avala.Testing/Avala.Testing.csproj",
       "tests/Avala.Testing.UI/Avala.Testing.UI.csproj",
       "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj",
-      "tests/Avala.Forges.Testing/Avala.Forges.Testing.csproj"
+      "tests/Avala.Forges.Testing/Avala.Forges.Testing.csproj",
+      "backend/Fleet/Avala.Server.CrossCuttingConcerns/Avala.Server.CrossCuttingConcerns.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Application/Avala.Server.Instances.Application.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Contracts/Avala.Server.Instances.Contracts.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Domain/Avala.Server.Instances.Domain.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.EndPoints/Avala.Server.Instances.EndPoints.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Infrastructure/Avala.Server.Instances.Infrastructure.csproj",
+      "backend/Fleet/Modules/Instances/Avala.Server.Instances.Module/Avala.Server.Instances.Module.csproj",
+      "backend/Fleet/Avala.Server/Avala.Server.csproj",
+      "backend/Fleet/Avala.Server.ServiceDefaults/Avala.Server.ServiceDefaults.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Partial.Domain/Avala.Server.Partial.Domain.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Application/Avala.Server.Violating.Application.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Contracts/Avala.Server.Violating.Contracts.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Domain/Avala.Server.Violating.Domain.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.EndPoints/Avala.Server.Violating.EndPoints.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Infrastructure/Avala.Server.Violating.Infrastructure.csproj",
+      "backend/tests/Fixtures/Violating/Avala.Server.Violating.Module/Avala.Server.Violating.Module.csproj",
+      "backend/tests/Avala.Server.Testing/Avala.Server.Testing.csproj",
+      "backend/tests/Avala.Server.ArchitectureTests/Avala.Server.ArchitectureTests.csproj",
+      "backend/tests/Avala.Server.Tests/Avala.Server.Tests.csproj"
     ]
   }
 }

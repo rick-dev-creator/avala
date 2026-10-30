@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             x:Class="Avala.Workbench.UI.FleetShareListView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetShareListViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetShareListViewModel />
+  </Design.DataContext>
+  <Border Classes="card" Padding="14,12" Margin="0,0,12,12">
+    <StackPanel Spacing="6">
+      <TextBlock x:Name="TitleText" Classes="section" Text="{Binding Title}" />
+      <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}" />
+      <TextBlock x:Name="MoreText" Classes="hint" Text="{Binding More}" IsVisible="{Binding HasMore}" />
+    </StackPanel>
+  </Border>
+</UserControl>

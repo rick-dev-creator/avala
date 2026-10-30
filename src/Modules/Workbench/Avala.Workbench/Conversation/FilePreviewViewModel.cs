@@ -16,6 +16,7 @@ internal enum PreviewKind
     Image,
     Svg,
     Page,
+    Model,
 }
 
 internal interface IFilePreviewViewModel
@@ -25,6 +26,10 @@ internal interface IFilePreviewViewModel
     PreviewKind Kind { get; }
 
     string Hint { get; }
+
+    bool IsArtifact { get; }
+
+    string Caption { get; }
 
     bool IsOpen { get; }
 
@@ -68,6 +73,10 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
         [".svg"] = PreviewKind.Svg,
         [".html"] = PreviewKind.Page,
         [".htm"] = PreviewKind.Page,
+        [".glb"] = PreviewKind.Model,
+        [".gltf"] = PreviewKind.Model,
+        [".stl"] = PreviewKind.Model,
+        [".obj"] = PreviewKind.Model,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     private readonly JobId job;
@@ -94,7 +103,11 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
 
     public PreviewKind Kind { get; }
 
-    public string Hint => Kind == PreviewKind.Page ? ConversationPhrases.OpenInBrowser : ConversationPhrases.Preview;
+    public string Hint => IsArtifact ? ConversationPhrases.ShowInPreview : ConversationPhrases.Preview;
+
+    public bool IsArtifact => Kind is PreviewKind.Page or PreviewKind.Model;
+
+    public string Caption => Kind == PreviewKind.Model ? ConversationPhrases.ModelKind : ConversationPhrases.PageKind;
 
     public bool IsImage => Kind == PreviewKind.Image;
 
@@ -130,12 +143,12 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
     [RelayCommand]
     private async Task OpenAsync(CancellationToken cancellationToken)
     {
-        if (Kind == PreviewKind.Page)
+        if (IsArtifact)
         {
             var located = await viewing.Files.LocateAsync(job, path, cancellationToken);
             Notice = await located.Match(
                 found => found.Match(
-                    async file => (await viewing.Links.OpenFileAsync(file, cancellationToken)).Match(_ => string.Empty, _ => ConversationPhrases.NotOpened(Name)),
+                    file => ShowAsync(file, cancellationToken),
                     () => Task.FromResult(ConversationPhrases.Missing(Name))),
                 _ => Task.FromResult(ConversationPhrases.Missing(Name)));
 
@@ -152,6 +165,11 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
         IsOpen = Notice.Length == 0;
         await PictureAsync();
     }
+
+    private async Task<string> ShowAsync(string file, CancellationToken cancellationToken) =>
+        viewing.Links.ShowFile(job, file) ? string.Empty
+        : Kind == PreviewKind.Model ? ConversationPhrases.OpenTheJob(Name)
+        : (await viewing.Links.OpenFileAsync(file, cancellationToken)).Match(_ => string.Empty, _ => ConversationPhrases.NotOpened(Name));
 
     [RelayCommand(CanExecute = nameof(IsOpen), AllowConcurrentExecutions = true)]
     private Task CloseAsync()

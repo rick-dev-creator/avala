@@ -26,6 +26,24 @@ internal interface IGit
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
 
+    Task<Result<bool, WorkspaceFailure>> HasChangesAsync(WorkspaceLocation location, CancellationToken cancellationToken);
+
+    Task<Result<Option<BranchName>, WorkspaceFailure>> HeadBranchAsync(WorkspaceLocation location, CancellationToken cancellationToken);
+
+    Task<Result<IReadOnlyList<string>, WorkspaceFailure>> IgnoredAsync(WorkspaceLocation location, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> KeepTipAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> ReleaseWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> RebuildWorktreeAsync(WorkspaceLocation location, BranchName branch, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveShelvedAsync(WorkspaceLocation location, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<Result<CommitSha, WorkspaceFailure>> ShelvedTipAsync(string repository, WorkspaceId workspace, CancellationToken cancellationToken);
+
+    Task<bool> ContainsAsync(string repository, string reference, CommitSha commit, CancellationToken cancellationToken);
+
     Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(string repository, CommitSha commit, string path, CancellationToken cancellationToken);
 
     Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken);

@@ -460,7 +460,8 @@ public sealed class ProviderTests
             + "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
             + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
             + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
-            + "Never open a browser or take screenshots.",
+            + "Never open a browser or take screenshots. "
+            + "A 3D model needs no page: write it into the worktree as .glb, .gltf, .stl or .obj and give its path, and Avala shows it in its own viewer.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 
@@ -476,7 +477,8 @@ public sealed class ProviderTests
             "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
             + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
             + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
-            + "Never open a browser or take screenshots.",
+            + "Never open a browser or take screenshots. "
+            + "A 3D model needs no page: write it into the worktree as .glb, .gltf, .stl or .obj and give its path, and Avala shows it in its own viewer.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 
@@ -528,53 +530,5 @@ public sealed class ProviderTests
     private sealed class Registrar(IServiceCollection services) : IPluginRegistrar
     {
         public IServiceCollection Services => services;
-    }
-
-    private sealed class FakeCli : ICli
-    {
-        public List<CliLaunch> Launches { get; } = [];
-
-        public Channel<string> Output { get; } = Channel.CreateUnbounded<string>();
-
-        public Channel<string> Written { get; } = Channel.CreateUnbounded<string>();
-
-        public AgentError? Refusal { get; init; }
-
-        public bool StdinClosed { get; set; }
-
-        public Result<ICliProcess, AgentError> Start(CliLaunch launch, IProcessLauncher processes, Option<string> transcripts)
-        {
-            if (Refusal is { } refusal)
-            {
-                return refusal;
-            }
-
-            Launches.Add(launch);
-
-            return new Process(this);
-        }
-
-        private sealed class Process(FakeCli cli) : ICliProcess
-        {
-            public IAsyncEnumerable<string> Lines => ReadAsync(CancellationToken.None);
-
-            public Task WriteAsync(string line, CancellationToken cancellationToken) =>
-                cli.StdinClosed ? Task.FromException(new IOException("The pipe is closed.")) : cli.Written.Writer.WriteAsync(line, cancellationToken).AsTask();
-
-            public ValueTask DisposeAsync()
-            {
-                cli.Output.Writer.TryComplete();
-
-                return ValueTask.CompletedTask;
-            }
-
-            private async IAsyncEnumerable<string> ReadAsync([EnumeratorCancellation] CancellationToken cancellationToken)
-            {
-                await foreach (var line in cli.Output.Reader.ReadAllAsync(cancellationToken))
-                {
-                    yield return line;
-                }
-            }
-        }
     }
 }

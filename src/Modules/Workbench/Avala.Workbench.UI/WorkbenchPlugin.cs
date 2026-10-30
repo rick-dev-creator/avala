@@ -167,16 +167,19 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
             .AddToRegion<DelegationToggleViewModel>(WorkbenchRegions.JobHeader, 1)
+            .AddToRegion<RelaysToggleViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<RemoteControlViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
             .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
+            .AddToRegion<RelaysPaneViewModel>(WorkbenchRegions.Preview, 15)
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
             .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
             .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
-            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10);
+            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10)
+            .AddToRegion<UsageLimitsViewModel>(WorkbenchRegions.Settings, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -279,14 +282,15 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageSectionViewModel, UsageSectionView>();
         views.Register<IAutonomySectionViewModel, AutonomySectionView>();
         views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
-        views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
+        RegisterSettingsViews(views);
         RegisterDocumentationViews(views);
         RegisterReadinessViews(views);
         RegisterFollowingViews(views);
+        views.RegisterFleetViews();
     }
 
     private static void RegisterInspector(IPluginRegistrar registrar)
@@ -303,7 +307,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageSectionViewModel>()
             .AddSingleton<AutonomySectionViewModel>()
             .AddSingleton<WorktreeSectionViewModel>()
-            .AddSingleton<DelegationSectionViewModel>()
             .AddTransient<PublishRepositoryViewModel>()
             .AddSingleton<PullRequestSectionViewModel>();
         registrar
@@ -312,7 +315,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<UsageSectionViewModel>(ShellRegions.Inspector, 30)
             .AddToRegion<AutonomySectionViewModel>(ShellRegions.Inspector, 40)
             .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
-            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
 
@@ -372,14 +374,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ConnectSheetViewModel>()
             .AddSingleton<SourceControlViewModel>()
             .AddForwarded<ISourceControlViewModel, SourceControlViewModel>()
-            .AddSingleton(provider => new MachineSections(
-                provider.GetRequiredService<IDefaultConnectionViewModel>(),
-                provider.GetRequiredService<INotificationsViewModel>(),
-                provider.GetRequiredService<ISourceControlViewModel>(),
-                provider.GetRequiredService<IPersonalDetailsViewModel>())
-            {
-                Harnesses = [.. provider.GetServices<RegionContribution>().Where(contribution => contribution.Region == WorkbenchRegions.Settings).OrderBy(contribution => contribution.Order).Select(contribution => contribution.ViewModel)],
-            });
+            .AddSingleton(SettingsSectionsRegistration.Sections);
 
     private static IServiceCollection RegisterPulse(IServiceCollection services) =>
         services
@@ -411,15 +406,14 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<LoopPaused>, Pulse>()
             .AddForwarded<IHandle<LoopResumed>, Pulse>()
             .AddForwarded<IHandle<BreakerTripped>, Pulse>()
-            .AddForwarded<IHandle<LoopEnded>, Pulse>();
+            .AddForwarded<IHandle<LoopEnded>, Pulse>()
+            .AddForwarded<IHandle<Handoffs.Contracts.RelayMarked>, Pulse>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
-        RegisterPulse(services)
+        RegisterPulse(services).AddRelays().AddWorktreeSettings().AddResourcePages()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
-            .AddSingleton<Leftovers>()
-            .AddForwarded<IHandle<WorktreesReconciled>, Leftovers>()
             .AddTransient<LiveFeed>()
             .AddSingleton<JobSpending>()
             .AddSingleton<LimitReadings>()
@@ -437,8 +431,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SettingsFiles>()
             .AddSingleton<PhoneNotifications>()
             .AddSingleton<INotificationsViewModel, NotificationsViewModel>()
-            .AddSingleton<ResourceReader>()
-            .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
             .AddSingleton<TriggerControls>()
             .AddSingleton<LoopControls>()
@@ -458,7 +450,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<AboutLinks>()
             .AddSingleton<IAboutViewModel, AboutViewModel>()
             .AddSingleton<UpdateNoticeViewModel>()
-            .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<UsageLeftViewModel>()
             .AddSingleton<ContextLeftViewModel>()
             .AddSingleton<ChecksRunningViewModel>()
@@ -467,7 +458,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
             .AddSingleton<UsageViewModel>()
-            .AddSingleton<ResourcesViewModel>()
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
@@ -484,12 +474,16 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<Documentation.Contracts.VersionWaiting>, DocsKeeper>()
             .AddForwarded<IHandle<Documentation.Contracts.ChangeRequested>, DocsKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, DocsKeeper>()
+            .AddSingleton<DiscoveryKeeper>()
+            .AddForwarded<IHandle<Verification.Contracts.ChecksDiscoveryChanged>, DiscoveryKeeper>()
             .AddSingleton<FeatureDocsViewModel>()
             .AddForwarded<IPage, FeatureDocsViewModel>()
             .AddForwarded<IPage, OverviewViewModel>()
             .AddForwarded<IPage, UsageViewModel>()
             .AddForwarded<IPage, ResourcesViewModel>()
+            .AddForwarded<IPage, WorktreesViewModel>()
             .AddForwarded<IPage, TriggersViewModel>()
+            .AddFleetActivity()
             .AddForwarded<IPage, SettingsViewModel>();
 
     private static void RegisterFollowingViews(IViewRegistrar views)
@@ -505,6 +499,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentTreeViewModel, SubagentTreeView>();
         views.Register<IWaitingAgentViewModel, WaitingAgentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
+        RelayRegistrations.RegisterViews(views);
+        SettingsRegistrations.RegisterViews(views);
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
     }
 
@@ -577,14 +573,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageDayViewModel, UsageDayView>();
         views.Register<IJobMeterViewModel, JobMeterView>();
         views.Register<IInterventionViewModel, InterventionView>();
-        views.Register<ISettingsViewModel, SettingsView>();
-        views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
-        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
-        views.Register<IMachineSettingsViewModel, MachineSettingsView>();
-        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
-        views.Register<INotificationsViewModel, NotificationsView>();
-        views.Register<IAppearanceViewModel, AppearanceView>();
-        views.Register<IAboutViewModel, AboutView>();
         views.Register<IUpdateViewModel, UpdateView>();
         views.Register<IUpdateNoticeViewModel, UpdateNoticeView>();
         views.Register<ITelemetryViewModel, TelemetryView>();
@@ -596,23 +584,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInstallRowViewModel, InstallRowView>();
         views.Register<ICodeStepViewModel, CodeStepView>();
         views.Register<IPrivacyStepViewModel, PrivacyStepView>();
-        views.Register<IRuleFileViewModel, RuleFileView>();
-        views.Register<IRuleViewModel, RuleView>();
-        views.Register<ICapsViewModel, CapsView>();
-        views.Register<ICheckViewModel, CheckView>();
-        views.Register<IJobSectionViewModel, JobSectionView>();
-        views.Register<IMachineConnectionViewModel, MachineConnectionView>();
-        views.Register<ISourceControlViewModel, SourceControlView>();
-        views.Register<IAccountRowViewModel, AccountRowView>();
-        views.Register<IConnectSheetViewModel, ConnectSheetView>();
-        views.Register<IForgeKindViewModel, ForgeKindView>();
-        views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
-        views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
-        views.Register<IResourcesViewModel, ResourcesView>();
-        views.Register<IAgentTreeViewModel, AgentTreeView>();
-        views.Register<IOrphanViewModel, OrphanView>();
-        views.Register<IStaleWorktreeViewModel, StaleWorktreeView>();
-        views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
+        ResourceRegistrations.RegisterViews(views);
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
         views.Register<IRepositoryPickerViewModel, RepositoryPickerView>();
@@ -630,6 +602,30 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ITriggerItemViewModel, TriggerItemView>();
         views.Register<ILoopsViewModel, LoopsView>();
         views.Register<ILoopItemViewModel, LoopItemView>();
+    }
+
+    private static void RegisterSettingsViews(IViewRegistrar views)
+    {
+        views.Register<ISettingsViewModel, SettingsView>();
+        views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
+        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
+        views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
+        views.Register<IAppearanceViewModel, AppearanceView>();
+        views.Register<IAboutViewModel, AboutView>();
+        views.Register<IRuleFileViewModel, RuleFileView>();
+        views.Register<IRuleViewModel, RuleView>();
+        views.Register<ICapsViewModel, CapsView>();
+        views.Register<ICheckViewModel, CheckView>();
+        views.Register<ISettingsEntryViewModel, SettingsEntryView>();
+        views.Register<IJobSectionViewModel, JobSectionView>();
+        views.Register<IMachineConnectionViewModel, MachineConnectionView>();
+        views.Register<ISourceControlViewModel, SourceControlView>();
+        views.Register<IAccountRowViewModel, AccountRowView>();
+        views.Register<IConnectSheetViewModel, ConnectSheetView>();
+        views.Register<IForgeKindViewModel, ForgeKindView>();
+        views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
+        views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
     }
 
     private static void AddBoard(IServiceCollection services) =>
@@ -653,6 +649,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<PermissionDecided>, BoardKeeper>()
             .AddForwarded<IHandle<FormDecided>, BoardKeeper>()
             .AddForwarded<IHandle<AttemptVerified>, BoardKeeper>()
+
             .AddForwarded<IHandle<PermissionAnswered>, BoardKeeper>()
             .AddForwarded<IHandle<AutonomyApplied>, BoardKeeper>()
             .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()

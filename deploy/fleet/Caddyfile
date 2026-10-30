@@ -1,0 +1,9 @@
+{$AVALA_FLEET_DOMAIN} {
+	tls {$AVALA_FLEET_TLS}
+	reverse_proxy server:8080 {
+		health_uri /health
+		health_interval 5s
+		health_timeout 3s
+		lb_try_duration 30s
+	}
+}

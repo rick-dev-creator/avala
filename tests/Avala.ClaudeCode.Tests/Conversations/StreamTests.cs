@@ -78,6 +78,7 @@ public sealed class StreamTests
         "- x\n+ y\n\n- p\n- q\n+ r")]
     [InlineData("NotebookEdit", """{ "notebook_path": "/work/n.ipynb", "new_source": "print(1)" }""", ItemKind.FileEdit, "Edit n.ipynb", "/work/n.ipynb", "print(1)")]
     [InlineData("Bash", """{ "command": "dotnet test\nmore", "description": "Run the tests" }""", ItemKind.Command, "Run dotnet test", "dotnet test\nmore", "dotnet test\nmore")]
+    [InlineData("Monitor", """{ "command": "tail -f build.log", "description": "Watch the build" }""", ItemKind.Command, "Run tail -f build.log", "tail -f build.log", "tail -f build.log")]
     [InlineData("Grep", """{ "pattern": "TODO", "path": "/work/src", "glob": "*.cs" }""", ItemKind.Search, "Search TODO", "TODO", "TODO in src *.cs")]
     [InlineData("Glob", """{ "pattern": "**/*.cs" }""", ItemKind.Search, "Search **/*.cs", "**/*.cs", "**/*.cs")]
     [InlineData("WebFetch", """{ "url": "https://example.com", "prompt": "Read" }""", ItemKind.Web, "Fetch https://example.com", "https://example.com", "https://example.com\nRead")]

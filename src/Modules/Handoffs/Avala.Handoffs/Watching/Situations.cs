@@ -80,6 +80,9 @@ internal sealed class Situations(JobPlaces places, ConnectionReadings readings, 
 
     public TimeProvider Clock => clock;
 
+    public async Task<Option<LimitRules>> RulesAsync(JobId job, CancellationToken cancellationToken) =>
+        (await places.OfAsync(job, cancellationToken)).Map(found => found.Rules);
+
     public async Task<Option<JobSituation>> OfAsync(JobId job, CancellationToken cancellationToken) =>
         await (await places.OfAsync(job, cancellationToken)).Match(
             found => found.History.Summary.Connection.Match(

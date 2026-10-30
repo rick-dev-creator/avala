@@ -22,6 +22,13 @@ internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
     private static bool FollowsAvalasWakeUp(AttemptRecord attempt) =>
         attempt.Origin != AttemptOrigin.Reopen && attempt.CausedBy == MessageAuthor.Avala;
 
+    public async Task<Option<string>> FetchFolderAsync(JobId job, CancellationToken cancellationToken) =>
+        await (await catalog.HistoryAsync(job, cancellationToken)).Match(
+            async history => Option<string>.Some(await history.Summary.Workspace.Match(
+                async id => (await workspaces.FindAsync(id, cancellationToken)).Match(info => info.Shelved ? history.Summary.Repository : info.Path, _ => history.Summary.Repository),
+                () => Task.FromResult(history.Summary.Repository))),
+            () => Task.FromResult(Option<string>.None));
+
     public async Task<Option<WorkspaceInfo>> WorktreeAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Bind(history => history.Summary.Workspace).Match(
             async id => (await workspaces.FindAsync(id, cancellationToken)).Match(Option<WorkspaceInfo>.Some, _ => Option<WorkspaceInfo>.None),
@@ -51,8 +58,8 @@ internal sealed class Waker(IOpenDeliveries deliveries, JobPlaces places, IGitRe
     {
         if (trigger.Reason == WakeReason.Conflict)
         {
-            await (await places.WorktreeAsync(kept.State.Job, cancellationToken)).Match(
-                async worktree => _ = await git.FetchAsync(worktree.Path, kept.Remote, kept.State.PullRequest.Base, cancellationToken),
+            await (await places.FetchFolderAsync(kept.State.Job, cancellationToken)).Match(
+                async folder => _ = await git.FetchAsync(folder, kept.Remote, kept.State.PullRequest.Base, cancellationToken),
                 () => Task.CompletedTask);
         }
 

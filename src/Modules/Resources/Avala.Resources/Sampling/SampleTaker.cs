@@ -12,7 +12,8 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
 {
     private readonly Dictionary<ProcessTreeId, (DateTimeOffset At, IReadOnlyDictionary<int, TimeSpan> Cpu)> previous = [];
     private readonly HashSet<(int Port, string Worktree, int? Process)> reported = [];
-    private (IReadOnlyList<FolderUsage> Worktrees, long Data) disks = ([], 0);
+    private (IReadOnlyList<FolderUsage> Worktrees, long Data, Option<DiskSpace> Disk) disks = ([], 0, Option<DiskSpace>.None);
+    private DateTimeOffset measured = DateTimeOffset.MinValue;
 
     public async Task TakeAsync(DateTimeOffset at, bool measureDisks, CancellationToken cancellationToken)
     {
@@ -28,13 +29,14 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
         if (measureDisks)
         {
             disks = await DisksAsync(attribution, cancellationToken);
+            measured = at;
         }
 
         var holders = usage
             .SelectMany(tree => tree.Processes.Select(process => (process.Id, tree.Tree, tree.Home)))
             .DistinctBy(held => held.Id)
             .ToDictionary(held => held.Id);
-        var sample = new ResourceSample(at, usage, disks.Worktrees, disks.Data);
+        var sample = new ResourceSample(at, usage, disks.Worktrees, disks.Data) { Disk = disks.Disk, Measured = measured };
         book.Keep(sample);
 
         foreach (var (port, lease, process) in PortBook.Conflicts(
@@ -66,15 +68,16 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
         return new TreeUsage(tree.Id, Folders.Key(tree.Home), processes, load);
     }
 
-    private async Task<(IReadOnlyList<FolderUsage> Worktrees, long Data)> DisksAsync(Attribution attribution, CancellationToken cancellationToken)
+    private async Task<(IReadOnlyList<FolderUsage> Worktrees, long Data, Option<DiskSpace> Disk)> DisksAsync(Attribution attribution, CancellationToken cancellationToken)
     {
         var worktrees = new List<FolderUsage>();
 
-        foreach (var home in attribution.Sessions.Values.Select(facts => facts.Home).Distinct(StringComparer.Ordinal))
+        foreach (var home in attribution.Homes)
         {
-            worktrees.Add(new FolderUsage(home, await folders.SizeAsync(home, cancellationToken)) { Job = attribution.JobAt(home) });
+            var (bytes, build) = await folders.MeasureAsync(home, cancellationToken);
+            worktrees.Add(new FolderUsage(home, bytes) { Job = attribution.JobAt(home), BuildBytes = build });
         }
 
-        return (worktrees, await folders.DataFolderAsync(cancellationToken));
+        return (worktrees, await folders.DataFolderAsync(cancellationToken), folders.Disk());
     }
 }

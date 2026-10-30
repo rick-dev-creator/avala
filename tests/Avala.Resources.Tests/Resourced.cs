@@ -20,6 +20,20 @@ internal sealed class FakeEndedJobs : IEndedJobs
 {
     public HashSet<JobId> Working { get; } = [];
 
+    public HashSet<JobId> Resting { get; } = [];
+
+    public async ValueTask<bool> WhileRestingAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
+    {
+        if (!Resting.Contains(job))
+        {
+            return false;
+        }
+
+        await work(cancellationToken);
+
+        return true;
+    }
+
     public async ValueTask<bool> WhileEndedAsync(JobId job, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         if (Working.Contains(job))
@@ -45,9 +59,10 @@ internal sealed class Resourced : IAsyncDisposable
         Book = new ResourceBook(Settings, Leases);
         Readings = new ProcessReadings(Trees, Listening);
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
-        Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Jobs), Settings, Bus, Clock);
+        Housekeeper = new WorktreeHousekeeper(new RetainedWorktrees(Workspaces, Workspaces, Jobs, Facts), Settings, Bus, Clock);
         Tracker = new ResourceTracker(Book, Reaper, Leases, Housekeeper);
-        Recovery = new RetentionRecovery(Catalog, Workspaces, Housekeeper, Reaper);
+        Desk = new WorktreeDesk(Housekeeper, Reaper);
+        Recovery = new RetentionRecovery(Catalog, Workspaces, Tracker, History);
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
     }
 
@@ -80,6 +95,10 @@ internal sealed class Resourced : IAsyncDisposable
 
     public FakeEndedJobs Jobs { get; } = new();
 
+    public FakeFacts Facts { get; } = new();
+
+    public FakeHistoryStore History { get; } = new();
+
     public FixedSettings Settings { get; }
 
     public string Claims { get; }
@@ -93,6 +112,8 @@ internal sealed class Resourced : IAsyncDisposable
     public OrphanReaper Reaper { get; }
 
     public WorktreeHousekeeper Housekeeper { get; }
+
+    public WorktreeDesk Desk { get; }
 
     public ResourceTracker Tracker { get; }
 

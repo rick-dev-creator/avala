@@ -120,6 +120,24 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task AskedToCompactASessionReportsACompactedContextAndKeepsItsScriptWhereItWasAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        var calculator = Path.Combine(stage.WorkingDirectory, "calculator.txt");
+
+        await stage.SendAsync("[simulate: fix-after-feedback] Add a calculator", Cancellation);
+        await stage.ReadTurnAsync(Cancellation);
+        await stage.SendAsync("/compact", Cancellation);
+        var compacted = await stage.ReadTurnAsync(Cancellation);
+        await stage.SendAsync("add(2, 2) should be 4", Cancellation);
+        await stage.ReadTurnAsync(Cancellation);
+
+        Assert.True(compacted.OfType<ContextReported>().Single().Compacted);
+        Assert.IsType<TurnCompleted>(compacted[^1]);
+        Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(calculator, Cancellation));
+    }
+
+    [Fact]
     public async Task RewriteChecksEmptiesTheCheckDeclarationWithABrokenFileAndFixesTheFileAfterFeedbackAsync()
     {
         await using var stage = new Stage(PermissionMode.AllowAll);

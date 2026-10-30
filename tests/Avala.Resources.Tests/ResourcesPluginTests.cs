@@ -1,10 +1,13 @@
 using Avala.Agents.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Sampling;
+using Avala.Resources.Storage;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -44,9 +47,9 @@ public sealed class ResourcesPluginTests
         Assert.Same(composition.Get<PortLeases>(), composition.Get<IProcessEnvironment>());
         Assert.Same(composition.Get<ResourceBook>(), composition.Get<IResources>());
         Assert.Same(composition.Get<OrphanReaper>(), composition.Get<IOrphans>());
-        Assert.Same(composition.Get<WorktreeHousekeeper>(), composition.Get<IWorktreeHousekeeping>());
+        Assert.IsType<WorktreeDesk>(composition.Get<IWorktreeHousekeeping>());
         Assert.Equal<object>(
-            [composition.Get<WorktreeHousekeeper>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
+            [composition.Get<WorktreeHousekeeper>(), composition.Get<SqliteWorktreeHistoryStore>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
             composition.All<IStartupTask>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<JobProgressed>>());
@@ -54,7 +57,11 @@ public sealed class ResourcesPluginTests
 
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new ResourcesPlugin(), new AvalaPaths(data.Path), services => services
-            .AddSingleton<IWorkspaces>(new FakeWorkspaces())
+            .AddSingleton<FakeWorkspaces>()
+            .AddSingleton<IWorkspaces>(provider => provider.GetRequiredService<FakeWorkspaces>())
+            .AddSingleton<IWorkspaceShelf>(provider => provider.GetRequiredService<FakeWorkspaces>())
+            .AddSingleton<IProjects>(new FakeProjects())
+            .AddSingleton<IPullRequests>(new FakePullRequests())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IEndedJobs>(new FakeEndedJobs())
             .AddSingleton<IProcessTrees>(new FakeTrees())

@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Documentation.Contracts;
+using Avala.Verification.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Simulator.Scenarios;
@@ -531,7 +532,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, .. RetryScenarios.All, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All, .. LongScenarios.All,
+        LargeContext, .. RetryScenarios.All, .. ConversationScenarios.All, Crash, CrashAlways, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. ToolScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All, .. LongScenarios.All, .. ChecksScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -543,7 +544,8 @@ internal static class ScenarioCatalog
     public const string WaitChild = "wait_child";
 
     public static string NameIn(string firstMessage) =>
-        firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
+        firstMessage.Contains(ChecksProposal.Tool, StringComparison.Ordinal) ? Tagged(firstMessage, Tag).Bind(Known).Match(name => name, () => ChecksScenarios.For(firstMessage))
+        : firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
         : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? Tagged(firstMessage, CompanionTag).Bind(Known).Match(name => name, () => DocumentationScenarios.Document.Name)
         : Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,

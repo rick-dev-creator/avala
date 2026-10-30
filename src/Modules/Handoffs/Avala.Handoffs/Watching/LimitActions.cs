@@ -5,11 +5,10 @@ using Avala.Handoffs.Policy;
 using Avala.Handoffs.Records;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
-using Avala.Sdk.Events;
 
 namespace Avala.Handoffs.Watching;
 
-internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook book, IEventBus bus)
+internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook book, Compaction compaction)
 {
     public const string ResetMessage = "The usage limit window has reset. Go on where you left off.";
 
@@ -23,6 +22,21 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
             },
             () => Task.FromResult(false));
 
+    public async Task<Option<SessionId>> CompactingAsync(JobSituation situation, CancellationToken cancellationToken)
+    {
+        var session = await compaction.CompactableAsync(situation, cancellationToken);
+
+        if (session.IsSome)
+        {
+            await book.MarkAsync(new RelayMark(situation.Job, RelayMarkKind.Compacting, situation.Connection, situation.Situation.Now), cancellationToken);
+        }
+
+        return session;
+    }
+
+    public Task<bool> CompactAsync(JobSituation situation, SessionId session, CancellationToken cancellationToken) =>
+        compaction.CompactAsync(situation, session, cancellationToken);
+
     public async Task<bool> ContinueAsync(JobSituation situation, Option<string> pending, CancellationToken cancellationToken)
     {
         var message = pending.Match(feedback => $"{ResetMessage}\n\n{feedback}", () => ResetMessage);
@@ -32,7 +46,7 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
             return false;
         }
 
-        await bus.PublishAsync(new JobResumedAtReset(situation.Job, situation.Connection, continued.Conversation, situation.Situation.Now), cancellationToken);
+        await book.ResumedAsync(new JobResumedAtReset(situation.Job, situation.Connection, continued.Conversation, situation.Situation.Now), cancellationToken);
 
         return true;
     }

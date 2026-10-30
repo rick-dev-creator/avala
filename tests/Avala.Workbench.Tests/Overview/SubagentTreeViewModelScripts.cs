@@ -152,7 +152,7 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
     }
 
     [Fact]
-    public async Task AFailedLostOrWaitingSubagentStaysInTheTreeLongAfterItsSettledPeersLeftAsync()
+    public async Task AFailedOrLostSubagentLeavesLikeASettledOneOnceItsOrchestratorHasItsOutcomeWhileAWaitingOneStaysAsync()
     {
         var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
         bench.Starts(bench.Endpoint, "failed", "Port the idempotency keys");
@@ -168,12 +168,12 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         tree.Show(await bench.ReadAsync(), Option<JobId>.None);
 
         Assert.Equal(
-            ["Install the packages", "Port the idempotency keys", "Survey the greeting", "Find the refund call sites"],
+            ["Install the packages", "Find the refund call sites"],
             tree.Branches.OfType<ISubagentViewModel>().Select(agent => agent.Name));
     }
 
     [Fact]
-    public async Task AFinishedOrchestrationStillShowsTheSubagentsItRanOnceItsBranchesHaveSettledAsync()
+    public async Task AFinishedOrchestrationLetsTheSubagentsItRanLeaveAndSaysNoneIsAtWorkAsync()
     {
         var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
         var root = bench.Finished();
@@ -183,7 +183,8 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         clock.Advance(SubagentTreeViewModel.Linger);
         tree.Show(await bench.ReadAsync(root.Job), Option<JobId>.None);
 
-        Assert.Equal(["Write the release notes", "Write the to-do list"], tree.Branches.Select(Name));
+        Assert.Equal(["Write the release notes"], tree.Branches.Select(Name));
+        Assert.Equal("no sub-agent at work", tree.Agents);
     }
 
     [Fact]
@@ -399,7 +400,7 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
     }
 
     [Fact]
-    public async Task AChildAvalaGaveUpOnAfterItsRetriesStaysInTheTreeAsync()
+    public async Task AChildAvalaGaveUpOnAfterItsRetriesLeavesTheTreeAsync()
     {
         var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
         var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
@@ -417,7 +418,28 @@ public sealed class SubagentTreeViewModelScripts : IDisposable
         clock.Advance(SubagentTreeViewModel.Linger);
         tree.Show(await bench.ReadAsync(), Option<JobId>.None);
 
-        Assert.Contains("Write the migration notes", tree.Branches.Select(Name));
+        Assert.DoesNotContain("Write the migration notes", tree.Branches.Select(Name));
+    }
+
+    [Fact]
+    public async Task AFailedChildJobStaysUntilItsOrchestratorIsToldAndThenLeavesAsync()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var notes = bench.Child("Write the migration notes", JobStatus.Running, bench.Root.Job);
+        bench.Becomes(notes, JobStatus.Failed, Option<HoldReason>.None, JobFailure.AgentFailed);
+        var tree = bench.Tree(clock);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        clock.Advance(TimeSpan.FromHours(1));
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        var untold = tree.Branches.Select(Name).ToList();
+
+        await Branch(tree, "Write the migration notes").Place.TellCommand.ExecuteAsync(null);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+        clock.Advance(SubagentTreeViewModel.Linger);
+        tree.Show(await bench.ReadAsync(), Option<JobId>.None);
+
+        Assert.Contains("Write the migration notes", untold);
+        Assert.DoesNotContain("Write the migration notes", tree.Branches.Select(Name));
     }
 
     private static IAgentBranch Branch(SubagentTreeViewModel tree, string name) => tree.Branches.Single(branch => Name(branch) == name);

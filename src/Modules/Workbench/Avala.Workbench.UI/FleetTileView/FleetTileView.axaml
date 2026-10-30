@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:fleet="using:Avala.Workbench.FleetActivity"
+             xmlns:sys="using:System"
+             x:Class="Avala.Workbench.UI.FleetTileView"
+             x:ClassModifier="internal"
+             x:DataType="fleet:IFleetTileViewModel">
+  <Design.DataContext>
+    <fleet:DesignFleetTileViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ProgressBar.spark">
+      <Setter Property="Orientation" Value="Vertical" />
+      <Setter Property="Minimum" Value="0" />
+      <Setter Property="Maximum" Value="1" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Margin" Value="1,0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+  </UserControl.Styles>
+  <Border Classes="card" Padding="14,12" Margin="0,0,12,12">
+    <DockPanel>
+      <ItemsControl x:Name="SparkList"
+                    DockPanel.Dock="Right"
+                    Width="72"
+                    Height="32"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Bottom"
+                    ItemsSource="{Binding Spark}"
+                    IsVisible="{Binding HasSpark}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Rows="1" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="sys:Double">
+            <ProgressBar Classes="spark" Value="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <StackPanel Spacing="4">
+        <TextBlock x:Name="LabelText" Classes="caption" Text="{Binding Label}" />
+        <TextBlock x:Name="ValueText" Classes="figure" Text="{Binding Value}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="ChangeText" Classes="caption" Text="{Binding Change}" IsVisible="{Binding HasChange}" TextWrapping="Wrap" />
+        <TextBlock x:Name="CaptionText" Classes="hint" Text="{Binding Caption}" TextWrapping="Wrap" />
+      </StackPanel>
+    </DockPanel>
+  </Border>
+</UserControl>

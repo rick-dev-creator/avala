@@ -21,6 +21,7 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
         ["NotebookEdit"] = new(ItemKind.FileEdit, Gated: true, Field("new_source")),
         ["Bash"] = new(ItemKind.Command, Gated: true, Field("command")),
         ["PowerShell"] = new(ItemKind.Command, Gated: true, Field("command")),
+        ["Monitor"] = new(ItemKind.Command, Gated: true, Field("command")),
         ["Grep"] = new(ItemKind.Search, Gated: false, Searching) { Reads = true },
         ["Glob"] = new(ItemKind.Search, Gated: false, Searching) { Reads = true },
         ["LS"] = new(ItemKind.Search, Gated: false, Raw) { Reads = true },

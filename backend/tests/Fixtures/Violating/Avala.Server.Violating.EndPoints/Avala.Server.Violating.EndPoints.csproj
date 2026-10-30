@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="FastEndpoints" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Server.Violating.Contracts\Avala.Server.Violating.Contracts.csproj" />
+    <ProjectReference Include="..\Avala.Server.Violating.Domain\Avala.Server.Violating.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Server.Violating.Module" />
+  </ItemGroup>
+</Project>

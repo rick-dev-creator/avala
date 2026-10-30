@@ -1,0 +1,4 @@
+M:System.Environment.GetEnvironmentVariable(System.String);Settings live in appsettings. Bind them with the options pattern instead of reading the environment.
+M:System.Environment.GetEnvironmentVariable(System.String,System.EnvironmentVariableTarget);Settings live in appsettings. Bind them with the options pattern instead of reading the environment.
+M:System.Environment.GetEnvironmentVariables;Settings live in appsettings. Bind them with the options pattern instead of reading the environment.
+M:System.Environment.GetEnvironmentVariables(System.EnvironmentVariableTarget);Settings live in appsettings. Bind them with the options pattern instead of reading the environment.

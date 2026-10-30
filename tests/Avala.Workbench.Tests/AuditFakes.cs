@@ -181,6 +181,8 @@ internal sealed class FakeRecordSources : IResources, IDelegations
 
     public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
 
+    public ValueTask<Result<ResourceSettings, ResourceError>> ChangeWorktreesAsync(WorktreePolicy policy, ReconcilePolicy reconcile, CancellationToken cancellationToken) => throw new NotSupportedException();
+
     public IReadOnlyList<DelegationRecord> All() => Delegations;
 
     public IReadOnlyList<DelegationRecord> OfParent(JobId parent) => [.. Delegations.Where(record => record.Parent == parent)];

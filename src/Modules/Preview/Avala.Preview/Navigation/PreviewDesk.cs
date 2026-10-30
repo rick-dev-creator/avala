@@ -28,6 +28,14 @@ internal sealed class PreviewDesk(IPreviews previews, PreviewBook book, IGateway
 
     public ValueTask<Result<PreviewRun, PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken) => previews.StopAsync(job, cancellationToken);
 
+    public async ValueTask<Result<Uri, PreviewError>> FileAsync(JobId job, string path, int version, CancellationToken cancellationToken) =>
+        (await previews.ServeFileAsync(job, path, cancellationToken)).Map(file => FileAddresses.Viewed(file, version));
+
+    public static bool IsViewer(Uri address) => FileAddresses.IsViewer(address);
+
+    public async ValueTask<Result<Uri, PreviewError>> DeviceAsync(JobId job, DeviceView device, Uri page, int version, CancellationToken cancellationToken) =>
+        (await previews.ServeFileAsync(job, device.Page, cancellationToken)).Map(viewer => device.Around(viewer, page, version));
+
     public ValueTask AllowNetworkAsync(JobId job, bool allowed, CancellationToken cancellationToken) =>
         gateways.AllowNetworkAsync(job, allowed, cancellationToken);
 

@@ -15,7 +15,7 @@ namespace Avala.Permissions.Tests.Answering;
 
 public sealed class DeniedRequestsTests
 {
-    private const string Style = "https://example.com/style";
+    private const string Issue = "mcp__github__create_issue";
 
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 9, 0, 0, TimeSpan.Zero);
 
@@ -29,7 +29,7 @@ public sealed class DeniedRequestsTests
     public DeniedRequestsTests()
     {
         var clock = new FakeTimeProvider(Now);
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(new AnsweringAgents(), new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), [], new SymbolicLinks()), new PermissionResponder(new AnsweringAgents(), new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
         denied = new DeniedRequests(book, new AnswerLedger(book, bus, clock, new RecordedRounds()));
         var autonomous = PermissionPolicy.With([]) with { Declared = Autonomy.Autonomous };
         book.Keep(book.Of(session).OpenedIn(Path.GetTempPath(), autonomous, new SessionPolicy(session, PolicyFileStatus.Applied, Option<PolicyError>.None, [], CommittedFiles.Origin())).WorkingOn(job));
@@ -40,13 +40,13 @@ public sealed class DeniedRequestsTests
     [Fact]
     public async Task AllowingARequestTheAutonomousPolicyDeniedKeepsAJobRuleForItsSubjectAndRecordsTheAnswerSoTheRetryIsAllowedAsync()
     {
-        await RequestAsync("fetch", ItemKind.Web, Style);
+        await RequestAsync("issue", ItemKind.Mcp, Issue);
 
-        var answer = Outcomes.Succeeds(await denied.AllowAsync(session, new ItemId("fetch"), Cancellation));
-        await RequestAsync("again", ItemKind.Web, Style);
+        var answer = Outcomes.Succeeds(await denied.AllowAsync(session, new ItemId("issue"), Cancellation));
+        await RequestAsync("again", ItemKind.Mcp, Issue);
 
         var rule = Outcomes.Present(answer.Rule);
-        Assert.Equal(("always example.com in this job", PolicyAnswer.Allow, RuleOrigin.Job), (rule.Name, rule.Answer, rule.Origin));
+        Assert.Equal(("always mcp__github__create_issue in this job", PolicyAnswer.Allow, RuleOrigin.Job), (rule.Name, rule.Answer, rule.Origin));
         Assert.Equal([rule], book.JobRulesOf(job));
         Assert.Contains(new PermissionAnswered(answer), bus.Published);
         var retried = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;

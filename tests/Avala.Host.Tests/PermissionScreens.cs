@@ -111,6 +111,24 @@ public sealed class PermissionScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "64-permission-card-repository-is-supervised-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "repository is supervised"));
     }
 
+    [Fact]
+    public async Task AFolderOutsideTheWorktreeAskedForOnceAndGrantedForTheJobAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "request-folder", (".avala/checks.json", PassingChecks), (".avala/permissions.json", """{ "autonomy": "autonomous" }"""));
+        _ = await run.DecisionAsync();
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => Card(conversation) is { } card && card["AwaitsYou"].Value<bool>());
+
+        await Camera.ShootAsync(run, "100-folder-card-asks-once-dark", window => FeatureCamera.ScrollTo(window, "Read and edit"));
+        await Camera.ShootAsync(run, "100-folder-card-asks-once-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "Read and edit"));
+        await run.Ui.RunAsync(() => Card(conversation)!.Value.ExecuteAsync("AllowCommand"));
+        _ = await run.SettledAsync();
+        await workbench.ShowsAsync(() => Card(conversation) is { } card && card["Notice"].Text.Length > 0);
+        await Camera.ShootAsync(run, "101-folder-card-granted-for-the-job-dark", window => FeatureCamera.ScrollTo(window, "Updated the shared contracts."));
+    }
+
     private static void Gated() =>
         Assert.SkipUnless(FeatureCamera.Folder is not null && HeadlessApp.Renders, $"Set {FeatureCamera.Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the feature screens.");
 

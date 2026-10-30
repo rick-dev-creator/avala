@@ -15,11 +15,27 @@ internal static class CardPhrases
 
     public const string Withdrawn = "Withdrawn by the harness";
 
+    public const string Allow = "Allow";
+
+    public static string FolderHeadline(FolderRequest request) =>
+        request.Access == FolderAccess.Edit ? "Wants to read and edit a folder outside its worktree" : "Wants to read a folder outside its worktree";
+
+    public static string FolderTitle(FolderRequest request) =>
+        request.Reason.Length > 0 ? request.Reason : "It asks once; your answer holds for the rest of this job.";
+
+    public static string FolderAllow(FolderRequest request) => request.Access == FolderAccess.Edit ? "Read and edit" : "Allow reading";
+
+    public static string Granted(PolicyRule rule) =>
+        rule.Kind.IsSome
+            ? $"For the rest of this job, reads and edits in {rule.Target.Match(target => target, () => string.Empty)} no longer ask. Its .git and .avala/permissions.json still come to you."
+            : $"For the rest of this job, reads in {rule.Target.Match(target => target, () => string.Empty)} no longer ask. Edits there still come to you.";
+
     public static string AlwaysInRepositoryScope(PolicyRule rule) =>
         $"Adds a rule for exactly {rule.Target.Match(target => target, () => string.Empty)} to .avala/permissions.json in the repository. It applies to new jobs once committed; this job stops asking now.";
 
     public static string Remembered(HumanAnswer answer) =>
         answer.Everything ? EverythingAllowed
+        : answer.Rule.Match(rule => rule.Scope == RuleScope.Granted, () => false) ? answer.Rule.Match(Granted, () => string.Empty)
         : answer.RepositoryRule.Match(
             _ => "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.",
             () => answer.RepositoryError.Match(error => $"Not added to .avala/permissions.json: {NotAdded(error)} This job won't ask again.", () => string.Empty));
@@ -35,7 +51,9 @@ internal static class CardPhrases
 
     public static string WhyDenied(PolicyDecision decision) =>
         decision.Rule.Match(rule => rule.Scope == RuleScope.OutsideWorkspace && decision.Kind == ItemKind.FileEdit, () => false)
-            ? $"{decision.Target} is outside the job's worktree, and writing there needs you."
+            ? decision.Scope.Bind(scope => scope.Folder).Match(
+                folder => $"{decision.Target} is outside the job's worktree, and writing there needs you. Allowing lets the job edit {folder} for the rest of this job.",
+                () => $"{decision.Target} is outside the job's worktree, and writing there needs you.")
             : decision.Scope.Bind(scope => scope.Rule).IsSome
             ? "Nobody was watching, so the policy denied it."
             : "A guard keeps this for a person, so it can't be allowed while the job runs on its own.";
@@ -49,7 +67,7 @@ internal static class CardPhrases
 
     public static string Verdict(PermissionEntry permission) =>
         permission.Resolution.Match(
-            answer => (answer == PermissionAnswer.Allow ? "Allowed" : "Denied") + ByParent(permission.Decision.Map(decision => (decision.Parent, decision.Delivery))),
+            answer => (answer == PermissionAnswer.Allow ? Allowed(permission) : "Denied") + ByParent(permission.Decision.Map(decision => (decision.Parent, decision.Delivery))),
             () => Waiting(
                 permission.Withdrawn,
                 permission.Closed,
@@ -70,6 +88,11 @@ internal static class CardPhrases
             : form.WentToHuman ? $"Answered: {Chosen(answer)}"
             : $"Answered for you: {Chosen(answer)}";
     }
+
+    private static string Allowed(PermissionEntry permission) =>
+        permission.Answered.Bind(answer => answer.Rule).Match(
+            rule => rule.Scope != RuleScope.Granted ? "Allowed" : rule.Kind.IsSome ? "Granted read and edit" : "Granted read only",
+            () => "Allowed");
 
     private static string Waiting(bool withdrawn, bool closed, bool awaitsParent, bool awaitsHuman) =>
         withdrawn ? Withdrawn

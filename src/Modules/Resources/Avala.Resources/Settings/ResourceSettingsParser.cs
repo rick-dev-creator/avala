@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 
@@ -10,14 +11,34 @@ internal static class ResourceSettingsParser
     private const string Disk = "diskSeconds";
     private const string Orphans = "orphans";
     private const string Ports = "ports";
-    private const string Worktrees = "worktrees";
+    public const string Worktrees = "worktrees";
     private const string First = "first";
     private const string Last = "last";
     private const string PerWorktree = "perWorktree";
-    private const string Discarded = "keepDiscardedHours";
-    private const string Failed = "keepFailedHours";
-    private const string Approved = "keepApprovedHours";
+    private const string KeptDiscarded = "keepDiscardedHours";
+    private const string KeptFailed = "keepFailedHours";
+    private const string KeptApproved = "keepApprovedHours";
     private const string Reconcile = "reconcile";
+
+    public const string FreeArchived = "freeArchivedHours";
+    public const string FreeDelivered = "freeDeliveredHours";
+    public const string FreePullRequest = "freePullRequestHours";
+    public const string FreeUndelivered = "freeUndeliveredHours";
+    public const string FreeDiscarded = "freeDiscardedHours";
+    public const string FreeFailed = "freeFailedHours";
+    public const string DeleteDiscarded = "deleteDiscardedHours";
+    public const string DeleteFailed = "deleteFailedHours";
+    public const string FreeIdle = "freeIdleHours";
+    public const string SpaceBudget = "spaceBudgetGigabytes";
+    public const string DiskFloor = "diskFloorPercent";
+    private const long Gigabyte = 1L << 30;
+    private const double LargestBudget = 1_000_000;
+
+    private static readonly string[] WorktreeFields =
+    [
+        FreeArchived, FreeDelivered, FreePullRequest, FreeUndelivered, FreeDiscarded, FreeFailed,
+        DeleteDiscarded, DeleteFailed, FreeIdle, SpaceBudget, DiskFloor, KeptDiscarded, KeptFailed, KeptApproved, Reconcile,
+    ];
     private const double LongestInterval = 86_400;
     private const double LongestRetention = 87_600;
 
@@ -28,8 +49,15 @@ internal static class ResourceSettingsParser
         TimeSpan.FromMinutes(1),
         OrphanPolicy.Kill,
         new PortRange(24_000, 24_999, 10),
-        new WorktreeRetention(TimeSpan.Zero, TimeSpan.FromDays(7), Option<TimeSpan>.None),
-        ReconcilePolicy.Report);
+        new WorktreePolicy(TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromDays(1), TimeSpan.Zero, TimeSpan.Zero)
+        {
+            DeleteDiscarded = TimeSpan.FromDays(7),
+            DeleteFailed = TimeSpan.FromDays(30),
+            Idle = TimeSpan.FromDays(3),
+            SpaceBudget = 20 * Gigabyte,
+            DiskFloor = 0.1,
+        },
+        ReconcilePolicy.Clean);
 
     public static Result<ResourceSettings, ResourceError> Parse(string text)
     {
@@ -54,7 +82,7 @@ internal static class ResourceSettingsParser
             && PortsOf(root).TryGetValue(out var ports, out error)
             && WorktreesOf(root).TryGetValue(out var worktrees, out error))
         {
-            return Defaults with { Sampling = sampling, DiskSampling = disk, Orphans = orphans, Ports = ports, Retention = worktrees.Retention, Reconcile = worktrees.Reconcile };
+            return Defaults with { Sampling = sampling, DiskSampling = disk, Orphans = orphans, Ports = ports, Worktrees = worktrees.Policy, Reconcile = worktrees.Reconcile };
         }
 
         return error;
@@ -102,24 +130,106 @@ internal static class ResourceSettingsParser
         : value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var whole) ? whole
         : ResourceError.Malformed;
 
-    private static Result<(WorktreeRetention Retention, ReconcilePolicy Reconcile), ResourceError> WorktreesOf(JsonElement root)
+    private static Result<(WorktreePolicy Policy, ReconcilePolicy Reconcile), ResourceError> WorktreesOf(JsonElement root)
     {
         if (!root.TryGetProperty(Worktrees, out var worktrees))
         {
-            return (Defaults.Retention, Defaults.Reconcile);
+            return (Defaults.Worktrees, Defaults.Reconcile);
         }
 
-        if (!Fields(worktrees, [Discarded, Failed, Approved, Reconcile]).TryGetValue(out _, out var error)
-            || !Hours(worktrees, Discarded, Defaults.Retention.Discarded).TryGetValue(out var discarded, out error)
-            || !Hours(worktrees, Failed, Defaults.Retention.Failed).TryGetValue(out var failed, out error)
-            || !Hours(worktrees, Approved, Defaults.Retention.Approved).TryGetValue(out var approved, out error)
+        if (!Fields(worktrees, WorktreeFields).TryGetValue(out _, out var error)
+            || !EarlierRetentionOf(worktrees).TryGetValue(out var earlier, out error)
+            || !FreeingOf(worktrees, earlier).TryGetValue(out var freeing, out error)
+            || !DeletingOf(worktrees, freeing, earlier).TryGetValue(out var deleting, out error)
+            || !SpaceOf(worktrees, deleting).TryGetValue(out var policy, out error)
             || !Choice(worktrees, Reconcile, Defaults.Reconcile).TryGetValue(out var reconcile, out error))
         {
             return error;
         }
 
-        return (new WorktreeRetention(discarded, failed, approved), reconcile);
+        return (policy, reconcile);
     }
+
+    private static Result<EarlierRetention, ResourceError> EarlierRetentionOf(JsonElement worktrees)
+    {
+        var defaults = Defaults.Worktrees;
+
+        if (!Hours(worktrees, KeptDiscarded, defaults.DeleteDiscarded).TryGetValue(out var discarded, out var error)
+            || !Hours(worktrees, KeptFailed, defaults.DeleteFailed).TryGetValue(out var failed, out error)
+            || !Hours(worktrees, KeptApproved, defaults.Undelivered).TryGetValue(out var approved, out error))
+        {
+            return error;
+        }
+
+        return new EarlierRetention(discarded, failed, approved);
+    }
+
+    private static Result<WorktreePolicy, ResourceError> FreeingOf(JsonElement worktrees, EarlierRetention earlier)
+    {
+        var defaults = Defaults.Worktrees;
+
+        if (!Hours(worktrees, FreeArchived, defaults.Archived).TryGetValue(out var archived, out var error)
+            || !Hours(worktrees, FreeDelivered, defaults.Delivered).TryGetValue(out var delivered, out error)
+            || !Hours(worktrees, FreePullRequest, defaults.PullRequest).TryGetValue(out var pullRequest, out error)
+            || !Hours(worktrees, FreeUndelivered, earlier.Approved).TryGetValue(out var undelivered, out error)
+            || !Hours(worktrees, FreeDiscarded, defaults.Discarded).TryGetValue(out var discarded, out error)
+            || !Hours(worktrees, FreeFailed, defaults.Failed).TryGetValue(out var failed, out error))
+        {
+            return error;
+        }
+
+        return new WorktreePolicy(archived, delivered, pullRequest, undelivered, discarded, failed);
+    }
+
+    private static Result<WorktreePolicy, ResourceError> DeletingOf(JsonElement worktrees, WorktreePolicy policy, EarlierRetention earlier)
+    {
+        if (!Hours(worktrees, DeleteDiscarded, earlier.Discarded).TryGetValue(out var discarded, out var error)
+            || !Hours(worktrees, DeleteFailed, earlier.Failed).TryGetValue(out var failed, out error)
+            || !Hours(worktrees, FreeIdle, Defaults.Worktrees.Idle).TryGetValue(out var idle, out error))
+        {
+            return error;
+        }
+
+        return policy with { DeleteDiscarded = discarded, DeleteFailed = failed, Idle = idle };
+    }
+
+    private static Result<WorktreePolicy, ResourceError> SpaceOf(JsonElement worktrees, WorktreePolicy policy)
+    {
+        var defaults = Defaults.Worktrees;
+
+        if (!Amount(worktrees, SpaceBudget, defaults.SpaceBudget.Map(bytes => (double)bytes / Gigabyte), LargestBudget).TryGetValue(out var budget, out var error)
+            || !Amount(worktrees, DiskFloor, defaults.DiskFloor.Map(share => share * 100), 90).TryGetValue(out var floor, out error))
+        {
+            return error;
+        }
+
+        return policy with { SpaceBudget = budget.Map(gigabytes => (long)(gigabytes * Gigabyte)), DiskFloor = floor.Map(percent => percent / 100) };
+    }
+
+    public static JsonObject Node(WorktreePolicy policy, ReconcilePolicy reconcile) => new()
+    {
+        [FreeArchived] = HoursNode(policy.Archived),
+        [FreeDelivered] = HoursNode(policy.Delivered),
+        [FreePullRequest] = HoursNode(policy.PullRequest),
+        [FreeUndelivered] = HoursNode(policy.Undelivered),
+        [FreeDiscarded] = HoursNode(policy.Discarded),
+        [FreeFailed] = HoursNode(policy.Failed),
+        [DeleteDiscarded] = HoursNode(policy.DeleteDiscarded),
+        [DeleteFailed] = HoursNode(policy.DeleteFailed),
+        [FreeIdle] = HoursNode(policy.Idle),
+        [SpaceBudget] = policy.SpaceBudget.Match<JsonValue?>(bytes => JsonValue.Create(Math.Round((double)bytes / Gigabyte, 3)), () => null),
+        [DiskFloor] = policy.DiskFloor.Match<JsonValue?>(share => JsonValue.Create(Math.Round(share * 100, 3)), () => null),
+        [Reconcile] = reconcile.ToString().ToLowerInvariant(),
+    };
+
+    private static JsonValue? HoursNode(Option<TimeSpan> span) => span.Match<JsonValue?>(kept => JsonValue.Create(kept.TotalHours), () => null);
+
+    private static Result<Option<double>, ResourceError> Amount(JsonElement element, string name, Option<double> fallback, double largest) =>
+        !element.TryGetProperty(name, out var value) ? fallback
+        : value.ValueKind == JsonValueKind.Null ? Option<double>.None
+        : value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var amount) ? ResourceError.Malformed
+        : amount > 0 && amount <= largest ? Option<double>.Some(amount)
+        : ResourceError.InvalidRetention;
 
     private static Result<Option<TimeSpan>, ResourceError> Hours(JsonElement element, string name, Option<TimeSpan> fallback) =>
         !element.TryGetProperty(name, out var value) ? fallback
@@ -127,4 +237,6 @@ internal static class ResourceSettingsParser
         : value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var hours) ? ResourceError.Malformed
         : hours >= 0 && hours <= LongestRetention ? Option<TimeSpan>.Some(TimeSpan.FromHours(hours))
         : ResourceError.InvalidRetention;
+
+    private sealed record EarlierRetention(Option<TimeSpan> Discarded, Option<TimeSpan> Failed, Option<TimeSpan> Approved);
 }

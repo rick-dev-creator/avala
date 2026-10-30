@@ -46,6 +46,8 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
         await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status) { Failure = job.Failure }, cancellationToken);
     }
 
+    public Task KeepPreparedAsync(Job job, CancellationToken cancellationToken) => SaveAsync(job, cancellationToken);
+
     public ValueTask AnnounceHoldAsync(JobHold hold, CancellationToken cancellationToken) =>
         bus.PublishAsync(new Contracts.JobHeld(hold), cancellationToken);
 

@@ -185,6 +185,7 @@ internal sealed class Desk : IAsyncDisposable
     public async Task HeldMidAttemptAsync(JobId child, HoldReason reason)
     {
         Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        Jobs.HeldFor(child, reason);
         await ProgressAsync(child, JobStatus.NeedsHelp);
         await HeldAsync(child, reason);
     }

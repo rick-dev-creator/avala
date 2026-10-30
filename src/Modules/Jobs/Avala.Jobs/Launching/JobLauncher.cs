@@ -35,7 +35,10 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return await UnpreparedAsync(job, failure, cancellationToken);
         }
 
-        _ = job.Prepared(workspace.Id);
+        if (job.Prepared(workspace.Id).IsSuccess)
+        {
+            await ledger.KeepPreparedAsync(job, cancellationToken);
+        }
 
         if (!(await planner.ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
         {
@@ -81,7 +84,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     private async Task ReopenAsync(Job job, Func<OpenedSession, bool> begin, Func<OpenedSession, string> message, CancellationToken cancellationToken)
     {
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             await FailAsync(job, JobFailure.WorkspaceUnavailable, cancellationToken);
             return;
@@ -104,7 +107,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         if (!job.AllowsRemoteControl
             || job.Resume.IsNone
             || job.Session.Match(agents.IsOpen, () => false)
-            || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
+            || !(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _)
             || !(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
         {
             return;
@@ -122,7 +125,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     public async Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken)
     {
-        if (job.Resume.IsNone || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (job.Resume.IsNone || !(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.NotResumable;
         }
@@ -171,7 +174,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.SameConnection;
         }
 
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -193,6 +196,11 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         return new JobContinuation(job.Id, opened.Session, ContinuedIn.NewConversation);
     }
 
+    public Task RetryInLiveSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
+        job.Session.Match(agents.IsOpen, () => false)
+            ? RetryInSameSessionAsync(job, feedback, cancellationToken)
+            : RetryInNewSessionAsync(job, feedback, cancellationToken);
+
     public async Task RetryInSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken)
     {
         if (job.Retry(feedback).IsSuccess)
@@ -207,12 +215,18 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
             () => HandOffNowAsync(job, handoff, cancellationToken));
 
-    public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+    public Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        HandOffAfterTurnAsync(job, handoff, relays: false, cancellationToken);
+
+    public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, bool relays, CancellationToken cancellationToken) =>
         job.State == JobState.Checking
-            ? await HandOffNowAsync(job, handoff, cancellationToken)
+            ? await HandOffNowAsync(job, handoff, relays, cancellationToken)
             : JobRejection.NotRunning;
 
-    private async Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken)
+    private Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        HandOffNowAsync(job, handoff, relays: false, cancellationToken);
+
+    private async Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, bool relays, CancellationToken cancellationToken)
     {
         if (job.Connection == Option<ConnectionName>.Some(handoff.Choice.Connection))
         {
@@ -224,7 +238,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.EmptyMessage;
         }
 
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -245,7 +259,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         var (previous, from) = (job.Session, job.Connection);
 
-        if (job.HandOff(brief, opened.Session, opened.Connection).IsFailure)
+        if (job.HandOff(brief, opened.Session, opened.Connection, relays).IsFailure)
         {
             _ = await agents.StopAsync(opened.Session, cancellationToken);
 
@@ -308,7 +322,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         Round round,
         CancellationToken cancellationToken)
     {
-        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.ReadyAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }

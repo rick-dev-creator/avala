@@ -6,5 +6,6 @@ internal enum WorkspaceState
     Creating,
     Ready,
     Failed,
+    Shelved,
     Removed,
 }

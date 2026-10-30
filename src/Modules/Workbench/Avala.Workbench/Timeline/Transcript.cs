@@ -158,7 +158,8 @@ internal sealed record Transcript
 
     public Transcript Apply(PolicyDecision decision)
     {
-        var decided = Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry)
+        var asked = PermissionEntry.Folder(decision).Match(folder => Positions.ContainsKey(folder.Key) ? this : Add(folder), () => this);
+        var decided = asked.Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry)
             .Refused(decision.Turn, decision.Item);
 
         return DeniedEntry.Shows(decision) ? decided.Put(new DeniedEntry(EntryKeys.Denied(decision.Turn, decision.Item), decision)) : decided;
@@ -166,7 +167,7 @@ internal sealed record Transcript
 
     public Transcript Apply(HumanAnswer answer) =>
         Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == answer.Session && entry.Item == answer.Item) is { } permission
-            ? Put(permission with { Answered = answer }).Refused(permission.Turn, permission.Item)
+            ? Put(permission.AnsweredBy(answer)).Refused(permission.Turn, permission.Item)
                 .Change(EntryKeys.Denied(permission.Turn, permission.Item), entry => entry is DeniedEntry denied && answer.Answer == PermissionAnswer.Allow ? denied with { Allowed = answer } : entry)
             : this;
 

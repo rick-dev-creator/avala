@@ -136,6 +136,15 @@ internal sealed class FakeJobs : IJobs, IJobCatalog, IJobMessages
 
         continued.Enqueue((job, message));
 
+        if (histories.TryGetValue(job, out var history) && history.Summary.Status == JobStatus.NeedsHelp)
+        {
+            histories[job] = history with
+            {
+                Summary = history.Summary with { Status = JobStatus.Running, Hold = Option<HoldReason>.None },
+                Attempts = [.. history.Attempts, new AttemptRecord(history.Attempts.Count + 1, AttemptOrigin.Hint, AttemptOutcome.Running, message, Option<Agents.Contracts.Sessions.SessionId>.None)],
+            };
+        }
+
         return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.NewConversation)));
     }
 
