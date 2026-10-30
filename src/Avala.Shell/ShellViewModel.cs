@@ -14,7 +14,9 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 {
     public const double NarrowWidth = 1000;
 
-    public const double WideWidth = 1280;
+    public const double CompactWidth = 720;
+
+    public const double DrawerClearance = 48;
 
     private readonly RegionContexts contexts;
     private readonly IWindowLayout layout;
@@ -81,19 +83,28 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen))]
+    [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsNarrow { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsInspectorDocked))]
+    [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsInspectorFloating { get; private set; }
 
     [ObservableProperty]
+    public partial double WindowWidth { get; private set; }
+
+    [ObservableProperty]
+    public partial double SidebarMaxWidth { get; private set; } = double.PositiveInfinity;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsDrawerOpen))]
+    [NotifyCanExecuteChangedFor(nameof(EscapeCommand))]
     public partial bool IsSidebarPeeking { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsInspectorShown), nameof(IsInspectorDocked), nameof(IsDrawerOpen))]
-    [NotifyCanExecuteChangedFor(nameof(LeaveFocusCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LeaveFocusCommand), nameof(EscapeCommand))]
     public partial bool IsFocused { get; private set; }
 
     [ObservableProperty]
@@ -102,6 +113,8 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     public bool IsSidebarShown => HasSidebar && !IsFocused && (IsNarrow ? IsSidebarPeeking : !IsSidebarCollapsed);
 
     public bool IsDrawerOpen => IsNarrow && IsSidebarShown;
+
+    public bool CanEscape => IsFocused || IsDrawerOpen || (IsInspectorFloating && IsInspectorShown);
 
     public event EventHandler<RegionDismissed>? InspectorDismissed;
 
@@ -203,7 +216,28 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     private void DismissInspector() => InspectorDismissed?.Invoke(this, new RegionDismissed(ShellRegions.Inspector));
 
     [RelayCommand]
-    private void ToggleFocus() => IsFocused = !IsFocused;
+    private void ToggleFocus()
+    {
+        IsFocused = !IsFocused;
+        IsSidebarPeeking = IsSidebarPeeking && !IsFocused;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEscape))]
+    private void Escape()
+    {
+        if (IsFocused)
+        {
+            IsFocused = false;
+        }
+        else if (IsDrawerOpen)
+        {
+            IsSidebarPeeking = false;
+        }
+        else if (IsInspectorFloating && IsInspectorShown)
+        {
+            DismissInspector();
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(IsFocused))]
     private void LeaveFocus() => IsFocused = false;
@@ -211,8 +245,10 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     [RelayCommand]
     private void Fit(double width)
     {
+        WindowWidth = width;
         IsNarrow = width < NarrowWidth;
-        IsInspectorFloating = width < WideWidth;
+        IsInspectorFloating = width < CompactWidth;
+        SidebarMaxWidth = IsNarrow ? Math.Max(0, width - DrawerClearance) : double.PositiveInfinity;
         IsSidebarPeeking = IsNarrow && IsSidebarPeeking;
     }
 
@@ -240,6 +276,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         {
             OnPropertyChanged(nameof(IsInspectorShown));
             OnPropertyChanged(nameof(IsInspectorDocked));
+            EscapeCommand.NotifyCanExecuteChanged();
         }
 
         Present();

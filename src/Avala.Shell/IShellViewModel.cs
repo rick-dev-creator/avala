@@ -42,6 +42,12 @@ internal interface IShellViewModel
 
     IRelayCommand DismissInspectorCommand { get; }
 
+    IRelayCommand EscapeCommand { get; }
+
+    double WindowWidth { get; }
+
+    double SidebarMaxWidth { get; }
+
     bool IsFocused { get; }
 
     double SidebarWidth { get; }

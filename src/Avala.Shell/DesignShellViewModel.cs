@@ -63,6 +63,12 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public IRelayCommand DismissInspectorCommand { get; } = new RelayCommand(() => { });
 
+    public IRelayCommand EscapeCommand { get; } = new RelayCommand(() => { });
+
+    public double WindowWidth => 1440;
+
+    public double SidebarMaxWidth => double.PositiveInfinity;
+
     public bool IsFocused => false;
 
     public double SidebarWidth => WindowLayout.DefaultSidebarWidth;

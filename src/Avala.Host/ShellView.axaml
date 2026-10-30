@@ -21,7 +21,7 @@
     <KeyBinding Gesture="{x:Static copying:Hotkeys.Sidebar}" Command="{Binding ToggleSidebarCommand}" />
     <KeyBinding Gesture="{x:Static copying:Hotkeys.SidebarBackslash}" Command="{Binding ToggleSidebarCommand}" />
     <KeyBinding Gesture="{x:Static copying:Hotkeys.FocusMode}" Command="{Binding ToggleFocusCommand}" />
-    <KeyBinding Gesture="Escape" Command="{Binding LeaveFocusCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding EscapeCommand}" />
   </Window.KeyBindings>
   <Design.DataContext>
     <shell:DesignShellViewModel />
@@ -57,6 +57,15 @@
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="ZIndex" Value="2" />
     </Style>
+    <Style Selector="Grid#Body.above">
+      <Setter Property="ZIndex" Value="2" />
+    </Style>
+    <Style Selector="Panel#InspectorPane">
+      <Setter Property="ZIndex" Value="1" />
+    </Style>
+    <Style Selector="Panel#InspectorBody">
+      <Setter Property="Width" Value="{DynamicResource InspectorWidth}" />
+    </Style>
     <Style Selector="Border#InspectorSpace">
       <Setter Property="Width" Value="0" />
     </Style>
@@ -72,6 +81,12 @@
       <Setter Property="Width" Value="{DynamicResource InspectorWidth}" />
       <Setter Property="IsHitTestVisible" Value="True" />
       <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue" />
+    </Style>
+    <Style Selector="Panel#InspectorPane.floating Panel#InspectorBody" x:DataType="shell:IShellViewModel">
+      <Setter Property="Width" Value="{Binding WindowWidth}" />
+    </Style>
+    <Style Selector="Panel#InspectorPane.shown.floating" x:DataType="shell:IShellViewModel">
+      <Setter Property="Width" Value="{Binding WindowWidth}" />
     </Style>
     <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False]:not(.resizing), Panel#InspectorPane[(theme|Motion.IsReduced)=False], Border#InspectorSpace[(theme|Motion.IsReduced)=False]">
       <Setter Property="Transitions">
@@ -132,7 +147,7 @@
     </Style>
   </Window.Styles>
   <Panel states:Widths.Report="{Binding FitCommand}">
-    <Grid ColumnDefinitions="Auto,*,Auto">
+    <Grid x:Name="Body" ColumnDefinitions="Auto,*,Auto" Classes.above="{Binding IsDrawerOpen}">
       <Button x:Name="DrawerScrim"
               Grid.ColumnSpan="3"
               Classes="scrim"
@@ -144,6 +159,7 @@
              ClipToBounds="True"
              Classes.shown="{Binding IsSidebarShown}"
              Classes.drawer="{Binding IsNarrow}"
+             MaxWidth="{Binding SidebarMaxWidth}"
              IsVisible="{Binding HasSidebar}"
              states:Resizer.Command="{Binding ResizeSidebarCommand}"
              states:Resizer.Committed="{Binding RememberSidebarCommand}"
@@ -261,7 +277,7 @@
            ClipToBounds="True"
            Classes.shown="{Binding IsInspectorShown}"
            Classes.floating="{Binding IsInspectorFloating}">
-      <Panel Width="{DynamicResource InspectorWidth}" HorizontalAlignment="Left">
+      <Panel x:Name="InspectorBody" HorizontalAlignment="Left">
         <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
         <Border Classes="edge" HorizontalAlignment="Left" />
         <ScrollViewer>
