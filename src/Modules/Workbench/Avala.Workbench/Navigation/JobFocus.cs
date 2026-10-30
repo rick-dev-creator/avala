@@ -13,6 +13,8 @@ internal sealed class JobFocus(IRegions regions, IMessenger messenger)
 
     public void Follow(IRecipient<JobSelected> recipient) => messenger.Register(recipient);
 
+    public void Follow(IRecipient<RegionDismissed> recipient) => messenger.Register(recipient);
+
     public void Show(IPage page) => messenger.Send(new PageRequested(page));
 
     public void Inspect(Option<JobId> job) =>

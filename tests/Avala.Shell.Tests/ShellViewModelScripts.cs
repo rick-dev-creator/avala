@@ -206,6 +206,19 @@ public sealed class ShellViewModelScripts
     }
 
     [Fact]
+    public void ClosingTheFloatingInspectorTellsWhoeverOwnsItOverTheMessenger()
+    {
+        var services = new ServiceCollection().AddShell().AddSingleton<IWindowLayout>(new RememberedLayout()).BuildServiceProvider();
+        var shell = services.GetRequiredService<ShellViewModel>();
+        var dismissed = new List<RegionDismissed>();
+        services.GetRequiredService<IMessenger>().Register<List<RegionDismissed>, RegionDismissed>(dismissed, (list, message) => list.Add(message));
+
+        shell.DismissInspectorCommand.Execute(null);
+
+        Assert.Equal([new RegionDismissed(ShellRegions.Inspector)], dismissed);
+    }
+
+    [Fact]
     public void AHiddenPageStaysOutOfTheNavigationButCanStillBeShown()
     {
         var jobs = new HiddenPage("Jobs");
@@ -312,6 +325,33 @@ public sealed class ShellViewModelScripts
             .Then(narrow => Assert.False(narrow.IsSidebarShown))
             .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth)
             .Then(wide => Assert.True(wide.IsSidebarShown));
+
+    [Fact]
+    public void BelowACompactWidthTheInspectorFloatsAndANarrowWindowOpensTheSidebarAsADrawer() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.CompactWidth)
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Then(medium => Assert.Equal((false, true), (medium.IsInspectorFloating, medium.IsDrawerOpen)))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.CompactWidth - 1)
+            .Then(compact => Assert.Equal((true, compact.WindowWidth - ShellViewModel.DrawerClearance), (compact.IsInspectorFloating, compact.SidebarMaxWidth)));
+
+    [Fact]
+    public void EscapeClosesTheDrawerAndOnlyListensWhileSomethingIsOpen() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 1)
+            .Then(closed => Assert.False(closed.EscapeCommand.CanExecute(null)))
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Invoke(nameof(ShellViewModel.EscapeCommand))
+            .Then(escaped => Assert.Equal((false, false), (escaped.IsDrawerOpen, escaped.EscapeCommand.CanExecute(null))));
+
+    [Fact]
+    public void LeavingFocusModeDoesNotReopenTheDrawer() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 1)
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .Then(left => Assert.False(left.IsDrawerOpen));
 
     [Fact]
     public void AWiderWindowKeepsTheSidebarThePersonCollapsedHidden() =>

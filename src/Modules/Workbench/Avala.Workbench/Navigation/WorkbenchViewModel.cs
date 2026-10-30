@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
+using Avala.Sdk.Regions;
 using Avala.Workbench.Timeline;
 using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
@@ -40,7 +41,7 @@ internal interface IWorkbenchViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, IActivatable, IPresentation, IDisposable, IRecipient<JobSelected>
+internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, IActivatable, IPresentation, IDisposable, IRecipient<JobSelected>, IRecipient<RegionDismissed>
 {
     private readonly BoardFeed feed;
     private readonly JobScreens screens;
@@ -53,7 +54,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         this.screens = screens;
         this.focus = focus;
         Welcome = welcome;
-        focus.Follow(this);
+        focus.Follow((IRecipient<JobSelected>)this);
+        focus.Follow((IRecipient<RegionDismissed>)this);
     }
 
     public IWelcomeViewModel Welcome { get; }
@@ -116,6 +118,14 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     }
 
     public void Dispose() => Deactivate();
+
+    public void Receive(RegionDismissed message)
+    {
+        if (message.Region == ShellRegions.Inspector && IsInspectorOpen)
+        {
+            ToggleInspector();
+        }
+    }
 
     public void Receive(JobSelected message)
     {

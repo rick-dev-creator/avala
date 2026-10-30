@@ -193,6 +193,89 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
+    public Task FromACompactWidthUpTheInspectorStaysBesideTheConversationAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+
+            view.Window.Width = ShellViewModel.CompactWidth;
+            view.Settle();
+
+            Assert.Equal(view.Window.Width - view.Find("SidebarPane").Bounds.Width - view.Find("InspectorPane").Bounds.Width, view.Find("ContentPane").Bounds.Width, 1);
+            Assert.Equal(view.Window.Width, view.Find("InspectorPane").Bounds.Right, 1);
+            Assert.False(view.Shows("CloseInspector"));
+        }, Cancellation);
+
+    [Fact]
+    public Task BelowACompactWidthTheInspectorIsASheetOverTheWholeWindowThatEscapeClosesAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+
+            view.Window.Width = 400;
+            view.Settle();
+            var sheet = (view.Find("InspectorPane").Bounds.Width, view.Shows("CloseInspector"), view.Find("ContentPane").Bounds.Width);
+
+            Assert.Equal((400d, true, 400d), sheet);
+            Assert.False(view.Find("ContentPane").IsEnabled);
+            Assert.True(shell.EscapeCommand.CanExecute(null));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheDrawerOpensAboveTheInspectorSheetAndIsCappedToTheWindowAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+            shell.ResizeSidebarCommand.Execute(WindowLayout.WidestSidebar);
+            view.Window.Width = 400;
+            view.Settle();
+
+            shell.ToggleSidebarCommand.Execute(null);
+            view.Settle();
+
+            Assert.True(view.Find("Body").ZIndex > view.Find("InspectorPane").ZIndex);
+            Assert.Equal(400 - ShellViewModel.DrawerClearance, view.Find("SidebarPane").Bounds.Width, 1);
+            Assert.True(view.Shows("DrawerScrim"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ANarrowWindowOpensTheSidebarAsADrawerOverTheConversationThatItsScrimClosesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, shell) = Composed();
+            view.Window.Width = ShellViewModel.NarrowWidth - 200;
+            view.Settle();
+
+            shell.ToggleSidebarCommand.Execute(null);
+            view.Settle();
+            var open = (view.Shows("SidebarPane"), view.Shows("DrawerScrim"), view.Find("ContentPane").Bounds.Width);
+            var covered = view.Find("ContentPane").IsEnabled;
+            var inside = view.Window.InputHitTest(new Avalonia.Point(view.Find("SidebarPane").Bounds.Width / 2, view.Window.Height / 2));
+            view.Click("DrawerScrim");
+
+            Assert.Equal((true, true, view.Window.Width), open);
+            Assert.True(view.Find("ContentPane").IsEnabled);
+            Assert.False(covered);
+            Assert.NotEqual("DrawerScrim", (inside as Avalonia.StyledElement)?.Name);
+            Assert.Equal((false, false), (view.Shows("SidebarPane"), view.Shows("DrawerScrim")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheWindowNarrowsToAPhonesWidthAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+
+            view.Window.Width = 360;
+            view.Settle();
+
+            Assert.Equal((360d, 360d), (view.Window.MinWidth, view.Find("ContentPane").Bounds.Width));
+        }, Cancellation);
+
+    [Fact]
     public Task FocusModeLeavesOnlyTheContentWithAHintUntilCommandShiftFIsPressedAgainAsync() =>
         ui.RunAsync(async () =>
         {

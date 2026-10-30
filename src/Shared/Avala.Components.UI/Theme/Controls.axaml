@@ -2,6 +2,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:copying="using:Avala.Components.UI.Copying"
         xmlns:theme="using:Avala.Components.UI.Theme">
+  <Style Selector="Button.scrim">
+    <Setter Property="Background" Value="{DynamicResource ScrimBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+  <Style Selector="Button.scrim:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.scrim:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ScrimBrush}" />
+  </Style>
   <Style Selector="Path.bracket">
     <Setter Property="Stroke" Value="{DynamicResource SystemBrush}" />
     <Setter Property="StrokeThickness" Value="1" />
