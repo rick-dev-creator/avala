@@ -13,15 +13,15 @@
   <FluentTheme>
     <FluentTheme.Palettes>
       <ColorPaletteResources x:Key="Dark"
-                             Accent="#8DA2FB"
-                             RegionColor="#101114"
-                             BaseHigh="#EDEDEF"
-                             ErrorText="#EF6461" />
+                             Accent="#FF3B55"
+                             RegionColor="#0B0E12"
+                             BaseHigh="#E9E6DF"
+                             ErrorText="#FF5468" />
       <ColorPaletteResources x:Key="Light"
-                             Accent="#4458CC"
-                             RegionColor="#FBFBFC"
-                             BaseHigh="#1D1D1F"
-                             ErrorText="#D9221F" />
+                             Accent="#B3122E"
+                             RegionColor="#DCD6C7"
+                             BaseHigh="#36322A"
+                             ErrorText="#A8102A" />
     </FluentTheme.Palettes>
   </FluentTheme>
   <StyleInclude Source="avares://Avala.Components.UI/Theme/Typography.axaml" />

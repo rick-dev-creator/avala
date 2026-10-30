@@ -16,7 +16,7 @@
     <InternalsVisibleTo Include="Avala.Components.UI.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <AvaloniaResource Include="Fonts\*.ttf" />
-    <None Include="Fonts\JetBrainsMono-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Fonts\**\*.ttf" />
+    <None Include="Fonts\**\*-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

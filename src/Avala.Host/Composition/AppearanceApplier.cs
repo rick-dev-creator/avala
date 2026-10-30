@@ -23,12 +23,7 @@ internal sealed class AppearanceApplier(Application application)
         _ => systemReduced,
     };
 
-    public static ThemeVariant Variant(ThemeChoice theme) => theme switch
-    {
-        ThemeChoice.Light => ThemeVariant.Light,
-        ThemeChoice.Dark => ThemeVariant.Dark,
-        _ => ThemeVariant.Default,
-    };
+    public static ThemeVariant Variant(ThemeChoice theme) => Themes.Of(theme);
 
     public void FollowSystem(bool prefersReducedMotion)
     {

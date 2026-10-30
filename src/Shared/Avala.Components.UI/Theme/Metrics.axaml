@@ -1,10 +1,10 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <CornerRadius x:Key="RadiusControl">6</CornerRadius>
-  <CornerRadius x:Key="RadiusButton">8</CornerRadius>
-  <CornerRadius x:Key="RadiusRow">10</CornerRadius>
-  <CornerRadius x:Key="RadiusCard">14</CornerRadius>
-  <CornerRadius x:Key="RadiusSheet">20</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">2</CornerRadius>
+  <CornerRadius x:Key="RadiusButton">2</CornerRadius>
+  <CornerRadius x:Key="RadiusRow">2</CornerRadius>
+  <CornerRadius x:Key="RadiusCard">2</CornerRadius>
+  <CornerRadius x:Key="RadiusSheet">3</CornerRadius>
   <CornerRadius x:Key="RadiusDevicePhone">58</CornerRadius>
   <CornerRadius x:Key="RadiusDevicePhoneScreen">46</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceAndroid">42</CornerRadius>
@@ -22,12 +22,16 @@
   <CornerRadius x:Key="RadiusDeviceButtonRight">0,2,2,0</CornerRadius>
   <CornerRadius x:Key="RadiusDeviceButtonLeft">2,0,0,2</CornerRadius>
   <CornerRadius x:Key="RadiusPill">99</CornerRadius>
-  <CornerRadius x:Key="RadiusItem">12</CornerRadius>
-  <CornerRadius x:Key="RadiusPopover">16</CornerRadius>
-  <CornerRadius x:Key="RadiusTag">4</CornerRadius>
-  <CornerRadius x:Key="RadiusChoice">9</CornerRadius>
-  <CornerRadius x:Key="RadiusBlock">12</CornerRadius>
-  <CornerRadius x:Key="RadiusBubble">14,14,4,14</CornerRadius>
+  <CornerRadius x:Key="RadiusItem">2</CornerRadius>
+  <CornerRadius x:Key="RadiusPopover">3</CornerRadius>
+  <CornerRadius x:Key="RadiusTag">1</CornerRadius>
+  <CornerRadius x:Key="RadiusChoice">2</CornerRadius>
+  <CornerRadius x:Key="RadiusBlock">2</CornerRadius>
+  <CornerRadius x:Key="RadiusBubble">2</CornerRadius>
+
+  <x:Double x:Key="ChamferCard">10</x:Double>
+  <x:Double x:Key="ChamferControl">6</x:Double>
+  <x:Double x:Key="GridSpacing">48</x:Double>
 
   <x:Double x:Key="Space1">4</x:Double>
   <x:Double x:Key="Space2">8</x:Double>
@@ -65,6 +69,7 @@
   <x:Double x:Key="FontSizeReading">14</x:Double>
   <x:Double x:Key="FontSizeBody">13</x:Double>
   <x:Double x:Key="FontSizeMono">12.5</x:Double>
+  <x:Double x:Key="FontSizeVoice">17</x:Double>
   <x:Double x:Key="FontSizeCaption">12</x:Double>
   <x:Double x:Key="FontSizeHint">11.5</x:Double>
   <x:Double x:Key="FontSizeSection">11</x:Double>

@@ -392,7 +392,7 @@ public sealed class LimitViewScripts(HeadlessUi ui)
 
             Assert.Equal(("5-hour window", "88%", " used"), (view.TextOf("Window"), view.TextOf("UsedText"), view.TextOf("UsedWord")));
             Assert.Equal((0.88, 0.9), (view.Find<ProgressBar>("Used").Value, view.Find<ProgressBar>("Hold").Value));
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
             Assert.Equal((true, true), (view.HasClass("UsedText", "attention"), view.HasClass("UsedWord", "attention")));
         }, TestContext.Current.CancellationToken);
 
@@ -422,7 +422,7 @@ public sealed class LimitViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false));
 
             Assert.False(view.HasClass("UsedText", "attention"));
-            Assert.Equal(Color.Parse("#A3A3AD"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
+            Assert.Equal(Color.Parse("#9BA3AA"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<ProgressBar>("Used").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

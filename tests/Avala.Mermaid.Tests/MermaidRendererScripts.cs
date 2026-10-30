@@ -56,9 +56,9 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
             var dark = Drawing(await ShownAsync(Flow, ThemeVariant.Dark));
             var light = Drawing(await ShownAsync(Flow, ThemeVariant.Light));
 
-            Assert.Contains("#EDEDEF", dark, StringComparison.Ordinal);
-            Assert.Contains("#1D1D1F", light, StringComparison.Ordinal);
-            Assert.DoesNotContain("#EDEDEF", light, StringComparison.Ordinal);
+            Assert.Contains("#E9E6DF", dark, StringComparison.Ordinal);
+            Assert.Contains("#36322A", light, StringComparison.Ordinal);
+            Assert.DoesNotContain("#E9E6DF", light, StringComparison.Ordinal);
         }, Cancellation);
 
     [Fact]
@@ -71,8 +71,8 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
             var meanwhile = Drawing(view);
             await view.DrawnAsync();
 
-            Assert.Contains("#EDEDEF", meanwhile, StringComparison.Ordinal);
-            Assert.Contains("#1D1D1F", Drawing(view), StringComparison.Ordinal);
+            Assert.Contains("#E9E6DF", meanwhile, StringComparison.Ordinal);
+            Assert.Contains("#36322A", Drawing(view), StringComparison.Ordinal);
         }, Cancellation);
 
     [Fact]

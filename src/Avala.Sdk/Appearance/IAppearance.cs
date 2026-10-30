@@ -7,6 +7,11 @@ public enum ThemeChoice
     System,
     Light,
     Dark,
+    Tide,
+    Unit,
+    Ash,
+    Bloom,
+    Signal,
 }
 
 public enum MotionChoice

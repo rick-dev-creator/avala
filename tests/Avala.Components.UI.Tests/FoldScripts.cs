@@ -98,7 +98,7 @@ public sealed class FoldScripts(HeadlessUi ui)
             ViewScript.Show(fold, new object());
             var fact = fold.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "PART_Fact");
 
-            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(fact.Foreground).Color);
+            Assert.Equal(Color.Parse("#FFB547"), Assert.IsAssignableFrom<ISolidColorBrush>(fact.Foreground).Color);
         }, Cancellation);
 
     [Fact]

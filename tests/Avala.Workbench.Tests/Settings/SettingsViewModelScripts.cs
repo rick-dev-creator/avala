@@ -86,6 +86,16 @@ public sealed class SettingsViewModelScripts
 
         public bool IsDark => appearance.IsDark;
 
+        public bool IsTide => appearance.IsTide;
+
+        public bool IsUnit => appearance.IsUnit;
+
+        public bool IsAsh => appearance.IsAsh;
+
+        public bool IsBloom => appearance.IsBloom;
+
+        public bool IsSignal => appearance.IsSignal;
+
         public bool MotionFollowsSystem => appearance.MotionFollowsSystem;
 
         public bool IsMotionReduced => appearance.IsMotionReduced;
