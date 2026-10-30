@@ -3,10 +3,12 @@
              xmlns:sidebar="using:Avala.Workbench.Sidebar"
              xmlns:states="using:Avala.Components.UI.States"
              xmlns:elapsed="using:Avala.Components.UI.Elapsed"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              x:Class="Avala.Workbench.UI.JobRowView"
              x:ClassModifier="internal"
              x:DataType="sidebar:IJobRowViewModel"
              ClipToBounds="False"
+             theme:Brackets.OnHover="True"
              Classes.child="{Binding IsChild}"
              Classes.selected="{Binding IsSelected}"
              Classes.ended="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Approved,Discarded'}">

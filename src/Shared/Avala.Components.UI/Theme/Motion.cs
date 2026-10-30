@@ -23,6 +23,9 @@ public enum MotionEntrance
     Draw,
     Linger,
     Ping,
+    Boot,
+    Glitch,
+    Close,
 }
 
 public enum MotionLoop

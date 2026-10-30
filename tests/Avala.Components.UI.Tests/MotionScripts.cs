@@ -7,7 +7,7 @@ namespace Avala.Components.UI.Tests;
 
 public sealed class MotionScripts(HeadlessUi ui)
 {
-    private static readonly MotionEntrance[] Entrances = [MotionEntrance.Fade, MotionEntrance.Arrive, MotionEntrance.Gentle, MotionEntrance.Sheet, MotionEntrance.Pop, MotionEntrance.Fold, MotionEntrance.Rise, MotionEntrance.Stamp, MotionEntrance.Scale, MotionEntrance.Linger];
+    private static readonly MotionEntrance[] Entrances = [MotionEntrance.Fade, MotionEntrance.Arrive, MotionEntrance.Gentle, MotionEntrance.Sheet, MotionEntrance.Pop, MotionEntrance.Fold, MotionEntrance.Rise, MotionEntrance.Stamp, MotionEntrance.Scale, MotionEntrance.Linger, MotionEntrance.Boot, MotionEntrance.Glitch, MotionEntrance.Close];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

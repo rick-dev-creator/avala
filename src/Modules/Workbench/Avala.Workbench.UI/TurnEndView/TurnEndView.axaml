@@ -23,6 +23,8 @@
         <TextBlock x:Name="Summary"
                    Classes="caption"
                    Classes.failure="{Binding Outcome, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Failed}"
+                   theme:Motion.Enter="Glitch"
+                   theme:Motion.When="{Binding Outcome, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Failed}"
                    Text="{Binding Summary}" />
         <TextBlock Classes="caption" Text="·" IsVisible="{Binding HasUsage}" />
         <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens, StringFormat='{}{0:N0} tokens'}" IsVisible="{Binding HasUsage}" />

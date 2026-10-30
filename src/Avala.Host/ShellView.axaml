@@ -37,6 +37,7 @@
     </Style>
     <Style Selector="ListBox#PageNavigation ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Background" Value="Transparent" />
     </Style>
     <Style Selector="ListBox#PageNavigation ListBoxItem Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
@@ -175,6 +176,7 @@
                   </ItemsControl.ItemsPanel>
                 </ItemsControl>
                 <ListBox x:Name="PageNavigation"
+                         theme:Cursor.Slides="True"
                          IsVisible="{Binding HasNavigation}"
                          ItemsSource="{Binding NavigationPages}"
                          SelectedItem="{Binding SelectedPage, Converter={x:Static states:Kept.Selection}}">
