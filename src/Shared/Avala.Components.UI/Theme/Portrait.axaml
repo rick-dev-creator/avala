@@ -3,8 +3,8 @@
                     xmlns:ui="using:Avala.Components.UI"
                     xmlns:theme="using:Avala.Components.UI.Theme">
   <ControlTheme x:Key="{x:Type ui:Portrait}" TargetType="ui:Portrait">
-    <Setter Property="Width" Value="52" />
-    <Setter Property="Height" Value="64" />
+    <Setter Property="Width" Value="84" />
+    <Setter Property="Height" Value="104" />
     <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     <Setter Property="ClipToBounds" Value="True" />
@@ -17,16 +17,16 @@
                 BorderThickness="1"
                 theme:Chamfer.Size="{StaticResource ChamferControl}">
           <Viewbox Stretch="Uniform">
-            <Panel Name="Figure" Width="52" Height="64" theme:Motion.Loop="Breathe">
-              <Image Name="Face" Stretch="UniformToFill" Source="{TemplateBinding Picture}" />
+            <Panel Name="Figure" Width="312" Height="384" theme:Motion.Loop="Breathe">
+              <Image Name="Face" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="HighQuality" Source="{TemplateBinding Picture}" />
             </Panel>
           </Viewbox>
         </Border>
       </ControlTemplate>
     </Setter>
     <Style Selector="^.small">
-      <Setter Property="Width" Value="22" />
-      <Setter Property="Height" Value="27" />
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="37" />
     </Style>
     <Style Selector="^.small /template/ Image#Face">
       <Setter Property="RenderTransformOrigin" Value="50%,36%" />

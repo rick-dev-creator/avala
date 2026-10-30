@@ -12,13 +12,13 @@
   <Design.DataContext>
     <conversation:DesignTurnEndViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-  <ui:Portrait x:Name="Ava" Mood="{Binding Mood}" VerticalAlignment="Top" ToolTip.Tip="Ava" />
-  <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
-      <Border Classes="separator" VerticalAlignment="Center" />
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="12">
+      <ui:Portrait x:Name="Ava" Mood="{Binding Mood}" Margin="0,0,2,0" ToolTip.Tip="Ava" />
+      <Border Grid.Column="1" Classes="separator" VerticalAlignment="Center" />
       <StackPanel x:Name="Line"
-                  Grid.Column="1"
+                  Grid.Column="2"
+                  VerticalAlignment="Center"
                   Orientation="Horizontal"
                   Spacing="6"
                   Background="Transparent"
@@ -39,7 +39,7 @@
                    Text="{Binding Cost}"
                    IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
-      <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" />
+      <Border Grid.Column="3" Classes="separator" VerticalAlignment="Center" />
     </Grid>
     <TextBlock x:Name="Lost"
                Classes="caption attention"
@@ -79,5 +79,4 @@
       </StackPanel>
     </StackPanel>
   </StackPanel>
-  </Grid>
 </UserControl>
