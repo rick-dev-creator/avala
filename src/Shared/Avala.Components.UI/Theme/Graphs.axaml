@@ -146,7 +146,7 @@
   <Style Selector="Button.hud">
     <Setter Property="Width" Value="32" />
     <Setter Property="Height" Value="32" />
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -188,6 +188,7 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusNode}" />
     <Setter Property="BoxShadow" Value="{DynamicResource ShadowNode}" />
+    <Setter Property="theme:Chamfer.Size" Value="{StaticResource ChamferCard}" />
   </Style>
   <Style Selector="Border.node.attention">
     <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
@@ -199,8 +200,8 @@
     <Setter Property="Stroke" Value="{DynamicResource BorderTagBrush}" />
     <Setter Property="StrokeThickness" Value="1" />
     <Setter Property="StrokeDashArray" Value="3,2" />
-    <Setter Property="RadiusX" Value="11" />
-    <Setter Property="RadiusY" Value="11" />
+    <Setter Property="RadiusX" Value="2" />
+    <Setter Property="RadiusY" Value="2" />
   </Style>
   <Style Selector="Rectangle.subagent.waiting">
     <Setter Property="Stroke" Value="{DynamicResource AttentionBorderBrush}" />
@@ -250,6 +251,9 @@
     </Setter>
   </Style>
   <Style Selector="Border.state TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource HudFont}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="0.6" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
   </Style>

@@ -68,17 +68,17 @@
         </StackPanel>
       </ToolTip.Tip>
     </Border>
-    <Ellipse Margin="2" Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="3" IsHitTestVisible="False" />
+    <Ellipse x:Name="Track" Margin="2" Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="3" StrokeDashArray="0.6,0.6" IsHitTestVisible="False" />
     <Arc x:Name="Ring"
          Margin="2"
          StartAngle="-90"
          SweepAngle="{Binding Used, Converter={x:Static graphs:Graph.Degrees}}"
          StrokeThickness="3"
-         StrokeLineCap="Round"
+         StrokeLineCap="Flat"
          IsHitTestVisible="False" />
     <StackPanel x:Name="Label" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1" IsHitTestVisible="False">
       <TextBlock x:Name="ConnectionName"
-                 Classes="strong"
+                 Classes="label"
                  HorizontalAlignment="Center"
                  TextTrimming="CharacterEllipsis"
                  Text="{Binding Name}" />

@@ -79,7 +79,7 @@
     <Setter Property="FontSize" Value="8" />
   </Style>
   <Style Selector="Border.instance">
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusTag}" />
     <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource BorderTagBrush}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -88,6 +88,8 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
   <Style Selector="Border.instance TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource HudFont}" />
+    <Setter Property="LetterSpacing" Value="0.4" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -128,7 +130,7 @@
   </Style>
 
   <Style Selector="Border.chip">
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusTag}" />
     <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -139,7 +141,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
   </Style>
   <Style Selector="Button.chip">
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusTag}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
     <Setter Property="Padding" Value="12,0" />
