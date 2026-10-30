@@ -11,6 +11,7 @@ using Avala.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Host;
@@ -67,10 +68,23 @@ internal sealed partial class App : Application
         _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();
         new OrderlyExit(composition, claim, log, crashes).Follow(desktop, shell.Deactivate);
+        Watch(desktop, composition, log, crashes);
         DataTemplates.Add(composition.Views);
         shell.Activate();
         var showing = ShowAsync(desktop, composition, appearance, shell);
         _ = smoke ? SmokeRun.PassAsync(desktop, showing, started.FirstAsync().AsTask(), composition.Running, shell) : showing;
+    }
+
+    private static void Watch(IClassicDesktopStyleApplicationLifetime desktop, CompositionRoot composition, LogFile log, CrashLog crashes)
+    {
+        var signals = new ExitSignals(crashes, () => Dispatcher.UIThread.Post(() => desktop.Shutdown()));
+        signals.Watch();
+        var vitals = new VitalSigns(log, composition.Services.GetRequiredService<IUiDispatcher>(), TimeProvider.System).Follow(composition.Lifetime);
+        desktop.Exit += (_, _) =>
+        {
+            signals.Dispose();
+            vitals.Dispose();
+        };
     }
 
     private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes, Option<Func<HttpMessageHandler>> network)

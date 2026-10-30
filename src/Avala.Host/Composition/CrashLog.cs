@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avala.Runtime.Diagnostics;
 using Avala.Sdk;
 using Avalonia.Threading;
@@ -14,6 +15,7 @@ internal sealed class CrashLog(LogFile log)
     public void Watch()
     {
         AppDomain.CurrentDomain.UnhandledException += OnDomainException;
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         TaskScheduler.UnobservedTaskException += OnUnobservedTask;
         Dispatcher.UIThread.UnhandledException += OnDispatcherException;
     }
@@ -21,6 +23,7 @@ internal sealed class CrashLog(LogFile log)
     public void Unwatch()
     {
         AppDomain.CurrentDomain.UnhandledException -= OnDomainException;
+        AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
         TaskScheduler.UnobservedTaskException -= OnUnobservedTask;
         Dispatcher.UIThread.UnhandledException -= OnDispatcherException;
     }
@@ -61,9 +64,17 @@ internal sealed class CrashLog(LogFile log)
     public void CutShort() =>
         log.WriteNow(LogLevel.Warning, Category, $"Avala did not stop within {BoundedStop.Limit.TotalSeconds:0} seconds, so it ended every process tree still open", Option<Exception>.None);
 
+    public void Signalled(PosixSignal signal) =>
+        log.WriteNow(LogLevel.Warning, Category, $"Avala received {signal} and stops its agent sessions in order", Option<Exception>.None);
+
+    public void Exiting() =>
+        log.WriteNow(LogLevel.Warning, Category, "Avala's process is exiting without stopping its agent sessions", Option<Exception>.None);
+
     public void Failed(Exception failure) => log.WriteNow(LogLevel.Critical, Category, "Avala could not start", failure);
 
     private void OnDomainException(object? sender, UnhandledExceptionEventArgs e) => Unhandled(e);
+
+    private void OnProcessExit(object? sender, EventArgs e) => Exiting();
 
     private void OnUnobservedTask(object? sender, UnobservedTaskExceptionEventArgs e) => Unobserved(e);
 
