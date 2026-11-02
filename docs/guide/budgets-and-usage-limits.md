@@ -66,6 +66,7 @@ Without `runningJobs`, any number of jobs run at once.
 
 - A file that cannot be read holds the job as "invalid budget" rather than running it without caps; a rejected `budgets.json` lets one job run at a time.
 - A job with no reset time reported waits for you.
+- Avala follows the windows each account reports, not a fixed set: a plan without a 5-hour window, such as a verified Claude Ultra account, shows and counts only its weekly windows. A window the account stops reporting is dropped once its reset passes and another window is read.
 - With `"hold"`, a job past the threshold holds when its turn ends rather than starting another; it is not stopped mid-turn, and the hard cap and winding down apply only to a handoff.
 - Without `connections`, only a job that started on Auto relays, among the connections Auto compared; a job started on a named connection relays only when that connection is listed.
 - With no connection left below the threshold, a relaying job waits for the first window to reset, then continues, or asks you, as `resumeAtReset` says.

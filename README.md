@@ -176,7 +176,7 @@ Ava is calm, a little playful, and very hard to fool. She doesn't take an agent'
   <img src="docs/assets/readme/usage-light.png" alt="The Usage page: claude near the end of its 5-hour and 7-day windows, claude-work at 29%, and the jobs with their cost against a 0.50 USD cap, one of them held once">
 </picture>
 
-**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, and every job against its cap.
+**Usage at a glance.** Each connection's usage windows, such as 5-hour and 7-day, as its account reports them, spend at API prices against your caps, and every job against its cap.
 
 </td>
 <td width="50%" valign="top">

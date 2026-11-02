@@ -14,13 +14,21 @@ internal static class UsageRollup
             sessions.SelectMany(session => session.Costs).Summed(),
             sessions.Sum(session => session.UnpricedReports),
             sessions.Aggregate(default(TurnTally), (sum, session) => sum + session.Turns),
+            Reported(
             [
                 .. sessions
                     .SelectMany(session => session.Limits.Values)
                     .GroupBy(reading => reading.Limit.Window, StringComparer.Ordinal)
                     .OrderBy(window => window.Key, StringComparer.Ordinal)
-                    .Select(window => window.MaxBy(reading => reading.At).Limit),
-            ]);
+                    .Select(window => window.MaxBy(reading => reading.At)),
+            ]));
+    }
+
+    private static IReadOnlyList<UsageLimit> Reported(IReadOnlyList<LimitReading> latest)
+    {
+        var lastRead = latest.Count == 0 ? DateTimeOffset.MinValue : latest.Max(reading => reading.At);
+
+        return [.. latest.Where(reading => reading.Limit.ResetsAt.Match(resets => resets >= lastRead, () => true)).Select(reading => reading.Limit)];
     }
 
     extension(IEnumerable<SessionUsage> sessions)
