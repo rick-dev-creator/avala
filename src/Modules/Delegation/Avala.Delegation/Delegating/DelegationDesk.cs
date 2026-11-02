@@ -173,7 +173,7 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             return;
         }
 
-        Settle(child, new Settlement(status.Match(found => found, () => default), Option<HoldReason>.None) { Held = held }, cancellationToken);
+        Settle(child, new Settlement(status.Match(found => found, () => default), reason) { Held = held }, cancellationToken);
     }
 
     private void Hydrate()

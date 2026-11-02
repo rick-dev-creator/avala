@@ -117,6 +117,21 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AChildFoundHeldAtStartupIsReportedWithTheReasonItWasHeldAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+        desk.Jobs.Attempted(child, AttemptOutcome.Interrupted);
+        desk.Jobs.HeldFor(child, HoldReason.BudgetExceeded);
+
+        await desk.StartupCompletedAsync();
+
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+        Assert.Equal((ChildOutcome.Held, Option<HoldReason>.Some(HoldReason.BudgetExceeded)), (report.Outcome, report.Hold));
+    }
+
+    [Fact]
     public async Task AChildRetriedAtStartupIsNotReportedOutOfRetriesWhenItsHoldIsAnnouncedAfterwardsAsync()
     {
         await using var desk = new Desk { Jobs = { Steerable = true } };

@@ -155,6 +155,25 @@ public sealed class UsageTrackingTests
     }
 
     [Fact]
+    public async Task AWindowNoLongerReportedAfterItsResetIsDroppedOnceAnotherWindowIsReadAsync()
+    {
+        using var tracked = new Tracked();
+        var job = JobId.New();
+        var session = await tracked.OpenAsync(Claude, job);
+        var reset = tracked.Clock.GetUtcNow().AddHours(1);
+
+        await tracked.SeeAsync(
+            new LimitReported(session, TurnId.New(), new UsageLimit("5h", 0.9, reset)),
+            new LimitReported(session, TurnId.New(), new UsageLimit("7d", 0.3, reset.AddDays(3))));
+        var beforeReset = Outcomes.Present(tracked.Book.OfJob(job)).Limits.Select(limit => limit.Window);
+        tracked.Clock.Advance(TimeSpan.FromHours(2));
+        await tracked.SeeAsync(new LimitReported(session, TurnId.New(), new UsageLimit("7d", 0.4, reset.AddDays(3))));
+
+        Assert.Equal(["5h", "7d"], beforeReset);
+        Assert.Equal(["7d"], Outcomes.Present(tracked.Book.OfJob(job)).Limits.Select(limit => limit.Window));
+    }
+
+    [Fact]
     public async Task ASessionWhoseProviderWasNeverAnnouncedIsTrackedOutsideEveryProviderAndConnectionAsync()
     {
         using var tracked = new Tracked();
